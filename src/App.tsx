@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { DataProvider } from "@/contexts/DataContext";
 import AppLayout from "@/components/AppLayout";
 import DashboardPage from "./pages/DashboardPage";
 import CalendarPage from "./pages/CalendarPage";
@@ -17,19 +18,21 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<AppLayout><DashboardPage /></AppLayout>} />
-          <Route path="/calendar" element={<AppLayout><CalendarPage /></AppLayout>} />
-          <Route path="/tasks" element={<AppLayout><TasksPage /></AppLayout>} />
-          <Route path="/content" element={<AppLayout><ContentPage /></AppLayout>} />
-          <Route path="/teams" element={<AppLayout><TeamsPage /></AppLayout>} />
-          <Route path="/projects" element={<AppLayout><ProjectsPage /></AppLayout>} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
+      <DataProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<AppLayout><DashboardPage /></AppLayout>} />
+            <Route path="/calendar" element={<AppLayout><CalendarPage /></AppLayout>} />
+            <Route path="/tasks" element={<AppLayout><TasksPage /></AppLayout>} />
+            <Route path="/content" element={<AppLayout><ContentPage /></AppLayout>} />
+            <Route path="/teams" element={<AppLayout><TeamsPage /></AppLayout>} />
+            <Route path="/projects" element={<AppLayout><ProjectsPage /></AppLayout>} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </DataProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
