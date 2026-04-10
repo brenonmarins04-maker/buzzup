@@ -1,4 +1,4 @@
-import { dashboardStats, teams, tasks, posts } from "@/lib/mock-data";
+import { useData } from "@/contexts/DataContext";
 import {
   CheckCircle2,
   Clock,
@@ -20,37 +20,6 @@ import {
   Cell,
 } from "recharts";
 
-const statCards = [
-  {
-    label: "Tarefas Concluídas",
-    value: `${dashboardStats.completedTasks}/${dashboardStats.totalTasks}`,
-    percent: Math.round((dashboardStats.completedTasks / dashboardStats.totalTasks) * 100),
-    icon: CheckCircle2,
-    color: "text-status-done",
-  },
-  {
-    label: "Posts Planejados",
-    value: dashboardStats.totalPosts.toString(),
-    percent: null,
-    icon: FileText,
-    color: "text-channel-instagram",
-  },
-  {
-    label: "Posts no Prazo",
-    value: dashboardStats.onTimePosts.toString(),
-    percent: Math.round((dashboardStats.onTimePosts / dashboardStats.totalPosts) * 100),
-    icon: Clock,
-    color: "text-status-in-progress",
-  },
-  {
-    label: "Próximos Prazos",
-    value: dashboardStats.upcomingDeadlines.length.toString(),
-    percent: null,
-    icon: AlertTriangle,
-    color: "text-priority-high",
-  },
-];
-
 const PIE_COLORS = [
   "hsl(330, 70%, 55%)",
   "hsl(210, 80%, 52%)",
@@ -59,41 +28,62 @@ const PIE_COLORS = [
 ];
 
 export default function DashboardPage() {
+  const { teams, tasks, posts } = useData();
+
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter(t => t.status === "done").length;
+  const totalPosts = posts.length;
+  const publishedPosts = posts.filter(p => p.status === "published").length;
+  const onTimePosts = posts.filter(p => p.status === "done" || p.status === "published").length;
+
+  const upcomingDeadlines = tasks
+    .filter(t => t.status !== "done")
+    .sort((a, b) => a.deadline.localeCompare(b.deadline))
+    .slice(0, 5);
+
+  const postsByChannel = [
+    { channel: "Instagram", count: posts.filter(p => p.channel === "instagram").length },
+    { channel: "LinkedIn", count: posts.filter(p => p.channel === "linkedin").length },
+    { channel: "TikTok", count: posts.filter(p => p.channel === "tiktok").length },
+    { channel: "Blog", count: posts.filter(p => p.channel === "blog").length },
+  ];
+
+  const productivityByTeam = teams.map(team => ({
+    team: team.name,
+    completed: tasks.filter(t => t.teamId === team.id && t.status === "done").length,
+    total: tasks.filter(t => t.teamId === team.id).length,
+  }));
+
+  const statCards = [
+    { label: "Tarefas Concluídas", value: `${completedTasks}/${totalTasks}`, percent: totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0, icon: CheckCircle2, color: "text-status-done" },
+    { label: "Posts Planejados", value: totalPosts.toString(), percent: null, icon: FileText, color: "text-channel-instagram" },
+    { label: "Posts no Prazo", value: onTimePosts.toString(), percent: totalPosts > 0 ? Math.round((onTimePosts / totalPosts) * 100) : 0, icon: Clock, color: "text-status-in-progress" },
+    { label: "Próximos Prazos", value: upcomingDeadlines.length.toString(), percent: null, icon: AlertTriangle, color: "text-priority-high" },
+  ];
+
   return (
     <div className="animate-fade-in space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-foreground tracking-tight">Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-1">Resumo do mês de Abril 2026</p>
+        <p className="text-sm text-muted-foreground mt-1">Resumo geral</p>
       </div>
 
-      {/* Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat) => (
-          <div
-            key={stat.label}
-            className="bg-card border border-border rounded-lg p-5 flex flex-col gap-3"
-          >
+          <div key={stat.label} className="bg-card border border-border rounded-lg p-5 flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                {stat.label}
-              </span>
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{stat.label}</span>
               <stat.icon className={`h-4 w-4 ${stat.color}`} />
             </div>
             <div className="flex items-end gap-2">
               <span className="text-3xl font-bold text-foreground">{stat.value}</span>
-              {stat.percent !== null && (
-                <span className="text-sm font-medium text-muted-foreground mb-1">
-                  ({stat.percent}%)
-                </span>
-              )}
+              {stat.percent !== null && <span className="text-sm font-medium text-muted-foreground mb-1">({stat.percent}%)</span>}
             </div>
           </div>
         ))}
       </div>
 
-      {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Productivity by Team */}
         <div className="bg-card border border-border rounded-lg p-5">
           <div className="flex items-center gap-2 mb-4">
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
@@ -101,17 +91,11 @@ export default function DashboardPage() {
           </div>
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dashboardStats.productivityByTeam}>
+              <BarChart data={productivityByTeam}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(40, 6%, 90%)" />
                 <XAxis dataKey="team" tick={{ fontSize: 11 }} stroke="hsl(40, 3%, 55%)" />
                 <YAxis tick={{ fontSize: 11 }} stroke="hsl(40, 3%, 55%)" />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: "8px",
-                    border: "1px solid hsl(40, 6%, 90%)",
-                    fontSize: "12px",
-                  }}
-                />
+                <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid hsl(40, 6%, 90%)", fontSize: "12px" }} />
                 <Bar dataKey="total" fill="hsl(40, 6%, 90%)" radius={[4, 4, 0, 0]} name="Total" />
                 <Bar dataKey="completed" fill="hsl(40, 6%, 10%)" radius={[4, 4, 0, 0]} name="Concluídas" />
               </BarChart>
@@ -119,7 +103,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Posts by Channel */}
         <div className="bg-card border border-border rounded-lg p-5">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
@@ -128,29 +111,16 @@ export default function DashboardPage() {
           <div className="h-48 flex items-center">
             <ResponsiveContainer width="50%" height="100%">
               <PieChart>
-                <Pie
-                  data={dashboardStats.postsByChannel}
-                  dataKey="count"
-                  nameKey="channel"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={70}
-                  innerRadius={40}
-                >
-                  {dashboardStats.postsByChannel.map((_, index) => (
-                    <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                  ))}
+                <Pie data={postsByChannel} dataKey="count" nameKey="channel" cx="50%" cy="50%" outerRadius={70} innerRadius={40}>
+                  {postsByChannel.map((_, index) => <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
                 </Pie>
                 <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid hsl(40, 6%, 90%)", fontSize: "12px" }} />
               </PieChart>
             </ResponsiveContainer>
             <div className="flex-1 flex flex-col gap-2">
-              {dashboardStats.postsByChannel.map((item, i) => (
+              {postsByChannel.map((item, i) => (
                 <div key={item.channel} className="flex items-center gap-2 text-sm">
-                  <span
-                    className="h-2.5 w-2.5 rounded-full shrink-0"
-                    style={{ backgroundColor: PIE_COLORS[i] }}
-                  />
+                  <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[i] }} />
                   <span className="text-muted-foreground">{item.channel}</span>
                   <span className="ml-auto font-semibold text-foreground">{item.count}</span>
                 </div>
@@ -160,40 +130,29 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Upcoming Deadlines + Teams */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Deadlines */}
         <div className="bg-card border border-border rounded-lg p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4">⚠️ Próximos Prazos</h2>
           <div className="flex flex-col gap-3">
-            {dashboardStats.upcomingDeadlines.map((d, i) => (
-              <div key={i} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+            {upcomingDeadlines.map((d) => (
+              <div key={d.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                 <div className="flex items-center gap-3">
-                  <span
-                    className={`h-2 w-2 rounded-full shrink-0 ${
-                      d.priority === "high"
-                        ? "bg-priority-high"
-                        : d.priority === "medium"
-                        ? "bg-priority-medium"
-                        : "bg-priority-low"
-                    }`}
-                  />
+                  <span className={`h-2 w-2 rounded-full shrink-0 ${d.priority === "high" ? "bg-priority-high" : d.priority === "medium" ? "bg-priority-medium" : "bg-priority-low"}`} />
                   <span className="text-sm font-medium text-foreground">{d.title}</span>
                 </div>
-                <span className="text-xs text-muted-foreground">{d.date}</span>
+                <span className="text-xs text-muted-foreground">{d.deadline}</span>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Teams Overview */}
         <div className="bg-card border border-border rounded-lg p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4">👥 Equipes</h2>
           <div className="flex flex-col gap-3">
             {teams.map((team) => (
               <div key={team.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
                 <div className="flex items-center gap-3">
-                  <span className={`h-2.5 w-2.5 rounded-full shrink-0 bg-${team.color}`} />
+                  <span className={`h-2.5 w-2.5 rounded-full shrink-0 bg-team-${team.color.replace("team-", "")}`} />
                   <div>
                     <span className="text-sm font-medium text-foreground">{team.name}</span>
                     <span className="text-xs text-muted-foreground ml-2">Líder: {team.leader}</span>
