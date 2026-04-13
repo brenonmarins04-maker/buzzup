@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useData } from "@/contexts/DataContext";
 import type { Task } from "@/contexts/DataContext";
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import TaskModal from "@/components/modals/TaskModal";
+import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
+import { toast } from "sonner";
 
 const statusColumns = [
   { id: "not-started", label: "Não Começado", dotClass: "bg-status-not-started" },
@@ -21,11 +23,12 @@ function getDeadlineBorderClass(deadline: string, status: string) {
 }
 
 export default function TasksPage() {
-  const { tasks, teams, updateTask } = useData();
+  const { tasks, teams, updateTask, deleteTask } = useData();
   const [filterTeam, setFilterTeam] = useState("all");
   const [modal, setModal] = useState<{ open: boolean; task?: Task | null }>({ open: false });
   const [dragTask, setDragTask] = useState<string | null>(null);
   const [tab, setTab] = useState<"active" | "done">("active");
+  const [deleting, setDeleting] = useState<{ open: boolean; id: string; title: string }>({ open: false, id: "", title: "" });
 
   const filteredTasks = tasks.filter((t) => {
     if (filterTeam !== "all" && t.team !== filterTeam) return false;
@@ -84,8 +87,12 @@ export default function TasksPage() {
                     return (
                       <div key={task.id} draggable onDragStart={() => setDragTask(task.id)} onDragEnd={() => setDragTask(null)}
                         onClick={() => setModal({ open: true, task })}
-                        className={`bg-card border border-border border-l-4 ${getDeadlineBorderClass(task.deadline, task.status)} rounded-lg p-4 shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing ${dragTask === task.id ? "opacity-50" : ""}`}>
-                        <div className="flex items-start justify-between mb-2">
+                        className={`bg-card border border-border border-l-4 ${getDeadlineBorderClass(task.deadline, task.status)} rounded-lg p-4 shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing relative group ${dragTask === task.id ? "opacity-50" : ""}`}>
+                        <button onClick={e => { e.stopPropagation(); setDeleting({ open: true, id: task.id, title: task.title }); }}
+                          className="absolute top-2 right-2 h-5 w-5 rounded-full bg-destructive/10 text-destructive flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/20">
+                          <X className="h-3 w-3" />
+                        </button>
+                        <div className="flex items-start justify-between mb-2 pr-5">
                           <span className="text-[11px] font-medium tracking-wide uppercase text-muted-foreground bg-muted px-2 py-0.5 rounded-sm">{team?.name || "Sem equipe"}</span>
                           <span className={`h-2 w-2 rounded-full shrink-0 mt-1 ${task.priority === "high" ? "bg-priority-high" : task.priority === "medium" ? "bg-priority-medium" : "bg-priority-low"}`} />
                         </div>
@@ -118,7 +125,7 @@ export default function TasksPage() {
             const team = teams.find(t => t.id === task.team);
             return (
               <div key={task.id} onClick={() => setModal({ open: true, task })}
-                className="bg-card border border-border rounded-lg p-4 flex items-center justify-between cursor-pointer hover:shadow-sm transition-all">
+                className="bg-card border border-border rounded-lg p-4 flex items-center justify-between cursor-pointer hover:shadow-sm transition-all relative group">
                 <div className="flex items-center gap-3">
                   <span className="h-2 w-2 rounded-full bg-status-done" />
                   <div>
@@ -126,10 +133,16 @@ export default function TasksPage() {
                     <p className="text-xs text-muted-foreground">{team?.name} • {task.deadline}</p>
                   </div>
                 </div>
-                <div className="flex -space-x-1.5">
-                  {task.responsible.slice(0, 2).map((a, i) => (
-                    <div key={i} className="h-5 w-5 rounded-full bg-accent border border-card flex items-center justify-center text-[9px] font-semibold text-foreground">{a.split(" ").map(n => n[0]).join("")}</div>
-                  ))}
+                <div className="flex items-center gap-2">
+                  <div className="flex -space-x-1.5">
+                    {task.responsible.slice(0, 2).map((a, i) => (
+                      <div key={i} className="h-5 w-5 rounded-full bg-accent border border-card flex items-center justify-center text-[9px] font-semibold text-foreground">{a.split(" ").map(n => n[0]).join("")}</div>
+                    ))}
+                  </div>
+                  <button onClick={e => { e.stopPropagation(); setDeleting({ open: true, id: task.id, title: task.title }); }}
+                    className="h-5 w-5 rounded-full bg-destructive/10 text-destructive flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/20">
+                    <X className="h-3 w-3" />
+                  </button>
                 </div>
               </div>
             );
@@ -139,6 +152,8 @@ export default function TasksPage() {
       )}
 
       <TaskModal open={modal.open} onOpenChange={o => setModal({ open: o })} task={modal.task} />
+      <DeleteConfirmDialog open={deleting.open} onOpenChange={o => setDeleting(p => ({ ...p, open: o }))}
+        title={deleting.title} onConfirm={() => { deleteTask(deleting.id); toast.success("Tarefa excluída"); }} />
     </div>
   );
 }

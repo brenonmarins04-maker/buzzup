@@ -3,6 +3,7 @@ import { useData } from "@/contexts/DataContext";
 import type { Post } from "@/contexts/DataContext";
 import { Plus, ExternalLink, Settings, X } from "lucide-react";
 import PostModal from "@/components/modals/PostModal";
+import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -16,7 +17,7 @@ const statusLabels: Record<string, { label: string; class: string }> = {
 };
 
 export default function ContentPage() {
-  const { posts, channels, categories, addCategory, removeCategory, addChannel, removeChannel } = useData();
+  const { posts, channels, categories, addCategory, removeCategory, addChannel, removeChannel, deletePost } = useData();
   const [filterChannel, setFilterChannel] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
   const [modal, setModal] = useState<{ open: boolean; post?: Post | null }>({ open: false });
@@ -24,6 +25,7 @@ export default function ContentPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newCategory, setNewCategory] = useState("");
   const [newChannel, setNewChannel] = useState("");
+  const [deleting, setDeleting] = useState<{ open: boolean; id: string; title: string }>({ open: false, id: "", title: "" });
 
   const filtered = posts.filter((p) => {
     if (filterChannel !== "all" && p.channel !== filterChannel) return false;
@@ -72,8 +74,12 @@ export default function ContentPage() {
           const ch = channels.find(c => c.id === post.channel);
           const st = statusLabels[post.status];
           return (
-            <div key={post.id} onClick={() => setModal({ open: true, post })} className="bg-card border border-border rounded-lg p-5 hover:shadow-md transition-all cursor-pointer group flex flex-col gap-3">
-              <div className="flex items-start justify-between">
+            <div key={post.id} onClick={() => setModal({ open: true, post })} className="bg-card border border-border rounded-lg p-5 hover:shadow-md transition-all cursor-pointer group flex flex-col gap-3 relative">
+              <button onClick={e => { e.stopPropagation(); setDeleting({ open: true, id: post.id, title: post.title }); }}
+                className="absolute top-2 right-2 h-6 w-6 rounded-full bg-destructive/10 text-destructive flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/20">
+                <X className="h-3.5 w-3.5" />
+              </button>
+              <div className="flex items-start justify-between pr-6">
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{ch?.name || post.channel}</span>
                 <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${st?.class}`}>{st?.label}</span>
               </div>
@@ -102,6 +108,8 @@ export default function ContentPage() {
       </div>
 
       <PostModal open={modal.open} onOpenChange={o => setModal({ open: o })} post={modal.post} />
+      <DeleteConfirmDialog open={deleting.open} onOpenChange={o => setDeleting(p => ({ ...p, open: o }))}
+        title={deleting.title} onConfirm={() => { deletePost(deleting.id); toast.success("Publicação excluída"); }} />
 
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
