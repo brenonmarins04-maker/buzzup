@@ -1,5 +1,5 @@
 import { useState, useMemo, type DragEvent } from "react";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { useData } from "@/contexts/DataContext";
 import type { Task, Post, CalendarEvent, GeneralItem } from "@/contexts/DataContext";
 import {
@@ -13,7 +13,9 @@ import PostModal from "@/components/modals/PostModal";
 import EventModal from "@/components/modals/EventModal";
 import GeneralItemModal from "@/components/modals/GeneralItemModal";
 import QuickCreateMenu from "@/components/modals/QuickCreateMenu";
+import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { toast } from "sonner";
 
 export type CalendarItem = {
   id: string; title: string; type: "task" | "post" | "event" | "general";
@@ -23,7 +25,7 @@ export type CalendarItem = {
 type ViewMode = "month" | "week" | "day";
 
 export default function CalendarPage() {
-  const { teams, tasks, posts, events, generalItems, updateTask, updatePost, updateEvent, updateGeneralItem } = useData();
+  const { teams, tasks, posts, events, generalItems, updateTask, updatePost, updateEvent, updateGeneralItem, deleteTask, deletePost, deleteEvent, deleteGeneralItem } = useData();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [filterTeam, setFilterTeam] = useState("all");
@@ -33,9 +35,18 @@ export default function CalendarPage() {
   const [postModal, setPostModal] = useState<{ open: boolean; post?: Post | null; date?: string }>({ open: false });
   const [eventModal, setEventModal] = useState<{ open: boolean; event?: CalendarEvent | null; date?: string }>({ open: false });
   const [generalModal, setGeneralModal] = useState<{ open: boolean; item?: GeneralItem | null; date?: string }>({ open: false });
+  const [deleting, setDeleting] = useState<{ open: boolean; id: string; title: string; type: string }>({ open: false, id: "", title: "", type: "" });
 
   const [dragItem, setDragItem] = useState<CalendarItem | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+
+  const handleDelete = () => {
+    if (deleting.type === "task") deleteTask(deleting.id);
+    else if (deleting.type === "post") deletePost(deleting.id);
+    else if (deleting.type === "event") deleteEvent(deleting.id);
+    else if (deleting.type === "general") deleteGeneralItem(deleting.id);
+    toast.success("Item excluído");
+  };
 
   const allItems = useMemo<CalendarItem[]>(() => {
     const items: CalendarItem[] = [];
@@ -125,10 +136,16 @@ export default function CalendarPage() {
   const renderItemPill = (item: CalendarItem) => (
     <Tooltip key={item.id}>
       <TooltipTrigger asChild>
-        <div draggable onDragStart={(e) => handleDragStart(e, item)} onDragEnd={handleDragEnd}
-          onClick={(e) => { e.stopPropagation(); handleItemClick(item); }}
-          className={`text-[10px] leading-tight px-1.5 py-0.5 rounded-sm truncate cursor-grab active:cursor-grabbing ${item.color} text-card font-medium hover:opacity-80 transition-opacity`}>
-          {item.title}
+        <div className="relative group/pill">
+          <div draggable onDragStart={(e) => handleDragStart(e, item)} onDragEnd={handleDragEnd}
+            onClick={(e) => { e.stopPropagation(); handleItemClick(item); }}
+            className={`text-[10px] leading-tight px-1.5 py-0.5 rounded-sm truncate cursor-grab active:cursor-grabbing ${item.color} text-card font-medium hover:opacity-80 transition-opacity pr-4`}>
+            {item.title}
+          </div>
+          <button onClick={(e) => { e.stopPropagation(); setDeleting({ open: true, id: item.id, title: item.title, type: item.type }); }}
+            className="absolute top-0 right-0 h-full px-0.5 flex items-center opacity-0 group-hover/pill:opacity-100 transition-opacity">
+            <X className="h-2.5 w-2.5 text-card hover:text-destructive" />
+          </button>
         </div>
       </TooltipTrigger>
       <TooltipContent side="right" className="text-xs max-w-[200px]">
@@ -285,6 +302,8 @@ export default function CalendarPage() {
       <PostModal open={postModal.open} onOpenChange={o => setPostModal({ open: o })} post={postModal.post} defaultDate={postModal.date} />
       <EventModal open={eventModal.open} onOpenChange={o => setEventModal({ open: o })} event={eventModal.event} defaultDate={eventModal.date} />
       <GeneralItemModal open={generalModal.open} onOpenChange={o => setGeneralModal({ open: o })} item={generalModal.item} defaultDate={generalModal.date} />
+      <DeleteConfirmDialog open={deleting.open} onOpenChange={o => setDeleting(p => ({ ...p, open: o }))}
+        title={deleting.title} onConfirm={handleDelete} />
     </div>
   );
 }
