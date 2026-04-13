@@ -14,7 +14,7 @@ type DbChannel = Database["public"]["Tables"]["channels"]["Row"];
 
 // App-level types (without user_id, with proper typing)
 export type Team = { id: string; name: string; color: string; members: string[] };
-export type Project = { id: string; name: string; description: string; team: string; color: string; status: string };
+export type Project = { id: string; name: string; description: string; team: string; color: string; status: string; members: string[] };
 export type Task = {
   id: string; title: string; description: string; team: string;
   responsible: string[]; deadline: string; status: string; priority: string;
