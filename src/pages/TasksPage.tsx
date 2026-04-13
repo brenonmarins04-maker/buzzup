@@ -7,34 +7,42 @@ import TaskModal from "@/components/modals/TaskModal";
 const statusColumns = [
   { id: "not-started" as const, label: "Não Começado", dotClass: "bg-status-not-started" },
   { id: "in-progress" as const, label: "Em Andamento", dotClass: "bg-status-in-progress" },
-  { id: "done" as const, label: "Pronto", dotClass: "bg-status-done" },
 ];
 
+function getDeadlineBorderClass(deadline: string, status: string) {
+  if (status === "done") return "border-l-status-done";
+  const today = new Date();
+  const d = new Date(deadline);
+  const diff = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  if (diff < 0) return "border-l-destructive";
+  if (diff <= 2) return "border-l-priority-high";
+  if (diff <= 5) return "border-l-priority-medium";
+  return "border-l-priority-low";
+}
+
 export default function TasksPage() {
-  const { tasks, teams, projects, updateTask } = useData();
+  const { tasks, teams, updateTask } = useData();
   const [filterTeam, setFilterTeam] = useState("all");
-  const [filterProject, setFilterProject] = useState("all");
   const [modal, setModal] = useState<{ open: boolean; task?: Task | null }>({ open: false });
   const [dragTask, setDragTask] = useState<string | null>(null);
+  const [tab, setTab] = useState<"active" | "done">("active");
 
   const filteredTasks = tasks.filter((t) => {
     if (filterTeam !== "all" && t.teamId !== filterTeam) return false;
-    if (filterProject !== "all" && t.projectId !== filterProject) return false;
-    return true;
+    if (tab === "active") return t.status !== "done";
+    return t.status === "done";
   });
 
   const handleDrop = (status: Task["status"]) => {
     if (!dragTask) return;
     const task = tasks.find(t => t.id === dragTask);
-    if (task && task.status !== status) {
-      updateTask({ ...task, status });
-    }
+    if (task && task.status !== status) updateTask({ ...task, status });
     setDragTask(null);
   };
 
   return (
     <div className="animate-fade-in space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h1 className="text-2xl font-semibold text-foreground tracking-tight">Tarefas</h1>
           <p className="text-sm text-muted-foreground mt-1">{filteredTasks.length} tarefas</p>
@@ -44,75 +52,92 @@ export default function TasksPage() {
         </button>
       </div>
 
-      <div className="flex items-center gap-3">
-        <select value={filterTeam} onChange={(e) => setFilterTeam(e.target.value)} className="h-8 rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring">
+      {/* Tabs */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex bg-muted rounded-md p-0.5">
+          <button onClick={() => setTab("active")} className={`px-3 py-1 rounded text-xs font-medium transition-colors ${tab === "active" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>Ativas</button>
+          <button onClick={() => setTab("done")} className={`px-3 py-1 rounded text-xs font-medium transition-colors ${tab === "done" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>Concluídas</button>
+        </div>
+        <select value={filterTeam} onChange={(e) => setFilterTeam(e.target.value)} className="h-8 rounded-md border border-input bg-background px-2 text-xs">
           <option value="all">Todas equipes</option>
           {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
-        <select value={filterProject} onChange={(e) => setFilterProject(e.target.value)} className="h-8 rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-1 focus:ring-ring">
-          <option value="all">Todos projetos</option>
-          {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {statusColumns.map((col) => {
-          const colTasks = filteredTasks.filter((t) => t.status === col.id);
-          return (
-            <div
-              key={col.id}
-              className="flex flex-col gap-3"
-              onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
-              onDrop={() => handleDrop(col.id)}
-            >
-              <div className="flex items-center justify-between px-1">
-                <div className="flex items-center gap-2">
-                  <span className={`h-2 w-2 rounded-full ${col.dotClass}`} />
-                  <h2 className="text-sm font-medium text-foreground">{col.label}</h2>
+      {tab === "active" ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {statusColumns.map((col) => {
+            const colTasks = filteredTasks.filter((t) => t.status === col.id);
+            return (
+              <div key={col.id} className="flex flex-col gap-3"
+                onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; }}
+                onDrop={() => handleDrop(col.id)}>
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`h-2 w-2 rounded-full ${col.dotClass}`} />
+                    <h2 className="text-sm font-medium text-foreground">{col.label}</h2>
+                  </div>
+                  <span className="text-xs font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{colTasks.length}</span>
                 </div>
-                <span className="text-xs font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">{colTasks.length}</span>
-              </div>
-
-              <div className="flex flex-col gap-2 min-h-[200px]">
-                {colTasks.map((task) => {
-                  const team = teams.find(t => t.id === task.teamId);
-                  const project = projects.find(p => p.id === task.projectId);
-                  return (
-                    <div
-                      key={task.id}
-                      draggable
-                      onDragStart={() => setDragTask(task.id)}
-                      onDragEnd={() => setDragTask(null)}
-                      onClick={() => setModal({ open: true, task })}
-                      className={`bg-card border border-border rounded-lg p-4 shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing group ${dragTask === task.id ? "opacity-50" : ""}`}
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <span className="text-[11px] font-medium tracking-wide uppercase text-muted-foreground bg-muted px-2 py-0.5 rounded-sm">{project?.name || "Sem projeto"}</span>
-                        <span className={`h-2 w-2 rounded-full shrink-0 mt-1 ${task.priority === "high" ? "bg-priority-high" : task.priority === "medium" ? "bg-priority-medium" : "bg-priority-low"}`} />
-                      </div>
-                      <p className="text-sm font-medium text-foreground leading-snug mb-3">{task.title}</p>
-                      <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{task.description}</p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">{task.deadline}</span>
-                        <div className="flex -space-x-1.5">
-                          {task.assignees.slice(0, 2).map((a, i) => (
-                            <div key={i} className="h-5 w-5 rounded-full bg-accent border border-card flex items-center justify-center text-[9px] font-semibold text-foreground" title={a}>
-                              {a.split(" ").map(n => n[0]).join("")}
-                            </div>
-                          ))}
+                <div className="flex flex-col gap-2 min-h-[200px]">
+                  {colTasks.map((task) => {
+                    const team = teams.find(t => t.id === task.teamId);
+                    return (
+                      <div key={task.id} draggable onDragStart={() => setDragTask(task.id)} onDragEnd={() => setDragTask(null)}
+                        onClick={() => setModal({ open: true, task })}
+                        className={`bg-card border border-border border-l-4 ${getDeadlineBorderClass(task.deadline, task.status)} rounded-lg p-4 shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing ${dragTask === task.id ? "opacity-50" : ""}`}>
+                        <div className="flex items-start justify-between mb-2">
+                          <span className="text-[11px] font-medium tracking-wide uppercase text-muted-foreground bg-muted px-2 py-0.5 rounded-sm">{team?.name || "Sem equipe"}</span>
+                          <span className={`h-2 w-2 rounded-full shrink-0 mt-1 ${task.priority === "high" ? "bg-priority-high" : task.priority === "medium" ? "bg-priority-medium" : "bg-priority-low"}`} />
+                        </div>
+                        <p className="text-sm font-medium text-foreground leading-snug mb-2">{task.title}</p>
+                        {task.description && <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{task.description}</p>}
+                        <div className="flex items-center justify-between">
+                          <span className={`text-xs font-medium ${getDeadlineBorderClass(task.deadline, task.status).replace("border-l-", "text-")}`}>{task.deadline}</span>
+                          <div className="flex -space-x-1.5">
+                            {task.assignees.slice(0, 2).map((a, i) => (
+                              <div key={i} className="h-5 w-5 rounded-full bg-accent border border-card flex items-center justify-center text-[9px] font-semibold text-foreground" title={a}>
+                                {a.split(" ").map(n => n[0]).join("")}
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-                {colTasks.length === 0 && (
-                  <div className="border-2 border-dashed border-border rounded-lg flex items-center justify-center py-8 text-sm text-muted-foreground">Sem tarefas</div>
-                )}
+                    );
+                  })}
+                  {colTasks.length === 0 && (
+                    <div className="border-2 border-dashed border-border rounded-lg flex items-center justify-center py-8 text-sm text-muted-foreground">Sem tarefas</div>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {filteredTasks.map((task) => {
+            const team = teams.find(t => t.id === task.teamId);
+            return (
+              <div key={task.id} onClick={() => setModal({ open: true, task })}
+                className="bg-card border border-border rounded-lg p-4 flex items-center justify-between cursor-pointer hover:shadow-sm transition-all">
+                <div className="flex items-center gap-3">
+                  <span className="h-2 w-2 rounded-full bg-status-done" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{task.title}</p>
+                    <p className="text-xs text-muted-foreground">{team?.name} • {task.deadline}</p>
+                  </div>
+                </div>
+                <div className="flex -space-x-1.5">
+                  {task.assignees.slice(0, 2).map((a, i) => (
+                    <div key={i} className="h-5 w-5 rounded-full bg-accent border border-card flex items-center justify-center text-[9px] font-semibold text-foreground">{a.split(" ").map(n => n[0]).join("")}</div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+          {filteredTasks.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">Nenhuma tarefa concluída</p>}
+        </div>
+      )}
 
       <TaskModal open={modal.open} onOpenChange={o => setModal({ open: o })} task={modal.task} />
     </div>
