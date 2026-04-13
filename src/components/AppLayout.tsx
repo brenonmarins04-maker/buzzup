@@ -1,19 +1,12 @@
 import { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import {
-  LayoutDashboard,
-  CalendarDays,
-  CheckSquare,
-  Megaphone,
-  FolderKanban,
-  Bell,
-  Search,
-  ChevronLeft,
-  Plus,
-  Users,
+  LayoutDashboard, CalendarDays, CheckSquare, Megaphone,
+  FolderKanban, Bell, Search, ChevronLeft, Plus, Users, LogOut,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useData } from "@/contexts/DataContext";
+import { useAuth } from "@/contexts/AuthContext";
 import QuickCreateMenu from "@/components/modals/QuickCreateMenu";
 import TaskModal from "@/components/modals/TaskModal";
 import PostModal from "@/components/modals/PostModal";
@@ -32,18 +25,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const isMobile = useIsMobile();
   const { notifications } = useData();
+  const { displayName, signOut } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
   const unreadCount = notifications.filter(n => !n.read).length;
 
-  // FAB modals
   const [taskModal, setTaskModal] = useState(false);
   const [postModal, setPostModal] = useState(false);
   const [generalModal, setGeneralModal] = useState(false);
 
+  const initials = displayName
+    ? displayName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
+    : "U";
+
   if (isMobile) {
     return (
       <div className="flex flex-col min-h-screen bg-background">
-        {/* Mobile top bar */}
         <header className="h-12 px-4 flex items-center justify-between border-b border-border bg-card shrink-0 sticky top-0 z-30">
           <span className="font-bold text-foreground tracking-tight text-base">MktFlow</span>
           <div className="flex items-center gap-2">
@@ -51,45 +47,27 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <Bell className="h-4 w-4" />
               {unreadCount > 0 && <span className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">{unreadCount > 9 ? "9+" : unreadCount}</span>}
             </button>
+            <button onClick={() => signOut()} className="p-2 rounded-md hover:bg-accent text-muted-foreground">
+              <LogOut className="h-4 w-4" />
+            </button>
           </div>
         </header>
-
         {showNotifications && <NotificationPanel onClose={() => setShowNotifications(false)} />}
-
-        {/* Content */}
-        <main className="flex-1 overflow-auto p-4 pb-24 scrollbar-thin">
-          {children}
-        </main>
-
-        {/* FAB */}
-        <QuickCreateMenu
-          onCreateTask={() => setTaskModal(true)}
-          onCreatePost={() => setPostModal(true)}
-          onCreateItem={() => setGeneralModal(true)}
-        >
+        <main className="flex-1 overflow-auto p-4 pb-24 scrollbar-thin">{children}</main>
+        <QuickCreateMenu onCreateTask={() => setTaskModal(true)} onCreatePost={() => setPostModal(true)} onCreateItem={() => setGeneralModal(true)}>
           <button className="fixed bottom-20 right-4 z-40 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all">
             <Plus className="h-6 w-6" />
           </button>
         </QuickCreateMenu>
-
-        {/* Bottom nav */}
         <nav className="fixed bottom-0 left-0 right-0 z-30 bg-card border-t border-border flex items-center justify-around h-16 px-1">
           {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-md text-[10px] font-medium transition-colors min-w-0 ${
-                  isActive ? "text-foreground" : "text-muted-foreground"
-                }`
-              }
-            >
+            <NavLink key={item.to} to={item.to}
+              className={({ isActive }) => `flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-md text-[10px] font-medium transition-colors min-w-0 ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
               <item.icon className="h-5 w-5 shrink-0" />
               <span className="truncate">{item.label}</span>
             </NavLink>
           ))}
         </nav>
-
         <TaskModal open={taskModal} onOpenChange={setTaskModal} />
         <PostModal open={postModal} onOpenChange={setPostModal} />
         <GeneralItemModal open={generalModal} onOpenChange={setGeneralModal} />
@@ -99,7 +77,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Sidebar */}
       <aside className={`${collapsed ? "w-16" : "w-60"} shrink-0 border-r border-border bg-card flex flex-col transition-all duration-200`}>
         <div className="h-14 px-4 flex items-center justify-between border-b border-border">
           {!collapsed && <span className="font-bold text-foreground tracking-tight text-lg">MktFlow</span>}
@@ -107,38 +84,31 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <ChevronLeft className={`h-4 w-4 transition-transform ${collapsed ? "rotate-180" : ""}`} />
           </button>
         </div>
-
         <nav className="flex-1 py-4 px-2 flex flex-col gap-1">
           {[...navItems, { to: "/teams", icon: Users, label: "Equipes" }].map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActive ? "bg-accent text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
-                } ${collapsed ? "justify-center" : ""}`
-              }
-            >
+            <NavLink key={item.to} to={item.to}
+              className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive ? "bg-accent text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"} ${collapsed ? "justify-center" : ""}`}>
               <item.icon className="h-4 w-4 shrink-0" />
               {!collapsed && <span>{item.label}</span>}
             </NavLink>
           ))}
         </nav>
-
         <div className="p-3 border-t border-border">
-          <div className={`flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-accent/50 cursor-pointer ${collapsed ? "justify-center" : ""}`}>
-            <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-semibold shrink-0">AD</div>
+          <div className={`flex items-center gap-3 px-2 py-1.5 ${collapsed ? "justify-center" : ""}`}>
+            <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-semibold shrink-0">{initials}</div>
             {!collapsed && (
-              <div className="flex flex-col min-w-0">
-                <span className="text-sm font-medium text-foreground truncate">Admin</span>
-                <span className="text-xs text-muted-foreground truncate">Administrador</span>
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="text-sm font-medium text-foreground truncate">{displayName || "Usuário"}</span>
               </div>
+            )}
+            {!collapsed && (
+              <button onClick={() => signOut()} className="p-1 rounded hover:bg-accent text-muted-foreground" title="Sair">
+                <LogOut className="h-4 w-4" />
+              </button>
             )}
           </div>
         </div>
       </aside>
-
-      {/* Main */}
       <main className="flex-1 flex flex-col min-w-0">
         <header className="h-14 px-6 flex items-center justify-between border-b border-border bg-card/80 backdrop-blur-sm shrink-0">
           <div className="flex items-center gap-3">
@@ -154,12 +124,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         </header>
-
         {showNotifications && <NotificationPanel onClose={() => setShowNotifications(false)} />}
-
-        <div className="flex-1 overflow-auto p-6 scrollbar-thin">
-          {children}
-        </div>
+        <div className="flex-1 overflow-auto p-6 scrollbar-thin">{children}</div>
       </main>
     </div>
   );

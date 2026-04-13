@@ -1,27 +1,11 @@
 import { useState, useMemo, type DragEvent } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useData } from "@/contexts/DataContext";
-import type { Task, Post, CalendarEvent } from "@/lib/mock-data";
-import type { GeneralItem } from "@/contexts/DataContext";
+import type { Task, Post, CalendarEvent, GeneralItem } from "@/contexts/DataContext";
 import {
-  format,
-  startOfMonth,
-  endOfMonth,
-  eachDayOfInterval,
-  isSameMonth,
-  addMonths,
-  subMonths,
-  addWeeks,
-  subWeeks,
-  addDays,
-  subDays,
-  startOfWeek,
-  endOfWeek,
-  isToday,
+  format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth,
+  addMonths, subMonths, addWeeks, subWeeks, addDays, subDays,
+  startOfWeek, endOfWeek, isToday,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import TaskModal from "@/components/modals/TaskModal";
@@ -29,27 +13,18 @@ import PostModal from "@/components/modals/PostModal";
 import EventModal from "@/components/modals/EventModal";
 import GeneralItemModal from "@/components/modals/GeneralItemModal";
 import QuickCreateMenu from "@/components/modals/QuickCreateMenu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 export type CalendarItem = {
-  id: string;
-  title: string;
-  type: "task" | "post" | "event" | "general";
-  date: string;
-  time?: string;
-  color: string;
-  status?: string;
+  id: string; title: string; type: "task" | "post" | "event" | "general";
+  date: string; time?: string; color: string; status?: string;
 };
 
 type ViewMode = "month" | "week" | "day";
 
 export default function CalendarPage() {
   const { teams, tasks, posts, events, generalItems, updateTask, updatePost, updateEvent, updateGeneralItem } = useData();
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 3, 1));
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [filterTeam, setFilterTeam] = useState("all");
   const [filterType, setFilterType] = useState("all");
@@ -65,7 +40,7 @@ export default function CalendarPage() {
   const allItems = useMemo<CalendarItem[]>(() => {
     const items: CalendarItem[] = [];
     tasks.forEach((t) => {
-      if (filterTeam !== "all" && t.teamId !== filterTeam) return;
+      if (filterTeam !== "all" && t.team !== filterTeam) return;
       if (filterType !== "all" && filterType !== "task") return;
       items.push({ id: t.id, title: t.title, type: "task", date: t.deadline, color: "bg-team-presidencia", status: t.status });
     });
@@ -75,7 +50,7 @@ export default function CalendarPage() {
     });
     events.forEach((e) => {
       if (filterType !== "all" && filterType !== "event") return;
-      items.push({ id: e.id, title: e.name, type: "event", date: e.date, time: e.time, color: "bg-team-mercado" });
+      items.push({ id: e.id, title: e.title, type: "event", date: e.date, time: e.time, color: "bg-team-mercado" });
     });
     generalItems.forEach((g) => {
       if (filterType !== "all" && filterType !== "general") return;
@@ -90,38 +65,20 @@ export default function CalendarPage() {
     e.dataTransfer.setData("text/plain", item.id);
     if (e.currentTarget instanceof HTMLElement) e.currentTarget.style.opacity = "0.5";
   };
-
   const handleDragEnd = (e: DragEvent) => {
     if (e.currentTarget instanceof HTMLElement) e.currentTarget.style.opacity = "1";
-    setDragItem(null);
-    setDropTarget(null);
+    setDragItem(null); setDropTarget(null);
   };
-
-  const handleDragOver = (e: DragEvent, dayStr: string) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    setDropTarget(dayStr);
-  };
-
+  const handleDragOver = (e: DragEvent, dayStr: string) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropTarget(dayStr); };
   const handleDragLeave = () => setDropTarget(null);
 
   const handleDrop = (e: DragEvent, dayStr: string, time?: string) => {
-    e.preventDefault();
-    setDropTarget(null);
+    e.preventDefault(); setDropTarget(null);
     if (!dragItem) return;
-    if (dragItem.type === "task") {
-      const task = tasks.find(t => t.id === dragItem.id);
-      if (task) updateTask({ ...task, deadline: dayStr });
-    } else if (dragItem.type === "post") {
-      const post = posts.find(p => p.id === dragItem.id);
-      if (post) updatePost({ ...post, date: dayStr, ...(time ? { time } : {}) });
-    } else if (dragItem.type === "event") {
-      const ev = events.find(e => e.id === dragItem.id);
-      if (ev) updateEvent({ ...ev, date: dayStr, ...(time ? { time } : {}) });
-    } else if (dragItem.type === "general") {
-      const gi = generalItems.find(g => g.id === dragItem.id);
-      if (gi) updateGeneralItem({ ...gi, date: dayStr, ...(time ? { time } : {}) });
-    }
+    if (dragItem.type === "task") { const task = tasks.find(t => t.id === dragItem.id); if (task) updateTask({ ...task, deadline: dayStr }); }
+    else if (dragItem.type === "post") { const post = posts.find(p => p.id === dragItem.id); if (post) updatePost({ ...post, date: dayStr, ...(time ? { time } : {}) }); }
+    else if (dragItem.type === "event") { const ev = events.find(e => e.id === dragItem.id); if (ev) updateEvent({ ...ev, date: dayStr, ...(time ? { time } : {}) }); }
+    else if (dragItem.type === "general") { const gi = generalItems.find(g => g.id === dragItem.id); if (gi) updateGeneralItem({ ...gi, date: dayStr, ...(time ? { time } : {}) }); }
     setDragItem(null);
   };
 
@@ -137,7 +94,6 @@ export default function CalendarPage() {
     else if (viewMode === "week") setCurrentDate(subWeeks(currentDate, 1));
     else setCurrentDate(subDays(currentDate, 1));
   };
-
   const navigateNext = () => {
     if (viewMode === "month") setCurrentDate(addMonths(currentDate, 1));
     else if (viewMode === "week") setCurrentDate(addWeeks(currentDate, 1));
@@ -156,13 +112,11 @@ export default function CalendarPage() {
 
   const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
   const hours = Array.from({ length: 14 }, (_, i) => i + 7);
-
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   const calStart = startOfWeek(monthStart, { weekStartsOn: 0 });
   const calEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
   const monthDays = eachDayOfInterval({ start: calStart, end: calEnd });
-
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
   const weekDaysList = eachDayOfInterval({ start: weekStart, end: endOfWeek(currentDate, { weekStartsOn: 0 }) });
 
@@ -171,13 +125,9 @@ export default function CalendarPage() {
   const renderItemPill = (item: CalendarItem) => (
     <Tooltip key={item.id}>
       <TooltipTrigger asChild>
-        <div
-          draggable
-          onDragStart={(e) => handleDragStart(e, item)}
-          onDragEnd={handleDragEnd}
+        <div draggable onDragStart={(e) => handleDragStart(e, item)} onDragEnd={handleDragEnd}
           onClick={(e) => { e.stopPropagation(); handleItemClick(item); }}
-          className={`text-[10px] leading-tight px-1.5 py-0.5 rounded-sm truncate cursor-grab active:cursor-grabbing ${item.color} text-card font-medium hover:opacity-80 transition-opacity`}
-        >
+          className={`text-[10px] leading-tight px-1.5 py-0.5 rounded-sm truncate cursor-grab active:cursor-grabbing ${item.color} text-card font-medium hover:opacity-80 transition-opacity`}>
           {item.title}
         </div>
       </TooltipTrigger>
@@ -194,39 +144,26 @@ export default function CalendarPage() {
     const dayItems = allItems.filter((item) => item.date === dayStr);
     const today = isToday(day);
     const isDropping = dropTarget === dayStr;
-
     return (
-      <div
-        key={dayStr}
-        onDragOver={(e) => handleDragOver(e, dayStr)}
-        onDragLeave={handleDragLeave}
-        onDrop={(e) => handleDrop(e, dayStr)}
-        className={`min-h-[100px] border-b border-r border-border p-1.5 transition-colors ${!inMonth ? "bg-muted/30" : ""} ${today ? "bg-accent/50" : ""} ${isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""}`}
-      >
+      <div key={dayStr} onDragOver={(e) => handleDragOver(e, dayStr)} onDragLeave={handleDragLeave} onDrop={(e) => handleDrop(e, dayStr)}
+        className={`min-h-[100px] border-b border-r border-border p-1.5 transition-colors ${!inMonth ? "bg-muted/30" : ""} ${today ? "bg-accent/50" : ""} ${isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""}`}>
         <div className="flex items-center justify-between mb-1">
           <div className={`text-xs font-medium ${today ? "bg-primary text-primary-foreground h-5 w-5 rounded-full flex items-center justify-center" : inMonth ? "text-foreground" : "text-muted-foreground/50"}`}>
             {format(day, "d")}
           </div>
-          <QuickCreateMenu
-            onCreateTask={() => setTaskModal({ open: true, date: dayStr })}
-            onCreatePost={() => setPostModal({ open: true, date: dayStr })}
-            onCreateItem={() => setGeneralModal({ open: true, date: dayStr })}
-          >
+          <QuickCreateMenu onCreateTask={() => setTaskModal({ open: true, date: dayStr })} onCreatePost={() => setPostModal({ open: true, date: dayStr })} onCreateItem={() => setGeneralModal({ open: true, date: dayStr })}>
             <button className="h-4 w-4 rounded hover:bg-accent flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground">
               <Plus className="h-3 w-3" />
             </button>
           </QuickCreateMenu>
         </div>
-        <div className="flex flex-col gap-0.5">
-          {dayItems.map((item) => renderItemPill(item))}
-        </div>
+        <div className="flex flex-col gap-0.5">{dayItems.map((item) => renderItemPill(item))}</div>
       </div>
     );
   };
 
   return (
     <div className="animate-fade-in space-y-4">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-4">
           <h1 className="text-xl sm:text-2xl font-semibold text-foreground tracking-tight">Calendário</h1>
@@ -236,7 +173,6 @@ export default function CalendarPage() {
             <button onClick={navigateNext} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground"><ChevronRight className="h-4 w-4" /></button>
           </div>
         </div>
-
         <div className="flex items-center gap-2">
           <div className="flex bg-muted rounded-md p-0.5">
             {(["month", "week", "day"] as ViewMode[]).map(v => (
@@ -246,11 +182,7 @@ export default function CalendarPage() {
               </button>
             ))}
           </div>
-          <QuickCreateMenu
-            onCreateTask={() => setTaskModal({ open: true })}
-            onCreatePost={() => setPostModal({ open: true })}
-            onCreateItem={() => setGeneralModal({ open: true })}
-          >
+          <QuickCreateMenu onCreateTask={() => setTaskModal({ open: true })} onCreatePost={() => setPostModal({ open: true })} onCreateItem={() => setGeneralModal({ open: true })}>
             <button className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
               <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Novo Item</span>
             </button>
@@ -258,7 +190,6 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
         <select value={filterTeam} onChange={(e) => setFilterTeam(e.target.value)} className="h-8 rounded-md border border-input bg-background px-2 text-xs">
           <option value="all">Todas equipes</option>
@@ -279,25 +210,17 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Month View */}
       {viewMode === "month" && (
         <div className="bg-card border border-border rounded-lg overflow-hidden">
           <div className="grid grid-cols-7 border-b border-border">
-            {weekDays.map(d => (
-              <div key={d} className="py-2 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">{d}</div>
-            ))}
+            {weekDays.map(d => (<div key={d} className="py-2 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">{d}</div>))}
           </div>
           <div className="grid grid-cols-7">
-            {monthDays.map((day) => (
-              <div key={format(day, "yyyy-MM-dd")} className="group">
-                {renderDayCell(day, isSameMonth(day, currentDate))}
-              </div>
-            ))}
+            {monthDays.map((day) => (<div key={format(day, "yyyy-MM-dd")} className="group">{renderDayCell(day, isSameMonth(day, currentDate))}</div>))}
           </div>
         </div>
       )}
 
-      {/* Week View */}
       {viewMode === "week" && (
         <div className="bg-card border border-border rounded-lg overflow-hidden">
           <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-border">
@@ -305,9 +228,7 @@ export default function CalendarPage() {
             {weekDaysList.map(day => (
               <div key={format(day, "yyyy-MM-dd")} className="py-2 text-center">
                 <div className="text-xs font-medium text-muted-foreground uppercase">{format(day, "EEE", { locale: ptBR })}</div>
-                <div className={`text-sm font-semibold mt-0.5 ${isToday(day) ? "bg-primary text-primary-foreground h-6 w-6 rounded-full flex items-center justify-center mx-auto" : "text-foreground"}`}>
-                  {format(day, "d")}
-                </div>
+                <div className={`text-sm font-semibold mt-0.5 ${isToday(day) ? "bg-primary text-primary-foreground h-6 w-6 rounded-full flex items-center justify-center mx-auto" : "text-foreground"}`}>{format(day, "d")}</div>
               </div>
             ))}
           </div>
@@ -321,9 +242,7 @@ export default function CalendarPage() {
                   const dropKey = `${dayStr}-${h}`;
                   const isDropping = dropTarget === dropKey;
                   return (
-                    <div key={dropKey}
-                      onDragOver={(e) => { e.preventDefault(); setDropTarget(dropKey); }}
-                      onDragLeave={() => setDropTarget(null)}
+                    <div key={dropKey} onDragOver={(e) => { e.preventDefault(); setDropTarget(dropKey); }} onDragLeave={() => setDropTarget(null)}
                       onDrop={(e) => handleDrop(e, dayStr, `${h.toString().padStart(2, "0")}:00`)}
                       className={`border-r border-border p-0.5 min-h-[48px] transition-colors ${isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""}`}>
                       {hourItems.map(item => renderItemPill(item))}
@@ -336,7 +255,6 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* Day View */}
       {viewMode === "day" && (
         <div className="bg-card border border-border rounded-lg overflow-hidden">
           <div className="px-4 py-3 border-b border-border">
@@ -351,15 +269,11 @@ export default function CalendarPage() {
               const dropKey = `${dayStr}-${h}`;
               const isDropping = dropTarget === dropKey;
               return (
-                <div key={h}
-                  onDragOver={(e) => { e.preventDefault(); setDropTarget(dropKey); }}
-                  onDragLeave={() => setDropTarget(null)}
+                <div key={h} onDragOver={(e) => { e.preventDefault(); setDropTarget(dropKey); }} onDragLeave={() => setDropTarget(null)}
                   onDrop={(e) => handleDrop(e, dayStr, `${h.toString().padStart(2, "0")}:00`)}
                   className={`flex border-b border-border min-h-[56px] transition-colors ${isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""}`}>
                   <div className="w-16 shrink-0 py-2 text-center text-xs text-muted-foreground border-r border-border">{`${h}:00`}</div>
-                  <div className="flex-1 p-1 flex flex-col gap-0.5">
-                    {hourItems.map(item => renderItemPill(item))}
-                  </div>
+                  <div className="flex-1 p-1 flex flex-col gap-0.5">{hourItems.map(item => renderItemPill(item))}</div>
                 </div>
               );
             })}
@@ -367,7 +281,6 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* Modals */}
       <TaskModal open={taskModal.open} onOpenChange={o => setTaskModal({ open: o })} task={taskModal.task} defaultDate={taskModal.date} />
       <PostModal open={postModal.open} onOpenChange={o => setPostModal({ open: o })} post={postModal.post} defaultDate={postModal.date} />
       <EventModal open={eventModal.open} onOpenChange={o => setEventModal({ open: o })} event={eventModal.event} defaultDate={eventModal.date} />

@@ -1,52 +1,27 @@
 import { useData } from "@/contexts/DataContext";
 import {
-  CheckCircle2,
-  Clock,
-  FileText,
-  AlertTriangle,
-  AlertCircle,
-  TrendingUp,
-  BarChart3,
-  Megaphone,
+  CheckCircle2, Clock, FileText, AlertTriangle, AlertCircle, TrendingUp, BarChart3, Megaphone,
 } from "lucide-react";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
 } from "recharts";
 
-const PIE_COLORS = [
-  "hsl(330, 70%, 55%)",
-  "hsl(210, 80%, 52%)",
-  "hsl(170, 80%, 40%)",
-  "hsl(40, 6%, 10%)",
-  "hsl(280, 60%, 55%)",
-];
-
-function getDeadlineColor(deadline: string) {
-  const today = new Date();
-  const d = new Date(deadline);
-  const diff = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  if (diff < 0) return "text-destructive";
-  if (diff <= 2) return "text-priority-high";
-  if (diff <= 5) return "text-priority-medium";
-  return "text-priority-low";
-}
+const PIE_COLORS = ["hsl(330, 70%, 55%)", "hsl(210, 80%, 52%)", "hsl(170, 80%, 40%)", "hsl(40, 6%, 10%)", "hsl(280, 60%, 55%)"];
 
 export default function DashboardPage() {
-  const { teams, tasks, posts, channels } = useData();
+  const { teams, tasks, posts, channels, loading } = useData();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
   const today = new Date().toISOString().split("T")[0];
   const todayDate = new Date();
 
-  // Alerts
   const overdueTasks = tasks.filter(t => t.status !== "done" && t.deadline < today);
   const dueTodayTasks = tasks.filter(t => t.status !== "done" && t.deadline === today);
   const upcomingSoonTasks = tasks.filter(t => {
@@ -57,21 +32,16 @@ export default function DashboardPage() {
   const todayPosts = posts.filter(p => p.date === today && p.status !== "published" && p.status !== "done");
   const overduePosts = posts.filter(p => p.date < today && p.status !== "published" && p.status !== "done");
 
-  // Stats
-  const activeTasks = tasks.filter(t => t.status !== "done");
   const completedTasks = tasks.filter(t => t.status === "done");
+  const activeTasks = tasks.filter(t => t.status !== "done");
   const totalPosts = posts.length;
   const onTimePosts = posts.filter(p => p.status === "done" || p.status === "published").length;
 
-  const postsByChannel = channels.map(ch => ({
-    channel: ch.name,
-    count: posts.filter(p => p.channel === ch.id).length,
-  }));
-
+  const postsByChannel = channels.map(ch => ({ channel: ch.name, count: posts.filter(p => p.channel === ch.id).length }));
   const productivityByTeam = teams.map(team => ({
     team: team.name.split(" ")[0],
-    completed: tasks.filter(t => t.teamId === team.id && t.status === "done").length,
-    total: tasks.filter(t => t.teamId === team.id).length,
+    completed: tasks.filter(t => t.team === team.id && t.status === "done").length,
+    total: tasks.filter(t => t.team === team.id).length,
   }));
 
   const hasAlerts = overdueTasks.length > 0 || dueTodayTasks.length > 0 || upcomingSoonTasks.length > 0 || todayPosts.length > 0 || overduePosts.length > 0;
@@ -83,7 +53,6 @@ export default function DashboardPage() {
         <p className="text-sm text-muted-foreground mt-1">Resumo geral</p>
       </div>
 
-      {/* Atenção Hoje */}
       {hasAlerts && (
         <div className="bg-card border border-border rounded-lg p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -139,7 +108,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-card border border-border rounded-lg p-4 md:p-5">
           <div className="flex items-center justify-between">
@@ -174,7 +142,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-card border border-border rounded-lg p-5">
           <div className="flex items-center gap-2 mb-4">
@@ -194,7 +161,6 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           </div>
         </div>
-
         <div className="bg-card border border-border rounded-lg p-5">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp className="h-4 w-4 text-muted-foreground" />

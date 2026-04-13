@@ -1,11 +1,8 @@
 import { useState, useEffect } from "react";
 import { useData } from "@/contexts/DataContext";
-import type { Project } from "@/lib/mock-data";
+import type { Project } from "@/contexts/DataContext";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -19,19 +16,16 @@ type Props = {
 };
 
 export default function ProjectModal({ open, onOpenChange, project }: Props) {
-  const { allMembers, addProject, updateProject } = useData();
+  const { teams, addProject, updateProject } = useData();
   const [form, setForm] = useState({
-    name: "",
-    description: "",
-    participants: [] as string[],
-    status: "active" as Project["status"],
+    name: "", description: "", team: "", color: "#888888", status: "active",
   });
 
   useEffect(() => {
     if (project) {
-      setForm({ name: project.name, description: project.description, participants: project.participants, status: project.status });
+      setForm({ name: project.name, description: project.description, team: project.team, color: project.color, status: project.status });
     } else {
-      setForm({ name: "", description: "", participants: [], status: "active" });
+      setForm({ name: "", description: "", team: "", color: "#888888", status: "active" });
     }
   }, [project, open]);
 
@@ -45,13 +39,6 @@ export default function ProjectModal({ open, onOpenChange, project }: Props) {
       toast.success("Projeto criado");
     }
     onOpenChange(false);
-  };
-
-  const toggleParticipant = (name: string) => {
-    setForm(prev => ({
-      ...prev,
-      participants: prev.participants.includes(name) ? prev.participants.filter(a => a !== name) : [...prev.participants, name],
-    }));
   };
 
   return (
@@ -69,22 +56,20 @@ export default function ProjectModal({ open, onOpenChange, project }: Props) {
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Descrição</label>
             <Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Descrição do projeto..." rows={3} />
           </div>
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Status</label>
-            <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value as Project["status"] }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-              <option value="active">Ativo</option>
-              <option value="completed">Concluído</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Participantes</label>
-            <div className="flex flex-wrap gap-1.5">
-              {allMembers.map(m => (
-                <button key={m} type="button" onClick={() => toggleParticipant(m)}
-                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${form.participants.includes(m) ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input text-muted-foreground hover:bg-accent"}`}>
-                  {m}
-                </button>
-              ))}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Equipe</label>
+              <select value={form.team} onChange={e => setForm(p => ({ ...p, team: e.target.value }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+                <option value="">Sem equipe</option>
+                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Status</label>
+              <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+                <option value="active">Ativo</option>
+                <option value="completed">Concluído</option>
+              </select>
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">

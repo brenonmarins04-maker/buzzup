@@ -1,11 +1,8 @@
 import { useState, useEffect } from "react";
 import { useData } from "@/contexts/DataContext";
-import type { Task } from "@/lib/mock-data";
+import type { Task } from "@/contexts/DataContext";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -27,37 +24,28 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
   const [form, setForm] = useState({
     title: "",
     description: "",
-    assignees: [] as string[],
-    teamId: teams[0]?.id || "",
+    responsible: [] as string[],
+    team: teams[0]?.id || "",
     deadline: defaultDate || "",
-    status: "not-started" as Task["status"],
-    priority: "medium" as Task["priority"],
-    checklist: [] as { text: string; done: boolean }[],
+    status: "not-started",
+    priority: "medium",
+    checklist: [] as { text: string; checked: boolean }[],
   });
   const [newCheckItem, setNewCheckItem] = useState("");
 
   useEffect(() => {
     if (task) {
       setForm({
-        title: task.title,
-        description: task.description,
-        assignees: task.assignees,
-        teamId: task.teamId,
-        deadline: task.deadline,
-        status: task.status,
-        priority: task.priority,
-        checklist: task.checklist || [],
+        title: task.title, description: task.description,
+        responsible: task.responsible, team: task.team,
+        deadline: task.deadline, status: task.status,
+        priority: task.priority, checklist: task.checklist || [],
       });
     } else {
       setForm({
-        title: "",
-        description: "",
-        assignees: [],
-        teamId: teams[0]?.id || "",
-        deadline: defaultDate || "",
-        status: "not-started",
-        priority: "medium",
-        checklist: [],
+        title: "", description: "", responsible: [],
+        team: teams[0]?.id || "", deadline: defaultDate || "",
+        status: "not-started", priority: "medium", checklist: [],
       });
     }
     setNewCheckItem("");
@@ -75,16 +63,16 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
     onOpenChange(false);
   };
 
-  const toggleAssignee = (name: string) => {
+  const toggleResponsible = (name: string) => {
     setForm(prev => ({
       ...prev,
-      assignees: prev.assignees.includes(name) ? prev.assignees.filter(a => a !== name) : [...prev.assignees, name],
+      responsible: prev.responsible.includes(name) ? prev.responsible.filter(a => a !== name) : [...prev.responsible, name],
     }));
   };
 
   const addCheckItem = () => {
     if (!newCheckItem.trim()) return;
-    setForm(prev => ({ ...prev, checklist: [...prev.checklist, { text: newCheckItem.trim(), done: false }] }));
+    setForm(prev => ({ ...prev, checklist: [...prev.checklist, { text: newCheckItem.trim(), checked: false }] }));
     setNewCheckItem("");
   };
 
@@ -106,7 +94,8 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Equipe</label>
-              <select value={form.teamId} onChange={e => setForm(p => ({ ...p, teamId: e.target.value }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+              <select value={form.team} onChange={e => setForm(p => ({ ...p, team: e.target.value }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+                <option value="">Sem equipe</option>
                 {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
@@ -118,7 +107,7 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Prioridade</label>
-              <select value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value as Task["priority"] }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+              <select value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
                 <option value="high">Alta</option>
                 <option value="medium">Média</option>
                 <option value="low">Baixa</option>
@@ -126,7 +115,7 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Status</label>
-              <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value as Task["status"] }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+              <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
                 <option value="not-started">Não Começado</option>
                 <option value="in-progress">Em Andamento</option>
                 <option value="done">Pronto</option>
@@ -137,8 +126,8 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Responsáveis</label>
             <div className="flex flex-wrap gap-1.5">
               {allMembers.map(m => (
-                <button key={m} type="button" onClick={() => toggleAssignee(m)}
-                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${form.assignees.includes(m) ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input text-muted-foreground hover:bg-accent"}`}>
+                <button key={m} type="button" onClick={() => toggleResponsible(m)}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${form.responsible.includes(m) ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input text-muted-foreground hover:bg-accent"}`}>
                   {m}
                 </button>
               ))}
@@ -149,12 +138,12 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
             <div className="flex flex-col gap-1.5">
               {form.checklist.map((item, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <Checkbox checked={item.done} onCheckedChange={(checked) => {
+                  <Checkbox checked={item.checked} onCheckedChange={(checked) => {
                     const updated = [...form.checklist];
-                    updated[i] = { ...item, done: !!checked };
+                    updated[i] = { ...item, checked: !!checked };
                     setForm(p => ({ ...p, checklist: updated }));
                   }} />
-                  <span className={`text-sm flex-1 ${item.done ? "line-through text-muted-foreground" : "text-foreground"}`}>{item.text}</span>
+                  <span className={`text-sm flex-1 ${item.checked ? "line-through text-muted-foreground" : "text-foreground"}`}>{item.text}</span>
                   <button type="button" onClick={() => setForm(p => ({ ...p, checklist: p.checklist.filter((_, j) => j !== i) }))} className="text-muted-foreground hover:text-destructive">
                     <X className="h-3 w-3" />
                   </button>
