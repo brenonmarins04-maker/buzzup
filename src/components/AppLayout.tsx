@@ -43,6 +43,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <header className="h-12 px-4 flex items-center justify-between border-b border-border bg-card shrink-0 sticky top-0 z-30">
           <span className="font-bold text-foreground tracking-tight text-base">MktFlow</span>
           <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground truncate max-w-[120px]">{displayName || "Workspace"}</span>
             <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 rounded-md hover:bg-accent text-muted-foreground">
               <Bell className="h-4 w-4" />
               {unreadCount > 0 && <span className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">{unreadCount > 9 ? "9+" : unreadCount}</span>}
@@ -117,7 +118,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <input type="text" placeholder="Buscar tarefas, posts, projetos..." className="h-9 w-72 rounded-md border border-input bg-background pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-muted-foreground">{displayName || "Workspace"}</span>
             <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 rounded-md hover:bg-accent transition-colors text-muted-foreground">
               <Bell className="h-4 w-4" />
               {unreadCount > 0 && <span className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">{unreadCount > 9 ? "9+" : unreadCount}</span>}
