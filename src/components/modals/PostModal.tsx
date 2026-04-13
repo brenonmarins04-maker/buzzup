@@ -20,22 +20,18 @@ type Props = {
 };
 
 export default function PostModal({ open, onOpenChange, post, defaultDate }: Props) {
-  const { teams, projects, channels, categories, addPost, updatePost } = useData();
-  const allMembers = teams.flatMap(t => t.members);
+  const { allMembers, channels, categories, addPost, updatePost } = useData();
 
   const [form, setForm] = useState({
     title: "",
     copy: "",
-    hashtags: "",
-    cta: "",
     link: "",
     date: defaultDate || "",
     time: "10:00",
-    channel: "instagram" as Post["channel"],
+    channel: channels[0]?.id || "instagram",
     category: categories[0] || "",
     status: "not-started" as Post["status"],
     assignees: [] as string[],
-    projectId: projects[0]?.id || "",
   });
 
   useEffect(() => {
@@ -43,8 +39,6 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
       setForm({
         title: post.title,
         copy: post.copy,
-        hashtags: post.hashtags.join(", "),
-        cta: post.cta,
         link: post.link,
         date: post.date,
         time: post.time,
@@ -52,40 +46,29 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
         category: post.category,
         status: post.status,
         assignees: post.assignees,
-        projectId: post.projectId,
       });
     } else {
       setForm({
         title: "",
         copy: "",
-        hashtags: "",
-        cta: "",
         link: "",
         date: defaultDate || "",
         time: "10:00",
-        channel: "instagram",
+        channel: channels[0]?.id || "instagram",
         category: categories[0] || "",
         status: "not-started",
         assignees: [],
-        projectId: projects[0]?.id || "",
       });
     }
-  }, [post, defaultDate, open, categories, projects]);
+  }, [post, defaultDate, open, categories, channels]);
 
   const handleSave = () => {
-    if (!form.title.trim()) {
-      toast.error("Título é obrigatório");
-      return;
-    }
-    const data = {
-      ...form,
-      hashtags: form.hashtags.split(",").map(h => h.trim()).filter(Boolean),
-    };
+    if (!form.title.trim()) { toast.error("Título é obrigatório"); return; }
     if (post) {
-      updatePost({ ...post, ...data });
+      updatePost({ ...post, ...form });
       toast.success("Publicação atualizada");
     } else {
-      addPost(data);
+      addPost(form);
       toast.success("Publicação criada");
     }
     onOpenChange(false);
@@ -94,9 +77,7 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
   const toggleAssignee = (name: string) => {
     setForm(prev => ({
       ...prev,
-      assignees: prev.assignees.includes(name)
-        ? prev.assignees.filter(a => a !== name)
-        : [...prev.assignees, name],
+      assignees: prev.assignees.includes(name) ? prev.assignees.filter(a => a !== name) : [...prev.assignees, name],
     }));
   };
 
@@ -118,7 +99,7 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Canal</label>
-              <select value={form.channel} onChange={e => setForm(p => ({ ...p, channel: e.target.value as Post["channel"] }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+              <select value={form.channel} onChange={e => setForm(p => ({ ...p, channel: e.target.value }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
                 {channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
             </div>
@@ -130,18 +111,8 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
             </div>
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Hashtags</label>
-            <Input value={form.hashtags} onChange={e => setForm(p => ({ ...p, hashtags: e.target.value }))} placeholder="#marketing, #digital" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">CTA</label>
-              <Input value={form.cta} onChange={e => setForm(p => ({ ...p, cta: e.target.value }))} placeholder="Saiba mais" />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Link</label>
-              <Input value={form.link} onChange={e => setForm(p => ({ ...p, link: e.target.value }))} placeholder="https://..." />
-            </div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Link</label>
+            <Input value={form.link} onChange={e => setForm(p => ({ ...p, link: e.target.value }))} placeholder="https://..." />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
@@ -163,23 +134,11 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
             </div>
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Projeto</label>
-            <select value={form.projectId} onChange={e => setForm(p => ({ ...p, projectId: e.target.value }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </div>
-          <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Responsáveis</label>
             <div className="flex flex-wrap gap-1.5">
               {allMembers.map(m => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => toggleAssignee(m)}
-                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                    form.assignees.includes(m) ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input text-muted-foreground hover:bg-accent"
-                  }`}
-                >
+                <button key={m} type="button" onClick={() => toggleAssignee(m)}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${form.assignees.includes(m) ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input text-muted-foreground hover:bg-accent"}`}>
                   {m}
                 </button>
               ))}

@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 
 type Props = {
@@ -18,26 +19,24 @@ type Props = {
 };
 
 export default function ProjectModal({ open, onOpenChange, project }: Props) {
-  const { teams, addProject, updateProject } = useData();
+  const { allMembers, addProject, updateProject } = useData();
   const [form, setForm] = useState({
     name: "",
-    teamId: teams[0]?.id || "",
+    description: "",
+    participants: [] as string[],
     status: "active" as Project["status"],
   });
 
   useEffect(() => {
     if (project) {
-      setForm({ name: project.name, teamId: project.teamId, status: project.status });
+      setForm({ name: project.name, description: project.description, participants: project.participants, status: project.status });
     } else {
-      setForm({ name: "", teamId: teams[0]?.id || "", status: "active" });
+      setForm({ name: "", description: "", participants: [], status: "active" });
     }
-  }, [project, open, teams]);
+  }, [project, open]);
 
   const handleSave = () => {
-    if (!form.name.trim()) {
-      toast.error("Nome é obrigatório");
-      return;
-    }
+    if (!form.name.trim()) { toast.error("Nome é obrigatório"); return; }
     if (project) {
       updateProject({ ...project, ...form });
       toast.success("Projeto atualizado");
@@ -48,9 +47,16 @@ export default function ProjectModal({ open, onOpenChange, project }: Props) {
     onOpenChange(false);
   };
 
+  const toggleParticipant = (name: string) => {
+    setForm(prev => ({
+      ...prev,
+      participants: prev.participants.includes(name) ? prev.participants.filter(a => a !== name) : [...prev.participants, name],
+    }));
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{project ? "Editar Projeto" : "Novo Projeto"}</DialogTitle>
         </DialogHeader>
@@ -60,18 +66,26 @@ export default function ProjectModal({ open, onOpenChange, project }: Props) {
             <Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Nome do projeto" />
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Equipe</label>
-            <select value={form.teamId} onChange={e => setForm(p => ({ ...p, teamId: e.target.value }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-              {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Descrição</label>
+            <Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Descrição do projeto..." rows={3} />
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Status</label>
             <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value as Project["status"] }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
               <option value="active">Ativo</option>
-              <option value="paused">Pausado</option>
               <option value="completed">Concluído</option>
             </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Participantes</label>
+            <div className="flex flex-wrap gap-1.5">
+              {allMembers.map(m => (
+                <button key={m} type="button" onClick={() => toggleParticipant(m)}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${form.participants.includes(m) ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input text-muted-foreground hover:bg-accent"}`}>
+                  {m}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>

@@ -10,7 +10,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { Plus, X } from "lucide-react";
 
 type Props = {
   open: boolean;
@@ -20,19 +22,19 @@ type Props = {
 };
 
 export default function TaskModal({ open, onOpenChange, task, defaultDate }: Props) {
-  const { teams, projects, addTask, updateTask } = useData();
-  const allMembers = teams.flatMap(t => t.members);
+  const { teams, allMembers, addTask, updateTask } = useData();
 
   const [form, setForm] = useState({
     title: "",
     description: "",
     assignees: [] as string[],
     teamId: teams[0]?.id || "",
-    projectId: projects[0]?.id || "",
     deadline: defaultDate || "",
     status: "not-started" as Task["status"],
     priority: "medium" as Task["priority"],
+    checklist: [] as { text: string; done: boolean }[],
   });
+  const [newCheckItem, setNewCheckItem] = useState("");
 
   useEffect(() => {
     if (task) {
@@ -41,10 +43,10 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
         description: task.description,
         assignees: task.assignees,
         teamId: task.teamId,
-        projectId: task.projectId,
         deadline: task.deadline,
         status: task.status,
         priority: task.priority,
+        checklist: task.checklist || [],
       });
     } else {
       setForm({
@@ -52,19 +54,17 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
         description: "",
         assignees: [],
         teamId: teams[0]?.id || "",
-        projectId: projects[0]?.id || "",
         deadline: defaultDate || "",
         status: "not-started",
         priority: "medium",
+        checklist: [],
       });
     }
-  }, [task, defaultDate, open, teams, projects]);
+    setNewCheckItem("");
+  }, [task, defaultDate, open, teams]);
 
   const handleSave = () => {
-    if (!form.title.trim()) {
-      toast.error("Título é obrigatório");
-      return;
-    }
+    if (!form.title.trim()) { toast.error("Título é obrigatório"); return; }
     if (task) {
       updateTask({ ...task, ...form });
       toast.success("Tarefa atualizada");
@@ -78,10 +78,14 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
   const toggleAssignee = (name: string) => {
     setForm(prev => ({
       ...prev,
-      assignees: prev.assignees.includes(name)
-        ? prev.assignees.filter(a => a !== name)
-        : [...prev.assignees, name],
+      assignees: prev.assignees.includes(name) ? prev.assignees.filter(a => a !== name) : [...prev.assignees, name],
     }));
+  };
+
+  const addCheckItem = () => {
+    if (!newCheckItem.trim()) return;
+    setForm(prev => ({ ...prev, checklist: [...prev.checklist, { text: newCheckItem.trim(), done: false }] }));
+    setNewCheckItem("");
   };
 
   return (
@@ -107,17 +111,11 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
               </select>
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Projeto</label>
-              <select value={form.projectId} onChange={e => setForm(p => ({ ...p, projectId: e.target.value }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Prazo</label>
               <Input type="date" value={form.deadline} onChange={e => setForm(p => ({ ...p, deadline: e.target.value }))} />
             </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Prioridade</label>
               <select value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value as Task["priority"] }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
@@ -139,17 +137,34 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Responsáveis</label>
             <div className="flex flex-wrap gap-1.5">
               {allMembers.map(m => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => toggleAssignee(m)}
-                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                    form.assignees.includes(m) ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input text-muted-foreground hover:bg-accent"
-                  }`}
-                >
+                <button key={m} type="button" onClick={() => toggleAssignee(m)}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${form.assignees.includes(m) ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input text-muted-foreground hover:bg-accent"}`}>
                   {m}
                 </button>
               ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Checklist</label>
+            <div className="flex flex-col gap-1.5">
+              {form.checklist.map((item, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <Checkbox checked={item.done} onCheckedChange={(checked) => {
+                    const updated = [...form.checklist];
+                    updated[i] = { ...item, done: !!checked };
+                    setForm(p => ({ ...p, checklist: updated }));
+                  }} />
+                  <span className={`text-sm flex-1 ${item.done ? "line-through text-muted-foreground" : "text-foreground"}`}>{item.text}</span>
+                  <button type="button" onClick={() => setForm(p => ({ ...p, checklist: p.checklist.filter((_, j) => j !== i) }))} className="text-muted-foreground hover:text-destructive">
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <Input value={newCheckItem} onChange={e => setNewCheckItem(e.target.value)} placeholder="Novo item..." className="h-8 text-sm"
+                  onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCheckItem(); } }} />
+                <Button type="button" variant="outline" size="sm" onClick={addCheckItem}><Plus className="h-3 w-3" /></Button>
+              </div>
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">

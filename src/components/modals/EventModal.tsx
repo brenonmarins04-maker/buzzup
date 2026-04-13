@@ -20,8 +20,7 @@ type Props = {
 };
 
 export default function EventModal({ open, onOpenChange, event, defaultDate }: Props) {
-  const { teams, projects, addEvent, updateEvent } = useData();
-  const allMembers = teams.flatMap(t => t.members);
+  const { allMembers, addEvent, updateEvent } = useData();
 
   const [form, setForm] = useState({
     name: "",
@@ -30,7 +29,6 @@ export default function EventModal({ open, onOpenChange, event, defaultDate }: P
     type: "meeting" as CalendarEvent["type"],
     participants: [] as string[],
     description: "",
-    projectId: "" as string | undefined,
   });
 
   useEffect(() => {
@@ -42,32 +40,19 @@ export default function EventModal({ open, onOpenChange, event, defaultDate }: P
         type: event.type,
         participants: event.participants,
         description: event.description,
-        projectId: event.projectId || "",
       });
     } else {
-      setForm({
-        name: "",
-        date: defaultDate || "",
-        time: "10:00",
-        type: "meeting",
-        participants: [],
-        description: "",
-        projectId: "",
-      });
+      setForm({ name: "", date: defaultDate || "", time: "10:00", type: "meeting", participants: [], description: "" });
     }
   }, [event, defaultDate, open]);
 
   const handleSave = () => {
-    if (!form.name.trim()) {
-      toast.error("Nome é obrigatório");
-      return;
-    }
-    const data = { ...form, projectId: form.projectId || undefined };
+    if (!form.name.trim()) { toast.error("Nome é obrigatório"); return; }
     if (event) {
-      updateEvent({ ...event, ...data });
+      updateEvent({ ...event, ...form });
       toast.success("Evento atualizado");
     } else {
-      addEvent(data);
+      addEvent(form);
       toast.success("Evento criado");
     }
     onOpenChange(false);
@@ -76,9 +61,7 @@ export default function EventModal({ open, onOpenChange, event, defaultDate }: P
   const toggleParticipant = (name: string) => {
     setForm(prev => ({
       ...prev,
-      participants: prev.participants.includes(name)
-        ? prev.participants.filter(a => a !== name)
-        : [...prev.participants, name],
+      participants: prev.participants.includes(name) ? prev.participants.filter(a => a !== name) : [...prev.participants, name],
     }));
   };
 
@@ -116,24 +99,11 @@ export default function EventModal({ open, onOpenChange, event, defaultDate }: P
             </div>
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Projeto (opcional)</label>
-            <select value={form.projectId} onChange={e => setForm(p => ({ ...p, projectId: e.target.value }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-              <option value="">Nenhum</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          </div>
-          <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Participantes</label>
             <div className="flex flex-wrap gap-1.5">
               {allMembers.map(m => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => toggleParticipant(m)}
-                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                    form.participants.includes(m) ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input text-muted-foreground hover:bg-accent"
-                  }`}
-                >
+                <button key={m} type="button" onClick={() => toggleParticipant(m)}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${form.participants.includes(m) ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input text-muted-foreground hover:bg-accent"}`}>
                   {m}
                 </button>
               ))}
