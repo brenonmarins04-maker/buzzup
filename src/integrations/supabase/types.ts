@@ -206,6 +206,7 @@ export type Database = {
           created_at: string
           description: string
           id: string
+          members: string[]
           name: string
           status: string
           team: string
@@ -216,6 +217,7 @@ export type Database = {
           created_at?: string
           description?: string
           id?: string
+          members?: string[]
           name: string
           status?: string
           team?: string
@@ -226,6 +228,7 @@ export type Database = {
           created_at?: string
           description?: string
           id?: string
+          members?: string[]
           name?: string
           status?: string
           team?: string
