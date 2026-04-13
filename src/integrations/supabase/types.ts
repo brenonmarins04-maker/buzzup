@@ -14,7 +14,294 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      calendar_events: {
+        Row: {
+          created_at: string
+          date: string
+          description: string
+          end_time: string
+          id: string
+          time: string
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          description?: string
+          end_time?: string
+          id?: string
+          time?: string
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          description?: string
+          end_time?: string
+          id?: string
+          time?: string
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      categories: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      channels: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      general_items: {
+        Row: {
+          created_at: string
+          date: string
+          description: string
+          id: string
+          time: string
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          description?: string
+          id?: string
+          time?: string
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          description?: string
+          id?: string
+          time?: string
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      posts: {
+        Row: {
+          category: string
+          channel: string
+          copy: string
+          created_at: string
+          date: string
+          id: string
+          link: string
+          media_url: string
+          responsible: string[]
+          status: string
+          time: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          category?: string
+          channel?: string
+          copy?: string
+          created_at?: string
+          date?: string
+          id?: string
+          link?: string
+          media_url?: string
+          responsible?: string[]
+          status?: string
+          time?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          category?: string
+          channel?: string
+          copy?: string
+          created_at?: string
+          date?: string
+          id?: string
+          link?: string
+          media_url?: string
+          responsible?: string[]
+          status?: string
+          time?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          color: string
+          created_at: string
+          description: string
+          id: string
+          name: string
+          status: string
+          team: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          description?: string
+          id?: string
+          name: string
+          status?: string
+          team?: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          description?: string
+          id?: string
+          name?: string
+          status?: string
+          team?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          checklist: Json
+          created_at: string
+          deadline: string
+          description: string
+          id: string
+          priority: string
+          responsible: string[]
+          status: string
+          team: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          checklist?: Json
+          created_at?: string
+          deadline?: string
+          description?: string
+          id?: string
+          priority?: string
+          responsible?: string[]
+          status?: string
+          team?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          checklist?: Json
+          created_at?: string
+          deadline?: string
+          description?: string
+          id?: string
+          priority?: string
+          responsible?: string[]
+          status?: string
+          team?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      teams: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          members: string[]
+          name: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          members?: string[]
+          name: string
+          user_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          members?: string[]
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
