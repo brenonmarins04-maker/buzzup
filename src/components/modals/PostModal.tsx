@@ -1,11 +1,8 @@
 import { useState, useEffect } from "react";
 import { useData } from "@/contexts/DataContext";
-import type { Post } from "@/lib/mock-data";
+import type { Post } from "@/contexts/DataContext";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -23,41 +20,23 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
   const { allMembers, channels, categories, addPost, updatePost } = useData();
 
   const [form, setForm] = useState({
-    title: "",
-    copy: "",
-    link: "",
-    date: defaultDate || "",
-    time: "10:00",
-    channel: channels[0]?.id || "instagram",
-    category: categories[0] || "",
-    status: "not-started" as Post["status"],
-    assignees: [] as string[],
+    title: "", copy: "", link: "", date: defaultDate || "", time: "10:00",
+    channel: channels[0]?.id || "", category: categories[0] || "",
+    status: "not-started", responsible: [] as string[], media_url: "",
   });
 
   useEffect(() => {
     if (post) {
       setForm({
-        title: post.title,
-        copy: post.copy,
-        link: post.link,
-        date: post.date,
-        time: post.time,
-        channel: post.channel,
-        category: post.category,
-        status: post.status,
-        assignees: post.assignees,
+        title: post.title, copy: post.copy, link: post.link, date: post.date,
+        time: post.time, channel: post.channel, category: post.category,
+        status: post.status, responsible: post.responsible, media_url: post.media_url,
       });
     } else {
       setForm({
-        title: "",
-        copy: "",
-        link: "",
-        date: defaultDate || "",
-        time: "10:00",
-        channel: channels[0]?.id || "instagram",
-        category: categories[0] || "",
-        status: "not-started",
-        assignees: [],
+        title: "", copy: "", link: "", date: defaultDate || "", time: "10:00",
+        channel: channels[0]?.id || "", category: categories[0] || "",
+        status: "not-started", responsible: [], media_url: "",
       });
     }
   }, [post, defaultDate, open, categories, channels]);
@@ -74,10 +53,10 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
     onOpenChange(false);
   };
 
-  const toggleAssignee = (name: string) => {
+  const toggleResponsible = (name: string) => {
     setForm(prev => ({
       ...prev,
-      assignees: prev.assignees.includes(name) ? prev.assignees.filter(a => a !== name) : [...prev.assignees, name],
+      responsible: prev.responsible.includes(name) ? prev.responsible.filter(a => a !== name) : [...prev.responsible, name],
     }));
   };
 
@@ -125,7 +104,7 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Status</label>
-              <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value as Post["status"] }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+              <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
                 <option value="not-started">Não Começado</option>
                 <option value="in-progress">Em Andamento</option>
                 <option value="done">Pronto</option>
@@ -137,8 +116,8 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Responsáveis</label>
             <div className="flex flex-wrap gap-1.5">
               {allMembers.map(m => (
-                <button key={m} type="button" onClick={() => toggleAssignee(m)}
-                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${form.assignees.includes(m) ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input text-muted-foreground hover:bg-accent"}`}>
+                <button key={m} type="button" onClick={() => toggleResponsible(m)}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${form.responsible.includes(m) ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input text-muted-foreground hover:bg-accent"}`}>
                   {m}
                 </button>
               ))}

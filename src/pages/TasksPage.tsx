@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useData } from "@/contexts/DataContext";
-import type { Task } from "@/lib/mock-data";
+import type { Task } from "@/contexts/DataContext";
 import { Plus } from "lucide-react";
 import TaskModal from "@/components/modals/TaskModal";
 
 const statusColumns = [
-  { id: "not-started" as const, label: "Não Começado", dotClass: "bg-status-not-started" },
-  { id: "in-progress" as const, label: "Em Andamento", dotClass: "bg-status-in-progress" },
+  { id: "not-started", label: "Não Começado", dotClass: "bg-status-not-started" },
+  { id: "in-progress", label: "Em Andamento", dotClass: "bg-status-in-progress" },
 ];
 
 function getDeadlineBorderClass(deadline: string, status: string) {
@@ -28,12 +28,12 @@ export default function TasksPage() {
   const [tab, setTab] = useState<"active" | "done">("active");
 
   const filteredTasks = tasks.filter((t) => {
-    if (filterTeam !== "all" && t.teamId !== filterTeam) return false;
+    if (filterTeam !== "all" && t.team !== filterTeam) return false;
     if (tab === "active") return t.status !== "done";
     return t.status === "done";
   });
 
-  const handleDrop = (status: Task["status"]) => {
+  const handleDrop = (status: string) => {
     if (!dragTask) return;
     const task = tasks.find(t => t.id === dragTask);
     if (task && task.status !== status) updateTask({ ...task, status });
@@ -52,7 +52,6 @@ export default function TasksPage() {
         </button>
       </div>
 
-      {/* Tabs */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex bg-muted rounded-md p-0.5">
           <button onClick={() => setTab("active")} className={`px-3 py-1 rounded text-xs font-medium transition-colors ${tab === "active" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>Ativas</button>
@@ -81,7 +80,7 @@ export default function TasksPage() {
                 </div>
                 <div className="flex flex-col gap-2 min-h-[200px]">
                   {colTasks.map((task) => {
-                    const team = teams.find(t => t.id === task.teamId);
+                    const team = teams.find(t => t.id === task.team);
                     return (
                       <div key={task.id} draggable onDragStart={() => setDragTask(task.id)} onDragEnd={() => setDragTask(null)}
                         onClick={() => setModal({ open: true, task })}
@@ -95,7 +94,7 @@ export default function TasksPage() {
                         <div className="flex items-center justify-between">
                           <span className={`text-xs font-medium ${getDeadlineBorderClass(task.deadline, task.status).replace("border-l-", "text-")}`}>{task.deadline}</span>
                           <div className="flex -space-x-1.5">
-                            {task.assignees.slice(0, 2).map((a, i) => (
+                            {task.responsible.slice(0, 2).map((a, i) => (
                               <div key={i} className="h-5 w-5 rounded-full bg-accent border border-card flex items-center justify-center text-[9px] font-semibold text-foreground" title={a}>
                                 {a.split(" ").map(n => n[0]).join("")}
                               </div>
@@ -116,7 +115,7 @@ export default function TasksPage() {
       ) : (
         <div className="flex flex-col gap-2">
           {filteredTasks.map((task) => {
-            const team = teams.find(t => t.id === task.teamId);
+            const team = teams.find(t => t.id === task.team);
             return (
               <div key={task.id} onClick={() => setModal({ open: true, task })}
                 className="bg-card border border-border rounded-lg p-4 flex items-center justify-between cursor-pointer hover:shadow-sm transition-all">
@@ -128,7 +127,7 @@ export default function TasksPage() {
                   </div>
                 </div>
                 <div className="flex -space-x-1.5">
-                  {task.assignees.slice(0, 2).map((a, i) => (
+                  {task.responsible.slice(0, 2).map((a, i) => (
                     <div key={i} className="h-5 w-5 rounded-full bg-accent border border-card flex items-center justify-center text-[9px] font-semibold text-foreground">{a.split(" ").map(n => n[0]).join("")}</div>
                   ))}
                 </div>

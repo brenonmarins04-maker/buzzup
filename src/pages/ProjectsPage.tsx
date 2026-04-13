@@ -9,7 +9,7 @@ const statusBadge: Record<string, { label: string; class: string }> = {
 };
 
 export default function ProjectsPage() {
-  const { projects } = useData();
+  const { projects, teams } = useData();
   const [modal, setModal] = useState<{ open: boolean; project?: any }>({ open: false });
   const [tab, setTab] = useState<"active" | "completed">("active");
 
@@ -35,25 +35,15 @@ export default function ProjectsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map((project) => {
           const st = statusBadge[project.status];
+          const team = teams.find(t => t.id === project.team);
           return (
             <div key={project.id} onClick={() => setModal({ open: true, project })} className="bg-card border border-border rounded-lg p-5 hover:shadow-md transition-all cursor-pointer flex flex-col gap-4">
               <div className="flex items-start justify-between">
                 <h2 className="text-base font-semibold text-foreground">{project.name}</h2>
-                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${st.class}`}>{st.label}</span>
+                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${st?.class}`}>{st?.label}</span>
               </div>
               {project.description && <p className="text-xs text-muted-foreground line-clamp-2">{project.description}</p>}
-              {project.participants.length > 0 && (
-                <div className="flex items-center gap-1.5">
-                  <div className="flex -space-x-1.5">
-                    {project.participants.slice(0, 4).map((p, i) => (
-                      <div key={i} className="h-6 w-6 rounded-full bg-accent border border-card flex items-center justify-center text-[9px] font-semibold text-foreground" title={p}>
-                        {p.split(" ").map(n => n[0]).join("")}
-                      </div>
-                    ))}
-                  </div>
-                  <span className="text-xs text-muted-foreground">{project.participants.length} participante(s)</span>
-                </div>
-              )}
+              {team && <span className="text-xs text-muted-foreground">Equipe: {team.name}</span>}
             </div>
           );
         })}

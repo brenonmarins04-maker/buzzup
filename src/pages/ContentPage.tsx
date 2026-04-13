@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useData } from "@/contexts/DataContext";
-import type { Post } from "@/lib/mock-data";
+import type { Post } from "@/contexts/DataContext";
 import { Plus, ExternalLink, Settings, X } from "lucide-react";
 import PostModal from "@/components/modals/PostModal";
 import { Input } from "@/components/ui/input";
@@ -74,9 +74,7 @@ export default function ContentPage() {
           return (
             <div key={post.id} onClick={() => setModal({ open: true, post })} className="bg-card border border-border rounded-lg p-5 hover:shadow-md transition-all cursor-pointer group flex flex-col gap-3">
               <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{ch?.name || post.channel}</span>
-                </div>
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{ch?.name || post.channel}</span>
                 <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${st?.class}`}>{st?.label}</span>
               </div>
               <h3 className="text-sm font-semibold text-foreground leading-snug">{post.title}</h3>
@@ -89,7 +87,7 @@ export default function ContentPage() {
                 <div className="flex items-center gap-1.5">
                   {post.link && <ExternalLink className="h-3 w-3 text-muted-foreground" />}
                   <div className="flex -space-x-1">
-                    {post.assignees.slice(0, 2).map((a, i) => (
+                    {post.responsible.slice(0, 2).map((a, i) => (
                       <div key={i} className="h-5 w-5 rounded-full bg-accent border border-card flex items-center justify-center text-[9px] font-semibold text-foreground" title={a}>
                         {a.split(" ").map(n => n[0]).join("")}
                       </div>
@@ -105,12 +103,9 @@ export default function ContentPage() {
 
       <PostModal open={modal.open} onOpenChange={o => setModal({ open: o })} post={modal.post} />
 
-      {/* Settings modal for channels and categories */}
       <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
         <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Gerenciar Canais e Categorias</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Gerenciar Canais e Categorias</DialogTitle></DialogHeader>
           <div className="flex flex-col gap-6">
             <div>
               <h3 className="text-sm font-semibold text-foreground mb-2">Canais</h3>
