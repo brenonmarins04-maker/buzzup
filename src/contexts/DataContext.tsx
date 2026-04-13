@@ -285,8 +285,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!uid) return;
     const { data } = await supabase.from("projects").insert({
       user_id: uid, name: p.name, description: p.description, team: p.team,
-      color: p.color, status: p.status,
-    }).select().single();
+      color: p.color, status: p.status, members: p.members,
+    } as any).select().single();
     if (data) setProjects(prev => [...prev, toProject(data)]);
   }, [uid]);
 
@@ -294,9 +294,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!uid) return;
     await supabase.from("projects").update({
       name: p.name, description: p.description, team: p.team,
-      color: p.color, status: p.status,
-    }).eq("id", p.id);
+      color: p.color, status: p.status, members: p.members,
+    } as any).eq("id", p.id);
     setProjects(prev => prev.map(x => x.id === p.id ? p : x));
+  }, [uid]);
+
+  const deleteProject = useCallback(async (id: string) => {
+    if (!uid) return;
+    await supabase.from("projects").delete().eq("id", id);
+    setProjects(prev => prev.filter(x => x.id !== id));
   }, [uid]);
 
   // === EVENTS ===
@@ -409,7 +415,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addTeamMember, updateTeamMember, removeTeamMember,
       addTask, updateTask, deleteTask,
       addPost, updatePost, deletePost,
-      addProject, updateProject,
+      addProject, updateProject, deleteProject,
       addEvent, updateEvent, deleteEvent,
       addGeneralItem, updateGeneralItem, deleteGeneralItem,
       addCategory, removeCategory, updateCategory,
