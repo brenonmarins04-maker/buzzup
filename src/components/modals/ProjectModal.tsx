@@ -7,6 +7,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 
 type Props = {
@@ -16,26 +17,35 @@ type Props = {
 };
 
 export default function ProjectModal({ open, onOpenChange, project }: Props) {
-  const { teams, addProject, updateProject } = useData();
+  const { allMembers, addProject, updateProject } = useData();
   const [form, setForm] = useState({
-    name: "", description: "", team: "", color: "#888888", status: "active",
+    name: "", description: "", color: "#888888", status: "active", members: [] as string[],
   });
 
   useEffect(() => {
     if (project) {
-      setForm({ name: project.name, description: project.description, team: project.team, color: project.color, status: project.status });
+      setForm({ name: project.name, description: project.description, color: project.color, status: project.status, members: project.members || [] });
     } else {
-      setForm({ name: "", description: "", team: "", color: "#888888", status: "active" });
+      setForm({ name: "", description: "", color: "#888888", status: "active", members: [] });
     }
   }, [project, open]);
+
+  const uniqueMembers = [...new Set(allMembers)];
+
+  const toggleMember = (name: string) => {
+    setForm(p => ({
+      ...p,
+      members: p.members.includes(name) ? p.members.filter(m => m !== name) : [...p.members, name],
+    }));
+  };
 
   const handleSave = () => {
     if (!form.name.trim()) { toast.error("Nome é obrigatório"); return; }
     if (project) {
-      updateProject({ ...project, ...form });
+      updateProject({ ...project, ...form, team: project.team });
       toast.success("Projeto atualizado");
     } else {
-      addProject(form);
+      addProject({ ...form, team: "" });
       toast.success("Projeto criado");
     }
     onOpenChange(false);
@@ -56,21 +66,27 @@ export default function ProjectModal({ open, onOpenChange, project }: Props) {
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Descrição</label>
             <Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Descrição do projeto..." rows={3} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Equipe</label>
-              <select value={form.team} onChange={e => setForm(p => ({ ...p, team: e.target.value }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-                <option value="">Sem equipe</option>
-                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Status</label>
-              <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-                <option value="active">Ativo</option>
-                <option value="completed">Concluído</option>
-              </select>
-            </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Status</label>
+            <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+              <option value="active">Ativo</option>
+              <option value="completed">Concluído</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Participantes</label>
+            {uniqueMembers.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Nenhum membro cadastrado nas equipes.</p>
+            ) : (
+              <div className="flex flex-col gap-2 max-h-40 overflow-y-auto border border-input rounded-md p-2">
+                {uniqueMembers.map(name => (
+                  <label key={name} className="flex items-center gap-2 cursor-pointer text-sm">
+                    <Checkbox checked={form.members.includes(name)} onCheckedChange={() => toggleMember(name)} />
+                    {name}
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>

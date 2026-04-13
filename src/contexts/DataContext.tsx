@@ -14,7 +14,7 @@ type DbChannel = Database["public"]["Tables"]["channels"]["Row"];
 
 // App-level types (without user_id, with proper typing)
 export type Team = { id: string; name: string; color: string; members: string[] };
-export type Project = { id: string; name: string; description: string; team: string; color: string; status: string };
+export type Project = { id: string; name: string; description: string; team: string; color: string; status: string; members: string[] };
 export type Task = {
   id: string; title: string; description: string; team: string;
   responsible: string[]; deadline: string; status: string; priority: string;
@@ -57,6 +57,7 @@ type DataContextType = {
 
   addProject: (project: Omit<Project, "id">) => void;
   updateProject: (project: Project) => void;
+  deleteProject: (id: string) => void;
 
   addEvent: (event: Omit<CalendarEvent, "id">) => void;
   updateEvent: (event: CalendarEvent) => void;
@@ -84,7 +85,7 @@ function toTeam(r: DbTeam): Team {
   return { id: r.id, name: r.name, color: r.color, members: r.members || [] };
 }
 function toProject(r: DbProject): Project {
-  return { id: r.id, name: r.name, description: r.description, team: r.team, color: r.color, status: r.status };
+  return { id: r.id, name: r.name, description: r.description, team: r.team, color: r.color, status: r.status, members: (r as any).members || [] };
 }
 function toTask(r: DbTask): Task {
   const checklist = Array.isArray(r.checklist)
@@ -284,8 +285,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!uid) return;
     const { data } = await supabase.from("projects").insert({
       user_id: uid, name: p.name, description: p.description, team: p.team,
-      color: p.color, status: p.status,
-    }).select().single();
+      color: p.color, status: p.status, members: p.members,
+    } as any).select().single();
     if (data) setProjects(prev => [...prev, toProject(data)]);
   }, [uid]);
 
@@ -293,9 +294,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!uid) return;
     await supabase.from("projects").update({
       name: p.name, description: p.description, team: p.team,
-      color: p.color, status: p.status,
-    }).eq("id", p.id);
+      color: p.color, status: p.status, members: p.members,
+    } as any).eq("id", p.id);
     setProjects(prev => prev.map(x => x.id === p.id ? p : x));
+  }, [uid]);
+
+  const deleteProject = useCallback(async (id: string) => {
+    if (!uid) return;
+    await supabase.from("projects").delete().eq("id", id);
+    setProjects(prev => prev.filter(x => x.id !== id));
   }, [uid]);
 
   // === EVENTS ===
@@ -408,7 +415,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addTeamMember, updateTeamMember, removeTeamMember,
       addTask, updateTask, deleteTask,
       addPost, updatePost, deletePost,
-      addProject, updateProject,
+      addProject, updateProject, deleteProject,
       addEvent, updateEvent, deleteEvent,
       addGeneralItem, updateGeneralItem, deleteGeneralItem,
       addCategory, removeCategory, updateCategory,

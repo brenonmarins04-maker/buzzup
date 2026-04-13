@@ -1,6 +1,6 @@
 import { useData } from "@/contexts/DataContext";
 import {
-  CheckCircle2, Clock, FileText, AlertTriangle, AlertCircle, TrendingUp, BarChart3, Megaphone,
+  CheckCircle2, Clock, FileText, AlertTriangle, AlertCircle, TrendingUp, BarChart3, Megaphone, Users,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
@@ -9,7 +9,7 @@ import {
 const PIE_COLORS = ["hsl(330, 70%, 55%)", "hsl(210, 80%, 52%)", "hsl(170, 80%, 40%)", "hsl(40, 6%, 10%)", "hsl(280, 60%, 55%)"];
 
 export default function DashboardPage() {
-  const { teams, tasks, posts, channels, loading } = useData();
+  const { teams, tasks, posts, channels, projects, allMembers, loading } = useData();
 
   if (loading) {
     return (
@@ -38,11 +38,20 @@ export default function DashboardPage() {
   const onTimePosts = posts.filter(p => p.status === "done" || p.status === "published").length;
 
   const postsByChannel = channels.map(ch => ({ channel: ch.name, count: posts.filter(p => p.channel === ch.id).length }));
-  const productivityByTeam = teams.map(team => ({
+  const completedByTeam = teams.map(team => ({
     team: team.name.split(" ")[0],
     completed: tasks.filter(t => t.team === team.id && t.status === "done").length,
     total: tasks.filter(t => t.team === team.id).length,
   }));
+
+  // People in projects stats
+  const uniqueMembers = [...new Set(allMembers)];
+  const activeProjects = projects.filter(p => p.status === "active");
+  const membersInProjects = new Set(activeProjects.flatMap(p => p.members || []));
+  const membersNotInProjects = uniqueMembers.filter(m => !membersInProjects.has(m));
+  const memberProjectCount: Record<string, number> = {};
+  activeProjects.forEach(p => (p.members || []).forEach(m => { memberProjectCount[m] = (memberProjectCount[m] || 0) + 1; }));
+  const membersInMultiple = Object.entries(memberProjectCount).filter(([, c]) => c > 1);
 
   const hasAlerts = overdueTasks.length > 0 || dueTodayTasks.length > 0 || upcomingSoonTasks.length > 0 || todayPosts.length > 0 || overduePosts.length > 0;
 
@@ -128,10 +137,12 @@ export default function DashboardPage() {
         </div>
         <div className="bg-card border border-border rounded-lg p-4 md:p-5">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase tracking-wider">No Prazo</span>
-            <Clock className="h-4 w-4 text-status-in-progress" />
+            <span className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase tracking-wider">Em Projetos</span>
+            <Users className="h-4 w-4 text-status-in-progress" />
           </div>
-          <span className="text-2xl md:text-3xl font-bold text-foreground mt-2 block">{onTimePosts}</span>
+          <div className="flex items-end gap-2 mt-2">
+            <span className="text-2xl md:text-3xl font-bold text-foreground">{membersInProjects.size}/{uniqueMembers.length}</span>
+          </div>
         </div>
         <div className="bg-card border border-border rounded-lg p-4 md:p-5">
           <div className="flex items-center justify-between">
@@ -142,15 +153,46 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* People stats */}
+      {(membersNotInProjects.length > 0 || membersInMultiple.length > 0) && (
+        <div className="bg-card border border-border rounded-lg p-5">
+          <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+            <Users className="h-4 w-4 text-muted-foreground" /> Alocação de Pessoas
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {membersNotInProjects.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-2">Sem projeto ({membersNotInProjects.length})</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {membersNotInProjects.map(m => (
+                    <span key={m} className="text-xs bg-muted text-foreground px-2 py-0.5 rounded-full">{m}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {membersInMultiple.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-2">Em mais de 1 projeto</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {membersInMultiple.map(([name, count]) => (
+                    <span key={name} className="text-xs bg-accent text-foreground px-2 py-0.5 rounded-full">{name} ({count})</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-card border border-border rounded-lg p-5">
           <div className="flex items-center gap-2 mb-4">
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold text-foreground">Produtividade por Equipe</h2>
+            <h2 className="text-sm font-semibold text-foreground">Tarefas Concluídas por Equipe</h2>
           </div>
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={productivityByTeam}>
+              <BarChart data={completedByTeam}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(40, 6%, 90%)" />
                 <XAxis dataKey="team" tick={{ fontSize: 11 }} stroke="hsl(40, 3%, 55%)" />
                 <YAxis tick={{ fontSize: 11 }} stroke="hsl(40, 3%, 55%)" />
