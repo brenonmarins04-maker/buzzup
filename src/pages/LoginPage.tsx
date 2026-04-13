@@ -51,7 +51,9 @@ export default function LoginPage() {
       if (error) {
         toast.error(error.message);
       } else {
-        toast.success("Conta criada! Verifique seu e-mail para confirmar.");
+        toast.success("Conta criada! Entrando...");
+        const { error: loginError } = await signIn(email, password);
+        if (loginError) toast.error(loginError.message);
       }
     } else {
       const { error } = await signIn(email, password);
