@@ -57,6 +57,7 @@ type DataContextType = {
 
   addProject: (project: Omit<Project, "id">) => void;
   updateProject: (project: Project) => void;
+  deleteProject: (id: string) => void;
 
   addEvent: (event: Omit<CalendarEvent, "id">) => void;
   updateEvent: (event: CalendarEvent) => void;
@@ -84,7 +85,7 @@ function toTeam(r: DbTeam): Team {
   return { id: r.id, name: r.name, color: r.color, members: r.members || [] };
 }
 function toProject(r: DbProject): Project {
-  return { id: r.id, name: r.name, description: r.description, team: r.team, color: r.color, status: r.status };
+  return { id: r.id, name: r.name, description: r.description, team: r.team, color: r.color, status: r.status, members: (r as any).members || [] };
 }
 function toTask(r: DbTask): Task {
   const checklist = Array.isArray(r.checklist)
