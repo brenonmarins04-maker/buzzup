@@ -6,6 +6,7 @@ import TaskModal from "@/components/modals/TaskModal";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import { toast } from "sonner";
 import FilterChips from "@/components/FilterChips";
+import { getNowBrasilia } from "@/lib/utils";
 
 const statusColumns = [
   { id: "not-started", label: "Não Começado", dotClass: "bg-status-not-started" },
@@ -14,7 +15,7 @@ const statusColumns = [
 
 function getDeadlineBorderClass(deadline: string, status: string) {
   if (status === "done") return "border-l-status-done";
-  const today = new Date();
+  const today = getNowBrasilia();
   const d = new Date(deadline);
   const diff = Math.ceil((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
   if (diff < 0) return "border-l-destructive";

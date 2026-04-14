@@ -17,6 +17,7 @@ import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import FilterChips from "@/components/FilterChips";
+import { getNowBrasilia } from "@/lib/utils";
 
 export type CalendarItem = {
   id: string; title: string; type: "task" | "post" | "event" | "general";
@@ -27,7 +28,7 @@ type ViewMode = "month" | "week" | "day";
 
 export default function CalendarPage() {
   const { teams, tasks, posts, events, generalItems, updateTask, updatePost, updateEvent, updateGeneralItem, deleteTask, deletePost, deleteEvent, deleteGeneralItem } = useData();
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(getNowBrasilia());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [filterTeams, setFilterTeams] = useState<string[]>([]);
   const [filterTypes, setFilterTypes] = useState<string[]>([]);
