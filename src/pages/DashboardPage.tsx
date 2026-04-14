@@ -1,6 +1,6 @@
 import { useData } from "@/contexts/DataContext";
 import {
-  CheckCircle2, Clock, FileText, AlertTriangle, AlertCircle, TrendingUp, BarChart3, Megaphone, Users,
+  Clock, AlertTriangle, AlertCircle, TrendingUp, BarChart3, Megaphone, Users,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
@@ -32,11 +32,6 @@ export default function DashboardPage() {
   const todayPosts = posts.filter(p => p.date === today && p.status !== "published" && p.status !== "done");
   const overduePosts = posts.filter(p => p.date < today && p.status !== "published" && p.status !== "done");
 
-  const completedTasks = tasks.filter(t => t.status === "done");
-  const activeTasks = tasks.filter(t => t.status !== "done");
-  const totalPosts = posts.length;
-  const onTimePosts = posts.filter(p => p.status === "done" || p.status === "published").length;
-
   const postsByChannel = channels.map(ch => ({ channel: ch.name, count: posts.filter(p => p.channel === ch.id).length }));
   const completedByTeam = teams.map(team => ({
     team: team.name.split(" ")[0],
@@ -52,6 +47,24 @@ export default function DashboardPage() {
   const memberProjectCount: Record<string, number> = {};
   activeProjects.forEach(p => (p.members || []).forEach(m => { memberProjectCount[m] = (memberProjectCount[m] || 0) + 1; }));
   const membersInMultiple = Object.entries(memberProjectCount).filter(([, c]) => c > 1);
+
+  // Pie chart data for project allocation
+  const membersIn0 = uniqueMembers.filter(m => !memberProjectCount[m]).length;
+  const membersIn1 = uniqueMembers.filter(m => memberProjectCount[m] === 1).length;
+  const membersIn2Plus = uniqueMembers.filter(m => (memberProjectCount[m] || 0) >= 2).length;
+  const allocationPieData = [
+    { name: "Sem projeto", value: membersIn0, color: "#ef4444" },
+    { name: "1 projeto", value: membersIn1, color: "#22c55e" },
+    { name: "2+ projetos", value: membersIn2Plus, color: "#ec4899" },
+  ].filter(d => d.value > 0);
+
+  // Tasks completed by person
+  const doneTasks = tasks.filter(t => t.status === "done");
+  const tasksByPerson = uniqueMembers.map(member => ({
+    name: member.split(" ")[0],
+    fullName: member,
+    completed: doneTasks.filter(t => (t.responsible || []).includes(member)).length,
+  })).sort((a, b) => b.completed - a.completed).filter(d => d.completed > 0);
 
   const hasAlerts = overdueTasks.length > 0 || dueTodayTasks.length > 0 || upcomingSoonTasks.length > 0 || todayPosts.length > 0 || overduePosts.length > 0;
 
@@ -117,49 +130,13 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-card border border-border rounded-lg p-4 md:p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase tracking-wider">Concluídas</span>
-            <CheckCircle2 className="h-4 w-4 text-status-done" />
-          </div>
-          <div className="flex items-end gap-2 mt-2">
-            <span className="text-2xl md:text-3xl font-bold text-foreground">{completedTasks.length}/{tasks.length}</span>
-            <span className="text-sm text-muted-foreground mb-0.5">({tasks.length > 0 ? Math.round((completedTasks.length / tasks.length) * 100) : 0}%)</span>
-          </div>
-        </div>
-        <div className="bg-card border border-border rounded-lg p-4 md:p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase tracking-wider">Posts</span>
-            <FileText className="h-4 w-4 text-channel-instagram" />
-          </div>
-          <span className="text-2xl md:text-3xl font-bold text-foreground mt-2 block">{totalPosts}</span>
-        </div>
-        <div className="bg-card border border-border rounded-lg p-4 md:p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase tracking-wider">Em Projetos</span>
-            <Users className="h-4 w-4 text-status-in-progress" />
-          </div>
-          <div className="flex items-end gap-2 mt-2">
-            <span className="text-2xl md:text-3xl font-bold text-foreground">{membersInProjects.size}/{uniqueMembers.length}</span>
-          </div>
-        </div>
-        <div className="bg-card border border-border rounded-lg p-4 md:p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] md:text-xs font-medium text-muted-foreground uppercase tracking-wider">Prazos</span>
-            <AlertTriangle className="h-4 w-4 text-priority-high" />
-          </div>
-          <span className="text-2xl md:text-3xl font-bold text-foreground mt-2 block">{activeTasks.length}</span>
-        </div>
-      </div>
-
-      {/* People stats */}
-      {(membersNotInProjects.length > 0 || membersInMultiple.length > 0) && (
-        <div className="bg-card border border-border rounded-lg p-5">
-          <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-            <Users className="h-4 w-4 text-muted-foreground" /> Alocação de Pessoas
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Pessoas em Projetos — lista + pizza */}
+      <div className="bg-card border border-border rounded-lg p-5">
+        <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <Users className="h-4 w-4 text-muted-foreground" /> Pessoas em Projetos
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-4">
             {membersNotInProjects.length > 0 && (
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-2">Sem projeto ({membersNotInProjects.length})</p>
@@ -180,11 +157,36 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
+            {membersNotInProjects.length === 0 && membersInMultiple.length === 0 && (
+              <p className="text-xs text-muted-foreground">Todos os membros estão em exatamente 1 projeto.</p>
+            )}
           </div>
+          {allocationPieData.length > 0 && (
+            <div className="h-48 flex items-center">
+              <ResponsiveContainer width="50%" height="100%">
+                <PieChart>
+                  <Pie data={allocationPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} innerRadius={40}>
+                    {allocationPieData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid hsl(40, 6%, 90%)", fontSize: "12px" }} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex-1 flex flex-col gap-2">
+                {allocationPieData.map(item => (
+                  <div key={item.name} className="flex items-center gap-2 text-sm">
+                    <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                    <span className="text-muted-foreground">{item.name}</span>
+                    <span className="ml-auto font-semibold text-foreground">{item.value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Tarefas por equipe */}
         <div className="bg-card border border-border rounded-lg p-5">
           <div className="flex items-center gap-2 mb-4">
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
@@ -203,6 +205,36 @@ export default function DashboardPage() {
             </ResponsiveContainer>
           </div>
         </div>
+
+        {/* Tarefas concluídas por pessoa */}
+        <div className="bg-card border border-border rounded-lg p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-foreground">Tarefas Concluídas por Pessoa</h2>
+          </div>
+          <div className="h-48">
+            {tasksByPerson.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={tasksByPerson} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(40, 6%, 90%)" />
+                  <XAxis type="number" tick={{ fontSize: 11 }} stroke="hsl(40, 3%, 55%)" />
+                  <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} stroke="hsl(40, 3%, 55%)" width={80} />
+                  <Tooltip
+                    contentStyle={{ borderRadius: "8px", border: "1px solid hsl(40, 6%, 90%)", fontSize: "12px" }}
+                    formatter={(value: number, _name: string, props: any) => [value, props.payload.fullName]}
+                  />
+                  <Bar dataKey="completed" fill="hsl(40, 6%, 10%)" radius={[0, 4, 4, 0]} name="Concluídas" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+                Nenhuma tarefa concluída ainda
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Posts por canal */}
         <div className="bg-card border border-border rounded-lg p-5">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
