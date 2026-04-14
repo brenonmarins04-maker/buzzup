@@ -1,7 +1,7 @@
 import { useState, useMemo, type DragEvent } from "react";
 import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { useData } from "@/contexts/DataContext";
-import type { Task, Post, CalendarEvent, GeneralItem } from "@/contexts/DataContext";
+import type { Task, Post, CalendarEvent } from "@/contexts/DataContext";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth,
   addMonths, subMonths, addWeeks, subWeeks, addDays, subDays,
@@ -11,7 +11,6 @@ import { ptBR } from "date-fns/locale";
 import TaskModal from "@/components/modals/TaskModal";
 import PostModal from "@/components/modals/PostModal";
 import EventModal from "@/components/modals/EventModal";
-import GeneralItemModal from "@/components/modals/GeneralItemModal";
 import QuickCreateMenu from "@/components/modals/QuickCreateMenu";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -20,23 +19,21 @@ import FilterChips from "@/components/FilterChips";
 import { getNowBrasilia } from "@/lib/utils";
 
 export type CalendarItem = {
-  id: string; title: string; type: "task" | "post" | "event" | "general";
+  id: string; title: string; type: "task" | "post" | "event";
   date: string; time?: string; color: string; status?: string;
 };
 
 type ViewMode = "month" | "week" | "day";
 
 export default function CalendarPage() {
-  const { teams, tasks, posts, events, generalItems, updateTask, updatePost, updateEvent, updateGeneralItem, deleteTask, deletePost, deleteEvent, deleteGeneralItem } = useData();
+  const { tasks, posts, events, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent } = useData();
   const [currentDate, setCurrentDate] = useState(getNowBrasilia());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
-  const [filterTeams, setFilterTeams] = useState<string[]>([]);
   const [filterTypes, setFilterTypes] = useState<string[]>([]);
 
   const [taskModal, setTaskModal] = useState<{ open: boolean; task?: Task | null; date?: string }>({ open: false });
   const [postModal, setPostModal] = useState<{ open: boolean; post?: Post | null; date?: string }>({ open: false });
   const [eventModal, setEventModal] = useState<{ open: boolean; event?: CalendarEvent | null; date?: string }>({ open: false });
-  const [generalModal, setGeneralModal] = useState<{ open: boolean; item?: GeneralItem | null; date?: string }>({ open: false });
   const [deleting, setDeleting] = useState<{ open: boolean; id: string; title: string; type: string }>({ open: false, id: "", title: "", type: "" });
 
   const [dragItem, setDragItem] = useState<CalendarItem | null>(null);
@@ -46,14 +43,12 @@ export default function CalendarPage() {
     if (deleting.type === "task") deleteTask(deleting.id);
     else if (deleting.type === "post") deletePost(deleting.id);
     else if (deleting.type === "event") deleteEvent(deleting.id);
-    else if (deleting.type === "general") deleteGeneralItem(deleting.id);
     toast.success("Item excluído");
   };
 
   const allItems = useMemo<CalendarItem[]>(() => {
     const items: CalendarItem[] = [];
     tasks.forEach((t) => {
-      if (filterTeams.length > 0 && !filterTeams.includes(t.team)) return;
       if (filterTypes.length > 0 && !filterTypes.includes("task")) return;
       items.push({ id: t.id, title: t.title, type: "task", date: t.deadline, color: "bg-team-presidencia", status: t.status });
     });
@@ -63,19 +58,13 @@ export default function CalendarPage() {
     });
     events.forEach((e) => {
       if (filterTypes.length > 0 && !filterTypes.includes("event")) return;
-      items.push({ id: e.id, title: e.title, type: "event", date: e.date, time: e.time, color: "bg-team-mercado" });
-    });
-    generalItems.forEach((g) => {
-      if (filterTypes.length > 0 && !filterTypes.includes("general")) return;
-      items.push({ id: g.id, title: g.title, type: "general", date: g.date, time: g.time, color: "bg-team-projetos" });
+      items.push({ id: e.id, title: e.title, type: "event", date: e.date, color: "bg-team-mercado" });
     });
     return items;
-  }, [tasks, posts, events, generalItems, filterTeams, filterTypes]);
+  }, [tasks, posts, events, filterTypes]);
 
   const handleDragStart = (e: DragEvent, item: CalendarItem) => {
-    setDragItem(item);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", item.id);
+    setDragItem(item); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", item.id);
     if (e.currentTarget instanceof HTMLElement) e.currentTarget.style.opacity = "0.5";
   };
   const handleDragEnd = (e: DragEvent) => {
@@ -85,13 +74,12 @@ export default function CalendarPage() {
   const handleDragOver = (e: DragEvent, dayStr: string) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropTarget(dayStr); };
   const handleDragLeave = () => setDropTarget(null);
 
-  const handleDrop = (e: DragEvent, dayStr: string, time?: string) => {
+  const handleDrop = (e: DragEvent, dayStr: string) => {
     e.preventDefault(); setDropTarget(null);
     if (!dragItem) return;
     if (dragItem.type === "task") { const task = tasks.find(t => t.id === dragItem.id); if (task) updateTask({ ...task, deadline: dayStr }); }
-    else if (dragItem.type === "post") { const post = posts.find(p => p.id === dragItem.id); if (post) updatePost({ ...post, date: dayStr, ...(time ? { time } : {}) }); }
-    else if (dragItem.type === "event") { const ev = events.find(e => e.id === dragItem.id); if (ev) updateEvent({ ...ev, date: dayStr, ...(time ? { time } : {}) }); }
-    else if (dragItem.type === "general") { const gi = generalItems.find(g => g.id === dragItem.id); if (gi) updateGeneralItem({ ...gi, date: dayStr, ...(time ? { time } : {}) }); }
+    else if (dragItem.type === "post") { const post = posts.find(p => p.id === dragItem.id); if (post) updatePost({ ...post, date: dayStr }); }
+    else if (dragItem.type === "event") { const ev = events.find(e => e.id === dragItem.id); if (ev) updateEvent({ ...ev, date: dayStr }); }
     setDragItem(null);
   };
 
@@ -99,7 +87,6 @@ export default function CalendarPage() {
     if (item.type === "task") setTaskModal({ open: true, task: tasks.find(t => t.id === item.id) });
     else if (item.type === "post") setPostModal({ open: true, post: posts.find(p => p.id === item.id) });
     else if (item.type === "event") setEventModal({ open: true, event: events.find(e => e.id === item.id) });
-    else if (item.type === "general") setGeneralModal({ open: true, item: generalItems.find(g => g.id === item.id) });
   };
 
   const navigatePrev = () => {
@@ -133,7 +120,7 @@ export default function CalendarPage() {
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
   const weekDaysList = eachDayOfInterval({ start: weekStart, end: endOfWeek(currentDate, { weekStartsOn: 0 }) });
 
-  const typeLabels: Record<string, string> = { task: "Tarefa", post: "Post", event: "Evento", general: "Item" };
+  const typeLabels: Record<string, string> = { task: "Tarefa", post: "Post", event: "Evento" };
 
   const renderItemPill = (item: CalendarItem) => (
     <Tooltip key={item.id}>
@@ -161,16 +148,16 @@ export default function CalendarPage() {
   const renderDayCell = (day: Date, inMonth: boolean) => {
     const dayStr = format(day, "yyyy-MM-dd");
     const dayItems = allItems.filter((item) => item.date === dayStr);
-    const today = isToday(day);
+    const todayFlag = isToday(day);
     const isDropping = dropTarget === dayStr;
     return (
       <div key={dayStr} onDragOver={(e) => handleDragOver(e, dayStr)} onDragLeave={handleDragLeave} onDrop={(e) => handleDrop(e, dayStr)}
-        className={`min-h-[100px] border-b border-r border-border p-1.5 transition-colors ${!inMonth ? "bg-muted/30" : ""} ${today ? "bg-accent/50" : ""} ${isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""}`}>
+        className={`min-h-[100px] border-b border-r border-border p-1.5 transition-colors ${!inMonth ? "bg-muted/30" : ""} ${todayFlag ? "bg-accent/50" : ""} ${isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""}`}>
         <div className="flex items-center justify-between mb-1">
-          <div className={`text-xs font-medium ${today ? "bg-primary text-primary-foreground h-5 w-5 rounded-full flex items-center justify-center" : inMonth ? "text-foreground" : "text-muted-foreground/50"}`}>
+          <div className={`text-xs font-medium ${todayFlag ? "bg-primary text-primary-foreground h-5 w-5 rounded-full flex items-center justify-center" : inMonth ? "text-foreground" : "text-muted-foreground/50"}`}>
             {format(day, "d")}
           </div>
-          <QuickCreateMenu onCreateTask={() => setTaskModal({ open: true, date: dayStr })} onCreatePost={() => setPostModal({ open: true, date: dayStr })} onCreateItem={() => setGeneralModal({ open: true, date: dayStr })}>
+          <QuickCreateMenu onCreateTask={() => setTaskModal({ open: true, date: dayStr })} onCreatePost={() => setPostModal({ open: true, date: dayStr })} onCreateItem={() => setEventModal({ open: true, date: dayStr })}>
             <button className="h-4 w-4 rounded hover:bg-accent flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground">
               <Plus className="h-3 w-3" />
             </button>
@@ -201,7 +188,7 @@ export default function CalendarPage() {
               </button>
             ))}
           </div>
-          <QuickCreateMenu onCreateTask={() => setTaskModal({ open: true })} onCreatePost={() => setPostModal({ open: true })} onCreateItem={() => setGeneralModal({ open: true })}>
+          <QuickCreateMenu onCreateTask={() => setTaskModal({ open: true })} onCreatePost={() => setPostModal({ open: true })} onCreateItem={() => setEventModal({ open: true })}>
             <button className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
               <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Novo Item</span>
             </button>
@@ -210,18 +197,15 @@ export default function CalendarPage() {
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
-        <FilterChips label="Equipe" options={teams.map(t => ({ value: t.id, label: t.name }))} selected={filterTeams} onChange={setFilterTeams} />
         <FilterChips label="Tipo" options={[
           { value: "task", label: "Tarefas" },
           { value: "post", label: "Posts" },
           { value: "event", label: "Eventos" },
-          { value: "general", label: "Itens Gerais" },
         ]} selected={filterTypes} onChange={setFilterTypes} />
         <div className="ml-auto flex items-center gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-team-presidencia" /> Tarefa</span>
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-team-gente" /> Post</span>
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-team-mercado" /> Evento</span>
-          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-team-projetos" /> Item</span>
         </div>
       </div>
 
@@ -258,7 +242,7 @@ export default function CalendarPage() {
                   const isDropping = dropTarget === dropKey;
                   return (
                     <div key={dropKey} onDragOver={(e) => { e.preventDefault(); setDropTarget(dropKey); }} onDragLeave={() => setDropTarget(null)}
-                      onDrop={(e) => handleDrop(e, dayStr, `${h.toString().padStart(2, "0")}:00`)}
+                      onDrop={(e) => handleDrop(e, dayStr)}
                       className={`border-r border-border p-0.5 min-h-[48px] transition-colors ${isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""}`}>
                       {hourItems.map(item => renderItemPill(item))}
                     </div>
@@ -285,7 +269,7 @@ export default function CalendarPage() {
               const isDropping = dropTarget === dropKey;
               return (
                 <div key={h} onDragOver={(e) => { e.preventDefault(); setDropTarget(dropKey); }} onDragLeave={() => setDropTarget(null)}
-                  onDrop={(e) => handleDrop(e, dayStr, `${h.toString().padStart(2, "0")}:00`)}
+                  onDrop={(e) => handleDrop(e, dayStr)}
                   className={`flex border-b border-border min-h-[56px] transition-colors ${isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""}`}>
                   <div className="w-16 shrink-0 py-2 text-center text-xs text-muted-foreground border-r border-border">{`${h}:00`}</div>
                   <div className="flex-1 p-1 flex flex-col gap-0.5">{hourItems.map(item => renderItemPill(item))}</div>
@@ -299,7 +283,6 @@ export default function CalendarPage() {
       <TaskModal open={taskModal.open} onOpenChange={o => setTaskModal({ open: o })} task={taskModal.task} defaultDate={taskModal.date} />
       <PostModal open={postModal.open} onOpenChange={o => setPostModal({ open: o })} post={postModal.post} defaultDate={postModal.date} />
       <EventModal open={eventModal.open} onOpenChange={o => setEventModal({ open: o })} event={eventModal.event} defaultDate={eventModal.date} />
-      <GeneralItemModal open={generalModal.open} onOpenChange={o => setGeneralModal({ open: o })} item={generalModal.item} defaultDate={generalModal.date} />
       <DeleteConfirmDialog open={deleting.open} onOpenChange={o => setDeleting(p => ({ ...p, open: o }))}
         title={deleting.title} onConfirm={handleDelete} />
     </div>

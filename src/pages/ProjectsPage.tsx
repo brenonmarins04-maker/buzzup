@@ -50,10 +50,10 @@ export default function ProjectsPage() {
                 <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${st?.class}`}>{st?.label}</span>
               </div>
               {project.description && <p className="text-xs text-muted-foreground line-clamp-2">{project.description}</p>}
-              {project.members && project.members.length > 0 && (
+              {project.members.length > 0 && (
                 <div className="flex flex-wrap gap-1">
                   {project.members.map(m => (
-                    <span key={m} className="text-[10px] bg-accent text-foreground px-2 py-0.5 rounded-full">{m}</span>
+                    <span key={m.id} className="text-[10px] bg-accent text-foreground px-2 py-0.5 rounded-full">{m.name}</span>
                   ))}
                 </div>
               )}
