@@ -310,17 +310,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [syncJunction]);
 
   const deletePost = useCallback(async (id: string) => {
-    await supabase.from("posts").delete().eq("id", id);
+    const { error } = await supabase.from("posts").delete().eq("id", id);
+    if (error) { toast.error("Erro ao excluir publicação"); return; }
     setPosts(prev => prev.filter(x => x.id !== id));
   }, []);
 
   // === PROJECTS ===
   const addProject = useCallback(async (p: Omit<Project, "id" | "members"> & { memberIds: string[] }) => {
     if (!workspaceId) return;
-    const { data } = await supabase.from("projects").insert({
+    const { data, error } = await supabase.from("projects").insert({
       workspace_id: workspaceId, name: p.name, description: p.description,
       color: p.color, status: p.status,
     }).select().single();
+    if (error) { toast.error("Erro ao criar projeto"); return; }
     if (data) {
       await syncJunction("project_participants", "project_id", data.id, p.memberIds);
       const members = people.filter(per => p.memberIds.includes(per.id));
@@ -332,37 +334,42 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [workspaceId, people, syncJunction]);
 
   const updateProject = useCallback(async (p: Project) => {
-    await supabase.from("projects").update({
+    const { error } = await supabase.from("projects").update({
       name: p.name, description: p.description, color: p.color, status: p.status,
     }).eq("id", p.id);
+    if (error) { toast.error("Erro ao atualizar projeto"); return; }
     await syncJunction("project_participants", "project_id", p.id, p.members.map(m => m.id));
     setProjects(prev => prev.map(x => x.id === p.id ? p : x));
   }, [syncJunction]);
 
   const deleteProject = useCallback(async (id: string) => {
-    await supabase.from("projects").delete().eq("id", id);
+    const { error } = await supabase.from("projects").delete().eq("id", id);
+    if (error) { toast.error("Erro ao excluir projeto"); return; }
     setProjects(prev => prev.filter(x => x.id !== id));
   }, []);
 
   // === EVENTS (calendar_items) ===
   const addEvent = useCallback(async (e: Omit<CalendarEvent, "id">) => {
     if (!workspaceId) return;
-    const { data } = await supabase.from("calendar_items").insert({
+    const { data, error } = await supabase.from("calendar_items").insert({
       workspace_id: workspaceId, title: e.title, date: e.date,
       type: e.type, description: e.description,
     }).select().single();
+    if (error) { toast.error("Erro ao criar evento"); return; }
     if (data) setEvents(prev => [...prev, { id: data.id, title: data.title, date: data.date, type: data.type, description: data.description }]);
   }, [workspaceId]);
 
   const updateEvent = useCallback(async (e: CalendarEvent) => {
-    await supabase.from("calendar_items").update({
+    const { error } = await supabase.from("calendar_items").update({
       title: e.title, date: e.date, type: e.type, description: e.description,
     }).eq("id", e.id);
+    if (error) { toast.error("Erro ao atualizar evento"); return; }
     setEvents(prev => prev.map(x => x.id === e.id ? e : x));
   }, []);
 
   const deleteEvent = useCallback(async (id: string) => {
-    await supabase.from("calendar_items").delete().eq("id", id);
+    const { error } = await supabase.from("calendar_items").delete().eq("id", id);
+    if (error) { toast.error("Erro ao excluir evento"); return; }
     setEvents(prev => prev.filter(x => x.id !== id));
   }, []);
 
