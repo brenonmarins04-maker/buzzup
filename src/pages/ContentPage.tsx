@@ -19,8 +19,8 @@ const statusLabels: Record<string, { label: string; class: string }> = {
 
 export default function ContentPage() {
   const { posts, channels, categories, addCategory, removeCategory, addChannel, removeChannel, deletePost } = useData();
-  const [filterChannel, setFilterChannel] = useState("all");
-  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterChannels, setFilterChannels] = useState<string[]>([]);
+  const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
   const [modal, setModal] = useState<{ open: boolean; post?: Post | null }>({ open: false });
   const [tab, setTab] = useState<"active" | "done">("active");
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -29,8 +29,8 @@ export default function ContentPage() {
   const [deleting, setDeleting] = useState<{ open: boolean; id: string; title: string }>({ open: false, id: "", title: "" });
 
   const filtered = posts.filter((p) => {
-    if (filterChannel !== "all" && p.channel !== filterChannel) return false;
-    if (filterStatus !== "all" && p.status !== filterStatus) return false;
+    if (filterChannels.length > 0 && !filterChannels.includes(p.channel)) return false;
+    if (filterStatuses.length > 0 && !filterStatuses.includes(p.status)) return false;
     if (tab === "active") return p.status !== "done" && p.status !== "published";
     return p.status === "done" || p.status === "published";
   });
@@ -58,17 +58,13 @@ export default function ContentPage() {
           <button onClick={() => setTab("active")} className={`px-3 py-1 rounded text-xs font-medium transition-colors ${tab === "active" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>Ativas</button>
           <button onClick={() => setTab("done")} className={`px-3 py-1 rounded text-xs font-medium transition-colors ${tab === "done" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>Concluídas</button>
         </div>
-        <select value={filterChannel} onChange={(e) => setFilterChannel(e.target.value)} className="h-8 rounded-md border border-input bg-background px-2 text-xs">
-          <option value="all">Todos canais</option>
-          {channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="h-8 rounded-md border border-input bg-background px-2 text-xs">
-          <option value="all">Todos status</option>
-          <option value="not-started">Não Começado</option>
-          <option value="in-progress">Em Andamento</option>
-          <option value="done">Pronto</option>
-          <option value="published">Publicado</option>
-        </select>
+        <FilterChips label="Canal" options={channels.map(c => ({ value: c.id, label: c.name }))} selected={filterChannels} onChange={setFilterChannels} />
+        <FilterChips label="Status" options={[
+          { value: "not-started", label: "Não Começado" },
+          { value: "in-progress", label: "Em Andamento" },
+          { value: "done", label: "Pronto" },
+          { value: "published", label: "Publicado" },
+        ]} selected={filterStatuses} onChange={setFilterStatuses} />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
