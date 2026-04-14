@@ -47,20 +47,32 @@ export default function EventModal({ open, onOpenChange, event, defaultDate }: P
     onOpenChange(false);
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleSave();
+  };
+
+  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSave();
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{event ? "Editar Evento" : "Novo Evento"}</DialogTitle>
         </DialogHeader>
-        <div className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Título *</label>
             <Input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Título do evento" />
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Descrição</label>
-            <Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={2} />
+            <Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={2} onKeyDown={handleTextareaKeyDown} />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
@@ -85,10 +97,10 @@ export default function EventModal({ open, onOpenChange, event, defaultDate }: P
             </select>
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button onClick={handleSave}>{event ? "Salvar" : "Criar Evento"}</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="submit">{event ? "Salvar" : "Criar Evento"}</Button>
           </div>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

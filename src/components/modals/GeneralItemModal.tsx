@@ -1,10 +1,7 @@
 import { useState, useEffect } from "react";
 import { useData, type GeneralItem } from "@/contexts/DataContext";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -21,10 +18,7 @@ type Props = {
 export default function GeneralItemModal({ open, onOpenChange, item, defaultDate }: Props) {
   const { addGeneralItem, updateGeneralItem } = useData();
   const [form, setForm] = useState({
-    title: "",
-    description: "",
-    date: defaultDate || "",
-    time: "10:00",
+    title: "", description: "", date: defaultDate || "", time: "10:00",
     type: "reminder" as GeneralItem["type"],
   });
 
@@ -37,10 +31,7 @@ export default function GeneralItemModal({ open, onOpenChange, item, defaultDate
   }, [item, defaultDate, open]);
 
   const handleSave = () => {
-    if (!form.title.trim()) {
-      toast.error("Título é obrigatório");
-      return;
-    }
+    if (!form.title.trim()) { toast.error("Título é obrigatório"); return; }
     if (item) {
       updateGeneralItem({ ...item, ...form });
       toast.success("Item atualizado");
@@ -51,20 +42,32 @@ export default function GeneralItemModal({ open, onOpenChange, item, defaultDate
     onOpenChange(false);
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleSave();
+  };
+
+  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSave();
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{item ? "Editar Item" : "Novo Item"}</DialogTitle>
         </DialogHeader>
-        <div className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Título *</label>
             <Input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Título" />
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Descrição</label>
-            <Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={2} />
+            <Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} rows={2} onKeyDown={handleTextareaKeyDown} />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
@@ -85,10 +88,10 @@ export default function GeneralItemModal({ open, onOpenChange, item, defaultDate
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button onClick={handleSave}>{item ? "Salvar" : "Criar Item"}</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="submit">{item ? "Salvar" : "Criar Item"}</Button>
           </div>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useData } from "@/contexts/DataContext";
 import { Plus, Pencil, Trash2, UserPlus } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,18 @@ export default function TeamsPage() {
   const [newName, setNewName] = useState("");
   const [editName, setEditName] = useState("");
   const [newTeamName, setNewTeamName] = useState("");
+  const addMemberRef = useRef<HTMLInputElement>(null);
+
+  const handleAddMember = () => {
+    if (newName.trim()) {
+      addTeamMember(addModal.teamId, newName.trim());
+      toast.success("Pessoa adicionada");
+      setNewName("");
+      setTimeout(() => addMemberRef.current?.focus(), 50);
+    } else {
+      toast.error("Nome é obrigatório");
+    }
+  };
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -72,33 +84,33 @@ export default function TeamsPage() {
       <Dialog open={newTeamModal} onOpenChange={setNewTeamModal}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>Nova Equipe</DialogTitle></DialogHeader>
-          <div className="flex flex-col gap-4">
+          <form onSubmit={e => { e.preventDefault(); if (newTeamName.trim()) { addTeam({ name: newTeamName.trim(), color: "#888888", members: [] }); setNewTeamModal(false); toast.success("Equipe criada"); } else { toast.error("Nome é obrigatório"); } }} className="flex flex-col gap-4">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Nome da equipe</label>
               <Input value={newTeamName} onChange={e => setNewTeamName(e.target.value)} placeholder="Nome da equipe" />
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setNewTeamModal(false)}>Cancelar</Button>
-              <Button onClick={() => { if (newTeamName.trim()) { addTeam({ name: newTeamName.trim(), color: "#888888", members: [] }); setNewTeamModal(false); toast.success("Equipe criada"); } else { toast.error("Nome é obrigatório"); } }}>Criar</Button>
+              <Button type="button" variant="outline" onClick={() => setNewTeamModal(false)}>Cancelar</Button>
+              <Button type="submit">Criar</Button>
             </div>
-          </div>
+          </form>
         </DialogContent>
       </Dialog>
 
-      {/* Add member modal */}
+      {/* Add member modal - continuous flow */}
       <Dialog open={addModal.open} onOpenChange={o => setAddModal({ open: o, teamId: addModal.teamId })}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>Adicionar Pessoa</DialogTitle></DialogHeader>
-          <div className="flex flex-col gap-4">
+          <form onSubmit={e => { e.preventDefault(); handleAddMember(); }} className="flex flex-col gap-4">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Nome</label>
-              <Input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Nome da pessoa" />
+              <Input ref={addMemberRef} value={newName} onChange={e => setNewName(e.target.value)} placeholder="Nome da pessoa" />
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setAddModal({ open: false, teamId: "" })}>Cancelar</Button>
-              <Button onClick={() => { if (newName.trim()) { addTeamMember(addModal.teamId, newName.trim()); setAddModal({ open: false, teamId: "" }); toast.success("Pessoa adicionada"); } else { toast.error("Nome é obrigatório"); } }}>Adicionar</Button>
+              <Button type="button" variant="outline" onClick={() => setAddModal({ open: false, teamId: "" })}>Fechar</Button>
+              <Button type="submit">Adicionar</Button>
             </div>
-          </div>
+          </form>
         </DialogContent>
       </Dialog>
 
@@ -106,16 +118,16 @@ export default function TeamsPage() {
       <Dialog open={editModal.open} onOpenChange={o => setEditModal({ open: o, teamId: editModal.teamId, oldName: editModal.oldName })}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>Editar Pessoa</DialogTitle></DialogHeader>
-          <div className="flex flex-col gap-4">
+          <form onSubmit={e => { e.preventDefault(); if (editName.trim()) { updateTeamMember(editModal.teamId, editModal.oldName, editName.trim()); setEditModal({ open: false, teamId: "", oldName: "" }); toast.success("Pessoa atualizada"); } }} className="flex flex-col gap-4">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Nome</label>
               <Input value={editName} onChange={e => setEditName(e.target.value)} />
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setEditModal({ open: false, teamId: "", oldName: "" })}>Cancelar</Button>
-              <Button onClick={() => { if (editName.trim()) { updateTeamMember(editModal.teamId, editModal.oldName, editName.trim()); setEditModal({ open: false, teamId: "", oldName: "" }); toast.success("Pessoa atualizada"); } }}>Salvar</Button>
+              <Button type="button" variant="outline" onClick={() => setEditModal({ open: false, teamId: "", oldName: "" })}>Cancelar</Button>
+              <Button type="submit">Salvar</Button>
             </div>
-          </div>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
