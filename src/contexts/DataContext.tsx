@@ -218,12 +218,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // === PEOPLE ===
   const addPerson = useCallback(async (name: string) => {
     if (!workspaceId) return;
-    const { data } = await supabase.from("people").insert({ workspace_id: workspaceId, name }).select("id, name").single();
+    const { data, error } = await supabase.from("people").insert({ workspace_id: workspaceId, name }).select("id, name").single();
+    if (error) { toast.error("Erro ao adicionar pessoa"); return; }
     if (data) setPeople(prev => [...prev, { id: data.id, name: data.name }]);
   }, [workspaceId]);
 
   const updatePerson = useCallback(async (id: string, name: string) => {
-    await supabase.from("people").update({ name }).eq("id", id);
+    const { error } = await supabase.from("people").update({ name }).eq("id", id);
+    if (error) { toast.error("Erro ao atualizar pessoa"); return; }
     setPeople(prev => prev.map(p => p.id === id ? { ...p, name } : p));
     // Update local state in tasks/posts/projects too
     setTasks(prev => prev.map(t => ({ ...t, responsible: t.responsible.map(r => r.id === id ? { ...r, name } : r) })));
@@ -232,7 +234,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const deletePerson = useCallback(async (id: string) => {
-    await supabase.from("people").delete().eq("id", id);
+    const { error } = await supabase.from("people").delete().eq("id", id);
+    if (error) { toast.error("Erro ao excluir pessoa"); return; }
     setPeople(prev => prev.filter(p => p.id !== id));
     setTasks(prev => prev.map(t => ({ ...t, responsible: t.responsible.filter(r => r.id !== id) })));
     setPosts(prev => prev.map(p => ({ ...p, responsible: p.responsible.filter(r => r.id !== id) })));
@@ -242,11 +245,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // === TASKS ===
   const addTask = useCallback(async (t: Omit<Task, "id" | "responsible"> & { responsibleIds: string[] }) => {
     if (!workspaceId) return;
-    const { data } = await supabase.from("tasks").insert({
+    const { data, error } = await supabase.from("tasks").insert({
       workspace_id: workspaceId, title: t.title, description: t.description, team: t.team,
       deadline: t.deadline, status: t.status, priority: t.priority,
       checklist: t.checklist as unknown as Json,
     }).select().single();
+    if (error) { toast.error("Erro ao criar tarefa"); return; }
     if (data) {
       await syncJunction("task_assignees", "task_id", data.id, t.responsibleIds);
       const resp = people.filter(p => t.responsibleIds.includes(p.id));
@@ -259,28 +263,31 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [workspaceId, people, syncJunction]);
 
   const updateTask = useCallback(async (t: Task) => {
-    await supabase.from("tasks").update({
+    const { error } = await supabase.from("tasks").update({
       title: t.title, description: t.description, team: t.team,
       deadline: t.deadline, status: t.status, priority: t.priority,
       checklist: t.checklist as unknown as Json,
     }).eq("id", t.id);
+    if (error) { toast.error("Erro ao atualizar tarefa"); return; }
     await syncJunction("task_assignees", "task_id", t.id, t.responsible.map(r => r.id));
     setTasks(prev => prev.map(x => x.id === t.id ? t : x));
   }, [syncJunction]);
 
   const deleteTask = useCallback(async (id: string) => {
-    await supabase.from("tasks").delete().eq("id", id);
+    const { error } = await supabase.from("tasks").delete().eq("id", id);
+    if (error) { toast.error("Erro ao excluir tarefa"); return; }
     setTasks(prev => prev.filter(x => x.id !== id));
   }, []);
 
   // === POSTS ===
   const addPost = useCallback(async (p: Omit<Post, "id" | "responsible"> & { responsibleIds: string[] }) => {
     if (!workspaceId) return;
-    const { data } = await supabase.from("posts").insert({
+    const { data, error } = await supabase.from("posts").insert({
       workspace_id: workspaceId, title: p.title, copy: p.copy, channel: p.channel,
       category: p.category, date: p.date, time: p.time, status: p.status,
       link: p.link, media_url: p.media_url,
     }).select().single();
+    if (error) { toast.error("Erro ao criar publicação"); return; }
     if (data) {
       await syncJunction("post_assignees", "post_id", data.id, p.responsibleIds);
       const resp = people.filter(per => p.responsibleIds.includes(per.id));
@@ -293,10 +300,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [workspaceId, people, syncJunction]);
 
   const updatePost = useCallback(async (p: Post) => {
-    await supabase.from("posts").update({
+    const { error } = await supabase.from("posts").update({
       title: p.title, copy: p.copy, channel: p.channel, category: p.category,
       date: p.date, time: p.time, status: p.status, link: p.link, media_url: p.media_url,
     }).eq("id", p.id);
+    if (error) { toast.error("Erro ao atualizar publicação"); return; }
     await syncJunction("post_assignees", "post_id", p.id, p.responsible.map(r => r.id));
     setPosts(prev => prev.map(x => x.id === p.id ? p : x));
   }, [syncJunction]);
