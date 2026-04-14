@@ -1,44 +1,33 @@
 
 
-# Plano: UX de Criação Rápida — ENTER, Fluxo Contínuo e Memória
+# Plano: Reformular Dashboard — Gráficos e Cards
 
 ## Resumo
-Melhorar a experiência de criação em todos os modais: ENTER salva, modal não fecha (modo criação), campos limpam automaticamente, e o sistema lembra a última equipe/canal selecionados.
+Adicionar gráfico de tarefas concluídas por pessoa, substituir cards superiores por um gráfico de pizza de alocação em projetos, e renomear seções.
 
-## Mudanças
+## Mudanças em `src/pages/DashboardPage.tsx`
 
-### 1. Memória de escolhas — novo hook `useFormMemory`
-Criar `src/hooks/useFormMemory.ts` que usa `localStorage` para guardar e recuperar `lastTeam` e `lastChannel`. Atualizado ao salvar qualquer item.
+### 1. Remover os 4 cards superiores
+Remover completamente a grid com "Concluídas", "Posts", "Em Projetos" e "Prazos" (linhas 120-154).
 
-### 2. TaskModal — fluxo contínuo + ENTER + memória
-- Wrap conteúdo em `<form onSubmit>` para capturar ENTER
-- Textarea usa `onKeyDown` para SHIFT+ENTER = quebra de linha, ENTER sozinho = submit
-- Após salvar **novo** item: limpar campos (manter `team` da memória e `deadline`), focar no input de título via `useRef`
-- Após salvar **edição**: fechar modal normalmente
-- Criação mínima: apenas título + data (já funciona, só remover validação extra se houver)
-- Atualizar memória de `lastTeam` ao salvar
+### 2. Renomear "Alocação de Pessoas" → "Pessoas em Projetos"
+Na seção que lista pessoas sem projeto e em múltiplos projetos, trocar o título.
 
-### 3. PostModal — fluxo contínuo + ENTER + memória
-- Mesmo padrão: `<form>`, ENTER salva, SHIFT+ENTER quebra linha
-- Após criar: limpar campos, manter `channel` e `category` da memória, focar título
-- Edição: fecha normalmente
-- Criação mínima: título + data
-- Atualizar memória de `lastChannel` ao salvar
+### 3. Adicionar gráfico de pizza — Pessoas em Projetos
+Novo gráfico de pizza com 3 categorias:
+- **Vermelho** (`#ef4444`): pessoas que não estão em nenhum projeto
+- **Verde** (`#22c55e`): pessoas que estão em exatamente 1 projeto
+- **Rosa choque** (`#ec4899`): pessoas que estão em 2+ projetos
 
-### 4. TeamsPage (adicionar pessoa) — fluxo contínuo + ENTER
-- Modal "Adicionar Pessoa": `<form onSubmit>`, ENTER salva
-- Após salvar: limpar nome, manter modal aberto no mesmo time, focar input
-- Permitir adicionar várias pessoas em sequência
+Será colocado ao lado da seção "Pessoas em Projetos", substituindo ou complementando a listagem atual.
 
-### 5. EventModal e GeneralItemModal — ENTER support
-- Adicionar `<form onSubmit>` para ENTER = salvar
-- SHIFT+ENTER em textareas = quebra de linha
-- Esses modais fecham após salvar (sem fluxo contínuo, pois são menos frequentes)
+### 4. Adicionar gráfico de barras — Tarefas Concluídas por Pessoa
+Novo gráfico de barras mostrando, para cada membro (`allMembers`), quantas tarefas com `status === "done"` possuem esse membro no campo `responsible`. Ordenado do maior para o menor. Exibido na grid de gráficos ao lado do existente "por Equipe".
 
-### 6. ESC
-- Já funciona nativamente pelo Dialog do Radix — nenhuma mudança necessária
+### Lógica de dados
+- **Por pessoa**: Iterar `allMembers`, contar tarefas done onde `task.responsible.includes(member)`. Ordenar desc.
+- **Pizza de alocação**: Calcular quantos membros têm 0, 1, ou 2+ projetos ativos.
 
-## Arquivos afetados
-- Novo: `src/hooks/useFormMemory.ts`
-- Editados: `TaskModal.tsx`, `PostModal.tsx`, `EventModal.tsx`, `GeneralItemModal.tsx`, `TeamsPage.tsx`
+### Arquivos afetados
+- `src/pages/DashboardPage.tsx` — único arquivo modificado
 
