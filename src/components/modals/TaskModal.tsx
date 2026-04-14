@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useData } from "@/contexts/DataContext";
 import type { Task } from "@/contexts/DataContext";
 import {
@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Plus, X } from "lucide-react";
+import { useFormMemory } from "@/hooks/useFormMemory";
 
 type Props = {
   open: boolean;
@@ -20,17 +21,21 @@ type Props = {
 
 export default function TaskModal({ open, onOpenChange, task, defaultDate }: Props) {
   const { teams, allMembers, addTask, updateTask } = useData();
+  const { memory, remember } = useFormMemory();
+  const titleRef = useRef<HTMLInputElement>(null);
 
-  const [form, setForm] = useState({
+  const makeBlank = () => ({
     title: "",
     description: "",
     responsible: [] as string[],
-    team: teams[0]?.id || "",
+    team: memory.lastTeam || teams[0]?.id || "",
     deadline: defaultDate || "",
     status: "not-started",
     priority: "medium",
     checklist: [] as { text: string; checked: boolean }[],
   });
+
+  const [form, setForm] = useState(makeBlank);
   const [newCheckItem, setNewCheckItem] = useState("");
 
   useEffect(() => {
@@ -42,25 +47,42 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
         priority: task.priority, checklist: task.checklist || [],
       });
     } else {
-      setForm({
-        title: "", description: "", responsible: [],
-        team: teams[0]?.id || "", deadline: defaultDate || "",
-        status: "not-started", priority: "medium", checklist: [],
-      });
+      setForm(makeBlank());
     }
     setNewCheckItem("");
   }, [task, defaultDate, open, teams]);
 
   const handleSave = () => {
     if (!form.title.trim()) { toast.error("Título é obrigatório"); return; }
+    remember({ lastTeam: form.team });
     if (task) {
       updateTask({ ...task, ...form });
       toast.success("Tarefa atualizada");
+      onOpenChange(false);
     } else {
       addTask(form);
       toast.success("Tarefa criada");
+      // continuous flow: reset and refocus
+      setForm({
+        ...makeBlank(),
+        team: form.team,
+        deadline: form.deadline,
+      });
+      setNewCheckItem("");
+      setTimeout(() => titleRef.current?.focus(), 50);
     }
-    onOpenChange(false);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleSave();
+  };
+
+  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSave();
+    }
   };
 
   const toggleResponsible = (name: string) => {
@@ -82,14 +104,14 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
         <DialogHeader>
           <DialogTitle>{task ? "Editar Tarefa" : "Nova Tarefa"}</DialogTitle>
         </DialogHeader>
-        <div className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Título *</label>
-            <Input value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Título da tarefa" />
+            <Input ref={titleRef} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Título da tarefa" />
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Descrição</label>
-            <Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Descrição..." rows={3} />
+            <Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Descrição..." rows={3} onKeyDown={handleTextareaKeyDown} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -157,10 +179,10 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button onClick={handleSave}>{task ? "Salvar" : "Criar Tarefa"}</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="submit">{task ? "Salvar" : "Criar Tarefa"}</Button>
           </div>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
