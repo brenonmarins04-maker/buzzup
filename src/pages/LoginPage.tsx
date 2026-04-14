@@ -68,7 +68,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">MktFlow</h1>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">BuzzUp</h1>
           <p className="text-sm text-muted-foreground">
             {isForgot ? "Recuperar senha" : isSignUp ? "Criar conta" : "Entrar no workspace"}
           </p>
