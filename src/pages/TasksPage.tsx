@@ -5,6 +5,7 @@ import { Plus, X } from "lucide-react";
 import TaskModal from "@/components/modals/TaskModal";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import { toast } from "sonner";
+import FilterChips from "@/components/FilterChips";
 
 const statusColumns = [
   { id: "not-started", label: "Não Começado", dotClass: "bg-status-not-started" },
@@ -24,14 +25,14 @@ function getDeadlineBorderClass(deadline: string, status: string) {
 
 export default function TasksPage() {
   const { tasks, teams, updateTask, deleteTask } = useData();
-  const [filterTeam, setFilterTeam] = useState("all");
+  const [filterTeams, setFilterTeams] = useState<string[]>([]);
   const [modal, setModal] = useState<{ open: boolean; task?: Task | null }>({ open: false });
   const [dragTask, setDragTask] = useState<string | null>(null);
   const [tab, setTab] = useState<"active" | "done">("active");
   const [deleting, setDeleting] = useState<{ open: boolean; id: string; title: string }>({ open: false, id: "", title: "" });
 
   const filteredTasks = tasks.filter((t) => {
-    if (filterTeam !== "all" && t.team !== filterTeam) return false;
+    if (filterTeams.length > 0 && !filterTeams.includes(t.team)) return false;
     if (tab === "active") return t.status !== "done";
     return t.status === "done";
   });
@@ -60,10 +61,7 @@ export default function TasksPage() {
           <button onClick={() => setTab("active")} className={`px-3 py-1 rounded text-xs font-medium transition-colors ${tab === "active" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>Ativas</button>
           <button onClick={() => setTab("done")} className={`px-3 py-1 rounded text-xs font-medium transition-colors ${tab === "done" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}>Concluídas</button>
         </div>
-        <select value={filterTeam} onChange={(e) => setFilterTeam(e.target.value)} className="h-8 rounded-md border border-input bg-background px-2 text-xs">
-          <option value="all">Todas equipes</option>
-          {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-        </select>
+        <FilterChips label="Equipe" options={teams.map(t => ({ value: t.id, label: t.name }))} selected={filterTeams} onChange={setFilterTeams} />
       </div>
 
       {tab === "active" ? (

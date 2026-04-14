@@ -16,6 +16,7 @@ import QuickCreateMenu from "@/components/modals/QuickCreateMenu";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+import FilterChips from "@/components/FilterChips";
 
 export type CalendarItem = {
   id: string; title: string; type: "task" | "post" | "event" | "general";
@@ -28,8 +29,8 @@ export default function CalendarPage() {
   const { teams, tasks, posts, events, generalItems, updateTask, updatePost, updateEvent, updateGeneralItem, deleteTask, deletePost, deleteEvent, deleteGeneralItem } = useData();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
-  const [filterTeam, setFilterTeam] = useState("all");
-  const [filterType, setFilterType] = useState("all");
+  const [filterTeams, setFilterTeams] = useState<string[]>([]);
+  const [filterTypes, setFilterTypes] = useState<string[]>([]);
 
   const [taskModal, setTaskModal] = useState<{ open: boolean; task?: Task | null; date?: string }>({ open: false });
   const [postModal, setPostModal] = useState<{ open: boolean; post?: Post | null; date?: string }>({ open: false });
@@ -51,24 +52,24 @@ export default function CalendarPage() {
   const allItems = useMemo<CalendarItem[]>(() => {
     const items: CalendarItem[] = [];
     tasks.forEach((t) => {
-      if (filterTeam !== "all" && t.team !== filterTeam) return;
-      if (filterType !== "all" && filterType !== "task") return;
+      if (filterTeams.length > 0 && !filterTeams.includes(t.team)) return;
+      if (filterTypes.length > 0 && !filterTypes.includes("task")) return;
       items.push({ id: t.id, title: t.title, type: "task", date: t.deadline, color: "bg-team-presidencia", status: t.status });
     });
     posts.forEach((p) => {
-      if (filterType !== "all" && filterType !== "post") return;
+      if (filterTypes.length > 0 && !filterTypes.includes("post")) return;
       items.push({ id: p.id, title: p.title, type: "post", date: p.date, time: p.time, color: "bg-team-gente", status: p.status });
     });
     events.forEach((e) => {
-      if (filterType !== "all" && filterType !== "event") return;
+      if (filterTypes.length > 0 && !filterTypes.includes("event")) return;
       items.push({ id: e.id, title: e.title, type: "event", date: e.date, time: e.time, color: "bg-team-mercado" });
     });
     generalItems.forEach((g) => {
-      if (filterType !== "all" && filterType !== "general") return;
+      if (filterTypes.length > 0 && !filterTypes.includes("general")) return;
       items.push({ id: g.id, title: g.title, type: "general", date: g.date, time: g.time, color: "bg-team-projetos" });
     });
     return items;
-  }, [tasks, posts, events, generalItems, filterTeam, filterType]);
+  }, [tasks, posts, events, generalItems, filterTeams, filterTypes]);
 
   const handleDragStart = (e: DragEvent, item: CalendarItem) => {
     setDragItem(item);
@@ -208,17 +209,13 @@ export default function CalendarPage() {
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
-        <select value={filterTeam} onChange={(e) => setFilterTeam(e.target.value)} className="h-8 rounded-md border border-input bg-background px-2 text-xs">
-          <option value="all">Todas equipes</option>
-          {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-        </select>
-        <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="h-8 rounded-md border border-input bg-background px-2 text-xs">
-          <option value="all">Todos tipos</option>
-          <option value="task">Tarefas</option>
-          <option value="post">Posts</option>
-          <option value="event">Eventos</option>
-          <option value="general">Itens Gerais</option>
-        </select>
+        <FilterChips label="Equipe" options={teams.map(t => ({ value: t.id, label: t.name }))} selected={filterTeams} onChange={setFilterTeams} />
+        <FilterChips label="Tipo" options={[
+          { value: "task", label: "Tarefas" },
+          { value: "post", label: "Posts" },
+          { value: "event", label: "Eventos" },
+          { value: "general", label: "Itens Gerais" },
+        ]} selected={filterTypes} onChange={setFilterTypes} />
         <div className="ml-auto flex items-center gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-team-presidencia" /> Tarefa</span>
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-team-gente" /> Post</span>
