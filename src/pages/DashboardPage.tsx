@@ -10,7 +10,7 @@ import { getNowBrasilia, getTodayBrasilia } from "@/lib/utils";
 const PIE_COLORS = ["hsl(330, 70%, 55%)", "hsl(210, 80%, 52%)", "hsl(170, 80%, 40%)", "hsl(40, 6%, 10%)", "hsl(280, 60%, 55%)"];
 
 export default function DashboardPage() {
-  const { teams, tasks, posts, channels, projects, allMembers, loading } = useData();
+  const { people, tasks, posts, channels, projects, loading } = useData();
 
   if (loading) {
     return (
@@ -34,25 +34,17 @@ export default function DashboardPage() {
   const overduePosts = posts.filter(p => p.date < today && p.status !== "published" && p.status !== "done");
 
   const postsByChannel = channels.map(ch => ({ channel: ch.name, count: posts.filter(p => p.channel === ch.id).length }));
-  const completedByTeam = teams.map(team => ({
-    team: team.name.split(" ")[0],
-    completed: tasks.filter(t => t.team === team.id && t.status === "done").length,
-    total: tasks.filter(t => t.team === team.id).length,
-  }));
 
   // People in projects stats
-  const uniqueMembers = [...new Set(allMembers)];
   const activeProjects = projects.filter(p => p.status === "active");
-  const membersInProjects = new Set(activeProjects.flatMap(p => p.members || []));
-  const membersNotInProjects = uniqueMembers.filter(m => !membersInProjects.has(m));
   const memberProjectCount: Record<string, number> = {};
-  activeProjects.forEach(p => (p.members || []).forEach(m => { memberProjectCount[m] = (memberProjectCount[m] || 0) + 1; }));
-  const membersInMultiple = Object.entries(memberProjectCount).filter(([, c]) => c > 1);
+  activeProjects.forEach(p => p.members.forEach(m => { memberProjectCount[m.id] = (memberProjectCount[m.id] || 0) + 1; }));
+  const membersNotInProjects = people.filter(p => !memberProjectCount[p.id]);
+  const membersInMultiple = people.filter(p => (memberProjectCount[p.id] || 0) > 1).map(p => ({ name: p.name, count: memberProjectCount[p.id] }));
 
-  // Pie chart data for project allocation
-  const membersIn0 = uniqueMembers.filter(m => !memberProjectCount[m]).length;
-  const membersIn1 = uniqueMembers.filter(m => memberProjectCount[m] === 1).length;
-  const membersIn2Plus = uniqueMembers.filter(m => (memberProjectCount[m] || 0) >= 2).length;
+  const membersIn0 = people.filter(p => !memberProjectCount[p.id]).length;
+  const membersIn1 = people.filter(p => memberProjectCount[p.id] === 1).length;
+  const membersIn2Plus = people.filter(p => (memberProjectCount[p.id] || 0) >= 2).length;
   const allocationPieData = [
     { name: "Sem projeto", value: membersIn0, color: "#ef4444" },
     { name: "1 projeto", value: membersIn1, color: "#22c55e" },
@@ -61,10 +53,10 @@ export default function DashboardPage() {
 
   // Tasks completed by person
   const doneTasks = tasks.filter(t => t.status === "done");
-  const tasksByPerson = uniqueMembers.map(member => ({
-    name: member.split(" ")[0],
-    fullName: member,
-    completed: doneTasks.filter(t => (t.responsible || []).includes(member)).length,
+  const tasksByPerson = people.map(person => ({
+    name: person.name.split(" ")[0],
+    fullName: person.name,
+    completed: doneTasks.filter(t => t.responsible.some(r => r.id === person.id)).length,
   })).sort((a, b) => b.completed - a.completed).filter(d => d.completed > 0);
 
   const hasAlerts = overdueTasks.length > 0 || dueTodayTasks.length > 0 || upcomingSoonTasks.length > 0 || todayPosts.length > 0 || overduePosts.length > 0;
@@ -131,7 +123,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Pessoas em Projetos — lista + pizza */}
+      {/* Pessoas em Projetos */}
       <div className="bg-card border border-border rounded-lg p-5">
         <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
           <Users className="h-4 w-4 text-muted-foreground" /> Pessoas em Projetos
@@ -143,7 +135,7 @@ export default function DashboardPage() {
                 <p className="text-xs font-medium text-muted-foreground mb-2">Sem projeto ({membersNotInProjects.length})</p>
                 <div className="flex flex-wrap gap-1.5">
                   {membersNotInProjects.map(m => (
-                    <span key={m} className="text-xs bg-muted text-foreground px-2 py-0.5 rounded-full">{m}</span>
+                    <span key={m.id} className="text-xs bg-muted text-foreground px-2 py-0.5 rounded-full">{m.name}</span>
                   ))}
                 </div>
               </div>
@@ -152,7 +144,7 @@ export default function DashboardPage() {
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-2">Em mais de 1 projeto</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {membersInMultiple.map(([name, count]) => (
+                  {membersInMultiple.map(({ name, count }) => (
                     <span key={name} className="text-xs bg-accent text-foreground px-2 py-0.5 rounded-full">{name} ({count})</span>
                   ))}
                 </div>
@@ -187,26 +179,6 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Tarefas por equipe */}
-        <div className="bg-card border border-border rounded-lg p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold text-foreground">Tarefas Concluídas por Equipe</h2>
-          </div>
-          <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={completedByTeam}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(40, 6%, 90%)" />
-                <XAxis dataKey="team" tick={{ fontSize: 11 }} stroke="hsl(40, 3%, 55%)" />
-                <YAxis tick={{ fontSize: 11 }} stroke="hsl(40, 3%, 55%)" />
-                <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid hsl(40, 6%, 90%)", fontSize: "12px" }} />
-                <Bar dataKey="total" fill="hsl(40, 6%, 90%)" radius={[4, 4, 0, 0]} name="Total" />
-                <Bar dataKey="completed" fill="hsl(40, 6%, 10%)" radius={[4, 4, 0, 0]} name="Concluídas" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
         {/* Tarefas concluídas por pessoa */}
         <div className="bg-card border border-border rounded-lg p-5">
           <div className="flex items-center gap-2 mb-4">

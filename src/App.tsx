@@ -11,7 +11,7 @@ import DashboardPage from "./pages/DashboardPage";
 import CalendarPage from "./pages/CalendarPage";
 import TasksPage from "./pages/TasksPage";
 import ContentPage from "./pages/ContentPage";
-import TeamsPage from "./pages/TeamsPage";
+import PeoplePage from "./pages/PeoplePage";
 import ProjectsPage from "./pages/ProjectsPage";
 import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -41,7 +41,7 @@ const App = () => (
             <Route path="/calendar" element={<ProtectedApp><CalendarPage /></ProtectedApp>} />
             <Route path="/tasks" element={<ProtectedApp><TasksPage /></ProtectedApp>} />
             <Route path="/content" element={<ProtectedApp><ContentPage /></ProtectedApp>} />
-            <Route path="/teams" element={<ProtectedApp><TeamsPage /></ProtectedApp>} />
+            <Route path="/people" element={<ProtectedApp><PeoplePage /></ProtectedApp>} />
             <Route path="/projects" element={<ProtectedApp><ProjectsPage /></ProtectedApp>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

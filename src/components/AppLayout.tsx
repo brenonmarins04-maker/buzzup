@@ -10,7 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import QuickCreateMenu from "@/components/modals/QuickCreateMenu";
 import TaskModal from "@/components/modals/TaskModal";
 import PostModal from "@/components/modals/PostModal";
-import GeneralItemModal from "@/components/modals/GeneralItemModal";
+import EventModal from "@/components/modals/EventModal";
 import NotificationPanel from "@/components/NotificationPanel";
 
 const navItems = [
@@ -31,7 +31,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const [taskModal, setTaskModal] = useState(false);
   const [postModal, setPostModal] = useState(false);
-  const [generalModal, setGeneralModal] = useState(false);
+  const [eventModal, setEventModal] = useState(false);
 
   const initials = displayName
     ? displayName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
@@ -55,7 +55,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </header>
         {showNotifications && <NotificationPanel onClose={() => setShowNotifications(false)} />}
         <main className="flex-1 overflow-auto p-4 pb-24 scrollbar-thin">{children}</main>
-        <QuickCreateMenu onCreateTask={() => setTaskModal(true)} onCreatePost={() => setPostModal(true)} onCreateItem={() => setGeneralModal(true)}>
+        <QuickCreateMenu onCreateTask={() => setTaskModal(true)} onCreatePost={() => setPostModal(true)} onCreateItem={() => setEventModal(true)}>
           <button className="fixed bottom-20 right-4 z-40 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all">
             <Plus className="h-6 w-6" />
           </button>
@@ -71,7 +71,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </nav>
         <TaskModal open={taskModal} onOpenChange={setTaskModal} />
         <PostModal open={postModal} onOpenChange={setPostModal} />
-        <GeneralItemModal open={generalModal} onOpenChange={setGeneralModal} />
+        <EventModal open={eventModal} onOpenChange={setEventModal} />
       </div>
     );
   }
@@ -86,7 +86,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
         <nav className="flex-1 py-4 px-2 flex flex-col gap-1">
-          {[...navItems, { to: "/teams", icon: Users, label: "Equipes" }].map((item) => (
+          {[...navItems, { to: "/people", icon: Users, label: "Pessoas" }].map((item) => (
             <NavLink key={item.to} to={item.to}
               className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive ? "bg-accent text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"} ${collapsed ? "justify-center" : ""}`}>
               <item.icon className="h-4 w-4 shrink-0" />

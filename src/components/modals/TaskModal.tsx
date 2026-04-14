@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useData } from "@/contexts/DataContext";
 import type { Task } from "@/contexts/DataContext";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,18 +18,14 @@ type Props = {
 };
 
 export default function TaskModal({ open, onOpenChange, task, defaultDate }: Props) {
-  const { teams, allMembers, addTask, updateTask } = useData();
+  const { people, addTask, updateTask } = useData();
   const { memory, remember } = useFormMemory();
   const titleRef = useRef<HTMLInputElement>(null);
 
   const makeBlank = () => ({
-    title: "",
-    description: "",
-    responsible: [] as string[],
-    team: memory.lastTeam || teams[0]?.id || "",
-    deadline: defaultDate || "",
-    status: "not-started",
-    priority: "medium",
+    title: "", description: "", responsibleIds: [] as string[],
+    team: memory.lastTeam || "", deadline: defaultDate || "",
+    status: "not-started", priority: "medium",
     checklist: [] as { text: string; checked: boolean }[],
   });
 
@@ -42,7 +36,7 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
     if (task) {
       setForm({
         title: task.title, description: task.description,
-        responsible: task.responsible, team: task.team,
+        responsibleIds: task.responsible.map(r => r.id), team: task.team,
         deadline: task.deadline, status: task.status,
         priority: task.priority, checklist: task.checklist || [],
       });
@@ -50,45 +44,32 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
       setForm(makeBlank());
     }
     setNewCheckItem("");
-  }, [task, defaultDate, open, teams]);
+  }, [task, defaultDate, open]);
 
   const handleSave = () => {
     if (!form.title.trim()) { toast.error("Título é obrigatório"); return; }
     remember({ lastTeam: form.team });
     if (task) {
-      updateTask({ ...task, ...form });
+      updateTask({
+        ...task, title: form.title, description: form.description, team: form.team,
+        responsible: people.filter(p => form.responsibleIds.includes(p.id)),
+        deadline: form.deadline, status: form.status, priority: form.priority, checklist: form.checklist,
+      });
       toast.success("Tarefa atualizada");
       onOpenChange(false);
     } else {
-      addTask(form);
+      addTask({ ...form });
       toast.success("Tarefa criada");
-      // continuous flow: reset and refocus
-      setForm({
-        ...makeBlank(),
-        team: form.team,
-        deadline: form.deadline,
-      });
+      setForm({ ...makeBlank(), team: form.team, deadline: form.deadline });
       setNewCheckItem("");
       setTimeout(() => titleRef.current?.focus(), 50);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    handleSave();
-  };
-
-  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSave();
-    }
-  };
-
-  const toggleResponsible = (name: string) => {
+  const toggleResponsible = (id: string) => {
     setForm(prev => ({
       ...prev,
-      responsible: prev.responsible.includes(name) ? prev.responsible.filter(a => a !== name) : [...prev.responsible, name],
+      responsibleIds: prev.responsibleIds.includes(id) ? prev.responsibleIds.filter(a => a !== id) : [...prev.responsibleIds, id],
     }));
   };
 
@@ -101,25 +82,21 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{task ? "Editar Tarefa" : "Nova Tarefa"}</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <DialogHeader><DialogTitle>{task ? "Editar Tarefa" : "Nova Tarefa"}</DialogTitle></DialogHeader>
+        <form onSubmit={e => { e.preventDefault(); handleSave(); }} className="flex flex-col gap-4">
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Título *</label>
             <Input ref={titleRef} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Título da tarefa" />
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Descrição</label>
-            <Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Descrição..." rows={3} onKeyDown={handleTextareaKeyDown} />
+            <Textarea value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Descrição..." rows={3}
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSave(); } }} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Equipe</label>
-              <select value={form.team} onChange={e => setForm(p => ({ ...p, team: e.target.value }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-                <option value="">Sem equipe</option>
-                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-              </select>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Equipe (texto)</label>
+              <Input value={form.team} onChange={e => setForm(p => ({ ...p, team: e.target.value }))} placeholder="Nome da equipe" />
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Prazo</label>
@@ -147,12 +124,13 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Responsáveis</label>
             <div className="flex flex-wrap gap-1.5">
-              {allMembers.map(m => (
-                <button key={m} type="button" onClick={() => toggleResponsible(m)}
-                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${form.responsible.includes(m) ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input text-muted-foreground hover:bg-accent"}`}>
-                  {m}
+              {people.map(p => (
+                <button key={p.id} type="button" onClick={() => toggleResponsible(p.id)}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${form.responsibleIds.includes(p.id) ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input text-muted-foreground hover:bg-accent"}`}>
+                  {p.name}
                 </button>
               ))}
+              {people.length === 0 && <p className="text-xs text-muted-foreground">Cadastre pessoas primeiro.</p>}
             </div>
           </div>
           <div>
@@ -161,8 +139,7 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
               {form.checklist.map((item, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <Checkbox checked={item.checked} onCheckedChange={(checked) => {
-                    const updated = [...form.checklist];
-                    updated[i] = { ...item, checked: !!checked };
+                    const updated = [...form.checklist]; updated[i] = { ...item, checked: !!checked };
                     setForm(p => ({ ...p, checklist: updated }));
                   }} />
                   <span className={`text-sm flex-1 ${item.checked ? "line-through text-muted-foreground" : "text-foreground"}`}>{item.text}</span>

@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react";
 import { useData } from "@/contexts/DataContext";
 import type { Project } from "@/contexts/DataContext";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,35 +15,37 @@ type Props = {
 };
 
 export default function ProjectModal({ open, onOpenChange, project }: Props) {
-  const { allMembers, addProject, updateProject } = useData();
+  const { people, addProject, updateProject } = useData();
   const [form, setForm] = useState({
-    name: "", description: "", color: "#888888", status: "active", members: [] as string[],
+    name: "", description: "", color: "#888888", status: "active", memberIds: [] as string[],
   });
 
   useEffect(() => {
     if (project) {
-      setForm({ name: project.name, description: project.description, color: project.color, status: project.status, members: project.members || [] });
+      setForm({ name: project.name, description: project.description, color: project.color, status: project.status, memberIds: project.members.map(m => m.id) });
     } else {
-      setForm({ name: "", description: "", color: "#888888", status: "active", members: [] });
+      setForm({ name: "", description: "", color: "#888888", status: "active", memberIds: [] });
     }
   }, [project, open]);
 
-  const uniqueMembers = [...new Set(allMembers)];
-
-  const toggleMember = (name: string) => {
+  const toggleMember = (id: string) => {
     setForm(p => ({
       ...p,
-      members: p.members.includes(name) ? p.members.filter(m => m !== name) : [...p.members, name],
+      memberIds: p.memberIds.includes(id) ? p.memberIds.filter(m => m !== id) : [...p.memberIds, id],
     }));
   };
 
   const handleSave = () => {
     if (!form.name.trim()) { toast.error("Nome é obrigatório"); return; }
     if (project) {
-      updateProject({ ...project, ...form, team: project.team });
+      updateProject({
+        ...project, name: form.name, description: form.description,
+        color: form.color, status: form.status,
+        members: people.filter(p => form.memberIds.includes(p.id)),
+      });
       toast.success("Projeto atualizado");
     } else {
-      addProject({ ...form, team: "" });
+      addProject(form);
       toast.success("Projeto criado");
     }
     onOpenChange(false);
@@ -54,9 +54,7 @@ export default function ProjectModal({ open, onOpenChange, project }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{project ? "Editar Projeto" : "Novo Projeto"}</DialogTitle>
-        </DialogHeader>
+        <DialogHeader><DialogTitle>{project ? "Editar Projeto" : "Novo Projeto"}</DialogTitle></DialogHeader>
         <div className="flex flex-col gap-4">
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Nome *</label>
@@ -75,14 +73,14 @@ export default function ProjectModal({ open, onOpenChange, project }: Props) {
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Participantes</label>
-            {uniqueMembers.length === 0 ? (
-              <p className="text-xs text-muted-foreground">Nenhum membro cadastrado nas equipes.</p>
+            {people.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Nenhuma pessoa cadastrada.</p>
             ) : (
               <div className="flex flex-col gap-2 max-h-40 overflow-y-auto border border-input rounded-md p-2">
-                {uniqueMembers.map(name => (
-                  <label key={name} className="flex items-center gap-2 cursor-pointer text-sm">
-                    <Checkbox checked={form.members.includes(name)} onCheckedChange={() => toggleMember(name)} />
-                    {name}
+                {people.map(person => (
+                  <label key={person.id} className="flex items-center gap-2 cursor-pointer text-sm">
+                    <Checkbox checked={form.memberIds.includes(person.id)} onCheckedChange={() => toggleMember(person.id)} />
+                    {person.name}
                   </label>
                 ))}
               </div>

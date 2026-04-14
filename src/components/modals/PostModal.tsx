@@ -1,9 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useData } from "@/contexts/DataContext";
 import type { Post } from "@/contexts/DataContext";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,7 +16,7 @@ type Props = {
 };
 
 export default function PostModal({ open, onOpenChange, post, defaultDate }: Props) {
-  const { allMembers, channels, categories, addPost, updatePost } = useData();
+  const { people, channels, categories, addPost, updatePost } = useData();
   const { memory, remember } = useFormMemory();
   const titleRef = useRef<HTMLInputElement>(null);
 
@@ -26,7 +24,7 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
     title: "", copy: "", link: "", date: defaultDate || "", time: "10:00",
     channel: memory.lastChannel || channels[0]?.id || "",
     category: memory.lastCategory || categories[0] || "",
-    status: "not-started", responsible: [] as string[], media_url: "",
+    status: "not-started", responsibleIds: [] as string[], media_url: "",
   });
 
   const [form, setForm] = useState(makeBlank);
@@ -36,7 +34,7 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
       setForm({
         title: post.title, copy: post.copy, link: post.link, date: post.date,
         time: post.time, channel: post.channel, category: post.category,
-        status: post.status, responsible: post.responsible, media_url: post.media_url,
+        status: post.status, responsibleIds: post.responsible.map(r => r.id), media_url: post.media_url,
       });
     } else {
       setForm(makeBlank());
@@ -47,55 +45,41 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
     if (!form.title.trim()) { toast.error("Título é obrigatório"); return; }
     remember({ lastChannel: form.channel, lastCategory: form.category });
     if (post) {
-      updatePost({ ...post, ...form });
+      updatePost({
+        ...post, title: form.title, copy: form.copy, link: form.link, date: form.date,
+        time: form.time, channel: form.channel, category: form.category, status: form.status,
+        responsible: people.filter(p => form.responsibleIds.includes(p.id)), media_url: form.media_url,
+      });
       toast.success("Publicação atualizada");
       onOpenChange(false);
     } else {
       addPost(form);
       toast.success("Publicação criada");
-      setForm({
-        ...makeBlank(),
-        channel: form.channel,
-        category: form.category,
-        date: form.date,
-      });
+      setForm({ ...makeBlank(), channel: form.channel, category: form.category, date: form.date });
       setTimeout(() => titleRef.current?.focus(), 50);
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    handleSave();
-  };
-
-  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSave();
-    }
-  };
-
-  const toggleResponsible = (name: string) => {
+  const toggleResponsible = (id: string) => {
     setForm(prev => ({
       ...prev,
-      responsible: prev.responsible.includes(name) ? prev.responsible.filter(a => a !== name) : [...prev.responsible, name],
+      responsibleIds: prev.responsibleIds.includes(id) ? prev.responsibleIds.filter(a => a !== id) : [...prev.responsibleIds, id],
     }));
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{post ? "Editar Publicação" : "Nova Publicação"}</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <DialogHeader><DialogTitle>{post ? "Editar Publicação" : "Nova Publicação"}</DialogTitle></DialogHeader>
+        <form onSubmit={e => { e.preventDefault(); handleSave(); }} className="flex flex-col gap-4">
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Título *</label>
             <Input ref={titleRef} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Título da publicação" />
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Copy</label>
-            <Textarea value={form.copy} onChange={e => setForm(p => ({ ...p, copy: e.target.value }))} placeholder="Texto do post..." rows={3} onKeyDown={handleTextareaKeyDown} />
+            <Textarea value={form.copy} onChange={e => setForm(p => ({ ...p, copy: e.target.value }))} placeholder="Texto do post..." rows={3}
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSave(); } }} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -137,12 +121,13 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Responsáveis</label>
             <div className="flex flex-wrap gap-1.5">
-              {allMembers.map(m => (
-                <button key={m} type="button" onClick={() => toggleResponsible(m)}
-                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${form.responsible.includes(m) ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input text-muted-foreground hover:bg-accent"}`}>
-                  {m}
+              {people.map(p => (
+                <button key={p.id} type="button" onClick={() => toggleResponsible(p.id)}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${form.responsibleIds.includes(p.id) ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input text-muted-foreground hover:bg-accent"}`}>
+                  {p.name}
                 </button>
               ))}
+              {people.length === 0 && <p className="text-xs text-muted-foreground">Cadastre pessoas primeiro.</p>}
             </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">

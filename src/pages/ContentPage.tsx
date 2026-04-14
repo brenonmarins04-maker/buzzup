@@ -91,9 +91,9 @@ export default function ContentPage() {
                 <div className="flex items-center gap-1.5">
                   {post.link && <ExternalLink className="h-3 w-3 text-muted-foreground" />}
                   <div className="flex -space-x-1">
-                    {post.responsible.slice(0, 2).map((a, i) => (
-                      <div key={i} className="h-5 w-5 rounded-full bg-accent border border-card flex items-center justify-center text-[9px] font-semibold text-foreground" title={a}>
-                        {a.split(" ").map(n => n[0]).join("")}
+                    {post.responsible.slice(0, 2).map((a) => (
+                      <div key={a.id} className="h-5 w-5 rounded-full bg-accent border border-card flex items-center justify-center text-[9px] font-semibold text-foreground" title={a.name}>
+                        {a.name.split(" ").map(n => n[0]).join("")}
                       </div>
                     ))}
                   </div>
