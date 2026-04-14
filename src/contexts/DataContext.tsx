@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Database } from "@/integrations/supabase/types";
+import { getNowBrasilia, getTodayBrasilia } from "@/lib/utils";
 
 type DbTeam = Database["public"]["Tables"]["teams"]["Row"];
 type DbProject = Database["public"]["Tables"]["projects"]["Row"];
@@ -162,8 +163,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // Generate notifications
   useEffect(() => {
-    const today = new Date().toISOString().split("T")[0];
-    const todayDate = new Date();
+    const today = getTodayBrasilia();
+    const todayDate = getNowBrasilia();
     const notifs: Notification[] = [];
     tasks.forEach(t => {
       if (t.status === "done") return;

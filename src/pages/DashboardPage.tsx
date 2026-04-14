@@ -5,6 +5,7 @@ import {
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
 } from "recharts";
+import { getNowBrasilia, getTodayBrasilia } from "@/lib/utils";
 
 const PIE_COLORS = ["hsl(330, 70%, 55%)", "hsl(210, 80%, 52%)", "hsl(170, 80%, 40%)", "hsl(40, 6%, 10%)", "hsl(280, 60%, 55%)"];
 
@@ -19,8 +20,8 @@ export default function DashboardPage() {
     );
   }
 
-  const today = new Date().toISOString().split("T")[0];
-  const todayDate = new Date();
+  const today = getTodayBrasilia();
+  const todayDate = getNowBrasilia();
 
   const overdueTasks = tasks.filter(t => t.status !== "done" && t.deadline < today);
   const dueTodayTasks = tasks.filter(t => t.status !== "done" && t.deadline === today);
