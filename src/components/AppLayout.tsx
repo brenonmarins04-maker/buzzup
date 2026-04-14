@@ -41,7 +41,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex flex-col min-h-screen bg-background">
         <header className="h-12 px-4 flex items-center justify-between border-b border-border bg-card shrink-0 sticky top-0 z-30">
-          <span className="font-bold text-foreground tracking-tight text-base">MktFlow</span>
+          <span className="font-bold text-foreground tracking-tight text-base">BuzzUp</span>
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium text-muted-foreground truncate max-w-[120px]">{displayName || "Workspace"}</span>
             <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 rounded-md hover:bg-accent text-muted-foreground">
