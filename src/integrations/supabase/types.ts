@@ -14,62 +14,72 @@ export type Database = {
   }
   public: {
     Tables: {
-      calendar_events: {
+      calendar_items: {
         Row: {
           created_at: string
           date: string
           description: string
-          end_time: string
           id: string
-          time: string
           title: string
           type: string
-          user_id: string
+          workspace_id: string | null
         }
         Insert: {
           created_at?: string
           date?: string
           description?: string
-          end_time?: string
           id?: string
-          time?: string
           title: string
           type?: string
-          user_id: string
+          workspace_id?: string | null
         }
         Update: {
           created_at?: string
           date?: string
           description?: string
-          end_time?: string
           id?: string
-          time?: string
           title?: string
           type?: string
-          user_id?: string
+          workspace_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "calendar_items_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       categories: {
         Row: {
           created_at: string
           id: string
           name: string
-          user_id: string
+          workspace_id: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           name: string
-          user_id: string
+          workspace_id?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
-          user_id?: string
+          workspace_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "categories_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       channels: {
         Row: {
@@ -77,56 +87,93 @@ export type Database = {
           created_at: string
           id: string
           name: string
-          user_id: string
+          workspace_id: string | null
         }
         Insert: {
           color?: string
           created_at?: string
           id?: string
           name: string
-          user_id: string
+          workspace_id?: string | null
         }
         Update: {
           color?: string
           created_at?: string
           id?: string
           name?: string
-          user_id?: string
+          workspace_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "channels_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      general_items: {
+      people: {
         Row: {
           created_at: string
-          date: string
-          description: string
           id: string
-          time: string
-          title: string
-          type: string
-          user_id: string
+          name: string
+          workspace_id: string
         }
         Insert: {
           created_at?: string
-          date?: string
-          description?: string
           id?: string
-          time?: string
-          title: string
-          type?: string
-          user_id: string
+          name: string
+          workspace_id: string
         }
         Update: {
           created_at?: string
-          date?: string
-          description?: string
           id?: string
-          time?: string
-          title?: string
-          type?: string
-          user_id?: string
+          name?: string
+          workspace_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "people_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_assignees: {
+        Row: {
+          id: string
+          person_id: string
+          post_id: string
+        }
+        Insert: {
+          id?: string
+          person_id: string
+          post_id: string
+        }
+        Update: {
+          id?: string
+          person_id?: string
+          post_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_assignees_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_assignees_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       posts: {
         Row: {
@@ -138,11 +185,10 @@ export type Database = {
           id: string
           link: string
           media_url: string
-          responsible: string[]
           status: string
           time: string
           title: string
-          user_id: string
+          workspace_id: string | null
         }
         Insert: {
           category?: string
@@ -153,11 +199,10 @@ export type Database = {
           id?: string
           link?: string
           media_url?: string
-          responsible?: string[]
           status?: string
           time?: string
           title: string
-          user_id: string
+          workspace_id?: string | null
         }
         Update: {
           category?: string
@@ -168,13 +213,20 @@ export type Database = {
           id?: string
           link?: string
           media_url?: string
-          responsible?: string[]
           status?: string
           time?: string
           title?: string
-          user_id?: string
+          workspace_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "posts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -200,41 +252,109 @@ export type Database = {
         }
         Relationships: []
       }
+      project_participants: {
+        Row: {
+          id: string
+          person_id: string
+          project_id: string
+        }
+        Insert: {
+          id?: string
+          person_id: string
+          project_id: string
+        }
+        Update: {
+          id?: string
+          person_id?: string
+          project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_participants_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_participants_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           color: string
           created_at: string
           description: string
           id: string
-          members: string[]
           name: string
           status: string
-          team: string
-          user_id: string
+          workspace_id: string | null
         }
         Insert: {
           color?: string
           created_at?: string
           description?: string
           id?: string
-          members?: string[]
           name: string
           status?: string
-          team?: string
-          user_id: string
+          workspace_id?: string | null
         }
         Update: {
           color?: string
           created_at?: string
           description?: string
           id?: string
-          members?: string[]
           name?: string
           status?: string
-          team?: string
-          user_id?: string
+          workspace_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "projects_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_assignees: {
+        Row: {
+          id: string
+          person_id: string
+          task_id: string
+        }
+        Insert: {
+          id?: string
+          person_id: string
+          task_id: string
+        }
+        Update: {
+          id?: string
+          person_id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_assignees_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_assignees_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tasks: {
         Row: {
@@ -244,11 +364,10 @@ export type Database = {
           description: string
           id: string
           priority: string
-          responsible: string[]
           status: string
           team: string
           title: string
-          user_id: string
+          workspace_id: string | null
         }
         Insert: {
           checklist?: Json
@@ -257,11 +376,10 @@ export type Database = {
           description?: string
           id?: string
           priority?: string
-          responsible?: string[]
           status?: string
           team?: string
           title: string
-          user_id: string
+          workspace_id?: string | null
         }
         Update: {
           checklist?: Json
@@ -270,36 +388,37 @@ export type Database = {
           description?: string
           id?: string
           priority?: string
-          responsible?: string[]
           status?: string
           team?: string
           title?: string
-          user_id?: string
+          workspace_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tasks_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      teams: {
+      workspaces: {
         Row: {
-          color: string
           created_at: string
           id: string
-          members: string[]
           name: string
           user_id: string
         }
         Insert: {
-          color?: string
           created_at?: string
           id?: string
-          members?: string[]
-          name: string
+          name?: string
           user_id: string
         }
         Update: {
-          color?: string
           created_at?: string
           id?: string
-          members?: string[]
           name?: string
           user_id?: string
         }
@@ -310,7 +429,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_workspace_id: { Args: { _user_id: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
