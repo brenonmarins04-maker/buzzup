@@ -1,37 +1,21 @@
 
 
-# Plano: Filtros Multi-Selecionáveis Inline (Toggle Chips)
+# Plano: Forçar Fuso Horário de Brasília (America/Sao_Paulo)
 
 ## Resumo
-Substituir todos os `<select>` de filtro por botões/chips clicáveis inline que permitem selecionar múltiplos valores simultaneamente, sem popup.
+Criar helpers de data no fuso `America/Sao_Paulo` e substituir `new Date()` nos pontos onde o app calcula "hoje" para comparações de prazo e exibição de calendário. Nenhuma mudança visual.
 
-## Abordagem
-Criar um componente reutilizável `FilterChips` que renderiza uma lista de botões inline. Cada botão pode ser toggled (ativo/inativo). Quando nenhum está selecionado, mostra tudo (equivalente a "all").
+## Mudanças
 
-### Componente `src/components/FilterChips.tsx`
-```tsx
-// Props: options: {value, label}[], selected: string[], onChange: (selected: string[]) => void
-// Renderiza chips inline clicáveis com visual ativo/inativo
-```
+### 1. `src/lib/utils.ts` — adicionar 2 funções
+- `getNowBrasilia()`: retorna `Date` no horário de Brasília via `toLocaleString("en-US", { timeZone: "America/Sao_Paulo" })`
+- `getTodayBrasilia()`: retorna string `yyyy-MM-dd` em Brasília
 
-## Páginas afetadas
+### 2. Substituir `new Date()` por helpers em:
+- **`DashboardPage.tsx`** — variáveis `today`/`todayDate`
+- **`TasksPage.tsx`** — comparação de deadline na função `getDeadlineBorderClass`
+- **`CalendarPage.tsx`** — estado inicial do calendário
+- **`DataContext.tsx`** — geração de notificações
 
-### `src/pages/TasksPage.tsx`
-- `filterTeam: string` → `filterTeams: string[]`
-- Substituir `<select>` por `<FilterChips>` com lista de equipes
-- Filtro: se `filterTeams.length === 0`, mostra tudo; senão filtra por inclusão
-
-### `src/pages/ContentPage.tsx`
-- `filterChannel: string` → `filterChannels: string[]`
-- `filterStatus: string` → `filterStatuses: string[]`
-- Dois grupos de `<FilterChips>`: canais e status
-
-### `src/pages/CalendarPage.tsx`
-- `filterTeam: string` → `filterTeams: string[]`
-- `filterType: string` → `filterTypes: string[]`
-- Dois grupos de `<FilterChips>`: equipes e tipos
-
-## Arquivos
-- Novo: `src/components/FilterChips.tsx`
-- Editados: `TasksPage.tsx`, `ContentPage.tsx`, `CalendarPage.tsx`
+Apenas troca interna de referência de data. Zero mudança visual ou de layout.
 
