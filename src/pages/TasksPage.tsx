@@ -5,6 +5,7 @@ import { Plus, X } from "lucide-react";
 import TaskModal from "@/components/modals/TaskModal";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import { toast } from "sonner";
+import FilterChips from "@/components/FilterChips";
 
 const statusColumns = [
   { id: "not-started", label: "Não Começado", dotClass: "bg-status-not-started" },
@@ -24,7 +25,7 @@ function getDeadlineBorderClass(deadline: string, status: string) {
 
 export default function TasksPage() {
   const { tasks, teams, updateTask, deleteTask } = useData();
-  const [filterTeam, setFilterTeam] = useState("all");
+  const [filterTeams, setFilterTeams] = useState<string[]>([]);
   const [modal, setModal] = useState<{ open: boolean; task?: Task | null }>({ open: false });
   const [dragTask, setDragTask] = useState<string | null>(null);
   const [tab, setTab] = useState<"active" | "done">("active");

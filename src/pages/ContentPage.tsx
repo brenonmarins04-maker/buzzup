@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import FilterChips from "@/components/FilterChips";
 
 const statusLabels: Record<string, { label: string; class: string }> = {
   "not-started": { label: "Não Começado", class: "bg-muted text-muted-foreground" },

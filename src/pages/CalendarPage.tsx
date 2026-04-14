@@ -16,6 +16,7 @@ import QuickCreateMenu from "@/components/modals/QuickCreateMenu";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+import FilterChips from "@/components/FilterChips";
 
 export type CalendarItem = {
   id: string; title: string; type: "task" | "post" | "event" | "general";
@@ -28,8 +29,8 @@ export default function CalendarPage() {
   const { teams, tasks, posts, events, generalItems, updateTask, updatePost, updateEvent, updateGeneralItem, deleteTask, deletePost, deleteEvent, deleteGeneralItem } = useData();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
-  const [filterTeam, setFilterTeam] = useState("all");
-  const [filterType, setFilterType] = useState("all");
+  const [filterTeams, setFilterTeams] = useState<string[]>([]);
+  const [filterTypes, setFilterTypes] = useState<string[]>([]);
 
   const [taskModal, setTaskModal] = useState<{ open: boolean; task?: Task | null; date?: string }>({ open: false });
   const [postModal, setPostModal] = useState<{ open: boolean; post?: Post | null; date?: string }>({ open: false });
@@ -68,7 +69,7 @@ export default function CalendarPage() {
       items.push({ id: g.id, title: g.title, type: "general", date: g.date, time: g.time, color: "bg-team-projetos" });
     });
     return items;
-  }, [tasks, posts, events, generalItems, filterTeam, filterType]);
+  }, [tasks, posts, events, generalItems, filterTeams, filterTypes]);
 
   const handleDragStart = (e: DragEvent, item: CalendarItem) => {
     setDragItem(item);
