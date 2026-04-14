@@ -1,33 +1,37 @@
 
 
-# Plano: Reformular Dashboard — Gráficos e Cards
+# Plano: Filtros Multi-Selecionáveis Inline (Toggle Chips)
 
 ## Resumo
-Adicionar gráfico de tarefas concluídas por pessoa, substituir cards superiores por um gráfico de pizza de alocação em projetos, e renomear seções.
+Substituir todos os `<select>` de filtro por botões/chips clicáveis inline que permitem selecionar múltiplos valores simultaneamente, sem popup.
 
-## Mudanças em `src/pages/DashboardPage.tsx`
+## Abordagem
+Criar um componente reutilizável `FilterChips` que renderiza uma lista de botões inline. Cada botão pode ser toggled (ativo/inativo). Quando nenhum está selecionado, mostra tudo (equivalente a "all").
 
-### 1. Remover os 4 cards superiores
-Remover completamente a grid com "Concluídas", "Posts", "Em Projetos" e "Prazos" (linhas 120-154).
+### Componente `src/components/FilterChips.tsx`
+```tsx
+// Props: options: {value, label}[], selected: string[], onChange: (selected: string[]) => void
+// Renderiza chips inline clicáveis com visual ativo/inativo
+```
 
-### 2. Renomear "Alocação de Pessoas" → "Pessoas em Projetos"
-Na seção que lista pessoas sem projeto e em múltiplos projetos, trocar o título.
+## Páginas afetadas
 
-### 3. Adicionar gráfico de pizza — Pessoas em Projetos
-Novo gráfico de pizza com 3 categorias:
-- **Vermelho** (`#ef4444`): pessoas que não estão em nenhum projeto
-- **Verde** (`#22c55e`): pessoas que estão em exatamente 1 projeto
-- **Rosa choque** (`#ec4899`): pessoas que estão em 2+ projetos
+### `src/pages/TasksPage.tsx`
+- `filterTeam: string` → `filterTeams: string[]`
+- Substituir `<select>` por `<FilterChips>` com lista de equipes
+- Filtro: se `filterTeams.length === 0`, mostra tudo; senão filtra por inclusão
 
-Será colocado ao lado da seção "Pessoas em Projetos", substituindo ou complementando a listagem atual.
+### `src/pages/ContentPage.tsx`
+- `filterChannel: string` → `filterChannels: string[]`
+- `filterStatus: string` → `filterStatuses: string[]`
+- Dois grupos de `<FilterChips>`: canais e status
 
-### 4. Adicionar gráfico de barras — Tarefas Concluídas por Pessoa
-Novo gráfico de barras mostrando, para cada membro (`allMembers`), quantas tarefas com `status === "done"` possuem esse membro no campo `responsible`. Ordenado do maior para o menor. Exibido na grid de gráficos ao lado do existente "por Equipe".
+### `src/pages/CalendarPage.tsx`
+- `filterTeam: string` → `filterTeams: string[]`
+- `filterType: string` → `filterTypes: string[]`
+- Dois grupos de `<FilterChips>`: equipes e tipos
 
-### Lógica de dados
-- **Por pessoa**: Iterar `allMembers`, contar tarefas done onde `task.responsible.includes(member)`. Ordenar desc.
-- **Pizza de alocação**: Calcular quantos membros têm 0, 1, ou 2+ projetos ativos.
-
-### Arquivos afetados
-- `src/pages/DashboardPage.tsx` — único arquivo modificado
+## Arquivos
+- Novo: `src/components/FilterChips.tsx`
+- Editados: `TasksPage.tsx`, `ContentPage.tsx`, `CalendarPage.tsx`
 
