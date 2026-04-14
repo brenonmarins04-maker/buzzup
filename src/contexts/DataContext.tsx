@@ -94,8 +94,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     async function fetchAll() {
       setLoading(true);
       // Get workspace
-      const { data: ws } = await supabase.from("workspaces").select("id").eq("user_id", uid!).single();
-      if (cancelled || !ws) { setLoading(false); return; }
+      let { data: ws } = await supabase.from("workspaces").select("id").eq("user_id", uid!).maybeSingle();
+      if (cancelled) return;
+      if (!ws) {
+        const { data: newWs, error: wsErr } = await supabase.from("workspaces").insert({ user_id: uid!, name: "Meu Workspace" }).select("id").single();
+        if (cancelled) return;
+        if (wsErr || !newWs) { console.error("Failed to create workspace", wsErr); setLoading(false); return; }
+        ws = newWs;
+      }
       const wsId = ws.id;
       setWorkspaceId(wsId);
 
