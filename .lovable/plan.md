@@ -1,116 +1,135 @@
 
 
-# Plano: Reestruturação Completa — Workspace + People + Junction Tables
+# Relatório de Auditoria Completa — BuzzUp
 
-## Resumo
-Migrar de `user_id` com arrays de texto para um modelo relacional com `workspaces`, `people`, e tabelas de junção (`project_participants`, `task_assignees`, `post_assignees`). Manter layout e UX intactos.
+## 1. SCHEMA DO BANCO DE DADOS — OK (com ressalvas)
 
-## Estado Atual
-- Auth funciona (email/senha, auto-confirm)
-- Tabelas usam `user_id` direto com RLS
-- Membros/responsáveis armazenados como `text[]` em teams, tasks, posts, projects
-- Tudo já persiste no Supabase
+Todas as 12 tabelas existem e estão corretas:
+`workspaces`, `people`, `projects`, `project_participants`, `tasks`, `task_assignees`, `posts`, `post_assignees`, `calendar_items`, `channels`, `categories`, `profiles`.
 
-## Fase 1 — Migração SQL (1 migration)
+**Foreign keys** — Todas funcionando corretamente (13 FK confirmadas):
+- Junction tables referenciam corretamente as tabelas pai com ON DELETE CASCADE
+- Tabelas principais referenciam `workspaces`
 
-### Novas tabelas
-```text
-workspaces (id, user_id → auth.users, name, created_at)
-people (id, workspace_id → workspaces, name, created_at)
-project_participants (id, project_id → projects, person_id → people)
-task_assignees (id, task_id → tasks, person_id → people)
-post_assignees (id, post_id → posts, person_id → people)
+**Colunas antigas removidas** — Confirmado: `user_id`, `team`, `members`, `responsible` foram removidos das tabelas que os tinham. Tabelas `teams` e `general_items` foram dropadas.
+
+## 2. WORKSPACE — PROBLEMA CRÍTICO
+
+**Trigger `handle_new_user`** — Existe e funciona (o usuário `joao.capri@projecjunior.com` tem workspace criado automaticamente).
+
+**3 usuários sem workspace** — Os usuários criados ANTES da migração não têm workspace:
+- `teste@gmail.com` (f2524387)
+- `testinho@gmail.com` (da2dfdc1)
+- `testao@gmail.com` (b66b0afb)
+
+Quando esses usuários fazem login, o DataContext tenta buscar workspace com `.single()` e recebe 0 rows (erro 406 nos logs de rede). O app fica em estado de loading infinito ou vazio.
+
+**Correção necessária**: Migration para criar workspaces para usuários existentes que não possuem um. Ou tratar no frontend: se não encontrar workspace, criar um automaticamente.
+
+## 3. ROW LEVEL SECURITY — OK
+
+- RLS ativado em todas as 12 tabelas
+- Policies usando `get_workspace_id(auth.uid())` — correto
+- Junction tables usam subquery EXISTS no parent — correto
+- Isolamento entre usuários garantido via SECURITY DEFINER function
+- Profiles tem policies separadas para SELECT/INSERT/UPDATE (sem DELETE) — adequado
+
+## 4. FRONTEND E DATA FLOW — OK
+
+- Zero referências a `mock-data`, `general_items`, `calendar_events`, `teams` no código
+- DataContext usa `workspace_id` em todas as queries
+- Junction tables são sincronizadas via `syncJunction` helper
+- Todos os CRUDs conectados ao banco real
+- `people` substituiu completamente `teams`
+
+**Nota**: Os erros 400/404 nos network logs são do deploy ANTERIOR (versão antiga ainda rodando no navegador do usuário). O código fonte atual está correto.
+
+## 5. JUNCTION TABLES — OK
+
+- `syncJunction` faz delete-all + insert-new (padrão simples e funcional)
+- `addTask`, `updateTask` sincronizam `task_assignees`
+- `addPost`, `updatePost` sincronizam `post_assignees`
+- `addProject`, `updateProject` sincronizam `project_participants`
+- Cascade delete garante limpeza automática
+
+## 6. MODAIS E CRUD — OK
+
+- **TaskModal**: multi-select de people, salva task + task_assignees, modal mantém aberto para criação contínua
+- **PostModal**: multi-select de people, salva post + post_assignees, criação contínua
+- **ProjectModal**: multi-select de people, salva project + project_participants
+- **PeoplePage**: CRUD completo com propagação para state local
+
+## 7. CALENDAR — OK
+
+- Usa `calendar_items` com campo `type`
+- `general_items` removido
+- EventModal conectado ao DataContext
+
+## 8. LIMPEZA — OK
+
+- `mock-data.ts` removido
+- `TeamsPage.tsx` removido
+- `GeneralItemModal.tsx` removido
+- Nenhuma referência a código legado
+
+## 9. PROBLEMAS ENCONTRADOS
+
+### P1 — CRÍTICO: Usuários pré-migração sem workspace
+3 usuários existem sem workspace. O app falha silenciosamente para eles. O `fetchAll` para quando `ws` é null, deixando o app sem dados.
+
+**Correção**: Adicionar lógica no DataContext para criar workspace automaticamente se não existir, OU executar INSERT para os 3 usuários via migration.
+
+### P2 — MENOR: workspace_id nullable em algumas tabelas
+As colunas `workspace_id` em `projects`, `tasks`, `posts`, `calendar_items`, `channels`, `categories` são **nullable** (foram adicionadas via ALTER TABLE ADD COLUMN). Deveriam ser NOT NULL para integridade.
+
+**Correção**: Migration para SET NOT NULL após garantir que não existem rows com NULL.
+
+### P3 — MENOR: `people.workspace_id` tem FK mas sem index dedicado
+Queries filtram por `workspace_id` constantemente. Indexes dedicados melhorariam performance em escala.
+
+### P4 — MENOR: Falta tratamento de erro nas operações
+As funções `addTask`, `updateTask`, etc. não verificam `error` no retorno do Supabase. Falhas silenciosas podem ocorrer.
+
+### P5 — INFO: Notificações são client-side apenas
+Notificações são recalculadas localmente a cada render. Não persistem entre sessões.
+
+## 10. PLANO DE CORREÇÃO
+
+### Fase 1 — Corrigir usuários sem workspace
+- Migration SQL: `INSERT INTO workspaces (user_id) SELECT id FROM auth.users WHERE id NOT IN (SELECT user_id FROM workspaces)`
+- OU: No DataContext, se workspace não encontrado, criar um automaticamente
+
+### Fase 2 — Tornar workspace_id NOT NULL
+- Migration: `UPDATE projects SET workspace_id = (SELECT id FROM workspaces LIMIT 1) WHERE workspace_id IS NULL` (para cada tabela)
+- Depois: `ALTER TABLE projects ALTER COLUMN workspace_id SET NOT NULL`
+
+### Fase 3 — Adicionar indexes
+```sql
+CREATE INDEX idx_people_workspace ON people(workspace_id);
+CREATE INDEX idx_tasks_workspace ON tasks(workspace_id);
+CREATE INDEX idx_posts_workspace ON posts(workspace_id);
+CREATE INDEX idx_projects_workspace ON projects(workspace_id);
+CREATE INDEX idx_calendar_items_workspace ON calendar_items(workspace_id);
 ```
 
-### Tabelas existentes — alterações
-- `projects`: remover `team`, `members`; adicionar `workspace_id`; remover `user_id`
-- `tasks`: manter `team` (texto livre); remover `responsible`; adicionar `workspace_id`; remover `user_id`
-- `posts`: remover `responsible`; adicionar `workspace_id`; remover `user_id`
-- `calendar_events` → renomear para `calendar_items`: adicionar `workspace_id`; remover `user_id`; remover `time`, `end_time`
-- `general_items`: remover (fusionar com calendar_items como type)
-- `channels`: `workspace_id` em vez de `user_id`
-- `categories`: `workspace_id` em vez de `user_id`
-- Dropar tabela `teams` (pessoas agora vivem em `people`)
+### Fase 4 — Tratamento de erros
+- Verificar `{ error }` em cada operação e mostrar toast de erro
 
-### Trigger
-- `handle_new_user()`: além de criar profile, criar workspace automaticamente
+## RESUMO
 
-### RLS em todas as tabelas
-- Função `get_workspace_id(uid)` retorna o workspace_id do user
-- Policies: `workspace_id = get_workspace_id(auth.uid())`
-- Junction tables: policy via subquery no parent table
+| Area | Status |
+|------|--------|
+| Schema | OK |
+| Foreign Keys | OK |
+| RLS | OK |
+| Trigger | OK (mas usuários antigos sem workspace) |
+| Frontend queries | OK |
+| Junction tables | OK |
+| Modais | OK |
+| Limpeza | OK |
+| Usuários antigos | PROBLEMA CRÍTICO |
+| Nullable workspace_id | PROBLEMA MENOR |
+| Error handling | PROBLEMA MENOR |
 
-## Fase 2 — Tipos e DataContext
-
-### Novos tipos
-```text
-Person { id, name }
-```
-
-### DataContext reescrito
-- Buscar `workspace_id` do user no mount
-- Queries filtram por `workspace_id`
-- `people`: CRUD completo (substitui team members)
-- `projects`: joins com `project_participants` + `people`
-- `tasks`: joins com `task_assignees` + `people`
-- `posts`: joins com `post_assignees` + `people`
-- `allMembers` derivado de `people`
-- Inserts usam `workspace_id` em vez de `user_id`
-- Junction tables gerenciadas em cascata (ao salvar task, sync assignees)
-
-## Fase 3 — Páginas e Modais
-
-### TeamsPage → PeoplePage
-- Renomear para "Pessoas"
-- Lista simples de pessoas do workspace (add, edit, delete)
-- Sem conceito de "equipe" como container — pessoas são globais
-
-### TaskModal
-- Responsáveis: multi-select de `people` (em vez de `allMembers` string)
-- Ao salvar: insert task + upsert `task_assignees`
-
-### PostModal
-- Responsáveis: multi-select de `people`
-- Ao salvar: insert post + upsert `post_assignees`
-
-### ProjectModal
-- Participantes: multi-select de `people`
-- Remove campo "equipe"
-- Ao salvar: insert project + upsert `project_participants`
-
-### TasksPage
-- Filtro por equipe (texto) permanece
-- Aba "Concluídas" já existe
-
-### ContentPage
-- Aba "Concluídas/Publicadas" já existe
-
-### ProjectsPage
-- Aba "Concluídos" já existe
-- Participantes mostram nomes de `people`
-
-### DashboardPage
-- Gráficos adaptados para usar `people` em vez de team members
-
-### CalendarPage
-- Usar `calendar_items` (sem general_items separado)
-
-## Fase 4 — Limpeza
-- Remover `src/lib/mock-data.ts`
-- Remover tipo `GeneralItem` (fundido com CalendarEvent/calendar_items)
-- Remover modal `GeneralItemModal` (usar EventModal com campo `type`)
-- Atualizar rotas (teams → people)
-
-## Arquivos afetados
-- 1 migration SQL (novas tabelas, alterações, RLS, triggers)
-- `src/contexts/DataContext.tsx` — reescrita completa
-- `src/pages/TeamsPage.tsx` → `PeoplePage.tsx`
-- `src/pages/TasksPage.tsx`, `ContentPage.tsx`, `ProjectsPage.tsx`, `CalendarPage.tsx`, `DashboardPage.tsx`
-- `src/components/modals/TaskModal.tsx`, `PostModal.tsx`, `ProjectModal.tsx`, `EventModal.tsx`
-- `src/components/modals/GeneralItemModal.tsx` — remover
-- `src/components/AppLayout.tsx` — rota/nav "Pessoas"
-- `src/App.tsx` — rota `/people`
-
-## Nota sobre dados existentes
-Os dados atuais no banco serão perdidos pois a estrutura muda completamente (drop de colunas, tabelas). Se houver dados importantes, precisam ser migrados manualmente antes.
+**Veredicto**: A arquitetura está correta e bem implementada. O único problema crítico é que usuários criados antes da migração ficam sem workspace e o app não funciona para eles. As correções são simples e podem ser feitas em uma única iteração.
 
