@@ -22,7 +22,7 @@ export type Database = {
           id: string
           title: string
           type: string
-          workspace_id: string | null
+          workspace_id: string
         }
         Insert: {
           created_at?: string
@@ -31,7 +31,7 @@ export type Database = {
           id?: string
           title: string
           type?: string
-          workspace_id?: string | null
+          workspace_id: string
         }
         Update: {
           created_at?: string
@@ -40,7 +40,7 @@ export type Database = {
           id?: string
           title?: string
           type?: string
-          workspace_id?: string | null
+          workspace_id?: string
         }
         Relationships: [
           {
@@ -57,19 +57,19 @@ export type Database = {
           created_at: string
           id: string
           name: string
-          workspace_id: string | null
+          workspace_id: string
         }
         Insert: {
           created_at?: string
           id?: string
           name: string
-          workspace_id?: string | null
+          workspace_id: string
         }
         Update: {
           created_at?: string
           id?: string
           name?: string
-          workspace_id?: string | null
+          workspace_id?: string
         }
         Relationships: [
           {
@@ -87,21 +87,21 @@ export type Database = {
           created_at: string
           id: string
           name: string
-          workspace_id: string | null
+          workspace_id: string
         }
         Insert: {
           color?: string
           created_at?: string
           id?: string
           name: string
-          workspace_id?: string | null
+          workspace_id: string
         }
         Update: {
           color?: string
           created_at?: string
           id?: string
           name?: string
-          workspace_id?: string | null
+          workspace_id?: string
         }
         Relationships: [
           {
@@ -188,7 +188,7 @@ export type Database = {
           status: string
           time: string
           title: string
-          workspace_id: string | null
+          workspace_id: string
         }
         Insert: {
           category?: string
@@ -202,7 +202,7 @@ export type Database = {
           status?: string
           time?: string
           title: string
-          workspace_id?: string | null
+          workspace_id: string
         }
         Update: {
           category?: string
@@ -216,7 +216,7 @@ export type Database = {
           status?: string
           time?: string
           title?: string
-          workspace_id?: string | null
+          workspace_id?: string
         }
         Relationships: [
           {
@@ -293,7 +293,7 @@ export type Database = {
           id: string
           name: string
           status: string
-          workspace_id: string | null
+          workspace_id: string
         }
         Insert: {
           color?: string
@@ -302,7 +302,7 @@ export type Database = {
           id?: string
           name: string
           status?: string
-          workspace_id?: string | null
+          workspace_id: string
         }
         Update: {
           color?: string
@@ -311,7 +311,7 @@ export type Database = {
           id?: string
           name?: string
           status?: string
-          workspace_id?: string | null
+          workspace_id?: string
         }
         Relationships: [
           {
@@ -367,7 +367,7 @@ export type Database = {
           status: string
           team: string
           title: string
-          workspace_id: string | null
+          workspace_id: string
         }
         Insert: {
           checklist?: Json
@@ -379,7 +379,7 @@ export type Database = {
           status?: string
           team?: string
           title: string
-          workspace_id?: string | null
+          workspace_id: string
         }
         Update: {
           checklist?: Json
@@ -391,7 +391,7 @@ export type Database = {
           status?: string
           team?: string
           title?: string
-          workspace_id?: string | null
+          workspace_id?: string
         }
         Relationships: [
           {
