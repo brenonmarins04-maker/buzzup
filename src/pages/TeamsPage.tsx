@@ -152,8 +152,7 @@ export default function TeamsPage() {
         open={!!deleteId}
         onOpenChange={(open) => { if (!open) setDeleteId(null); }}
         onConfirm={() => { if (deleteId) { deleteTeam(deleteId); setDeleteId(null); } }}
-        title="Excluir equipe"
-        description="Tem certeza que deseja excluir esta equipe? Os membros não serão removidos do workspace."
+        title="equipe"
       />
     </div>
   );
