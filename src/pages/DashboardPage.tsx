@@ -1,6 +1,6 @@
 import { useData } from "@/contexts/DataContext";
 import {
-  Clock, AlertTriangle, AlertCircle, TrendingUp, BarChart3, Megaphone, Users,
+  Clock, AlertTriangle, AlertCircle, TrendingUp, BarChart3, Megaphone, Users, UsersRound,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
@@ -10,7 +10,7 @@ import { getNowBrasilia, getTodayBrasilia } from "@/lib/utils";
 const PIE_COLORS = ["hsl(330, 70%, 55%)", "hsl(210, 80%, 52%)", "hsl(170, 80%, 40%)", "hsl(40, 6%, 10%)", "hsl(280, 60%, 55%)"];
 
 export default function DashboardPage() {
-  const { people, tasks, posts, channels, projects, loading } = useData();
+  const { people, tasks, posts, channels, projects, teams, loading } = useData();
 
   if (loading) {
     return (
@@ -59,12 +59,20 @@ export default function DashboardPage() {
     completed: doneTasks.filter(t => t.responsible.some(r => r.id === person.id)).length,
   })).sort((a, b) => b.completed - a.completed).filter(d => d.completed > 0);
 
+  // Tasks completed by team
+  const tasksByTeam = teams.map(team => ({
+    name: team.name,
+    completed: doneTasks.filter(t =>
+      t.responsible.some(r => team.memberIds.includes(r.id))
+    ).length,
+  })).sort((a, b) => b.completed - a.completed).filter(d => d.completed > 0);
+
   const hasAlerts = overdueTasks.length > 0 || dueTodayTasks.length > 0 || upcomingSoonTasks.length > 0 || todayPosts.length > 0 || overduePosts.length > 0;
 
   return (
     <div className="animate-fade-in space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground tracking-tight">Dashboard</h1>
+        <h1 className="text-2xl font-semibold text-foreground tracking-tight">Início</h1>
         <p className="text-sm text-muted-foreground mt-1">Resumo geral</p>
       </div>
 
@@ -207,30 +215,55 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Posts por canal */}
+        {/* Tarefas concluídas por equipe */}
         <div className="bg-card border border-border rounded-lg p-5">
           <div className="flex items-center gap-2 mb-4">
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold text-foreground">Posts por Canal</h2>
+            <UsersRound className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold text-foreground">Tarefas Concluídas por Equipe</h2>
           </div>
-          <div className="h-48 flex items-center">
-            <ResponsiveContainer width="50%" height="100%">
-              <PieChart>
-                <Pie data={postsByChannel} dataKey="count" nameKey="channel" cx="50%" cy="50%" outerRadius={70} innerRadius={40}>
-                  {postsByChannel.map((_, index) => <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
-                </Pie>
-                <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid hsl(40, 6%, 90%)", fontSize: "12px" }} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="flex-1 flex flex-col gap-2">
-              {postsByChannel.map((item, i) => (
-                <div key={item.channel} className="flex items-center gap-2 text-sm">
-                  <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
-                  <span className="text-muted-foreground">{item.channel}</span>
-                  <span className="ml-auto font-semibold text-foreground">{item.count}</span>
-                </div>
-              ))}
-            </div>
+          <div className="h-48">
+            {tasksByTeam.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={tasksByTeam} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(40, 6%, 90%)" />
+                  <XAxis type="number" tick={{ fontSize: 11 }} stroke="hsl(40, 3%, 55%)" />
+                  <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} stroke="hsl(40, 3%, 55%)" width={100} />
+                  <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid hsl(40, 6%, 90%)", fontSize: "12px" }} />
+                  <Bar dataKey="completed" fill="hsl(210, 80%, 52%)" radius={[0, 4, 4, 0]} name="Concluídas" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+                {teams.length === 0 ? "Nenhuma equipe criada ainda" : "Nenhuma tarefa concluída por equipe"}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Posts por canal */}
+      <div className="bg-card border border-border rounded-lg p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold text-foreground">Posts por Canal</h2>
+        </div>
+        <div className="h-48 flex items-center">
+          <ResponsiveContainer width="50%" height="100%">
+            <PieChart>
+              <Pie data={postsByChannel} dataKey="count" nameKey="channel" cx="50%" cy="50%" outerRadius={70} innerRadius={40}>
+                {postsByChannel.map((_, index) => <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
+              </Pie>
+              <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid hsl(40, 6%, 90%)", fontSize: "12px" }} />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="flex-1 flex flex-col gap-2">
+            {postsByChannel.map((item, i) => (
+              <div key={item.channel} className="flex items-center gap-2 text-sm">
+                <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+                <span className="text-muted-foreground">{item.channel}</span>
+                <span className="ml-auto font-semibold text-foreground">{item.count}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>

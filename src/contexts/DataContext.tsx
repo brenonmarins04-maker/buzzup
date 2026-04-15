@@ -21,6 +21,7 @@ export type Post = {
 };
 export type CalendarEvent = { id: string; title: string; date: string; type: string; description: string };
 export type Channel = { id: string; name: string; color: string };
+export type Team = { id: string; name: string; memberIds: string[] };
 
 export type Notification = {
   id: string; title: string; message: string;
@@ -29,7 +30,7 @@ export type Notification = {
 
 type DataContextType = {
   people: Person[]; projects: Project[]; tasks: Task[]; posts: Post[];
-  events: CalendarEvent[];
+  events: CalendarEvent[]; teams: Team[];
   categories: string[]; channels: Channel[]; notifications: Notification[];
   loading: boolean; workspaceId: string | null;
 
@@ -61,6 +62,10 @@ type DataContextType = {
   removeChannel: (id: string) => void;
   updateChannel: (channel: Channel) => void;
 
+  addTeam: (name: string, memberIds: string[]) => void;
+  updateTeam: (team: Team) => void;
+  deleteTeam: (id: string) => void;
+
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
 };
@@ -79,6 +84,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [channels, setChannels] = useState<Channel[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoriesRaw, setCategoriesRaw] = useState<{ id: string; name: string }[]>([]);
@@ -87,14 +93,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!uid) {
       setWorkspaceId(null); setPeople([]); setProjects([]); setTasks([]); setPosts([]);
-      setEvents([]); setCategories([]); setChannels([]);
+      setEvents([]); setCategories([]); setChannels([]); setTeams([]);
       setCategoriesRaw([]); setLoading(false);
       return;
     }
     let cancelled = false;
     async function fetchAll() {
       setLoading(true);
-      // Get workspace
       let { data: ws } = await supabase.from("workspaces").select("id").eq("user_id", uid!).maybeSingle();
       if (cancelled) return;
       if (!ws) {
@@ -106,7 +111,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const wsId = ws.id;
       setWorkspaceId(wsId);
 
-      const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes] = await Promise.all([
+      const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes] = await Promise.all([
         supabase.from("people").select("id, name").eq("workspace_id", wsId),
         supabase.from("projects").select("*").eq("workspace_id", wsId),
         supabase.from("tasks").select("*").eq("workspace_id", wsId),
@@ -117,6 +122,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         supabase.from("project_participants").select("project_id, person_id"),
         supabase.from("task_assignees").select("task_id, person_id"),
         supabase.from("post_assignees").select("post_id, person_id"),
+        supabase.from("teams").select("id, name").eq("workspace_id", wsId),
+        supabase.from("team_members").select("team_id, person_id"),
       ]);
       if (cancelled) return;
 
@@ -152,6 +159,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
           postAssignees.set(r.post_id, arr);
         }
       });
+
+      // Build teams
+      const teamMembersMap = new Map<string, string[]>();
+      (tmRes.data || []).forEach(r => {
+        const arr = teamMembersMap.get(r.team_id) || [];
+        arr.push(r.person_id);
+        teamMembersMap.set(r.team_id, arr);
+      });
+      setTeams((teamsRes.data || []).map(t => ({
+        id: t.id, name: t.name, memberIds: teamMembersMap.get(t.id) || [],
+      })));
 
       setProjects((projRes.data || []).map(r => ({
         id: r.id, name: r.name, description: r.description, color: r.color, status: r.status,
@@ -205,10 +223,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [tasks, posts]);
 
   // Helper to sync junction tables
-  const syncJunction = useCallback(async (table: "project_participants" | "task_assignees" | "post_assignees", fkCol: string, fkId: string, personIds: string[]) => {
-    // Delete all existing
+  const syncJunction = useCallback(async (table: "project_participants" | "task_assignees" | "post_assignees" | "team_members", fkCol: string, fkId: string, personIds: string[]) => {
     await (supabase.from(table) as any).delete().eq(fkCol, fkId);
-    // Insert new
     if (personIds.length > 0) {
       const rows = personIds.map(pid => ({ [fkCol]: fkId, person_id: pid }));
       await (supabase.from(table) as any).insert(rows);
@@ -227,7 +243,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.from("people").update({ name }).eq("id", id);
     if (error) { toast.error("Erro ao atualizar pessoa"); return; }
     setPeople(prev => prev.map(p => p.id === id ? { ...p, name } : p));
-    // Update local state in tasks/posts/projects too
     setTasks(prev => prev.map(t => ({ ...t, responsible: t.responsible.map(r => r.id === id ? { ...r, name } : r) })));
     setPosts(prev => prev.map(p => ({ ...p, responsible: p.responsible.map(r => r.id === id ? { ...r, name } : r) })));
     setProjects(prev => prev.map(p => ({ ...p, members: p.members.map(m => m.id === id ? { ...m, name } : m) })));
@@ -240,6 +255,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setTasks(prev => prev.map(t => ({ ...t, responsible: t.responsible.filter(r => r.id !== id) })));
     setPosts(prev => prev.map(p => ({ ...p, responsible: p.responsible.filter(r => r.id !== id) })));
     setProjects(prev => prev.map(p => ({ ...p, members: p.members.filter(m => m.id !== id) })));
+    setTeams(prev => prev.map(t => ({ ...t, memberIds: t.memberIds.filter(mid => mid !== id) })));
   }, []);
 
   // === TASKS ===
@@ -418,13 +434,39 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setChannels(prev => prev.map(c => c.id === ch.id ? ch : c));
   }, []);
 
+  // === TEAMS ===
+  const addTeam = useCallback(async (name: string, memberIds: string[]) => {
+    if (!workspaceId) return;
+    const { data, error } = await supabase.from("teams").insert({ workspace_id: workspaceId, name }).select("id, name").single();
+    if (error) { toast.error("Erro ao criar equipe"); return; }
+    if (data) {
+      if (memberIds.length > 0) {
+        await syncJunction("team_members", "team_id", data.id, memberIds);
+      }
+      setTeams(prev => [...prev, { id: data.id, name: data.name, memberIds }]);
+    }
+  }, [workspaceId, syncJunction]);
+
+  const updateTeam = useCallback(async (team: Team) => {
+    const { error } = await supabase.from("teams").update({ name: team.name }).eq("id", team.id);
+    if (error) { toast.error("Erro ao atualizar equipe"); return; }
+    await syncJunction("team_members", "team_id", team.id, team.memberIds);
+    setTeams(prev => prev.map(t => t.id === team.id ? team : t));
+  }, [syncJunction]);
+
+  const deleteTeam = useCallback(async (id: string) => {
+    const { error } = await supabase.from("teams").delete().eq("id", id);
+    if (error) { toast.error("Erro ao excluir equipe"); return; }
+    setTeams(prev => prev.filter(t => t.id !== id));
+  }, []);
+
   // Notifications
   const markNotificationRead = useCallback((id: string) => setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n)), []);
   const markAllNotificationsRead = useCallback(() => setNotifications(prev => prev.map(n => ({ ...n, read: true }))), []);
 
   return (
     <DataContext.Provider value={{
-      people, projects, tasks, posts, events, categories, channels, notifications, loading, workspaceId,
+      people, projects, tasks, posts, events, categories, channels, teams, notifications, loading, workspaceId,
       addPerson, updatePerson, deletePerson,
       addTask, updateTask, deleteTask,
       addPost, updatePost, deletePost,
@@ -432,6 +474,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addEvent, updateEvent, deleteEvent,
       addCategory, removeCategory, updateCategory,
       addChannel, removeChannel, updateChannel,
+      addTeam, updateTeam, deleteTeam,
       markNotificationRead, markAllNotificationsRead,
     }}>
       {children}

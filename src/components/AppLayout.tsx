@@ -2,7 +2,7 @@ import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard, CalendarDays, CheckSquare, Megaphone,
-  FolderKanban, Bell, Search, ChevronLeft, Plus, Users, LogOut,
+  FolderKanban, Bell, Search, ChevronLeft, Plus, Users, LogOut, UsersRound,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useData } from "@/contexts/DataContext";
@@ -14,11 +14,12 @@ import EventModal from "@/components/modals/EventModal";
 import NotificationPanel from "@/components/NotificationPanel";
 
 const navItems = [
-  { to: "/", icon: LayoutDashboard, label: "Dashboard" },
+  { to: "/", icon: LayoutDashboard, label: "Início" },
   { to: "/calendar", icon: CalendarDays, label: "Calendário" },
   { to: "/tasks", icon: CheckSquare, label: "Tarefas" },
   { to: "/content", icon: Megaphone, label: "Conteúdo" },
   { to: "/projects", icon: FolderKanban, label: "Projetos" },
+  { to: "/teams", icon: UsersRound, label: "Equipes" },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {

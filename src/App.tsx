@@ -13,6 +13,7 @@ import TasksPage from "./pages/TasksPage";
 import ContentPage from "./pages/ContentPage";
 import PeoplePage from "./pages/PeoplePage";
 import ProjectsPage from "./pages/ProjectsPage";
+import TeamsPage from "./pages/TeamsPage";
 import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
@@ -43,6 +44,7 @@ const App = () => (
             <Route path="/content" element={<ProtectedApp><ContentPage /></ProtectedApp>} />
             <Route path="/people" element={<ProtectedApp><PeoplePage /></ProtectedApp>} />
             <Route path="/projects" element={<ProtectedApp><ProjectsPage /></ProtectedApp>} />
+            <Route path="/teams" element={<ProtectedApp><TeamsPage /></ProtectedApp>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
