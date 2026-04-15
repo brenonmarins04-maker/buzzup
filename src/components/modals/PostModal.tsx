@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useFormMemory } from "@/hooks/useFormMemory";
+import TeamPersonSelector from "@/components/TeamPersonSelector";
 
 type Props = {
   open: boolean;
@@ -120,15 +121,7 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Responsáveis</label>
-            <div className="flex flex-wrap gap-1.5">
-              {people.map(p => (
-                <button key={p.id} type="button" onClick={() => toggleResponsible(p.id)}
-                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${form.responsibleIds.includes(p.id) ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input text-muted-foreground hover:bg-accent"}`}>
-                  {p.name}
-                </button>
-              ))}
-              {people.length === 0 && <p className="text-xs text-muted-foreground">Cadastre pessoas primeiro.</p>}
-            </div>
+            <TeamPersonSelector selectedIds={form.responsibleIds} onToggle={toggleResponsible} />
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
