@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useData, type Team } from "@/contexts/DataContext";
-import { Plus, Pencil, Trash2, UsersRound } from "lucide-react";
+import { Plus, Pencil, Trash2, UsersRound, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -15,11 +15,14 @@ export default function TeamsPage() {
 
   const [name, setName] = useState("");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
+  const [memberSearch, setMemberSearch] = useState("");
+  const memberSearchRef = useRef<HTMLInputElement>(null);
 
   const openCreate = () => {
     setEditingTeam(null);
     setName("");
     setSelectedMembers([]);
+    setMemberSearch("");
     setModalOpen(true);
   };
 
@@ -27,6 +30,7 @@ export default function TeamsPage() {
     setEditingTeam(team);
     setName(team.name);
     setSelectedMembers([...team.memberIds]);
+    setMemberSearch("");
     setModalOpen(true);
   };
 
@@ -124,16 +128,36 @@ export default function TeamsPage() {
               {people.length === 0 ? (
                 <p className="text-xs text-muted-foreground">Nenhuma pessoa cadastrada.</p>
               ) : (
-                <div className="max-h-48 overflow-y-auto space-y-2 border border-border rounded-md p-3">
-                  {people.map(person => (
-                    <label key={person.id} className="flex items-center gap-2 cursor-pointer">
-                      <Checkbox
-                        checked={selectedMembers.includes(person.id)}
-                        onCheckedChange={() => toggleMember(person.id)}
-                      />
-                      <span className="text-sm text-foreground">{person.name}</span>
-                    </label>
-                  ))}
+                <div className="border border-border rounded-md">
+                  <div className="relative border-b border-border">
+                    <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      ref={memberSearchRef}
+                      value={memberSearch}
+                      onChange={e => setMemberSearch(e.target.value)}
+                      placeholder="Pesquisar pessoa..."
+                      className="w-full bg-transparent pl-8 pr-2 py-2 text-sm outline-none placeholder:text-muted-foreground"
+                    />
+                  </div>
+                  <div className="max-h-48 overflow-y-auto space-y-2 p-3">
+                    {people
+                      .filter(p => p.name.toLowerCase().includes(memberSearch.toLowerCase()))
+                      .map(person => (
+                        <label
+                          key={person.id}
+                          className="flex items-center gap-2 cursor-pointer"
+                          onClick={() => {
+                            setTimeout(() => memberSearchRef.current?.select(), 0);
+                          }}
+                        >
+                          <Checkbox
+                            checked={selectedMembers.includes(person.id)}
+                            onCheckedChange={() => toggleMember(person.id)}
+                          />
+                          <span className="text-sm text-foreground">{person.name}</span>
+                        </label>
+                      ))}
+                  </div>
                 </div>
               )}
             </div>
