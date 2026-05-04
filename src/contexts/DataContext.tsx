@@ -11,15 +11,16 @@ export type Person = { id: string; name: string };
 export type Project = { id: string; name: string; description: string; color: string; status: string; members: Person[] };
 export type Task = {
   id: string; title: string; description: string; team: string;
+  teamId: string | null;
   responsible: Person[]; deadline: string; status: string; priority: string;
   checklist: { text: string; checked: boolean }[];
 };
 export type Post = {
   id: string; title: string; copy: string; channel: string; category: string;
-  date: string; time: string; status: string; responsible: Person[];
+  date: string; time: string; status: string; responsible: Person[]; teamId: string | null;
   link: string; media_url: string;
 };
-export type CalendarEvent = { id: string; title: string; date: string; type: string; description: string };
+export type CalendarEvent = { id: string; title: string; date: string; type: string; description: string; teamId: string | null };
 export type Channel = { id: string; name: string; color: string };
 export type Team = { id: string; name: string; memberIds: string[] };
 
@@ -180,6 +181,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const checklist = Array.isArray(r.checklist) ? (r.checklist as { text: string; checked: boolean }[]) : [];
         return {
           id: r.id, title: r.title, description: r.description, team: r.team,
+          teamId: (r as any).team_id ?? null,
           responsible: taskAssignees.get(r.id) || [], deadline: r.deadline, status: r.status,
           priority: r.priority, checklist,
         };
@@ -187,10 +189,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setPosts((psRes.data || []).map(r => ({
         id: r.id, title: r.title, copy: r.copy, channel: r.channel, category: r.category,
         date: r.date, time: r.time, status: r.status, responsible: postAssignees.get(r.id) || [],
-        link: r.link, media_url: r.media_url,
+        link: r.link, media_url: r.media_url, teamId: (r as any).team_id ?? null,
       })));
       setEvents((evRes.data || []).map(r => ({
-        id: r.id, title: r.title, date: r.date, type: r.type, description: r.description,
+        id: r.id, title: r.title, date: r.date, type: r.type, description: r.description, teamId: (r as any).team_id ?? null,
       })));
       const rawCats = catRes.data || [];
       setCategoriesRaw(rawCats);
@@ -287,7 +289,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       workspace_id: workspaceId, title: t.title, description: t.description, team: t.team,
       deadline: t.deadline, status: t.status, priority: t.priority,
       checklist: t.checklist as unknown as Json,
-    }).select().single();
+      team_id: t.teamId,
+    } as any).select().single();
     if (error) { toast.error("Erro ao criar tarefa"); return; }
     if (data) {
       await syncJunction("task_assignees", "task_id", data.id, t.responsibleIds);
@@ -295,6 +298,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const checklist = Array.isArray(data.checklist) ? (data.checklist as { text: string; checked: boolean }[]) : [];
       setTasks(prev => [...prev, {
         id: data.id, title: data.title, description: data.description, team: data.team,
+        teamId: (data as any).team_id ?? null,
         responsible: resp, deadline: data.deadline, status: data.status, priority: data.priority, checklist,
       }]);
     }
@@ -305,7 +309,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       title: t.title, description: t.description, team: t.team,
       deadline: t.deadline, status: t.status, priority: t.priority,
       checklist: t.checklist as unknown as Json,
-    }).eq("id", t.id);
+      team_id: t.teamId,
+    } as any).eq("id", t.id);
     if (error) { toast.error("Erro ao atualizar tarefa"); return; }
     await syncJunction("task_assignees", "task_id", t.id, t.responsible.map(r => r.id));
     setTasks(prev => prev.map(x => x.id === t.id ? t : x));
@@ -323,8 +328,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.from("posts").insert({
       workspace_id: workspaceId, title: p.title, copy: p.copy, channel: p.channel,
       category: p.category, date: p.date, time: p.time, status: p.status,
-      link: p.link, media_url: p.media_url,
-    }).select().single();
+      link: p.link, media_url: p.media_url, team_id: p.teamId,
+    } as any).select().single();
     if (error) { toast.error("Erro ao criar publicação"); return; }
     if (data) {
       await syncJunction("post_assignees", "post_id", data.id, p.responsibleIds);
@@ -332,7 +337,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setPosts(prev => [...prev, {
         id: data.id, title: data.title, copy: data.copy, channel: data.channel, category: data.category,
         date: data.date, time: data.time, status: data.status, responsible: resp,
-        link: data.link, media_url: data.media_url,
+        link: data.link, media_url: data.media_url, teamId: (data as any).team_id ?? null,
       }]);
     }
   }, [workspaceId, people, syncJunction]);
@@ -340,8 +345,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const updatePost = useCallback(async (p: Post) => {
     const { error } = await supabase.from("posts").update({
       title: p.title, copy: p.copy, channel: p.channel, category: p.category,
-      date: p.date, time: p.time, status: p.status, link: p.link, media_url: p.media_url,
-    }).eq("id", p.id);
+      date: p.date, time: p.time, status: p.status, link: p.link, media_url: p.media_url, team_id: p.teamId,
+    } as any).eq("id", p.id);
     if (error) { toast.error("Erro ao atualizar publicação"); return; }
     await syncJunction("post_assignees", "post_id", p.id, p.responsible.map(r => r.id));
     setPosts(prev => prev.map(x => x.id === p.id ? p : x));
@@ -391,16 +396,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!workspaceId) return;
     const { data, error } = await supabase.from("calendar_items").insert({
       workspace_id: workspaceId, title: e.title, date: e.date,
-      type: e.type, description: e.description,
-    }).select().single();
+      type: e.type, description: e.description, team_id: e.teamId,
+    } as any).select().single();
     if (error) { toast.error("Erro ao criar evento"); return; }
-    if (data) setEvents(prev => [...prev, { id: data.id, title: data.title, date: data.date, type: data.type, description: data.description }]);
+    if (data) setEvents(prev => [...prev, { id: data.id, title: data.title, date: data.date, type: data.type, description: data.description, teamId: (data as any).team_id ?? null }]);
   }, [workspaceId]);
 
   const updateEvent = useCallback(async (e: CalendarEvent) => {
     const { error } = await supabase.from("calendar_items").update({
-      title: e.title, date: e.date, type: e.type, description: e.description,
-    }).eq("id", e.id);
+      title: e.title, date: e.date, type: e.type, description: e.description, team_id: e.teamId,
+    } as any).eq("id", e.id);
     if (error) { toast.error("Erro ao atualizar evento"); return; }
     setEvents(prev => prev.map(x => x.id === e.id ? e : x));
   }, []);
