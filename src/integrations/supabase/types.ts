@@ -20,6 +20,7 @@ export type Database = {
           date: string
           description: string
           id: string
+          team_id: string | null
           title: string
           type: string
           workspace_id: string
@@ -29,6 +30,7 @@ export type Database = {
           date?: string
           description?: string
           id?: string
+          team_id?: string | null
           title: string
           type?: string
           workspace_id: string
@@ -38,6 +40,7 @@ export type Database = {
           date?: string
           description?: string
           id?: string
+          team_id?: string | null
           title?: string
           type?: string
           workspace_id?: string
@@ -186,6 +189,7 @@ export type Database = {
           link: string
           media_url: string
           status: string
+          team_id: string | null
           time: string
           title: string
           workspace_id: string
@@ -200,6 +204,7 @@ export type Database = {
           link?: string
           media_url?: string
           status?: string
+          team_id?: string | null
           time?: string
           title: string
           workspace_id: string
@@ -214,6 +219,7 @@ export type Database = {
           link?: string
           media_url?: string
           status?: string
+          team_id?: string | null
           time?: string
           title?: string
           workspace_id?: string
@@ -366,6 +372,7 @@ export type Database = {
           priority: string
           status: string
           team: string
+          team_id: string | null
           title: string
           workspace_id: string
         }
@@ -378,6 +385,7 @@ export type Database = {
           priority?: string
           status?: string
           team?: string
+          team_id?: string | null
           title: string
           workspace_id: string
         }
@@ -390,6 +398,7 @@ export type Database = {
           priority?: string
           status?: string
           team?: string
+          team_id?: string | null
           title?: string
           workspace_id?: string
         }
