@@ -99,10 +99,6 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Categoria (texto)</label>
-              <Input value={form.team} onChange={e => setForm(p => ({ ...p, team: e.target.value }))} placeholder="Tag livre" />
-            </div>
-            <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Prazo</label>
               <Input type="date" value={form.deadline} onChange={e => setForm(p => ({ ...p, deadline: e.target.value }))} />
             </div>
