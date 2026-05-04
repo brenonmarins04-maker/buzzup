@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useData } from "@/contexts/DataContext";
 import type { Task } from "@/contexts/DataContext";
-import { Plus, X } from "lucide-react";
+import { Plus, X, Users } from "lucide-react";
 import TaskModal from "@/components/modals/TaskModal";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import { toast } from "sonner";
@@ -24,13 +24,34 @@ function getDeadlineBorderClass(deadline: string, status: string) {
 }
 
 export default function TasksPage() {
-  const { tasks, updateTask, deleteTask } = useData();
+  const { tasks, teams, updateTask, deleteTask } = useData();
   const [modal, setModal] = useState<{ open: boolean; task?: Task | null }>({ open: false });
   const [dragTask, setDragTask] = useState<string | null>(null);
   const [tab, setTab] = useState<"active" | "done">("active");
   const [deleting, setDeleting] = useState<{ open: boolean; id: string; title: string }>({ open: false, id: "", title: "" });
+  const [teamFilter, setTeamFilter] = useState<string | null>(null);
+
+  const teamStats = useMemo(() => {
+    const stats = teams.map(t => {
+      const teamTasks = tasks.filter(tk => tk.teamId === t.id);
+      return {
+        id: t.id, name: t.name,
+        done: teamTasks.filter(tk => tk.status === "done").length,
+        pending: teamTasks.filter(tk => tk.status !== "done").length,
+      };
+    });
+    const noTeam = tasks.filter(tk => !tk.teamId);
+    return {
+      teams: stats,
+      noTeam: { done: noTeam.filter(tk => tk.status === "done").length, pending: noTeam.filter(tk => tk.status !== "done").length },
+    };
+  }, [teams, tasks]);
 
   const filteredTasks = tasks.filter((t) => {
+    if (teamFilter !== null) {
+      if (teamFilter === "__none" && t.teamId) return false;
+      if (teamFilter !== "__none" && t.teamId !== teamFilter) return false;
+    }
     if (tab === "active") return t.status !== "done";
     return t.status === "done";
   });
@@ -53,6 +74,51 @@ export default function TasksPage() {
           <Plus className="h-4 w-4" /> Nova Tarefa
         </button>
       </div>
+
+      {(teams.length > 0 || teamStats.noTeam.done + teamStats.noTeam.pending > 0) && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+          <button onClick={() => setTeamFilter(null)}
+            className={`text-left bg-card border rounded-lg p-3 transition-all hover:shadow-sm ${teamFilter === null ? "border-primary ring-1 ring-primary" : "border-border"}`}>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <Users className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs font-semibold text-foreground">Todas</span>
+            </div>
+            <div className="flex items-baseline gap-2 text-xs">
+              <span className="text-status-done font-semibold">{tasks.filter(t => t.status === "done").length} feitas</span>
+              <span className="text-muted-foreground">·</span>
+              <span className="text-priority-high font-semibold">{tasks.filter(t => t.status !== "done").length} pend.</span>
+            </div>
+          </button>
+          {teamStats.teams.map(t => (
+            <button key={t.id} onClick={() => setTeamFilter(t.id)}
+              className={`text-left bg-card border rounded-lg p-3 transition-all hover:shadow-sm ${teamFilter === t.id ? "border-primary ring-1 ring-primary" : "border-border"}`}>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs font-semibold text-foreground truncate">{t.name}</span>
+              </div>
+              <div className="flex items-baseline gap-2 text-xs">
+                <span className="text-status-done font-semibold">{t.done} feitas</span>
+                <span className="text-muted-foreground">·</span>
+                <span className="text-priority-high font-semibold">{t.pending} pend.</span>
+              </div>
+            </button>
+          ))}
+          {(teamStats.noTeam.done + teamStats.noTeam.pending > 0) && (
+            <button onClick={() => setTeamFilter("__none")}
+              className={`text-left bg-card border rounded-lg p-3 transition-all hover:shadow-sm ${teamFilter === "__none" ? "border-primary ring-1 ring-primary" : "border-border"}`}>
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                <span className="text-xs font-semibold text-muted-foreground">Sem equipe</span>
+              </div>
+              <div className="flex items-baseline gap-2 text-xs">
+                <span className="text-status-done font-semibold">{teamStats.noTeam.done} feitas</span>
+                <span className="text-muted-foreground">·</span>
+                <span className="text-priority-high font-semibold">{teamStats.noTeam.pending} pend.</span>
+              </div>
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex bg-muted rounded-md p-0.5">
