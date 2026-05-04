@@ -1,0 +1,25 @@
+ALTER TABLE public.people REPLICA IDENTITY FULL;
+ALTER TABLE public.tasks REPLICA IDENTITY FULL;
+ALTER TABLE public.posts REPLICA IDENTITY FULL;
+ALTER TABLE public.projects REPLICA IDENTITY FULL;
+ALTER TABLE public.calendar_items REPLICA IDENTITY FULL;
+ALTER TABLE public.categories REPLICA IDENTITY FULL;
+ALTER TABLE public.channels REPLICA IDENTITY FULL;
+ALTER TABLE public.teams REPLICA IDENTITY FULL;
+ALTER TABLE public.team_members REPLICA IDENTITY FULL;
+ALTER TABLE public.task_assignees REPLICA IDENTITY FULL;
+ALTER TABLE public.post_assignees REPLICA IDENTITY FULL;
+ALTER TABLE public.project_participants REPLICA IDENTITY FULL;
+
+ALTER PUBLICATION supabase_realtime ADD TABLE public.people;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.tasks;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.posts;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.projects;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.calendar_items;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.categories;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.channels;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.teams;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.team_members;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.task_assignees;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.post_assignees;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.project_participants;
