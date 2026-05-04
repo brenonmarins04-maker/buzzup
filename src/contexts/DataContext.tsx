@@ -88,6 +88,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoriesRaw, setCategoriesRaw] = useState<{ id: string; name: string }[]>([]);
+  const [refetchTick, setRefetchTick] = useState(0);
 
   // Fetch workspace + all data
   useEffect(() => {
@@ -199,7 +200,28 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
     fetchAll();
     return () => { cancelled = true; };
-  }, [uid]);
+  }, [uid, refetchTick]);
+
+  // Realtime: re-fetch all data when ANY workspace table changes
+  useEffect(() => {
+    if (!workspaceId) return;
+    const tables = [
+      "people", "tasks", "posts", "projects", "calendar_items",
+      "categories", "channels", "teams", "team_members",
+      "task_assignees", "post_assignees", "project_participants",
+    ];
+    let scheduled: ReturnType<typeof setTimeout> | null = null;
+    const trigger = () => {
+      if (scheduled) return;
+      scheduled = setTimeout(() => { scheduled = null; setRefetchTick(t => t + 1); }, 250);
+    };
+    const channel = supabase.channel(`ws-${workspaceId}`);
+    tables.forEach(table => {
+      channel.on("postgres_changes", { event: "*", schema: "public", table }, trigger);
+    });
+    channel.subscribe();
+    return () => { if (scheduled) clearTimeout(scheduled); supabase.removeChannel(channel); };
+  }, [workspaceId]);
 
   // Notifications
   useEffect(() => {
