@@ -6,6 +6,7 @@ type FormMemory = {
   lastTeam: string;
   lastChannel: string;
   lastCategory: string;
+  lastTeamId: string | null;
 };
 
 function getMemory(): FormMemory {
@@ -13,7 +14,7 @@ function getMemory(): FormMemory {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw);
   } catch {}
-  return { lastTeam: "", lastChannel: "", lastCategory: "" };
+  return { lastTeam: "", lastChannel: "", lastCategory: "", lastTeamId: null };
 }
 
 function setMemory(partial: Partial<FormMemory>) {

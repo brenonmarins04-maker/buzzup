@@ -62,9 +62,7 @@ export default function DashboardPage() {
   // Tasks completed by team
   const tasksByTeam = teams.map(team => ({
     name: team.name,
-    completed: doneTasks.filter(t =>
-      t.responsible.some(r => team.memberIds.includes(r.id))
-    ).length,
+    completed: doneTasks.filter(t => t.teamId === team.id).length,
   })).sort((a, b) => b.completed - a.completed).filter(d => d.completed > 0);
 
   const hasAlerts = overdueTasks.length > 0 || dueTodayTasks.length > 0 || upcomingSoonTasks.length > 0 || todayPosts.length > 0 || overduePosts.length > 0;

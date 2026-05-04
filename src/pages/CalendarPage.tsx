@@ -26,10 +26,11 @@ export type CalendarItem = {
 type ViewMode = "month" | "week" | "day";
 
 export default function CalendarPage() {
-  const { tasks, posts, events, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent } = useData();
+  const { tasks, posts, events, teams, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent } = useData();
   const [currentDate, setCurrentDate] = useState(getNowBrasilia());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [filterTypes, setFilterTypes] = useState<string[]>([]);
+  const [filterTeams, setFilterTeams] = useState<string[]>([]);
 
   const [taskModal, setTaskModal] = useState<{ open: boolean; task?: Task | null; date?: string }>({ open: false });
   const [postModal, setPostModal] = useState<{ open: boolean; post?: Post | null; date?: string }>({ open: false });
@@ -48,20 +49,28 @@ export default function CalendarPage() {
 
   const allItems = useMemo<CalendarItem[]>(() => {
     const items: CalendarItem[] = [];
+    const teamMatch = (teamId: string | null) => {
+      if (filterTeams.length === 0) return true;
+      if (!teamId) return filterTeams.includes("__none");
+      return filterTeams.includes(teamId);
+    };
     tasks.forEach((t) => {
       if (filterTypes.length > 0 && !filterTypes.includes("task")) return;
+      if (!teamMatch(t.teamId)) return;
       items.push({ id: t.id, title: t.title, type: "task", date: t.deadline, color: "bg-team-presidencia", status: t.status });
     });
     posts.forEach((p) => {
       if (filterTypes.length > 0 && !filterTypes.includes("post")) return;
+      if (!teamMatch(p.teamId)) return;
       items.push({ id: p.id, title: p.title, type: "post", date: p.date, time: p.time, color: "bg-team-gente", status: p.status });
     });
     events.forEach((e) => {
       if (filterTypes.length > 0 && !filterTypes.includes("event")) return;
+      if (!teamMatch(e.teamId)) return;
       items.push({ id: e.id, title: e.title, type: "event", date: e.date, color: "bg-team-mercado" });
     });
     return items;
-  }, [tasks, posts, events, filterTypes]);
+  }, [tasks, posts, events, filterTypes, filterTeams]);
 
   const handleDragStart = (e: DragEvent, item: CalendarItem) => {
     setDragItem(item); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", item.id);
@@ -196,7 +205,8 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-3 flex-wrap">
         <FilterChips label="Tipo" options={[
           { value: "task", label: "Tarefas" },
           { value: "post", label: "Posts" },
@@ -207,6 +217,13 @@ export default function CalendarPage() {
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-team-gente" /> Post</span>
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-team-mercado" /> Evento</span>
         </div>
+        </div>
+        {teams.length > 0 && (
+          <FilterChips label="Equipe" options={[
+            ...teams.map(t => ({ value: t.id, label: t.name })),
+            { value: "__none", label: "Sem equipe" },
+          ]} selected={filterTeams} onChange={setFilterTeams} />
+        )}
       </div>
 
       {viewMode === "month" && (

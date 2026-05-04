@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useFormMemory } from "@/hooks/useFormMemory";
 import TeamPersonSelector from "@/components/TeamPersonSelector";
+import TeamSelector from "@/components/TeamSelector";
 
 type Props = {
   open: boolean;
@@ -26,6 +27,7 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
     channel: memory.lastChannel || channels[0]?.id || "",
     category: memory.lastCategory || categories[0] || "",
     status: "not-started", responsibleIds: [] as string[], media_url: "",
+    teamId: (memory.lastTeamId as string | null) ?? null,
   });
 
   const [form, setForm] = useState(makeBlank);
@@ -36,6 +38,7 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
         title: post.title, copy: post.copy, link: post.link, date: post.date,
         time: post.time, channel: post.channel, category: post.category,
         status: post.status, responsibleIds: post.responsible.map(r => r.id), media_url: post.media_url,
+        teamId: post.teamId,
       });
     } else {
       setForm(makeBlank());
@@ -44,19 +47,20 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
 
   const handleSave = () => {
     if (!form.title.trim()) { toast.error("Título é obrigatório"); return; }
-    remember({ lastChannel: form.channel, lastCategory: form.category });
+    remember({ lastChannel: form.channel, lastCategory: form.category, lastTeamId: form.teamId });
     if (post) {
       updatePost({
         ...post, title: form.title, copy: form.copy, link: form.link, date: form.date,
         time: form.time, channel: form.channel, category: form.category, status: form.status,
         responsible: people.filter(p => form.responsibleIds.includes(p.id)), media_url: form.media_url,
+        teamId: form.teamId,
       });
       toast.success("Publicação atualizada");
       onOpenChange(false);
     } else {
       addPost(form);
       toast.success("Publicação criada");
-      setForm({ ...makeBlank(), channel: form.channel, category: form.category, date: form.date });
+      setForm({ ...makeBlank(), channel: form.channel, category: form.category, date: form.date, teamId: form.teamId });
       setTimeout(() => titleRef.current?.focus(), 50);
     }
   };
@@ -122,6 +126,10 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Responsáveis</label>
             <TeamPersonSelector selectedIds={form.responsibleIds} onToggle={toggleResponsible} />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Equipe</label>
+            <TeamSelector selectedId={form.teamId} onChange={(id) => setForm(p => ({ ...p, teamId: id }))} />
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
