@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Plus, X } from "lucide-react";
 import { useFormMemory } from "@/hooks/useFormMemory";
 import TeamPersonSelector from "@/components/TeamPersonSelector";
+import TeamSelector from "@/components/TeamSelector";
 
 type Props = {
   open: boolean;
@@ -25,7 +26,7 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
 
   const makeBlank = () => ({
     title: "", description: "", responsibleIds: [] as string[],
-    team: memory.lastTeam || "", deadline: defaultDate || "",
+    team: memory.lastTeam || "", teamId: (memory.lastTeamId as string | null) ?? null, deadline: defaultDate || "",
     status: "not-started", priority: "medium",
     checklist: [] as { text: string; checked: boolean }[],
   });
@@ -38,6 +39,7 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
       setForm({
         title: task.title, description: task.description,
         responsibleIds: task.responsible.map(r => r.id), team: task.team,
+        teamId: task.teamId,
         deadline: task.deadline, status: task.status,
         priority: task.priority, checklist: task.checklist || [],
       });
@@ -49,10 +51,11 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
 
   const handleSave = () => {
     if (!form.title.trim()) { toast.error("Título é obrigatório"); return; }
-    remember({ lastTeam: form.team });
+    remember({ lastTeam: form.team, lastTeamId: form.teamId });
     if (task) {
       updateTask({
         ...task, title: form.title, description: form.description, team: form.team,
+        teamId: form.teamId,
         responsible: people.filter(p => form.responsibleIds.includes(p.id)),
         deadline: form.deadline, status: form.status, priority: form.priority, checklist: form.checklist,
       });
@@ -61,7 +64,7 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
     } else {
       addTask({ ...form });
       toast.success("Tarefa criada");
-      setForm({ ...makeBlank(), team: form.team, deadline: form.deadline });
+      setForm({ ...makeBlank(), team: form.team, teamId: form.teamId, deadline: form.deadline });
       setNewCheckItem("");
       setTimeout(() => titleRef.current?.focus(), 50);
     }
@@ -96,13 +99,17 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Equipe (texto)</label>
-              <Input value={form.team} onChange={e => setForm(p => ({ ...p, team: e.target.value }))} placeholder="Nome da equipe" />
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Categoria (texto)</label>
+              <Input value={form.team} onChange={e => setForm(p => ({ ...p, team: e.target.value }))} placeholder="Tag livre" />
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Prazo</label>
               <Input type="date" value={form.deadline} onChange={e => setForm(p => ({ ...p, deadline: e.target.value }))} />
             </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Equipe</label>
+            <TeamSelector selectedId={form.teamId} onChange={(id) => setForm(p => ({ ...p, teamId: id }))} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
