@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import TeamSelector from "@/components/TeamSelector";
 
 type Props = {
   open: boolean;
@@ -18,14 +19,14 @@ export default function EventModal({ open, onOpenChange, event, defaultDate }: P
   const { addEvent, updateEvent } = useData();
 
   const [form, setForm] = useState({
-    title: "", date: defaultDate || "", type: "event", description: "",
+    title: "", date: defaultDate || "", type: "event", description: "", teamId: null as string | null,
   });
 
   useEffect(() => {
     if (event) {
-      setForm({ title: event.title, date: event.date, type: event.type, description: event.description });
+      setForm({ title: event.title, date: event.date, type: event.type, description: event.description, teamId: event.teamId });
     } else {
-      setForm({ title: "", date: defaultDate || "", type: "event", description: "" });
+      setForm({ title: "", date: defaultDate || "", type: "event", description: "", teamId: null });
     }
   }, [event, defaultDate, open]);
 
@@ -69,6 +70,10 @@ export default function EventModal({ open, onOpenChange, event, defaultDate }: P
                 <option value="reminder">Lembrete</option>
               </select>
             </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Equipe</label>
+            <TeamSelector selectedId={form.teamId} onChange={(id) => setForm(p => ({ ...p, teamId: id }))} />
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
