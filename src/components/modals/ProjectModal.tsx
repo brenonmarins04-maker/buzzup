@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useData } from "@/contexts/DataContext";
 import type { Project } from "@/contexts/DataContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Search } from "lucide-react";
 import { toast } from "sonner";
 
 type Props = {
@@ -19,6 +20,8 @@ export default function ProjectModal({ open, onOpenChange, project }: Props) {
   const [form, setForm] = useState({
     name: "", description: "", color: "#888888", status: "active", memberIds: [] as string[],
   });
+  const [search, setSearch] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (project) {
@@ -26,6 +29,7 @@ export default function ProjectModal({ open, onOpenChange, project }: Props) {
     } else {
       setForm({ name: "", description: "", color: "#888888", status: "active", memberIds: [] });
     }
+    setSearch("");
   }, [project, open]);
 
   const toggleMember = (id: string) => {
@@ -76,13 +80,33 @@ export default function ProjectModal({ open, onOpenChange, project }: Props) {
             {people.length === 0 ? (
               <p className="text-xs text-muted-foreground">Nenhuma pessoa cadastrada.</p>
             ) : (
-              <div className="flex flex-col gap-2 max-h-40 overflow-y-auto border border-input rounded-md p-2">
-                {people.map(person => (
-                  <label key={person.id} className="flex items-center gap-2 cursor-pointer text-sm">
-                    <Checkbox checked={form.memberIds.includes(person.id)} onCheckedChange={() => toggleMember(person.id)} />
-                    {person.name}
-                  </label>
-                ))}
+              <div className="border border-input rounded-md">
+                <div className="relative border-b border-input">
+                  <Search className="h-3.5 w-3.5 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    ref={searchRef}
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Pesquisar pessoa..."
+                    className="w-full bg-transparent pl-8 pr-2 py-2 text-sm outline-none placeholder:text-muted-foreground"
+                  />
+                </div>
+                <div className="flex flex-col gap-2 max-h-40 overflow-y-auto p-2">
+                  {people
+                    .filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+                    .map(person => (
+                      <label
+                        key={person.id}
+                        className="flex items-center gap-2 cursor-pointer text-sm"
+                        onClick={() => {
+                          setTimeout(() => searchRef.current?.select(), 0);
+                        }}
+                      >
+                        <Checkbox checked={form.memberIds.includes(person.id)} onCheckedChange={() => toggleMember(person.id)} />
+                        {person.name}
+                      </label>
+                    ))}
+                </div>
               </div>
             )}
           </div>
