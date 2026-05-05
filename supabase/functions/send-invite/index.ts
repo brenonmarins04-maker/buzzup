@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
         "X-Connection-Api-Key": RESEND_API_KEY,
       },
       body: JSON.stringify({
-        from: "BuzzUp <onboarding@resend.dev>",
+        from: "PROJEC <convites@send.projecjunior.com.br>",
         to: [email],
         subject: `Convite para acessar o workspace ${workspaceName}`,
         html,
