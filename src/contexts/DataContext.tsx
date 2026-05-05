@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 type Json = Database["public"]["Tables"]["tasks"]["Row"]["checklist"];
 
-export type Person = { id: string; name: string };
+export type Person = { id: string; name: string; email?: string; role?: string };
 export type Project = { id: string; name: string; description: string; color: string; status: string; members: Person[] };
 export type Task = {
   id: string; title: string; description: string; team: string;
@@ -35,8 +35,8 @@ type DataContextType = {
   categories: string[]; channels: Channel[]; notifications: Notification[];
   loading: boolean; workspaceId: string | null;
 
-  addPerson: (name: string) => void;
-  updatePerson: (id: string, name: string) => void;
+  addPerson: (name: string, email?: string, role?: string) => void;
+  updatePerson: (id: string, name: string, email?: string, role?: string) => void;
   deletePerson: (id: string) => void;
 
   addTask: (task: Omit<Task, "id" | "responsible"> & { responsibleIds: string[] }) => void;
@@ -114,7 +114,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setWorkspaceId(wsId);
 
       const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes] = await Promise.all([
-        supabase.from("people").select("id, name").eq("workspace_id", wsId),
+        supabase.from("people").select("id, name, email, role").eq("workspace_id", wsId),
         supabase.from("projects").select("*").eq("workspace_id", wsId),
         supabase.from("tasks").select("*").eq("workspace_id", wsId),
         supabase.from("posts").select("*").eq("workspace_id", wsId),
@@ -129,7 +129,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       ]);
       if (cancelled) return;
 
-      const pplList: Person[] = (pplRes.data || []).map(p => ({ id: p.id, name: p.name }));
+      const pplList: Person[] = (pplRes.data || []).map((p: any) => ({ id: p.id, name: p.name, email: p.email || "", role: p.role || "member" }));
       const pplMap = new Map(pplList.map(p => [p.id, p]));
       setPeople(pplList);
 
@@ -256,17 +256,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // === PEOPLE ===
-  const addPerson = useCallback(async (name: string) => {
+  const addPerson = useCallback(async (name: string, email: string = "", role: string = "member") => {
     if (!workspaceId) return;
-    const { data, error } = await supabase.from("people").insert({ workspace_id: workspaceId, name }).select("id, name").single();
+    const { data, error } = await supabase.from("people").insert({ workspace_id: workspaceId, name, email, role } as any).select("id, name, email, role").single();
     if (error) { toast.error("Erro ao adicionar pessoa"); return; }
-    if (data) setPeople(prev => [...prev, { id: data.id, name: data.name }]);
+    if (data) setPeople(prev => [...prev, { id: data.id, name: data.name, email: (data as any).email || "", role: (data as any).role || "member" }]);
   }, [workspaceId]);
 
-  const updatePerson = useCallback(async (id: string, name: string) => {
-    const { error } = await supabase.from("people").update({ name }).eq("id", id);
+  const updatePerson = useCallback(async (id: string, name: string, email?: string, role?: string) => {
+    const patch: any = { name };
+    if (email !== undefined) patch.email = email;
+    if (role !== undefined) patch.role = role;
+    const { error } = await supabase.from("people").update(patch).eq("id", id);
     if (error) { toast.error("Erro ao atualizar pessoa"); return; }
-    setPeople(prev => prev.map(p => p.id === id ? { ...p, name } : p));
+    setPeople(prev => prev.map(p => p.id === id ? { ...p, ...patch } : p));
     setTasks(prev => prev.map(t => ({ ...t, responsible: t.responsible.map(r => r.id === id ? { ...r, name } : r) })));
     setPosts(prev => prev.map(p => ({ ...p, responsible: p.responsible.map(r => r.id === id ? { ...r, name } : r) })));
     setProjects(prev => prev.map(p => ({ ...p, members: p.members.map(m => m.id === id ? { ...m, name } : m) })));
