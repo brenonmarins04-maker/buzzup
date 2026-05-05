@@ -1,51 +1,48 @@
 import { useState, useRef } from "react";
 import { useData, type Person } from "@/contexts/DataContext";
-import { Plus, Pencil, Trash2, Mail } from "lucide-react";
+import { Plus, Pencil, Trash2, Mail, Send, XCircle, RefreshCcw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { MoreHorizontal } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 
 type FormState = { name: string; email: string; role: "admin" | "member" };
 const empty: FormState = { name: "", email: "", role: "member" };
 
 export default function PeoplePage() {
-  const { people, addPerson, updatePerson, deletePerson } = useData();
+  const { people, addPerson, updatePerson, deletePerson, invitePerson, resendInvite, cancelInvite } = useData();
   const [addModal, setAddModal] = useState(false);
   const [editModal, setEditModal] = useState<{ open: boolean; id: string }>({ open: false, id: "" });
   const [form, setForm] = useState<FormState>(empty);
   const [submitting, setSubmitting] = useState(false);
   const addRef = useRef<HTMLInputElement>(null);
 
-  const sendInvite = async (personId: string, email: string, role: string) => {
-    const { error } = await supabase.functions.invoke("send-invite", {
-      body: { personId, email, role },
-    });
-    if (error) {
-      toast.error("Pessoa salva, mas falha ao enviar convite");
-      return false;
-    }
-    toast.success("Convite enviado por e-mail");
-    return true;
-  };
-
   const handleAdd = async (sendEmail: boolean) => {
     if (!form.name.trim()) { toast.error("Nome é obrigatório"); return; }
     if (sendEmail && !form.email.trim()) { toast.error("E-mail é obrigatório para enviar convite"); return; }
     setSubmitting(true);
-    await addPerson(form.name.trim(), form.email.trim().toLowerCase(), form.role);
-    if (sendEmail && form.email.trim()) {
-      const { data } = await supabase.from("people").select("id")
-        .eq("email", form.email.trim().toLowerCase())
-        .order("created_at", { ascending: false }).limit(1).maybeSingle();
-      if (data?.id) await sendInvite(data.id, form.email.trim().toLowerCase(), form.role);
+    const email = form.email.trim().toLowerCase();
+    await addPerson(form.name.trim(), email, form.role);
+    if (sendEmail && email) {
+      // find newly created person id
+      const justCreated = people.find(p => p.email === email);
+      // small delay to ensure state updated; fallback fetch
+      setTimeout(async () => {
+        const target = justCreated || (window as any).__lastPerson;
+        // Find via current people state read after re-render is awkward — do a fresh query via context (people may not include yet).
+        const { supabase } = await import("@/integrations/supabase/client");
+        const { data } = await supabase.from("people").select("id").eq("email", email).order("created_at", { ascending: false }).limit(1).maybeSingle();
+        if (data?.id) await invitePerson(data.id, email, form.role);
+      }, 200);
     } else {
       toast.success("Pessoa adicionada");
     }
     setForm(empty);
     setSubmitting(false);
+    setAddModal(false);
     setTimeout(() => addRef.current?.focus(), 50);
   };
 
@@ -53,7 +50,7 @@ export default function PeoplePage() {
     if (!form.name.trim()) { toast.error("Nome é obrigatório"); return; }
     setSubmitting(true);
     await updatePerson(editModal.id, form.name.trim(), form.email.trim().toLowerCase(), form.role);
-    if (sendEmail && form.email.trim()) await sendInvite(editModal.id, form.email.trim().toLowerCase(), form.role);
+    if (sendEmail && form.email.trim()) await invitePerson(editModal.id, form.email.trim().toLowerCase(), form.role);
     else toast.success("Pessoa atualizada");
     setEditModal({ open: false, id: "" });
     setForm(empty);
@@ -66,6 +63,20 @@ export default function PeoplePage() {
   };
 
   const roleLabel = (r?: string) => r === "admin" ? "Administrador" : "Membro";
+
+  const inviteBadge = (p: Person) => {
+    const s = p.invite_status || "not_sent";
+    const map: Record<string, { label: string; cls: string }> = {
+      not_sent:  { label: "Não enviado",       cls: "bg-muted text-muted-foreground" },
+      pending:   { label: "Convite enviado",   cls: "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300" },
+      accepted:  { label: "Aceito",            cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300" },
+      expired:   { label: "Expirado",          cls: "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-300" },
+      canceled:  { label: "Cancelado",         cls: "bg-muted text-muted-foreground" },
+      error:     { label: "Erro no envio",     cls: "bg-destructive/15 text-destructive" },
+    };
+    const m = map[s] || map.not_sent;
+    return <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${m.cls}`}>{m.label}</span>;
+  };
 
   return (
     <div className="animate-fade-in space-y-6">
