@@ -100,18 +100,46 @@ export default function PeoplePage() {
               </div>
               <div className="min-w-0">
                 <div className="text-sm font-medium text-foreground truncate">{person.name}</div>
-                <div className="flex items-center gap-1.5 mt-0.5">
+                <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                   <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${person.role === "admin" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
                     {roleLabel(person.role)}
                   </span>
+                  {inviteBadge(person)}
                 </div>
                 {person.email && <div className="text-xs text-muted-foreground truncate mt-0.5">{person.email}</div>}
               </div>
             </div>
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-              <button onClick={() => openEdit(person)} className="p-1 hover:bg-accent rounded text-muted-foreground"><Pencil className="h-3.5 w-3.5" /></button>
-              <button onClick={() => { deletePerson(person.id); toast.success("Pessoa removida"); }}
-                className="p-1 hover:bg-accent rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+            <div className="flex items-center gap-1 shrink-0">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="p-1 hover:bg-accent rounded text-muted-foreground opacity-60 group-hover:opacity-100">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => openEdit(person)}>
+                    <Pencil className="h-3.5 w-3.5 mr-2" /> Editar
+                  </DropdownMenuItem>
+                  {person.email && (person.invite_status === "not_sent" || person.invite_status === "canceled") && (
+                    <DropdownMenuItem onClick={() => invitePerson(person.id, person.email, person.role)}>
+                      <Send className="h-3.5 w-3.5 mr-2" /> Enviar convite
+                    </DropdownMenuItem>
+                  )}
+                  {(person.invite_status === "pending" || person.invite_status === "expired" || person.invite_status === "error") && person.email && (
+                    <DropdownMenuItem onClick={() => resendInvite(person.id)}>
+                      <RefreshCcw className="h-3.5 w-3.5 mr-2" /> Reenviar convite
+                    </DropdownMenuItem>
+                  )}
+                  {person.invite_status === "pending" && (
+                    <DropdownMenuItem onClick={() => cancelInvite(person.id)}>
+                      <XCircle className="h-3.5 w-3.5 mr-2" /> Cancelar convite
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => { deletePerson(person.id); toast.success("Pessoa removida"); }}>
+                    <Trash2 className="h-3.5 w-3.5 mr-2" /> Remover
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         ))}
