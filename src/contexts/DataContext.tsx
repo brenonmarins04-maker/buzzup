@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 type Json = Database["public"]["Tables"]["tasks"]["Row"]["checklist"];
 
-export type Person = { id: string; name: string; email?: string; role?: string };
+export type Person = { id: string; name: string; email?: string; role?: string; invite_status?: string; user_id?: string | null };
 export type Project = { id: string; name: string; description: string; color: string; status: string; members: Person[] };
 export type Task = {
   id: string; title: string; description: string; team: string;
@@ -38,6 +38,9 @@ type DataContextType = {
   addPerson: (name: string, email?: string, role?: string) => void;
   updatePerson: (id: string, name: string, email?: string, role?: string) => void;
   deletePerson: (id: string) => void;
+  invitePerson: (personId: string, email?: string, role?: string) => Promise<boolean>;
+  resendInvite: (personId: string) => Promise<boolean>;
+  cancelInvite: (personId: string) => Promise<boolean>;
 
   addTask: (task: Omit<Task, "id" | "responsible"> & { responsibleIds: string[] }) => void;
   updateTask: (task: Task) => void;
@@ -129,7 +132,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       ]);
       if (cancelled) return;
 
-      const pplList: Person[] = (pplRes.data || []).map((p: any) => ({ id: p.id, name: p.name, email: p.email || "", role: p.role || "member" }));
+      const pplList: Person[] = (pplRes.data || []).map((p: any) => {
+        let inviteStatus = p.invite_status || "not_sent";
+        // Treat client-side expiry: not strictly needed since backend status drives it.
+        return { id: p.id, name: p.name, email: p.email || "", role: p.role || "member", invite_status: inviteStatus, user_id: p.user_id ?? null };
+      });
       const pplMap = new Map(pplList.map(p => [p.id, p]));
       setPeople(pplList);
 
@@ -490,6 +497,48 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setTeams(prev => prev.filter(t => t.id !== id));
   }, []);
 
+  // === INVITES ===
+  const invitePerson = useCallback(async (personId: string, email?: string, role?: string) => {
+    const { data, error } = await supabase.functions.invoke("send-invite", {
+      body: { action: "send", personId, email, role },
+    });
+    if (error || (data as any)?.error) {
+      toast.error("Falha ao enviar convite: " + (error?.message || (data as any)?.error || ""));
+      setPeople(prev => prev.map(p => p.id === personId ? { ...p, invite_status: "error" } : p));
+      return false;
+    }
+    toast.success("Convite enviado");
+    setPeople(prev => prev.map(p => p.id === personId ? { ...p, invite_status: "pending", email: email ?? p.email, role: role ?? p.role } : p));
+    setRefetchTick(t => t + 1);
+    return true;
+  }, []);
+
+  const resendInvite = useCallback(async (personId: string) => {
+    const { data, error } = await supabase.functions.invoke("send-invite", {
+      body: { action: "resend", personId },
+    });
+    if (error || (data as any)?.error) {
+      toast.error("Falha ao reenviar convite");
+      return false;
+    }
+    toast.success("Convite reenviado");
+    setPeople(prev => prev.map(p => p.id === personId ? { ...p, invite_status: "pending" } : p));
+    return true;
+  }, []);
+
+  const cancelInvite = useCallback(async (personId: string) => {
+    const { data, error } = await supabase.functions.invoke("send-invite", {
+      body: { action: "cancel", personId },
+    });
+    if (error || (data as any)?.error) {
+      toast.error("Falha ao cancelar convite");
+      return false;
+    }
+    toast.success("Convite cancelado");
+    setPeople(prev => prev.map(p => p.id === personId ? { ...p, invite_status: "canceled" } : p));
+    return true;
+  }, []);
+
   // Notifications
   const markNotificationRead = useCallback((id: string) => setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n)), []);
   const markAllNotificationsRead = useCallback(() => setNotifications(prev => prev.map(n => ({ ...n, read: true }))), []);
@@ -505,6 +554,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addCategory, removeCategory, updateCategory,
       addChannel, removeChannel, updateChannel,
       addTeam, updateTeam, deleteTeam,
+      invitePerson, resendInvite, cancelInvite,
       markNotificationRead, markAllNotificationsRead,
     }}>
       {children}

@@ -121,6 +121,7 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          invite_status: string
           name: string
           role: string
           user_id: string | null
@@ -130,6 +131,7 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          invite_status?: string
           name: string
           role?: string
           user_id?: string | null
@@ -139,6 +141,7 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          invite_status?: string
           name?: string
           role?: string
           user_id?: string | null
@@ -485,33 +488,45 @@ export type Database = {
       }
       workspace_invites: {
         Row: {
+          accepted_at: string | null
+          canceled_at: string | null
           created_at: string
           email: string
           expires_at: string
           id: string
           invited_by: string | null
+          last_sent_at: string | null
+          person_id: string | null
           role: string
           status: string
           token: string
           workspace_id: string
         }
         Insert: {
+          accepted_at?: string | null
+          canceled_at?: string | null
           created_at?: string
           email: string
           expires_at?: string
           id?: string
           invited_by?: string | null
+          last_sent_at?: string | null
+          person_id?: string | null
           role?: string
           status?: string
           token?: string
           workspace_id: string
         }
         Update: {
+          accepted_at?: string | null
+          canceled_at?: string | null
           created_at?: string
           email?: string
           expires_at?: string
           id?: string
           invited_by?: string | null
+          last_sent_at?: string | null
+          person_id?: string | null
           role?: string
           status?: string
           token?: string
@@ -586,6 +601,16 @@ export type Database = {
     }
     Functions: {
       accept_invite: { Args: { _token: string }; Returns: string }
+      get_invite_by_token: {
+        Args: { _token: string }
+        Returns: {
+          email: string
+          expires_at: string
+          role: string
+          status: string
+          workspace_name: string
+        }[]
+      }
       get_workspace_id: { Args: { _user_id: string }; Returns: string }
     }
     Enums: {
