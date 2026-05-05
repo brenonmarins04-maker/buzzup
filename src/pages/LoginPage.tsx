@@ -22,20 +22,25 @@ export default function LoginPage() {
   const [inviteEmail, setInviteEmail] = useState<string | null>(null);
   const [inviteChecked, setInviteChecked] = useState(false);
 
-  // If we have an invite token, look up the email and decide signup vs login
+  // If we have an invite token, look up the email via secure RPC
   useEffect(() => {
     if (!inviteToken) { setInviteChecked(true); return; }
     (async () => {
-      const { data } = await supabase.from("workspace_invites")
-        .select("email, status")
-        .eq("token", inviteToken)
-        .maybeSingle();
-      if (data && data.status === "pending") {
-        setInviteEmail(data.email);
-        setEmail(data.email);
-        // Check whether a user already exists with this email
-        // We can't query auth.users directly — try sign-in flow defaults to signup unless user clicks "já tenho conta"
-        setIsSignUp(true);
+      const { data } = await supabase.rpc("get_invite_by_token" as any, { _token: inviteToken });
+      const invite: any = Array.isArray(data) ? data[0] : data;
+      if (invite) {
+        if (invite.status !== "pending") {
+          const map: any = { accepted: "Convite já aceito", expired: "Convite expirado", canceled: "Convite cancelado", error: "Erro no convite" };
+          toast.error(map[invite.status] || "Convite inválido");
+        } else if (new Date(invite.expires_at) < new Date()) {
+          toast.error("Convite expirado");
+        } else {
+          setInviteEmail(invite.email);
+          setEmail(invite.email);
+          setIsSignUp(true);
+        }
+      } else {
+        toast.error("Convite não encontrado");
       }
       setInviteChecked(true);
     })();
@@ -45,7 +50,7 @@ export default function LoginPage() {
   useEffect(() => {
     if (user && inviteToken) {
       supabase.rpc("accept_invite" as any, { _token: inviteToken }).then(({ error }) => {
-        if (error) console.warn("accept_invite:", error.message);
+        if (error && !error.message.includes("already")) console.warn("accept_invite:", error.message);
       });
     }
   }, [user, inviteToken]);
