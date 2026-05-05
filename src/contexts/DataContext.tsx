@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 type Json = Database["public"]["Tables"]["tasks"]["Row"]["checklist"];
 
-export type Person = { id: string; name: string; email?: string; role?: string };
+export type Person = { id: string; name: string; email?: string; role?: string; invite_status?: string; user_id?: string | null };
 export type Project = { id: string; name: string; description: string; color: string; status: string; members: Person[] };
 export type Task = {
   id: string; title: string; description: string; team: string;
@@ -38,6 +38,9 @@ type DataContextType = {
   addPerson: (name: string, email?: string, role?: string) => void;
   updatePerson: (id: string, name: string, email?: string, role?: string) => void;
   deletePerson: (id: string) => void;
+  invitePerson: (personId: string, email?: string, role?: string) => Promise<boolean>;
+  resendInvite: (personId: string) => Promise<boolean>;
+  cancelInvite: (personId: string) => Promise<boolean>;
 
   addTask: (task: Omit<Task, "id" | "responsible"> & { responsibleIds: string[] }) => void;
   updateTask: (task: Task) => void;
