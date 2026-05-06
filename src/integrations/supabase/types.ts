@@ -116,6 +116,30 @@ export type Database = {
           },
         ]
       }
+      event_types: {
+        Row: {
+          color: string
+          created_at: string
+          id: string
+          name: string
+          workspace_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          workspace_id: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       people: {
         Row: {
           created_at: string
