@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useData, type Team } from "@/contexts/DataContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Pencil, Trash2, UsersRound, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +10,7 @@ import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 
 export default function TeamsPage() {
   const { teams, people, addTeam, updateTeam, deleteTeam, loading } = useData();
+  const { isAdmin } = useAuth();
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -65,18 +67,22 @@ export default function TeamsPage() {
           <h1 className="text-2xl font-semibold text-foreground tracking-tight">Equipes</h1>
           <p className="text-sm text-muted-foreground mt-1">Gerencie suas equipes e membros</p>
         </div>
-        <Button onClick={openCreate} size="sm">
-          <Plus className="h-4 w-4 mr-1" /> Nova Equipe
-        </Button>
+        {isAdmin && (
+          <Button onClick={openCreate} size="sm">
+            <Plus className="h-4 w-4 mr-1" /> Nova Equipe
+          </Button>
+        )}
       </div>
 
       {teams.length === 0 ? (
         <div className="bg-card border border-border rounded-lg p-10 text-center">
           <UsersRound className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">Nenhuma equipe criada ainda.</p>
-          <Button onClick={openCreate} variant="outline" size="sm" className="mt-4">
-            <Plus className="h-4 w-4 mr-1" /> Criar equipe
-          </Button>
+          {isAdmin && (
+            <Button onClick={openCreate} variant="outline" size="sm" className="mt-4">
+              <Plus className="h-4 w-4 mr-1" /> Criar equipe
+            </Button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -86,14 +92,16 @@ export default function TeamsPage() {
               <div key={team.id} className="bg-card border border-border rounded-lg p-5">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold text-foreground">{team.name}</h3>
-                  <div className="flex gap-1">
-                    <button onClick={() => openEdit(team)} className="p-1.5 rounded hover:bg-accent text-muted-foreground">
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button onClick={() => setDeleteId(team.id)} className="p-1.5 rounded hover:bg-accent text-muted-foreground">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
+                  {isAdmin && (
+                    <div className="flex gap-1">
+                      <button onClick={() => openEdit(team)} className="p-1.5 rounded hover:bg-accent text-muted-foreground">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button onClick={() => setDeleteId(team.id)} className="p-1.5 rounded hover:bg-accent text-muted-foreground">
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground mb-2">{members.length} membro(s)</p>
                 <div className="flex flex-wrap gap-1.5">

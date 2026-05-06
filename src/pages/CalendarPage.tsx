@@ -1,5 +1,6 @@
 import { useState, useMemo, type DragEvent } from "react";
 import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import type { Task, Post, CalendarEvent } from "@/contexts/DataContext";
 import {
@@ -27,6 +28,7 @@ type ViewMode = "month" | "week" | "day";
 
 export default function CalendarPage() {
   const { tasks, posts, events, teams, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent } = useData();
+  const { isAdmin } = useAuth();
   const [currentDate, setCurrentDate] = useState(getNowBrasilia());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [filterTypes, setFilterTypes] = useState<string[]>([]);
@@ -166,11 +168,13 @@ export default function CalendarPage() {
           <div className={`text-xs font-medium ${todayFlag ? "bg-primary text-primary-foreground h-5 w-5 rounded-full flex items-center justify-center" : inMonth ? "text-foreground" : "text-muted-foreground/50"}`}>
             {format(day, "d")}
           </div>
-          <QuickCreateMenu onCreateTask={() => setTaskModal({ open: true, date: dayStr })} onCreatePost={() => setPostModal({ open: true, date: dayStr })} onCreateItem={() => setEventModal({ open: true, date: dayStr })}>
-            <button className="h-4 w-4 rounded hover:bg-accent flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground">
-              <Plus className="h-3 w-3" />
-            </button>
-          </QuickCreateMenu>
+          {isAdmin && (
+            <QuickCreateMenu onCreateTask={() => setTaskModal({ open: true, date: dayStr })} onCreatePost={() => setPostModal({ open: true, date: dayStr })} onCreateItem={() => setEventModal({ open: true, date: dayStr })}>
+              <button className="h-4 w-4 rounded hover:bg-accent flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground">
+                <Plus className="h-3 w-3" />
+              </button>
+            </QuickCreateMenu>
+          )}
         </div>
         <div className="flex flex-col gap-0.5">{dayItems.map((item) => renderItemPill(item))}</div>
       </div>
@@ -197,11 +201,13 @@ export default function CalendarPage() {
               </button>
             ))}
           </div>
-          <QuickCreateMenu onCreateTask={() => setTaskModal({ open: true })} onCreatePost={() => setPostModal({ open: true })} onCreateItem={() => setEventModal({ open: true })}>
-            <button className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
-              <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Novo Item</span>
-            </button>
-          </QuickCreateMenu>
+          {isAdmin && (
+            <QuickCreateMenu onCreateTask={() => setTaskModal({ open: true })} onCreatePost={() => setPostModal({ open: true })} onCreateItem={() => setEventModal({ open: true })}>
+              <button className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
+                <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Novo Item</span>
+              </button>
+            </QuickCreateMenu>
+          )}
         </div>
       </div>
 

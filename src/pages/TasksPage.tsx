@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useData } from "@/contexts/DataContext";
 import type { Task } from "@/contexts/DataContext";
 import { Plus, X, Users } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import TaskModal from "@/components/modals/TaskModal";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import { toast } from "sonner";
@@ -25,6 +26,7 @@ function getDeadlineBorderClass(deadline: string, status: string) {
 
 export default function TasksPage() {
   const { tasks, teams, updateTask, deleteTask } = useData();
+  const { isAdmin } = useAuth();
   const [modal, setModal] = useState<{ open: boolean; task?: Task | null }>({ open: false });
   const [dragTask, setDragTask] = useState<string | null>(null);
   const [tab, setTab] = useState<"active" | "done">("active");
@@ -70,9 +72,11 @@ export default function TasksPage() {
           <h1 className="text-2xl font-semibold text-foreground tracking-tight">Tarefas</h1>
           <p className="text-sm text-muted-foreground mt-1">{filteredTasks.length} tarefas</p>
         </div>
-        <button onClick={() => setModal({ open: true })} className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
-          <Plus className="h-4 w-4" /> Nova Tarefa
-        </button>
+        {isAdmin && (
+          <button onClick={() => setModal({ open: true })} className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
+            <Plus className="h-4 w-4" /> Nova Tarefa
+          </button>
+        )}
       </div>
 
       {(teams.length > 0 || teamStats.noTeam.done + teamStats.noTeam.pending > 0) && (
