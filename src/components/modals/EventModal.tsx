@@ -10,6 +10,17 @@ import TeamSelector from "@/components/TeamSelector";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Pencil, Trash2, Check, X, Settings2 } from "lucide-react";
 
+const TYPE_PALETTE = [
+  "#2E9E6E", // verde
+  "#B5651D", // marrom/âmbar
+  "#7A4FBF", // roxo
+  "#D14A8A", // rosa
+  "#1F8FB3", // turquesa
+  "#C0392B", // vermelho médio
+  "#5C7CFA", // azul-roxo
+  "#E0A82E", // amarelo escuro
+];
+
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -59,7 +70,9 @@ export default function EventModal({ open, onOpenChange, event, defaultDate }: P
     const name = newTypeName.trim();
     if (!name) return;
     if (eventTypes.some(t => t.name.toLowerCase() === name.toLowerCase())) { toast.error("Tipo já existe"); return; }
-    await addEventType({ name, color: "#888888" });
+    const usedColors = new Set(eventTypes.map(t => t.color));
+    const color = TYPE_PALETTE.find(c => !usedColors.has(c)) || TYPE_PALETTE[eventTypes.length % TYPE_PALETTE.length];
+    await addEventType({ name, color });
     setNewTypeName("");
   };
   const handleSaveEdit = async (id: string) => {
@@ -120,6 +133,8 @@ export default function EventModal({ open, onOpenChange, event, defaultDate }: P
                 <div key={t.id} className="flex items-center gap-2">
                   {editingId === t.id ? (
                     <>
+                      <input type="color" value={t.color} onChange={async (e) => { await updateEventType({ ...t, color: e.target.value }); }}
+                        className="h-8 w-8 rounded border border-input bg-background cursor-pointer" />
                       <Input value={editingName} onChange={e => setEditingName(e.target.value)} className="h-8 text-sm"
                         onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); handleSaveEdit(t.id); } }} />
                       <Button type="button" size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => handleSaveEdit(t.id)}><Check className="h-3.5 w-3.5" /></Button>
@@ -127,6 +142,7 @@ export default function EventModal({ open, onOpenChange, event, defaultDate }: P
                     </>
                   ) : (
                     <>
+                      <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
                       <span className="text-sm flex-1">{t.name}</span>
                       <button type="button" className="text-muted-foreground hover:text-foreground p-1" onClick={() => { setEditingId(t.id); setEditingName(t.name); }}><Pencil className="h-3 w-3" /></button>
                       <button type="button" className="text-muted-foreground hover:text-destructive p-1" onClick={() => handleDeleteType(t.id)}><Trash2 className="h-3 w-3" /></button>
