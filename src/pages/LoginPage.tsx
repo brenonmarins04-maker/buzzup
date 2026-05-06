@@ -62,6 +62,11 @@ export default function LoginPage() {
       const { error } = await signIn(email, password);
       if (error) {
         toast.error("E-mail ou senha inválidos");
+      } else {
+        // Always require admin code re-entry on each login
+        try {
+          await (supabase.rpc as any)("demote_self_to_viewer");
+        } catch {}
       }
     }
     setSubmitting(false);
