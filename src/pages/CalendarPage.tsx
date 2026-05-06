@@ -27,7 +27,7 @@ export type CalendarItem = {
 type ViewMode = "month" | "week" | "day";
 
 export default function CalendarPage() {
-  const { tasks, posts, events, teams, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent } = useData();
+  const { tasks, posts, events, teams, eventTypes, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent } = useData();
   const { isAdmin } = useAuth();
   const [currentDate, setCurrentDate] = useState(getNowBrasilia());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
@@ -67,7 +67,7 @@ export default function CalendarPage() {
       items.push({ id: p.id, title: p.title, type: "post", date: p.date, time: p.time, color: "bg-team-gente", status: p.status });
     });
     events.forEach((e) => {
-      if (filterTypes.length > 0 && !filterTypes.includes("event")) return;
+      if (filterTypes.length > 0 && !filterTypes.includes("event") && !filterTypes.includes(`event:${e.type}`)) return;
       if (!teamMatch(e.teamId)) return;
       items.push({ id: e.id, title: e.title, type: "event", date: e.date, color: "bg-team-mercado" });
     });
@@ -218,7 +218,9 @@ export default function CalendarPage() {
         <FilterChips label="Tipo" options={[
           { value: "task", label: "Tarefas" },
           { value: "post", label: "Posts" },
-          { value: "event", label: "Eventos" },
+          ...(eventTypes.length === 0
+            ? [{ value: "event", label: "Eventos" }]
+            : eventTypes.map(t => ({ value: `event:${t.name}`, label: t.name }))),
         ]} selected={filterTypes} onChange={setFilterTypes} />
         <div className="ml-auto flex items-center gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-team-presidencia" /> Tarefa</span>
