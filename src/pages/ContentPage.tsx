@@ -88,16 +88,17 @@ export default function ContentPage() {
           const ch = channels.find(c => c.id === post.channel);
           const st = statusLabels[post.status];
           return (
-            <div key={post.id} onClick={() => setModal({ open: true, post })} className="bg-card border border-border rounded-lg p-5 hover:shadow-md transition-all cursor-pointer group flex flex-col gap-3 relative">
+            <div key={post.id} onClick={() => setModal({ open: true, post })} className="bg-card border border-border rounded-xl p-5 hover:shadow-md transition-all cursor-pointer group flex flex-col gap-3 relative">
               <button onClick={e => { e.stopPropagation(); setDeleting({ open: true, id: post.id, title: post.title }); }}
-                className="absolute top-2 right-2 h-6 w-6 rounded-full bg-destructive/10 text-destructive flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/20">
+                className="absolute top-2 right-2 h-6 w-6 rounded-full bg-destructive/10 text-destructive flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/20 z-10">
                 <X className="h-3.5 w-3.5" />
               </button>
-              <div className="flex items-start justify-end pr-6">
+              <div className="flex items-start justify-between gap-3 pr-6">
+                <h3 className="text-sm font-semibold text-foreground leading-snug flex-1 min-w-0">{post.title}</h3>
                 {isAdmin ? (
                   <Popover>
                     <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
-                      <button className={`text-[10px] font-medium px-2 py-0.5 rounded-full transition-opacity hover:opacity-80 ${st?.class}`}>
+                      <button className={`shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-full transition-opacity hover:opacity-80 ${st?.class}`}>
                         {st?.label}
                       </button>
                     </PopoverTrigger>
@@ -125,10 +126,9 @@ export default function ContentPage() {
                     </PopoverContent>
                   </Popover>
                 ) : (
-                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${st?.class}`}>{st?.label}</span>
+                  <span className={`shrink-0 text-[10px] font-medium px-2 py-0.5 rounded-full ${st?.class}`}>{st?.label}</span>
                 )}
               </div>
-              <h3 className="text-sm font-semibold text-foreground leading-snug">{post.title}</h3>
               <p className="text-xs text-muted-foreground line-clamp-2">{post.copy}</p>
               <div className="flex items-center justify-between mt-auto pt-3 border-t border-border">
                 <div className="flex flex-col">
