@@ -36,9 +36,16 @@ export default function ContentPage() {
   const filtered = posts.filter((p) => {
     if (filterChannels.length > 0 && !filterChannels.includes(p.channel)) return false;
     if (filterStatuses.length > 0 && !filterStatuses.includes(p.status)) return false;
-    if (tab === "active") return p.status !== "done" && p.status !== "published";
-    return p.status === "done" || p.status === "published";
+    if (tab === "active") return p.status !== "published";
+    return p.status === "published";
   });
+
+  const formatDate = (iso: string) => {
+    if (!iso) return "";
+    const [y, m, d] = iso.split("-");
+    if (!y || !m || !d) return iso;
+    return `${d}/${m}/${y.slice(2)}`;
+  };
 
   return (
     <div className="animate-fade-in space-y-4">
@@ -86,8 +93,7 @@ export default function ContentPage() {
                 className="absolute top-2 right-2 h-6 w-6 rounded-full bg-destructive/10 text-destructive flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/20">
                 <X className="h-3.5 w-3.5" />
               </button>
-              <div className="flex items-start justify-between pr-6">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{ch?.name || post.channel}</span>
+              <div className="flex items-start justify-end pr-6">
                 {isAdmin ? (
                   <Popover>
                     <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
@@ -126,18 +132,16 @@ export default function ContentPage() {
               <p className="text-xs text-muted-foreground line-clamp-2">{post.copy}</p>
               <div className="flex items-center justify-between mt-auto pt-3 border-t border-border">
                 <div className="flex flex-col">
-                  <span className="text-xs text-muted-foreground">{post.date} • {post.time}</span>
-                  <span className="text-[10px] text-muted-foreground">{post.category}</span>
+                  <span className="text-xs text-muted-foreground">{formatDate(post.date)} • {post.time}</span>
+                  <span className="text-[10px] text-muted-foreground">{ch?.name ? `${ch.name} · ${post.category}` : post.category}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   {post.link && <ExternalLink className="h-3 w-3 text-muted-foreground" />}
-                  <div className="flex -space-x-1">
-                    {post.responsible.slice(0, 2).map((a) => (
-                      <div key={a.id} className="h-5 w-5 rounded-full bg-accent border border-card flex items-center justify-center text-[9px] font-semibold text-foreground" title={a.name}>
-                        {a.name.split(" ").map(n => n[0]).join("")}
-                      </div>
-                    ))}
-                  </div>
+                  {post.responsible.length > 0 && (
+                    <span className="text-[10px] text-muted-foreground truncate max-w-[140px]" title={post.responsible.map(r => r.name).join(", ")}>
+                      {post.responsible.map(r => r.name).join(", ")}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
