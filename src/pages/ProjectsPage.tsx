@@ -1,4 +1,5 @@
 import { useData } from "@/contexts/DataContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Plus, X } from "lucide-react";
 import { useState } from "react";
 import ProjectModal from "@/components/modals/ProjectModal";
@@ -12,6 +13,7 @@ const statusBadge: Record<string, { label: string; class: string }> = {
 
 export default function ProjectsPage() {
   const { projects, deleteProject } = useData();
+  const { isAdmin } = useAuth();
   const [modal, setModal] = useState<{ open: boolean; project?: any }>({ open: false });
   const [tab, setTab] = useState<"active" | "completed">("active");
   const [deleting, setDeleting] = useState<{ open: boolean; id: string; title: string }>({ open: false, id: "", title: "" });
@@ -25,9 +27,11 @@ export default function ProjectsPage() {
           <h1 className="text-2xl font-semibold text-foreground tracking-tight">Projetos</h1>
           <p className="text-sm text-muted-foreground mt-1">{filtered.length} projetos</p>
         </div>
-        <button onClick={() => setModal({ open: true })} className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
-          <Plus className="h-4 w-4" /> Novo Projeto
-        </button>
+        {isAdmin && (
+          <button onClick={() => setModal({ open: true })} className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
+            <Plus className="h-4 w-4" /> Novo Projeto
+          </button>
+        )}
       </div>
 
       <div className="flex bg-muted rounded-md p-0.5 w-fit">
