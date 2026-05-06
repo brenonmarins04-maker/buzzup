@@ -16,6 +16,7 @@ import ProjectsPage from "./pages/ProjectsPage";
 import TeamsPage from "./pages/TeamsPage";
 import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import WelcomePage from "./pages/WelcomePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +39,7 @@ const App = () => (
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/welcome" element={<WelcomePage />} />
             <Route path="/" element={<ProtectedApp><DashboardPage /></ProtectedApp>} />
             <Route path="/calendar" element={<ProtectedApp><CalendarPage /></ProtectedApp>} />
             <Route path="/tasks" element={<ProtectedApp><TasksPage /></ProtectedApp>} />
