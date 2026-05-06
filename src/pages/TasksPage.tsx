@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useData } from "@/contexts/DataContext";
 import type { Task } from "@/contexts/DataContext";
 import { Plus, X, Users } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import TaskModal from "@/components/modals/TaskModal";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import { toast } from "sonner";
