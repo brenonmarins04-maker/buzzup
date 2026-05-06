@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,8 +8,10 @@ import { toast } from "sonner";
 
 export default function LoginPage() {
   const { user, loading, signIn, signUp, resetPassword } = useAuth();
+  const navigate = useNavigate();
   const [isSignUp, setIsSignUp] = useState(false);
   const [isForgot, setIsForgot] = useState(false);
+  const [justSignedUp, setJustSignedUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -23,7 +25,7 @@ export default function LoginPage() {
     );
   }
 
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to={justSignedUp ? "/welcome" : "/"} replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,6 +54,7 @@ export default function LoginPage() {
         toast.error(error.message);
       } else {
         toast.success("Conta criada! Entrando...");
+        setJustSignedUp(true);
         const { error: loginError } = await signIn(email, password);
         if (loginError) toast.error(loginError.message);
       }
