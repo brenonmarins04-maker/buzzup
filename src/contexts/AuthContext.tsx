@@ -123,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const redeemCode = async (code: string) => {
-    const { data, error } = await supabase.rpc("redeem_access_code", { _code: code.trim().toUpperCase() });
+    const { data, error } = await (supabase.rpc as any)("redeem_access_code", { _code: code.trim().toUpperCase() });
     if (error) return { ok: false, error: error.message };
     if (!data) return { ok: false, error: "Código inválido" };
     await refreshMembership();
