@@ -32,6 +32,7 @@ export default function EventModal({ open, onOpenChange, event, defaultDate }: P
 
   const handleSave = () => {
     if (!form.title.trim()) { toast.error("Título é obrigatório"); return; }
+    if (!form.date) { toast.error("Data é obrigatória"); return; }
     if (event) {
       updateEvent({ ...event, ...form });
       toast.success("Evento atualizado");
@@ -42,10 +43,18 @@ export default function EventModal({ open, onOpenChange, event, defaultDate }: P
     onOpenChange(false);
   };
 
+  const typeLabels: Record<string, { new: string; edit: string }> = {
+    meeting: { new: "Nova Reunião", edit: "Editar Reunião" },
+    event: { new: "Novo Evento", edit: "Editar Evento" },
+    delivery: { new: "Nova Entrega", edit: "Editar Entrega" },
+    reminder: { new: "Novo Lembrete", edit: "Editar Lembrete" },
+  };
+  const headerLabel = event ? (typeLabels[form.type]?.edit ?? "Editar Evento") : (typeLabels[form.type]?.new ?? "Novo Evento");
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>{event ? "Editar Evento" : "Novo Evento"}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{headerLabel}</DialogTitle></DialogHeader>
         <form onSubmit={e => { e.preventDefault(); handleSave(); }} className="flex flex-col gap-4">
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Título *</label>
@@ -58,7 +67,7 @@ export default function EventModal({ open, onOpenChange, event, defaultDate }: P
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Data</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Data *</label>
               <Input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))} />
             </div>
             <div>
