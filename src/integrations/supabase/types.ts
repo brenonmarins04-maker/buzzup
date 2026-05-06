@@ -119,32 +119,20 @@ export type Database = {
       people: {
         Row: {
           created_at: string
-          email: string
           id: string
-          invite_status: string
           name: string
-          role: string
-          user_id: string | null
           workspace_id: string
         }
         Insert: {
           created_at?: string
-          email?: string
           id?: string
-          invite_status?: string
           name: string
-          role?: string
-          user_id?: string | null
           workspace_id: string
         }
         Update: {
           created_at?: string
-          email?: string
           id?: string
-          invite_status?: string
           name?: string
-          role?: string
-          user_id?: string | null
           workspace_id?: string
         }
         Relationships: [
@@ -486,94 +474,6 @@ export type Database = {
           },
         ]
       }
-      workspace_invites: {
-        Row: {
-          accepted_at: string | null
-          canceled_at: string | null
-          created_at: string
-          email: string
-          expires_at: string
-          id: string
-          invited_by: string | null
-          last_sent_at: string | null
-          person_id: string | null
-          role: string
-          status: string
-          token: string
-          workspace_id: string
-        }
-        Insert: {
-          accepted_at?: string | null
-          canceled_at?: string | null
-          created_at?: string
-          email: string
-          expires_at?: string
-          id?: string
-          invited_by?: string | null
-          last_sent_at?: string | null
-          person_id?: string | null
-          role?: string
-          status?: string
-          token?: string
-          workspace_id: string
-        }
-        Update: {
-          accepted_at?: string | null
-          canceled_at?: string | null
-          created_at?: string
-          email?: string
-          expires_at?: string
-          id?: string
-          invited_by?: string | null
-          last_sent_at?: string | null
-          person_id?: string | null
-          role?: string
-          status?: string
-          token?: string
-          workspace_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workspace_invites_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      workspace_members: {
-        Row: {
-          created_at: string
-          id: string
-          role: string
-          user_id: string
-          workspace_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          role?: string
-          user_id: string
-          workspace_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          role?: string
-          user_id?: string
-          workspace_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "workspace_members_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       workspaces: {
         Row: {
           created_at: string
@@ -600,17 +500,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      accept_invite: { Args: { _token: string }; Returns: string }
-      get_invite_by_token: {
-        Args: { _token: string }
-        Returns: {
-          email: string
-          expires_at: string
-          role: string
-          status: string
-          workspace_name: string
-        }[]
-      }
       get_workspace_id: { Args: { _user_id: string }; Returns: string }
     }
     Enums: {
