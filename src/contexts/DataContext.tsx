@@ -23,6 +23,7 @@ export type Post = {
 export type CalendarEvent = { id: string; title: string; date: string; type: string; description: string; teamId: string | null };
 export type Channel = { id: string; name: string; color: string };
 export type Team = { id: string; name: string; memberIds: string[] };
+export type EventType = { id: string; name: string; color: string };
 
 export type Notification = {
   id: string; title: string; message: string;
@@ -32,7 +33,7 @@ export type Notification = {
 type DataContextType = {
   people: Person[]; projects: Project[]; tasks: Task[]; posts: Post[];
   events: CalendarEvent[]; teams: Team[];
-  categories: string[]; channels: Channel[]; notifications: Notification[];
+  categories: string[]; channels: Channel[]; eventTypes: EventType[]; notifications: Notification[];
   loading: boolean; workspaceId: string | null;
 
   addPerson: (name: string) => void;
@@ -67,6 +68,10 @@ type DataContextType = {
   updateTeam: (team: Team) => void;
   deleteTeam: (id: string) => void;
 
+  addEventType: (et: Omit<EventType, "id">) => void;
+  updateEventType: (et: EventType) => void;
+  deleteEventType: (id: string) => void;
+
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
 };
@@ -86,6 +91,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [categories, setCategories] = useState<string[]>([]);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [eventTypes, setEventTypes] = useState<EventType[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoriesRaw, setCategoriesRaw] = useState<{ id: string; name: string }[]>([]);
@@ -96,7 +102,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!uid) {
       setWorkspaceId(null); setPeople([]); setProjects([]); setTasks([]); setPosts([]);
       setEvents([]); setCategories([]); setChannels([]); setTeams([]);
-      setCategoriesRaw([]); setLoading(false);
+      setCategoriesRaw([]); setEventTypes([]); setLoading(false);
       return;
     }
     let cancelled = false;
@@ -113,7 +119,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const wsId = ws.id;
       setWorkspaceId(wsId);
 
-      const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes] = await Promise.all([
+      const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes, etRes] = await Promise.all([
         supabase.from("people").select("id, name").eq("workspace_id", wsId),
         supabase.from("projects").select("*").eq("workspace_id", wsId),
         supabase.from("tasks").select("*").eq("workspace_id", wsId),
@@ -126,6 +132,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         supabase.from("post_assignees").select("post_id, person_id"),
         supabase.from("teams").select("id, name").eq("workspace_id", wsId),
         supabase.from("team_members").select("team_id, person_id"),
+        (supabase.from as any)("event_types").select("id, name, color").eq("workspace_id", wsId),
       ]);
       if (cancelled) return;
 
@@ -198,6 +205,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setCategoriesRaw(rawCats);
       setCategories(rawCats.map(c => c.name));
       setChannels((chRes.data || []).map(c => ({ id: c.id, name: c.name, color: c.color })));
+      setEventTypes(((etRes as any)?.data || []).map((e: any) => ({ id: e.id, name: e.name, color: e.color })));
       setLoading(false);
     }
     fetchAll();
@@ -210,7 +218,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const tables = [
       "people", "tasks", "posts", "projects", "calendar_items",
       "categories", "channels", "teams", "team_members",
-      "task_assignees", "post_assignees", "project_participants",
+      "task_assignees", "post_assignees", "project_participants", "event_types",
     ];
     let scheduled: ReturnType<typeof setTimeout> | null = null;
     const trigger = () => {
@@ -487,13 +495,33 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setTeams(prev => prev.filter(t => t.id !== id));
   }, []);
 
+  // === EVENT TYPES ===
+  const addEventType = useCallback(async (et: Omit<EventType, "id">) => {
+    if (!workspaceId) return;
+    const { data, error } = await (supabase.from as any)("event_types").insert({ workspace_id: workspaceId, name: et.name, color: et.color }).select("id, name, color").single();
+    if (error) { toast.error("Erro ao adicionar tipo"); return; }
+    if (data) setEventTypes(prev => [...prev, { id: data.id, name: data.name, color: data.color }]);
+  }, [workspaceId]);
+
+  const updateEventType = useCallback(async (et: EventType) => {
+    const { error } = await (supabase.from as any)("event_types").update({ name: et.name, color: et.color }).eq("id", et.id);
+    if (error) { toast.error("Erro ao atualizar tipo"); return; }
+    setEventTypes(prev => prev.map(x => x.id === et.id ? et : x));
+  }, []);
+
+  const deleteEventType = useCallback(async (id: string) => {
+    const { error } = await (supabase.from as any)("event_types").delete().eq("id", id);
+    if (error) { toast.error("Erro ao remover tipo"); return; }
+    setEventTypes(prev => prev.filter(x => x.id !== id));
+  }, []);
+
   // Notifications
   const markNotificationRead = useCallback((id: string) => setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n)), []);
   const markAllNotificationsRead = useCallback(() => setNotifications(prev => prev.map(n => ({ ...n, read: true }))), []);
 
   return (
     <DataContext.Provider value={{
-      people, projects, tasks, posts, events, categories, channels, teams, notifications, loading, workspaceId,
+      people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, loading, workspaceId,
       addPerson, updatePerson, deletePerson,
       addTask, updateTask, deleteTask,
       addPost, updatePost, deletePost,
@@ -502,6 +530,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addCategory, removeCategory, updateCategory,
       addChannel, removeChannel, updateChannel,
       addTeam, updateTeam, deleteTeam,
+      addEventType, updateEventType, deleteEventType,
       markNotificationRead, markAllNotificationsRead,
     }}>
       {children}
