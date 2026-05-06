@@ -1,5 +1,6 @@
 import { useState, useMemo, type DragEvent } from "react";
 import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import type { Task, Post, CalendarEvent } from "@/contexts/DataContext";
 import {
