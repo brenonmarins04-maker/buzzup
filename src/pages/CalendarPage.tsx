@@ -28,6 +28,7 @@ type ViewMode = "month" | "week" | "day";
 
 export default function CalendarPage() {
   const { tasks, posts, events, teams, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent } = useData();
+  const { isAdmin } = useAuth();
   const [currentDate, setCurrentDate] = useState(getNowBrasilia());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [filterTypes, setFilterTypes] = useState<string[]>([]);
