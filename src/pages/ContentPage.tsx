@@ -8,6 +8,7 @@ import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import FilterChips from "@/components/FilterChips";
 
@@ -18,8 +19,10 @@ const statusLabels: Record<string, { label: string; class: string }> = {
   published: { label: "Publicado", class: "bg-status-published/10 text-status-published border border-status-published/30" },
 };
 
+const statusOrder = ["not-started", "in-progress", "done", "published"];
+
 export default function ContentPage() {
-  const { posts, channels, categories, addCategory, removeCategory, addChannel, removeChannel, deletePost } = useData();
+  const { posts, channels, categories, addCategory, removeCategory, addChannel, removeChannel, deletePost, updatePost } = useData();
   const { isAdmin } = useAuth();
   const [filterChannels, setFilterChannels] = useState<string[]>([]);
   const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
@@ -85,7 +88,39 @@ export default function ContentPage() {
               </button>
               <div className="flex items-start justify-between pr-6">
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{ch?.name || post.channel}</span>
-                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${st?.class}`}>{st?.label}</span>
+                {isAdmin ? (
+                  <Popover>
+                    <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
+                      <button className={`text-[10px] font-medium px-2 py-0.5 rounded-full transition-opacity hover:opacity-80 ${st?.class}`}>
+                        {st?.label}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent align="end" className="w-44 p-1 rounded-xl" onClick={(e) => e.stopPropagation()}>
+                      {statusOrder.map((s) => {
+                        const meta = statusLabels[s];
+                        const active = post.status === s;
+                        return (
+                          <button
+                            key={s}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!active) {
+                                updatePost({ ...post, status: s });
+                                toast.success(`Status: ${meta.label}`);
+                              }
+                            }}
+                            className={`w-full text-left px-2 py-1.5 rounded-lg text-xs flex items-center justify-between hover:bg-accent transition-colors ${active ? "bg-accent/60" : ""}`}
+                          >
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${meta.class}`}>{meta.label}</span>
+                            {active && <span className="text-[10px] text-muted-foreground">•</span>}
+                          </button>
+                        );
+                      })}
+                    </PopoverContent>
+                  </Popover>
+                ) : (
+                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${st?.class}`}>{st?.label}</span>
+                )}
               </div>
               <h3 className="text-sm font-semibold text-foreground leading-snug">{post.title}</h3>
               <p className="text-xs text-muted-foreground line-clamp-2">{post.copy}</p>
