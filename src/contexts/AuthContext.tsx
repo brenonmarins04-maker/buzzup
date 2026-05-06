@@ -50,9 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        // Fetch display name deferred to avoid deadlock
         setTimeout(async () => {
-          try { await (supabase.rpc as any)("demote_self_to_viewer"); } catch {}
           fetchDisplayName(session.user.id);
           fetchMembership(session.user.id);
         }, 0);
@@ -69,7 +67,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         (async () => {
-          try { await (supabase.rpc as any)("demote_self_to_viewer"); } catch {}
           fetchDisplayName(session.user.id);
           fetchMembership(session.user.id);
         })();
@@ -107,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    try { await (supabase.rpc as any)("demote_self_to_viewer"); } catch {}
     await supabase.auth.signOut();
   };
 
