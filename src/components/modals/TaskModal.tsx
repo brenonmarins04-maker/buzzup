@@ -51,6 +51,7 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
 
   const handleSave = () => {
     if (!form.title.trim()) { toast.error("Título é obrigatório"); return; }
+    if (!form.deadline) { toast.error("Prazo é obrigatório"); return; }
     remember({ lastTeam: form.team, lastTeamId: form.teamId });
     if (task) {
       updateTask({
@@ -99,7 +100,7 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Prazo</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Prazo *</label>
               <Input type="date" value={form.deadline} onChange={e => setForm(p => ({ ...p, deadline: e.target.value }))} />
             </div>
           </div>
