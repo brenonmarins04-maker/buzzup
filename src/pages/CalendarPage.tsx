@@ -75,6 +75,7 @@ export default function CalendarPage() {
   }, [tasks, posts, events, filterTypes, filterTeams]);
 
   const handleDragStart = (e: DragEvent, item: CalendarItem) => {
+    if (!isAdmin) { e.preventDefault(); return; }
     setDragItem(item); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", item.id);
     if (e.currentTarget instanceof HTMLElement) e.currentTarget.style.opacity = "0.5";
   };
@@ -82,11 +83,12 @@ export default function CalendarPage() {
     if (e.currentTarget instanceof HTMLElement) e.currentTarget.style.opacity = "1";
     setDragItem(null); setDropTarget(null);
   };
-  const handleDragOver = (e: DragEvent, dayStr: string) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropTarget(dayStr); };
+  const handleDragOver = (e: DragEvent, dayStr: string) => { if (!isAdmin) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropTarget(dayStr); };
   const handleDragLeave = () => setDropTarget(null);
 
   const handleDrop = (e: DragEvent, dayStr: string) => {
     e.preventDefault(); setDropTarget(null);
+    if (!isAdmin) { toast.error("Apenas administradores podem alterar datas"); setDragItem(null); return; }
     if (!dragItem) return;
     if (dragItem.type === "task") { const task = tasks.find(t => t.id === dragItem.id); if (task) updateTask({ ...task, deadline: dayStr }); }
     else if (dragItem.type === "post") { const post = posts.find(p => p.id === dragItem.id); if (post) updatePost({ ...post, date: dayStr }); }
@@ -137,9 +139,9 @@ export default function CalendarPage() {
     <Tooltip key={item.id}>
       <TooltipTrigger asChild>
         <div className="relative group/pill">
-          <div draggable onDragStart={(e) => handleDragStart(e, item)} onDragEnd={handleDragEnd}
+          <div draggable={isAdmin} onDragStart={(e) => handleDragStart(e, item)} onDragEnd={handleDragEnd}
             onClick={(e) => { e.stopPropagation(); handleItemClick(item); }}
-            className={`text-[10px] leading-tight px-1.5 py-0.5 rounded-sm truncate cursor-grab active:cursor-grabbing ${item.color} text-card font-medium hover:opacity-80 transition-opacity pr-4`}>
+            className={`text-[10px] leading-tight px-1.5 py-0.5 rounded-sm truncate ${isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} ${item.color} text-card font-medium hover:opacity-80 transition-opacity pr-4`}>
             {item.title}
           </div>
           <button onClick={(e) => { e.stopPropagation(); setDeleting({ open: true, id: item.id, title: item.title, type: item.type }); }}
@@ -162,7 +164,7 @@ export default function CalendarPage() {
     const todayFlag = isToday(day);
     const isDropping = dropTarget === dayStr;
     return (
-      <div key={dayStr} onDragOver={(e) => handleDragOver(e, dayStr)} onDragLeave={handleDragLeave} onDrop={(e) => handleDrop(e, dayStr)}
+      <div key={dayStr} onDragOver={(e) => handleDragOver(e, dayStr)} onDragLeave={handleDragLeave} onDrop={(e) => isAdmin && handleDrop(e, dayStr)}
         className={`min-h-[100px] border-b border-r border-border p-1.5 transition-colors ${!inMonth ? "bg-muted/30" : ""} ${todayFlag ? "bg-accent/50" : ""} ${isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""}`}>
         <div className="flex items-center justify-between mb-1">
           <div className={`text-xs font-medium ${todayFlag ? "bg-primary text-primary-foreground h-5 w-5 rounded-full flex items-center justify-center" : inMonth ? "text-foreground" : "text-muted-foreground/50"}`}>
@@ -264,8 +266,8 @@ export default function CalendarPage() {
                   const dropKey = `${dayStr}-${h}`;
                   const isDropping = dropTarget === dropKey;
                   return (
-                    <div key={dropKey} onDragOver={(e) => { e.preventDefault(); setDropTarget(dropKey); }} onDragLeave={() => setDropTarget(null)}
-                      onDrop={(e) => handleDrop(e, dayStr)}
+                    <div key={dropKey} onDragOver={(e) => { if (!isAdmin) return; e.preventDefault(); setDropTarget(dropKey); }} onDragLeave={() => setDropTarget(null)}
+                      onDrop={(e) => isAdmin && handleDrop(e, dayStr)}
                       className={`border-r border-border p-0.5 min-h-[48px] transition-colors ${isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""}`}>
                       {hourItems.map(item => renderItemPill(item))}
                     </div>
@@ -291,8 +293,8 @@ export default function CalendarPage() {
               const dropKey = `${dayStr}-${h}`;
               const isDropping = dropTarget === dropKey;
               return (
-                <div key={h} onDragOver={(e) => { e.preventDefault(); setDropTarget(dropKey); }} onDragLeave={() => setDropTarget(null)}
-                  onDrop={(e) => handleDrop(e, dayStr)}
+                <div key={h} onDragOver={(e) => { if (!isAdmin) return; e.preventDefault(); setDropTarget(dropKey); }} onDragLeave={() => setDropTarget(null)}
+                  onDrop={(e) => isAdmin && handleDrop(e, dayStr)}
                   className={`flex border-b border-border min-h-[56px] transition-colors ${isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""}`}>
                   <div className="w-16 shrink-0 py-2 text-center text-xs text-muted-foreground border-r border-border">{`${h}:00`}</div>
                   <div className="flex-1 p-1 flex flex-col gap-0.5">{hourItems.map(item => renderItemPill(item))}</div>
