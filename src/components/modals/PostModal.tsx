@@ -78,14 +78,14 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto p-0 gap-0">
-        <DialogHeader className="px-5 pt-5 pb-2">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0 gap-0 rounded-2xl border-border/60 shadow-xl">
+        <DialogHeader className="px-6 pt-6 pb-3">
           <DialogTitle className="text-base font-medium text-muted-foreground">
             {post ? "Editar publicação" : "Nova publicação"}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={e => { e.preventDefault(); handleSave(); }} className="flex flex-col">
-          <div className="px-5 pb-3">
+          <div className="px-6 pb-5">
             <Input
               ref={titleRef}
               value={form.title}
@@ -98,50 +98,63 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
               onChange={e => setForm(p => ({ ...p, copy: e.target.value }))}
               placeholder="Texto do post..."
               rows={3}
-              className="border-0 px-0 shadow-none focus-visible:ring-0 resize-none placeholder:text-muted-foreground/50"
+              className="border-0 px-0 mt-1 shadow-none focus-visible:ring-0 resize-none placeholder:text-muted-foreground/50"
               onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleSave(); } }}
             />
           </div>
 
-          <div className="px-5 py-3 border-t border-border/60 grid grid-cols-2 gap-3">
-            <div className="flex items-center gap-2">
+          <div className="px-6 py-4 border-t border-border/60 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Data</label>
               <Input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))}
-                className="h-9 text-sm border-0 bg-muted/50 focus-visible:ring-1" />
-              <Input type="time" value={form.time} onChange={e => setForm(p => ({ ...p, time: e.target.value }))}
-                className="h-9 text-sm border-0 bg-muted/50 focus-visible:ring-1 w-24" />
+                className="h-10 text-sm border-0 bg-muted/50 rounded-xl focus-visible:ring-1" />
             </div>
-            <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
-              className="h-9 rounded-md border-0 bg-muted/50 px-3 text-sm">
-              <option value="not-started">Não começado</option>
-              <option value="in-progress">Em andamento</option>
-              <option value="done">Pronto</option>
-              <option value="published">Publicado</option>
-            </select>
-            <select value={form.channel} onChange={e => setForm(p => ({ ...p, channel: e.target.value }))}
-              className="h-9 rounded-md border-0 bg-muted/50 px-3 text-sm">
-              {channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
-              className="h-9 rounded-md border-0 bg-muted/50 px-3 text-sm">
-              {categories.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Hora</label>
+              <Input type="time" value={form.time} onChange={e => setForm(p => ({ ...p, time: e.target.value }))}
+                className="h-10 text-sm border-0 bg-muted/50 rounded-xl focus-visible:ring-1" />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Status</label>
+              <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
+                className="h-10 rounded-xl border-0 bg-muted/50 px-3 text-sm">
+                <option value="not-started">Não começado</option>
+                <option value="in-progress">Em andamento</option>
+                <option value="done">Pronto</option>
+                <option value="published">Publicado</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Canal</label>
+              <select value={form.channel} onChange={e => setForm(p => ({ ...p, channel: e.target.value }))}
+                className="h-10 rounded-xl border-0 bg-muted/50 px-3 text-sm">
+                {channels.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5 sm:col-span-2">
+              <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Categoria</label>
+              <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
+                className="h-10 rounded-xl border-0 bg-muted/50 px-3 text-sm">
+                {categories.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
           </div>
 
-          <div className="px-5 py-3 border-t border-border/60">
+          <div className="px-6 py-4 border-t border-border/60">
             <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2">Equipe</p>
             <TeamSelector selectedId={form.teamId} onChange={(id) => setForm(p => ({ ...p, teamId: id }))} />
           </div>
 
           <div className="border-t border-border/60">
             <button type="button" onClick={() => setShowMore(s => !s)}
-              className="w-full flex items-center justify-between px-5 py-2.5 text-xs font-medium text-muted-foreground hover:bg-accent/40 transition-colors">
+              className="w-full flex items-center justify-between px-6 py-3 text-xs font-medium text-muted-foreground hover:bg-accent/40 transition-colors">
               <span>Mais opções{form.responsibleIds.length > 0 ? ` · ${form.responsibleIds.length} responsável(is)` : ""}{form.link ? " · com link" : ""}</span>
               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showMore ? "rotate-180" : ""}`} />
             </button>
             {showMore && (
-              <div className="px-5 pb-4 flex flex-col gap-3">
+              <div className="px-6 pb-5 flex flex-col gap-3">
                 <Input value={form.link} onChange={e => setForm(p => ({ ...p, link: e.target.value }))} placeholder="Link (https://...)"
-                  className="h-9 text-sm border-0 bg-muted/50 focus-visible:ring-1" />
+                  className="h-10 text-sm border-0 bg-muted/50 rounded-xl focus-visible:ring-1" />
                 <div>
                   <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2">Responsáveis</p>
                   <TeamPersonSelector selectedIds={form.responsibleIds} onToggle={toggleResponsible} />
@@ -150,9 +163,9 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
             )}
           </div>
 
-          <div className="flex justify-end gap-2 px-5 py-3 border-t border-border/60 bg-muted/20">
-            <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="submit" size="sm">{post ? "Salvar" : "Criar"}</Button>
+          <div className="flex justify-end gap-2 px-6 py-4 border-t border-border/60 bg-muted/20 rounded-b-2xl">
+            <Button type="button" variant="ghost" size="sm" className="rounded-xl" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="submit" size="sm" className="rounded-xl px-5">{post ? "Salvar" : "Criar"}</Button>
           </div>
         </form>
       </DialogContent>
