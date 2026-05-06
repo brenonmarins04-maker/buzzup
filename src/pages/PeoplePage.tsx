@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useData } from "@/contexts/DataContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { toast } from "sonner";
 
 export default function PeoplePage() {
   const { people, addPerson, updatePerson, deletePerson } = useData();
+  const { isAdmin } = useAuth();
   const [addModal, setAddModal] = useState(false);
   const [editModal, setEditModal] = useState<{ open: boolean; id: string; name: string }>({ open: false, id: "", name: "" });
   const [newName, setNewName] = useState("");
@@ -32,10 +34,12 @@ export default function PeoplePage() {
           <h1 className="text-2xl font-semibold text-foreground tracking-tight">Pessoas</h1>
           <p className="text-sm text-muted-foreground mt-1">{people.length} pessoas no workspace</p>
         </div>
-        <button onClick={() => { setAddModal(true); setNewName(""); }}
-          className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
-          <Plus className="h-4 w-4" /> Nova Pessoa
-        </button>
+        {isAdmin && (
+          <button onClick={() => { setAddModal(true); setNewName(""); }}
+            className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
+            <Plus className="h-4 w-4" /> Nova Pessoa
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
