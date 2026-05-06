@@ -22,9 +22,14 @@ import { getNowBrasilia } from "@/lib/utils";
 export type CalendarItem = {
   id: string; title: string; type: "task" | "post" | "event";
   date: string; time?: string; color: string; status?: string;
+  eventTypeName?: string;
 };
 
 type ViewMode = "month" | "week" | "day";
+
+const TASK_COLOR = "#E8804A"; // laranja
+const POST_COLOR = "#3B7DD8"; // azul (Marketing)
+const EVENT_FALLBACK_COLOR = "#2E9E6E"; // verde médio
 
 export default function CalendarPage() {
   const { tasks, posts, events, teams, eventTypes, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent } = useData();
@@ -59,20 +64,21 @@ export default function CalendarPage() {
     tasks.forEach((t) => {
       if (filterTypes.length > 0 && !filterTypes.includes("task")) return;
       if (!teamMatch(t.teamId)) return;
-      items.push({ id: t.id, title: t.title, type: "task", date: t.deadline, color: "bg-team-presidencia", status: t.status });
+      items.push({ id: t.id, title: t.title, type: "task", date: t.deadline, color: TASK_COLOR, status: t.status });
     });
     posts.forEach((p) => {
       if (filterTypes.length > 0 && !filterTypes.includes("post")) return;
       if (!teamMatch(p.teamId)) return;
-      items.push({ id: p.id, title: p.title, type: "post", date: p.date, time: p.time, color: "bg-team-gente", status: p.status });
+      items.push({ id: p.id, title: p.title, type: "post", date: p.date, time: p.time, color: POST_COLOR, status: p.status });
     });
     events.forEach((e) => {
       if (filterTypes.length > 0 && !filterTypes.includes("event") && !filterTypes.includes(`event:${e.type}`)) return;
       if (!teamMatch(e.teamId)) return;
-      items.push({ id: e.id, title: e.title, type: "event", date: e.date, color: "bg-team-mercado" });
+      const et = eventTypes.find(t => t.name === e.type);
+      items.push({ id: e.id, title: e.title, type: "event", date: e.date, color: et?.color || EVENT_FALLBACK_COLOR, eventTypeName: e.type });
     });
     return items;
-  }, [tasks, posts, events, filterTypes, filterTeams]);
+  }, [tasks, posts, events, filterTypes, filterTeams, eventTypes]);
 
   const handleDragStart = (e: DragEvent, item: CalendarItem) => {
     if (!isAdmin) { e.preventDefault(); return; }
@@ -141,12 +147,13 @@ export default function CalendarPage() {
         <div className="relative group/pill">
           <div draggable={isAdmin} onDragStart={(e) => handleDragStart(e, item)} onDragEnd={handleDragEnd}
             onClick={(e) => { e.stopPropagation(); handleItemClick(item); }}
-            className={`text-[10px] leading-tight px-1.5 py-0.5 rounded-sm truncate ${isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} ${item.color} text-card font-medium hover:opacity-80 transition-opacity pr-4`}>
+            style={{ backgroundColor: item.color }}
+            className={`text-[10px] leading-tight px-1.5 py-0.5 rounded-sm truncate ${isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} text-white font-medium hover:opacity-80 transition-opacity pr-4`}>
             {item.title}
           </div>
           <button onClick={(e) => { e.stopPropagation(); setDeleting({ open: true, id: item.id, title: item.title, type: item.type }); }}
             className="absolute top-0 right-0 h-full px-0.5 flex items-center opacity-0 group-hover/pill:opacity-100 transition-opacity">
-            <X className="h-2.5 w-2.5 text-card hover:text-destructive" />
+            <X className="h-2.5 w-2.5 text-white hover:text-destructive" />
           </button>
         </div>
       </TooltipTrigger>
@@ -217,15 +224,17 @@ export default function CalendarPage() {
         <div className="flex items-center gap-3 flex-wrap">
         <FilterChips label="Tipo" options={[
           { value: "task", label: "Tarefas" },
-          { value: "post", label: "Posts" },
+          { value: "post", label: "Marketing" },
           ...(eventTypes.length === 0
             ? [{ value: "event", label: "Eventos" }]
             : eventTypes.map(t => ({ value: `event:${t.name}`, label: t.name }))),
         ]} selected={filterTypes} onChange={setFilterTypes} />
         <div className="ml-auto flex items-center gap-4 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-team-presidencia" /> Tarefa</span>
-          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-team-gente" /> Post</span>
-          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-team-mercado" /> Evento</span>
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: TASK_COLOR }} /> Tarefa</span>
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: POST_COLOR }} /> Marketing</span>
+          {eventTypes.map(t => (
+            <span key={t.id} className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: t.color }} /> {t.name}</span>
+          ))}
         </div>
         </div>
         {teams.length > 0 && (
