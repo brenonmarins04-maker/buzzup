@@ -51,12 +51,14 @@ export default function PeoplePage() {
               </div>
               <span className="text-sm font-medium text-foreground">{person.name}</span>
             </div>
-            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button onClick={() => { setEditModal({ open: true, id: person.id, name: person.name }); setEditName(person.name); }}
-                className="p-1 hover:bg-accent rounded text-muted-foreground"><Pencil className="h-3.5 w-3.5" /></button>
-              <button onClick={() => { deletePerson(person.id); toast.success("Pessoa removida"); }}
-                className="p-1 hover:bg-accent rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
-            </div>
+            {isAdmin && (
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => { setEditModal({ open: true, id: person.id, name: person.name }); setEditName(person.name); }}
+                  className="p-1 hover:bg-accent rounded text-muted-foreground"><Pencil className="h-3.5 w-3.5" /></button>
+                <button onClick={() => { deletePerson(person.id); toast.success("Pessoa removida"); }}
+                  className="p-1 hover:bg-accent rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+              </div>
+            )}
           </div>
         ))}
       </div>
