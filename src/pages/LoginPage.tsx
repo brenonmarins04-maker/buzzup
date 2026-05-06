@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function LoginPage() {
   const { user, loading, signIn, signUp, resetPassword } = useAuth();
@@ -62,6 +63,11 @@ export default function LoginPage() {
       const { error } = await signIn(email, password);
       if (error) {
         toast.error("E-mail ou senha inválidos");
+      } else {
+        // Always require admin code re-entry on each login
+        try {
+          await (supabase.rpc as any)("demote_self_to_viewer");
+        } catch {}
       }
     }
     setSubmitting(false);

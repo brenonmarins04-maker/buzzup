@@ -604,6 +604,7 @@ export type Database = {
     }
     Functions: {
       accept_invite: { Args: { _token: string }; Returns: string }
+      demote_self_to_viewer: { Args: never; Returns: undefined }
       generate_access_code: { Args: never; Returns: string }
       get_invite_by_token: {
         Args: { _token: string }
