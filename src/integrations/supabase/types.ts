@@ -576,18 +576,21 @@ export type Database = {
       }
       workspaces: {
         Row: {
+          access_code: string
           created_at: string
           id: string
           name: string
           user_id: string
         }
         Insert: {
+          access_code?: string
           created_at?: string
           id?: string
           name?: string
           user_id: string
         }
         Update: {
+          access_code?: string
           created_at?: string
           id?: string
           name?: string
@@ -601,6 +604,7 @@ export type Database = {
     }
     Functions: {
       accept_invite: { Args: { _token: string }; Returns: string }
+      generate_access_code: { Args: never; Returns: string }
       get_invite_by_token: {
         Args: { _token: string }
         Returns: {
@@ -612,6 +616,8 @@ export type Database = {
         }[]
       }
       get_workspace_id: { Args: { _user_id: string }; Returns: string }
+      is_workspace_admin: { Args: { _user_id: string }; Returns: boolean }
+      redeem_access_code: { Args: { _code: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

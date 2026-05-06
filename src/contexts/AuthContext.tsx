@@ -7,6 +7,11 @@ type AuthContextType = {
   session: Session | null;
   loading: boolean;
   displayName: string;
+  role: "admin" | "viewer" | null;
+  isAdmin: boolean;
+  accessCode: string | null;
+  refreshMembership: () => Promise<void>;
+  redeemCode: (code: string) => Promise<{ ok: boolean; error?: string }>;
   signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -21,6 +26,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [displayName, setDisplayName] = useState("");
+  const [role, setRole] = useState<"admin" | "viewer" | null>(null);
+  const [accessCode, setAccessCode] = useState<string | null>(null);
+
+  async function fetchMembership(userId: string) {
+    const { data: mem } = await supabase
+      .from("workspace_members")
+      .select("role, workspace_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (!mem) { setRole(null); setAccessCode(null); return; }
+    setRole((mem.role as "admin" | "viewer") ?? "viewer");
+    const { data: ws } = await supabase
+      .from("workspaces")
+      .select("access_code")
+      .eq("id", mem.workspace_id)
+      .maybeSingle();
+    setAccessCode((ws as any)?.access_code ?? null);
+  }
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -28,9 +51,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         // Fetch display name deferred to avoid deadlock
-        setTimeout(() => fetchDisplayName(session.user.id), 0);
+        setTimeout(() => {
+          fetchDisplayName(session.user.id);
+          fetchMembership(session.user.id);
+        }, 0);
       } else {
         setDisplayName("");
+        setRole(null);
+        setAccessCode(null);
       }
       setLoading(false);
     });
@@ -40,6 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchDisplayName(session.user.id);
+        fetchMembership(session.user.id);
       }
       setLoading(false);
     });
@@ -89,8 +118,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   };
 
+  const refreshMembership = async () => {
+    if (user) await fetchMembership(user.id);
+  };
+
+  const redeemCode = async (code: string) => {
+    const { data, error } = await (supabase.rpc as any)("redeem_access_code", { _code: code.trim().toUpperCase() });
+    if (error) return { ok: false, error: error.message };
+    if (!data) return { ok: false, error: "Código inválido" };
+    await refreshMembership();
+    return { ok: true };
+  };
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, displayName, signUp, signIn, signOut, resetPassword, updatePassword }}>
+    <AuthContext.Provider value={{ user, session, loading, displayName, role, isAdmin: role === "admin", accessCode, refreshMembership, redeemCode, signUp, signIn, signOut, resetPassword, updatePassword }}>
       {children}
     </AuthContext.Provider>
   );
