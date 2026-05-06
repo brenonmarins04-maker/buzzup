@@ -77,8 +77,8 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {isSignUp && !isForgot && (
             <div className="space-y-2">
-              <Label htmlFor="name">Nome</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Seu nome" />
+              <Label htmlFor="name">Nome da Organização</Label>
+              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome da sua organização" />
             </div>
           )}
 
