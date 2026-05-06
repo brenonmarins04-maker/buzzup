@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useData } from "@/contexts/DataContext";
+import { useAuth } from "@/contexts/AuthContext";
 import type { Post } from "@/contexts/DataContext";
 import { Plus, ExternalLink, Settings, X } from "lucide-react";
 import PostModal from "@/components/modals/PostModal";
@@ -19,6 +20,7 @@ const statusLabels: Record<string, { label: string; class: string }> = {
 
 export default function ContentPage() {
   const { posts, channels, categories, addCategory, removeCategory, addChannel, removeChannel, deletePost } = useData();
+  const { isAdmin } = useAuth();
   const [filterChannels, setFilterChannels] = useState<string[]>([]);
   const [filterStatuses, setFilterStatuses] = useState<string[]>([]);
   const [modal, setModal] = useState<{ open: boolean; post?: Post | null }>({ open: false });
@@ -43,13 +45,17 @@ export default function ContentPage() {
           <p className="text-sm text-muted-foreground mt-1">Planejamento de publicações</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setSettingsOpen(true)} className="flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-accent text-muted-foreground transition-colors">
-            <Settings className="h-4 w-4" />
-            <span className="text-[10px] hidden sm:inline">Editar canal/categoria</span>
-          </button>
-          <button onClick={() => setModal({ open: true })} className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
-            <Plus className="h-4 w-4" /> Nova Publicação
-          </button>
+          {isAdmin && (
+            <>
+              <button onClick={() => setSettingsOpen(true)} className="flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-accent text-muted-foreground transition-colors">
+                <Settings className="h-4 w-4" />
+                <span className="text-[10px] hidden sm:inline">Editar canal/categoria</span>
+              </button>
+              <button onClick={() => setModal({ open: true })} className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
+                <Plus className="h-4 w-4" /> Nova Publicação
+              </button>
+            </>
+          )}
         </div>
       </div>
 
