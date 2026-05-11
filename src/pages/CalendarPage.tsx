@@ -6,7 +6,7 @@ import type { Task, Post, CalendarEvent } from "@/contexts/DataContext";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth,
   addMonths, subMonths, addWeeks, subWeeks, addDays, subDays,
-  startOfWeek, endOfWeek, isToday, isSameDay, isTomorrow, parseISO,
+  startOfWeek, endOfWeek, isToday, isSameDay, isTomorrow,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import TaskModal from "@/components/modals/TaskModal";
