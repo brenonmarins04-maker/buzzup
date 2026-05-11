@@ -376,27 +376,7 @@ export default function CalendarPage() {
               <div className="flex-1 overflow-y-auto scrollbar-thin p-2 flex flex-col gap-1">
                 {parkedPosts.length === 0 ? (
                   <div className="text-[11px] text-muted-foreground/70 text-center py-6 px-2">Nenhuma ideia estacionada</div>
-                ) : parkedPosts.map(p => {
-                  const meta = POST_STATUS_META[p.status] || POST_STATUS_META["not-started"];
-                  return (
-                    <div key={p.id} className="relative group/pp flex items-stretch rounded-sm overflow-hidden">
-                      <button type="button" onClick={(e) => { e.stopPropagation(); if (isAdmin) cyclePostStatus(p.id); }}
-                        title={meta.label} style={{ backgroundColor: meta.color }}
-                        className={`w-1 shrink-0 ${isAdmin ? "cursor-pointer hover:w-1.5 transition-all" : ""}`} />
-                      <div draggable={isAdmin} onDragStart={(e) => handleParkedDragStart(e, p)} onDragEnd={handleDragEnd}
-                        onClick={() => setPostModal({ open: true, post: p })}
-                        style={{ backgroundColor: POST_COLOR }}
-                        className={`flex-1 min-w-0 text-[11px] leading-tight px-2 py-1 truncate ${isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} text-white font-medium hover:opacity-90 transition-opacity flex items-center gap-1 pr-5`}>
-                        {isAdmin && <GripVertical className="h-2.5 w-2.5 opacity-60 shrink-0" />}
-                        <span className="truncate">{p.title}</span>
-                      </div>
-                      <button onClick={(e) => { e.stopPropagation(); setDeleting({ open: true, id: p.id, title: p.title, type: "post" }); }}
-                        className="absolute top-0 right-0 h-full px-1 flex items-center opacity-0 group-hover/pp:opacity-100 transition-opacity">
-                        <X className="h-3 w-3 text-white" />
-                      </button>
-                    </div>
-                  );
-                })}
+                ) : parkedPosts.map(p => renderItemPill({ id: p.id, title: p.title, type: "post", date: "", time: p.time, color: POST_COLOR, status: p.status }))}
               </div>
             </aside>
           )}
