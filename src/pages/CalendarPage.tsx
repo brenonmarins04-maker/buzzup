@@ -44,7 +44,7 @@ const nextPostStatus = (s?: string) => {
 };
 
 export default function CalendarPage() {
-  const { tasks, posts, events, teams, eventTypes, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent } = useData();
+  const { tasks, posts, events, teams, eventTypes, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addPost } = useData();
   const { isAdmin } = useAuth();
   const [currentDate, setCurrentDate] = useState(getNowBrasilia());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
@@ -61,7 +61,6 @@ export default function CalendarPage() {
   const [dragItem, setDragItem] = useState<CalendarItem | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
 
-  const { addPost } = useData();
   const parkedPosts = useMemo(() => posts.filter(p => !p.date), [posts]);
 
   const handleQuickIdea = (e: React.FormEvent) => {
