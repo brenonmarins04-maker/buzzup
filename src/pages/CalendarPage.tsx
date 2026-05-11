@@ -1,12 +1,12 @@
 import { useState, useMemo, useRef, type DragEvent } from "react";
-import { ChevronLeft, ChevronRight, Plus, X, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, PanelLeftClose, PanelLeftOpen, Inbox } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import type { Task, Post, CalendarEvent } from "@/contexts/DataContext";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth,
   addMonths, subMonths, addWeeks, subWeeks, addDays, subDays,
-  startOfWeek, endOfWeek, isToday,
+  startOfWeek, endOfWeek, isToday, isSameDay, isTomorrow, parseISO,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import TaskModal from "@/components/modals/TaskModal";
@@ -18,6 +18,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { toast } from "sonner";
 import FilterChips from "@/components/FilterChips";
 import { getNowBrasilia } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useLongPressDrag, type DragDropResult } from "@/hooks/useLongPressDrag";
 
 export type CalendarItem = {
   id: string; title: string; type: "task" | "post" | "event";
@@ -46,6 +48,7 @@ const nextPostStatus = (s?: string) => {
 export default function CalendarPage() {
   const { tasks, posts, events, teams, eventTypes, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addPost } = useData();
   const { isAdmin } = useAuth();
+  const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(getNowBrasilia());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [filterTypes, setFilterTypes] = useState<string[]>([]);
@@ -64,6 +67,28 @@ export default function CalendarPage() {
   const [dropTarget, setDropTarget] = useState<string | null>(null);
 
   const parkedPosts = useMemo(() => posts.filter(p => !p.date), [posts]);
+
+  const applyDrop = (item: CalendarItem, target: DragDropResult) => {
+    if (!isAdmin) { toast.error("Apenas administradores podem alterar datas"); return; }
+    if (target.kind === "none") return;
+    if (target.kind === "parking") {
+      if (item.type !== "post") { toast.error("Apenas publicações podem ser estacionadas"); return; }
+      const post = posts.find(p => p.id === item.id);
+      if (post) { updatePost({ ...post, date: "", time: "" }); toast.success("Publicação estacionada"); }
+      return;
+    }
+    // day drop
+    const dayStr = target.date;
+    if (item.type === "task") { const task = tasks.find(t => t.id === item.id); if (task) updateTask({ ...task, deadline: dayStr }); }
+    else if (item.type === "post") { const post = posts.find(p => p.id === item.id); if (post) updatePost({ ...post, date: dayStr }); }
+    else if (item.type === "event") { const ev = events.find(e => e.id === item.id); if (ev) updateEvent({ ...ev, date: dayStr }); }
+  };
+
+  const longPress = useLongPressDrag<CalendarItem>({
+    delay: 200,
+    enabled: isAdmin,
+    onDrop: (item, target) => applyDrop(item, target),
+  });
 
   const handleQuickIdea = (e: React.FormEvent) => {
     e.preventDefault();
@@ -221,7 +246,12 @@ export default function CalendarPage() {
           draggable={isAdmin}
           onDragStart={(e) => handleDragStart(e, item)}
           onDragEnd={handleDragEnd}
-          onClick={(e) => { e.stopPropagation(); handleItemClick(item); }}
+          onClick={(e) => { e.stopPropagation(); if (longPress.isActive()) return; handleItemClick(item); }}
+          onPointerDown={(e) => longPress.handlers.onPointerDown(e, { payload: item, label: item.title, color: item.color })}
+          onPointerMove={longPress.handlers.onPointerMove}
+          onPointerUp={longPress.handlers.onPointerUp}
+          onPointerCancel={longPress.handlers.onPointerCancel}
+          style={{ touchAction: "pan-y" }}
           className={`relative group/pill flex items-stretch rounded-sm overflow-hidden ${isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}`}
         >
           {item.type === "post" && (
@@ -235,7 +265,7 @@ export default function CalendarPage() {
           )}
           <div
             style={{ backgroundColor: item.color }}
-            className="flex-1 min-w-0 text-[10px] leading-tight px-1.5 py-0.5 truncate text-white font-medium hover:opacity-80 transition-opacity pr-4 pointer-events-none"
+            className="flex-1 min-w-0 text-[10px] sm:text-[10px] leading-tight px-1.5 py-0.5 text-white font-medium hover:opacity-80 transition-opacity pr-4 pointer-events-none break-words line-clamp-2 sm:line-clamp-1 sm:truncate"
           >
             {item.title}
           </div>
@@ -259,8 +289,14 @@ export default function CalendarPage() {
     const todayFlag = isToday(day);
     const isDropping = dropTarget === dayStr;
     return (
-      <div key={dayStr} onDragOver={(e) => handleDragOver(e, dayStr)} onDragLeave={handleDragLeave} onDrop={(e) => isAdmin && handleDrop(e, dayStr)}
-        className={`h-full min-h-0 border-b border-r border-border p-1.5 transition-colors flex flex-col ${!inMonth ? "bg-muted/30" : ""} ${todayFlag ? "bg-accent/50" : ""} ${isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""}`}>
+      <div
+        key={dayStr}
+        data-drop-day={dayStr}
+        onDragOver={(e) => handleDragOver(e, dayStr)}
+        onDragLeave={handleDragLeave}
+        onDrop={(e) => isAdmin && handleDrop(e, dayStr)}
+        className={`h-full min-h-[64px] sm:min-h-0 border-b border-r border-border p-1 sm:p-1.5 transition-colors flex flex-col ${!inMonth ? "bg-muted/30" : ""} ${todayFlag ? "bg-accent/50" : ""} ${isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""}`}
+      >
         <div className="flex items-center justify-between mb-1">
           <div className={`text-xs font-medium ${todayFlag ? "bg-primary text-primary-foreground h-5 w-5 rounded-full flex items-center justify-center" : inMonth ? "text-foreground" : "text-muted-foreground/50"}`}>
             {format(day, "d")}
@@ -276,6 +312,28 @@ export default function CalendarPage() {
         <div className="flex flex-col gap-0.5 min-h-0 overflow-y-auto scrollbar-thin">{dayItems.map((item) => renderItemPill(item))}</div>
       </div>
     );
+  };
+
+  // Upcoming list (mobile-only): next 7 days starting today
+  const upcomingDays = useMemo(() => {
+    const today = getNowBrasilia();
+    const days: { date: Date; dateStr: string; items: CalendarItem[] }[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(today, i);
+      const dateStr = format(d, "yyyy-MM-dd");
+      const items = allItems
+        .filter(it => it.date === dateStr)
+        .sort((a, b) => (a.time || "99:99").localeCompare(b.time || "99:99"));
+      if (items.length > 0) days.push({ date: d, dateStr, items });
+    }
+    return days;
+  }, [allItems]);
+
+  const formatDayHeader = (d: Date) => {
+    const today = getNowBrasilia();
+    if (isSameDay(d, today)) return "Hoje";
+    if (isTomorrow(d)) return "Amanhã";
+    return format(d, "EEE, d 'de' MMM", { locale: ptBR });
   };
 
   return (
@@ -340,9 +398,33 @@ export default function CalendarPage() {
       </div>
 
       {viewMode === "month" && (
-        <div className={`grid gap-4 flex-1 min-h-0 w-full ${parkingOpen ? "grid-cols-1 lg:grid-cols-[260px_1fr]" : "grid-cols-1"}`}>
+        <div className={`grid gap-2 sm:gap-4 flex-1 min-h-0 w-full ${parkingOpen ? "grid-cols-[1fr] lg:grid-cols-[260px_1fr]" : "grid-cols-[28px_1fr] lg:grid-cols-[32px_1fr]"}`}>
+          {!parkingOpen && (
+            <button
+              data-drop-parking="1"
+              onClick={() => setParkingOpen(true)}
+              onDragOver={handleParkingDragOver}
+              onDragLeave={handleParkingDragLeave}
+              onDrop={handleParkingDrop}
+              title={`Abrir estacionamento (${parkedPosts.length})`}
+              className={`group h-full min-h-0 bg-card border rounded-lg flex flex-col items-center justify-start gap-2 py-3 transition-colors hover:bg-accent ${parkingDropActive ? "border-primary ring-2 ring-primary/30 bg-primary/5" : "border-border"}`}
+            >
+              <Inbox className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />
+              {parkedPosts.length > 0 && (
+                <span className="text-[10px] font-semibold text-foreground bg-muted rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center">
+                  {parkedPosts.length}
+                </span>
+              )}
+              <div className="flex-1 flex items-center">
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
+                  Estacionamento
+                </span>
+              </div>
+            </button>
+          )}
           {parkingOpen && (
             <aside
+              data-drop-parking="1"
               onDragOver={handleParkingDragOver}
               onDragLeave={handleParkingDragLeave}
               onDrop={handleParkingDrop}
@@ -382,6 +464,45 @@ export default function CalendarPage() {
               {monthDays.map((day) => (<div key={format(day, "yyyy-MM-dd")} className="group min-h-0">{renderDayCell(day, isSameMonth(day, currentDate))}</div>))}
             </div>
           </div>
+        </div>
+      )}
+
+      {viewMode === "month" && isMobile && (
+        <div className="bg-card border border-border rounded-lg overflow-hidden">
+          <div className="px-3 py-2 border-b border-border">
+            <div className="text-xs font-semibold uppercase tracking-wide text-foreground">Próximos dias</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">O que vem por aí nos próximos 7 dias</div>
+          </div>
+          {upcomingDays.length === 0 ? (
+            <div className="px-3 py-6 text-center text-xs text-muted-foreground">Nada agendado para os próximos 7 dias</div>
+          ) : (
+            <div className="divide-y divide-border">
+              {upcomingDays.map(({ date, dateStr, items }) => (
+                <div key={dateStr} className="px-3 py-2.5">
+                  <div className="flex items-baseline justify-between mb-1.5">
+                    <span className="text-xs font-semibold capitalize text-foreground">{formatDayHeader(date)}</span>
+                    <span className="text-[10px] text-muted-foreground">{items.length} {items.length === 1 ? "item" : "itens"}</span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    {items.map(item => (
+                      <button
+                        key={item.id}
+                        onClick={() => handleItemClick(item)}
+                        className="flex items-center gap-2 text-left rounded-md px-2 py-1.5 hover:bg-accent transition-colors"
+                      >
+                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                        <span className="flex-1 min-w-0 text-xs text-foreground truncate">{item.title}</span>
+                        {item.time && <span className="text-[10px] text-muted-foreground tabular-nums">{item.time}</span>}
+                        {item.type === "post" && item.status && (
+                          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: POST_STATUS_META[item.status]?.color || "#9CA3AF" }} />
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
