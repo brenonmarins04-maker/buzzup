@@ -335,7 +335,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!workspaceId) return;
     const { data, error } = await supabase.from("posts").insert({
       workspace_id: workspaceId, title: p.title, copy: p.copy, channel: p.channel,
-      category: p.category, date: p.date, time: p.time, status: p.status,
+      category: p.category,
+      date: p.date ? p.date : null,
+      time: p.time ? p.time : null,
+      status: p.status,
       link: p.link, media_url: p.media_url, team_id: p.teamId,
     } as any).select().single();
     if (error) { toast.error("Erro ao criar publicação"); return; }
@@ -353,7 +356,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const updatePost = useCallback(async (p: Post) => {
     const { error } = await supabase.from("posts").update({
       title: p.title, copy: p.copy, channel: p.channel, category: p.category,
-      date: p.date, time: p.time, status: p.status, link: p.link, media_url: p.media_url, team_id: p.teamId,
+      date: p.date ? p.date : null,
+      time: p.time ? p.time : null,
+      status: p.status, link: p.link, media_url: p.media_url, team_id: p.teamId,
     } as any).eq("id", p.id);
     if (error) { toast.error("Erro ao atualizar publicação"); return; }
     await syncJunction("post_assignees", "post_id", p.id, p.responsible.map(r => r.id));
