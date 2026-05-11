@@ -1,5 +1,5 @@
 import { useState, useMemo, type DragEvent } from "react";
-import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, PanelLeftClose, PanelLeftOpen, GripVertical } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import type { Task, Post, CalendarEvent } from "@/contexts/DataContext";
@@ -31,13 +31,27 @@ const TASK_COLOR = "#E8804A"; // laranja
 const POST_COLOR = "#3B7DD8"; // azul (Marketing)
 const EVENT_FALLBACK_COLOR = "#2E9E6E"; // verde médio
 
+const POST_STATUS_ORDER = ["not-started", "in-progress", "done", "published"] as const;
+const POST_STATUS_META: Record<string, { label: string; color: string }> = {
+  "not-started": { label: "Não publicado", color: "#9CA3AF" },
+  "in-progress": { label: "Em andamento", color: "#F59E0B" },
+  "done":        { label: "Pronto",        color: "#10B981" },
+  "published":   { label: "Publicado",     color: "#3B82F6" },
+};
+const nextPostStatus = (s?: string) => {
+  const i = POST_STATUS_ORDER.indexOf((s as any) ?? "not-started");
+  return POST_STATUS_ORDER[(i + 1) % POST_STATUS_ORDER.length];
+};
+
 export default function CalendarPage() {
-  const { tasks, posts, events, teams, eventTypes, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent } = useData();
+  const { tasks, posts, events, teams, eventTypes, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addPost } = useData();
   const { isAdmin } = useAuth();
   const [currentDate, setCurrentDate] = useState(getNowBrasilia());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [filterTypes, setFilterTypes] = useState<string[]>([]);
   const [filterTeams, setFilterTeams] = useState<string[]>([]);
+  const [parkingOpen, setParkingOpen] = useState(true);
+  const [newIdea, setNewIdea] = useState("");
 
   const [taskModal, setTaskModal] = useState<{ open: boolean; task?: Task | null; date?: string }>({ open: false });
   const [postModal, setPostModal] = useState<{ open: boolean; post?: Post | null; date?: string }>({ open: false });
@@ -46,6 +60,28 @@ export default function CalendarPage() {
 
   const [dragItem, setDragItem] = useState<CalendarItem | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+
+  const parkedPosts = useMemo(() => posts.filter(p => !p.date), [posts]);
+
+  const handleQuickIdea = (e: React.FormEvent) => {
+    e.preventDefault();
+    const title = newIdea.trim();
+    if (!title) return;
+    addPost({
+      title, copy: "", link: "", date: "", time: "",
+      channel: "", category: "", status: "not-started",
+      responsibleIds: [], media_url: "", teamId: null,
+    });
+    setNewIdea("");
+  };
+
+  const cyclePostStatus = (postId: string) => {
+    const p = posts.find(x => x.id === postId);
+    if (!p) return;
+    const ns = nextPostStatus(p.status);
+    updatePost({ ...p, status: ns });
+    toast.success(`Status: ${POST_STATUS_META[ns].label}`);
+  };
 
   const handleDelete = () => {
     if (deleting.type === "task") deleteTask(deleting.id);
@@ -67,6 +103,7 @@ export default function CalendarPage() {
       items.push({ id: t.id, title: t.title, type: "task", date: t.deadline, color: TASK_COLOR, status: t.status });
     });
     posts.forEach((p) => {
+      if (!p.date) return; // estacionamento
       if (filterTypes.length > 0 && !filterTypes.includes("post")) return;
       if (!teamMatch(p.teamId)) return;
       items.push({ id: p.id, title: p.title, type: "post", date: p.date, time: p.time, color: POST_COLOR, status: p.status });
@@ -83,6 +120,12 @@ export default function CalendarPage() {
   const handleDragStart = (e: DragEvent, item: CalendarItem) => {
     if (!isAdmin) { e.preventDefault(); return; }
     setDragItem(item); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", item.id);
+    if (e.currentTarget instanceof HTMLElement) e.currentTarget.style.opacity = "0.5";
+  };
+  const handleParkedDragStart = (e: DragEvent, post: Post) => {
+    if (!isAdmin) { e.preventDefault(); return; }
+    const item: CalendarItem = { id: post.id, title: post.title, type: "post", date: "", time: post.time, color: POST_COLOR, status: post.status };
+    setDragItem(item); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", post.id);
     if (e.currentTarget instanceof HTMLElement) e.currentTarget.style.opacity = "0.5";
   };
   const handleDragEnd = (e: DragEvent) => {
@@ -144,11 +187,20 @@ export default function CalendarPage() {
   const renderItemPill = (item: CalendarItem) => (
     <Tooltip key={item.id}>
       <TooltipTrigger asChild>
-        <div className="relative group/pill">
+        <div className="relative group/pill flex items-stretch rounded-sm overflow-hidden">
+          {item.type === "post" && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); if (isAdmin) cyclePostStatus(item.id); }}
+              title={POST_STATUS_META[item.status || "not-started"]?.label}
+              style={{ backgroundColor: POST_STATUS_META[item.status || "not-started"]?.color || "#9CA3AF" }}
+              className={`w-1 shrink-0 ${isAdmin ? "cursor-pointer hover:w-1.5 transition-all" : ""}`}
+            />
+          )}
           <div draggable={isAdmin} onDragStart={(e) => handleDragStart(e, item)} onDragEnd={handleDragEnd}
             onClick={(e) => { e.stopPropagation(); handleItemClick(item); }}
             style={{ backgroundColor: item.color }}
-            className={`text-[10px] leading-tight px-1.5 py-0.5 rounded-sm truncate ${isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} text-white font-medium hover:opacity-80 transition-opacity pr-4`}>
+            className={`flex-1 min-w-0 text-[10px] leading-tight px-1.5 py-0.5 truncate ${isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} text-white font-medium hover:opacity-80 transition-opacity pr-4`}>
             {item.title}
           </div>
           <button onClick={(e) => { e.stopPropagation(); setDeleting({ open: true, id: item.id, title: item.title, type: item.type }); }}
@@ -160,7 +212,7 @@ export default function CalendarPage() {
       <TooltipContent side="right" className="text-xs max-w-[200px]">
         <p className="font-semibold">{item.title}</p>
         <p className="text-muted-foreground">{typeLabels[item.type]} • {item.date}{item.time ? ` ${item.time}` : ""}</p>
-        {item.status && <p className="text-muted-foreground">Status: {item.status}</p>}
+        {item.status && <p className="text-muted-foreground">Status: {item.type === "post" ? POST_STATUS_META[item.status]?.label || item.status : item.status}</p>}
       </TooltipContent>
     </Tooltip>
   );
@@ -172,7 +224,7 @@ export default function CalendarPage() {
     const isDropping = dropTarget === dayStr;
     return (
       <div key={dayStr} onDragOver={(e) => handleDragOver(e, dayStr)} onDragLeave={handleDragLeave} onDrop={(e) => isAdmin && handleDrop(e, dayStr)}
-        className={`min-h-[100px] border-b border-r border-border p-1.5 transition-colors ${!inMonth ? "bg-muted/30" : ""} ${todayFlag ? "bg-accent/50" : ""} ${isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""}`}>
+        className={`h-full min-h-0 border-b border-r border-border p-1.5 transition-colors flex flex-col ${!inMonth ? "bg-muted/30" : ""} ${todayFlag ? "bg-accent/50" : ""} ${isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""}`}>
         <div className="flex items-center justify-between mb-1">
           <div className={`text-xs font-medium ${todayFlag ? "bg-primary text-primary-foreground h-5 w-5 rounded-full flex items-center justify-center" : inMonth ? "text-foreground" : "text-muted-foreground/50"}`}>
             {format(day, "d")}
@@ -185,7 +237,7 @@ export default function CalendarPage() {
             </QuickCreateMenu>
           )}
         </div>
-        <div className="flex flex-col gap-0.5">{dayItems.map((item) => renderItemPill(item))}</div>
+        <div className="flex flex-col gap-0.5 min-h-0 overflow-y-auto scrollbar-thin">{dayItems.map((item) => renderItemPill(item))}</div>
       </div>
     );
   };
@@ -194,6 +246,12 @@ export default function CalendarPage() {
     <div className="animate-fade-in space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-4">
+          {viewMode === "month" && (
+            <button onClick={() => setParkingOpen(o => !o)} title={parkingOpen ? "Esconder estacionamento" : "Mostrar estacionamento"}
+              className="p-1.5 rounded-md hover:bg-accent text-muted-foreground">
+              {parkingOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+            </button>
+          )}
           <h1 className="text-xl sm:text-2xl font-semibold text-foreground tracking-tight">Calendário</h1>
           <div className="flex items-center gap-1">
             <button onClick={navigatePrev} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground"><ChevronLeft className="h-4 w-4" /></button>
@@ -246,12 +304,56 @@ export default function CalendarPage() {
       </div>
 
       {viewMode === "month" && (
-        <div className="bg-card border border-border rounded-lg overflow-hidden">
-          <div className="grid grid-cols-7 border-b border-border">
-            {weekDays.map(d => (<div key={d} className="py-2 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">{d}</div>))}
-          </div>
-          <div className="grid grid-cols-7">
-            {monthDays.map((day) => (<div key={format(day, "yyyy-MM-dd")} className="group">{renderDayCell(day, isSameMonth(day, currentDate))}</div>))}
+        <div className={`grid gap-4 ${parkingOpen ? "grid-cols-1 lg:grid-cols-[260px_1fr]" : "grid-cols-1"}`}>
+          {parkingOpen && (
+            <aside className="bg-card border border-border rounded-lg flex flex-col overflow-hidden self-start max-h-[calc(100vh-180px)]">
+              <div className="px-3 py-2.5 border-b border-border flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-semibold text-foreground uppercase tracking-wide">Estacionamento</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">Ideias sem data — arraste para o calendário</div>
+                </div>
+                <span className="text-[10px] text-muted-foreground bg-muted rounded-full px-1.5 py-0.5 font-medium">{parkedPosts.length}</span>
+              </div>
+              {isAdmin && (
+                <form onSubmit={handleQuickIdea} className="px-3 py-2 border-b border-border">
+                  <input value={newIdea} onChange={e => setNewIdea(e.target.value)} placeholder="Nova ideia + Enter"
+                    className="w-full bg-muted/50 rounded-md px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60" />
+                </form>
+              )}
+              <div className="flex-1 overflow-y-auto scrollbar-thin p-2 flex flex-col gap-1">
+                {parkedPosts.length === 0 ? (
+                  <div className="text-[11px] text-muted-foreground/70 text-center py-6 px-2">Nenhuma ideia estacionada</div>
+                ) : parkedPosts.map(p => {
+                  const meta = POST_STATUS_META[p.status] || POST_STATUS_META["not-started"];
+                  return (
+                    <div key={p.id} className="relative group/pp flex items-stretch rounded-sm overflow-hidden">
+                      <button type="button" onClick={(e) => { e.stopPropagation(); if (isAdmin) cyclePostStatus(p.id); }}
+                        title={meta.label} style={{ backgroundColor: meta.color }}
+                        className={`w-1 shrink-0 ${isAdmin ? "cursor-pointer hover:w-1.5 transition-all" : ""}`} />
+                      <div draggable={isAdmin} onDragStart={(e) => handleParkedDragStart(e, p)} onDragEnd={handleDragEnd}
+                        onClick={() => setPostModal({ open: true, post: p })}
+                        style={{ backgroundColor: POST_COLOR }}
+                        className={`flex-1 min-w-0 text-[11px] leading-tight px-2 py-1 truncate ${isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} text-white font-medium hover:opacity-90 transition-opacity flex items-center gap-1 pr-5`}>
+                        {isAdmin && <GripVertical className="h-2.5 w-2.5 opacity-60 shrink-0" />}
+                        <span className="truncate">{p.title}</span>
+                      </div>
+                      <button onClick={(e) => { e.stopPropagation(); setDeleting({ open: true, id: p.id, title: p.title, type: "post" }); }}
+                        className="absolute top-0 right-0 h-full px-1 flex items-center opacity-0 group-hover/pp:opacity-100 transition-opacity">
+                        <X className="h-3 w-3 text-white" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </aside>
+          )}
+          <div className="bg-card border border-border rounded-lg overflow-hidden flex flex-col aspect-square max-h-[calc(100vh-160px)]">
+            <div className="grid grid-cols-7 border-b border-border shrink-0">
+              {weekDays.map(d => (<div key={d} className="py-2 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">{d}</div>))}
+            </div>
+            <div className="grid grid-cols-7 flex-1 min-h-0" style={{ gridTemplateRows: `repeat(${monthDays.length / 7}, minmax(0, 1fr))` }}>
+              {monthDays.map((day) => (<div key={format(day, "yyyy-MM-dd")} className="group min-h-0">{renderDayCell(day, isSameMonth(day, currentDate))}</div>))}
+            </div>
           </div>
         </div>
       )}

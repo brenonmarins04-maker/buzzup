@@ -51,7 +51,6 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
 
   const handleSave = () => {
     if (!form.title.trim()) { toast.error("Título é obrigatório"); return; }
-    if (!form.date) { toast.error("Data é obrigatória"); return; }
     remember({ lastChannel: form.channel, lastCategory: form.category, lastTeamId: form.teamId });
     if (post) {
       updatePost({
@@ -106,7 +105,7 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
 
           <div className="px-6 py-4 border-t border-border/60 grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Data *</label>
+              <label className="text-[11px] uppercase tracking-wide text-muted-foreground">Data <span className="text-muted-foreground/60 normal-case">(vazio = estacionamento)</span></label>
               <Input type="date" value={form.date} onChange={e => setForm(p => ({ ...p, date: e.target.value }))}
                 className="h-10 text-sm border-0 bg-muted/50 rounded-xl focus-visible:ring-1" />
             </div>
