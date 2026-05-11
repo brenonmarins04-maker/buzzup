@@ -307,12 +307,24 @@ export default function CalendarPage() {
         <div className={`grid gap-4 ${parkingOpen ? "grid-cols-1 lg:grid-cols-[260px_1fr]" : "grid-cols-1"}`}>
           {parkingOpen && (
             <aside className="bg-card border border-border rounded-lg flex flex-col overflow-hidden self-start max-h-[calc(100vh-180px)]">
-              <div className="px-3 py-2.5 border-b border-border flex items-center justify-between">
-                <div>
+              <div className="px-3 py-2.5 border-b border-border flex items-center justify-between gap-2">
+                <div className="min-w-0">
                   <div className="text-xs font-semibold text-foreground uppercase tracking-wide">Estacionamento</div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5">Ideias sem data — arraste para o calendário</div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5 truncate">Ideias sem data — arraste para o calendário</div>
                 </div>
-                <span className="text-[10px] text-muted-foreground bg-muted rounded-full px-1.5 py-0.5 font-medium">{parkedPosts.length}</span>
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="text-[10px] text-muted-foreground bg-muted rounded-full px-1.5 py-0.5 font-medium">{parkedPosts.length}</span>
+                  {isAdmin && (
+                    <button onClick={() => setPostModal({ open: true })} title="Nova publicação"
+                      className="h-6 w-6 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center transition-colors">
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                  <button onClick={() => setParkingOpen(false)} title="Recolher estacionamento"
+                    className="h-6 w-6 rounded-md hover:bg-accent text-muted-foreground flex items-center justify-center transition-colors">
+                    <PanelLeftClose className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
               {isAdmin && (
                 <form onSubmit={handleQuickIdea} className="px-3 py-2 border-b border-border">
@@ -347,7 +359,7 @@ export default function CalendarPage() {
               </div>
             </aside>
           )}
-          <div className="bg-card border border-border rounded-lg overflow-hidden flex flex-col aspect-square max-h-[calc(100vh-160px)]">
+          <div className="bg-card border border-border rounded-lg overflow-hidden flex flex-col h-[calc(100vh-160px)] min-h-[500px]">
             <div className="grid grid-cols-7 border-b border-border shrink-0">
               {weekDays.map(d => (<div key={d} className="py-2 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">{d}</div>))}
             </div>
