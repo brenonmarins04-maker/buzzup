@@ -123,13 +123,13 @@ export default function CalendarPage() {
 
   const handleDragStart = (e: DragEvent, item: CalendarItem) => {
     if (!isAdmin) { e.preventDefault(); return; }
-    setDragItem(item); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", item.id);
+    setDragItem(item); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", JSON.stringify(item));
     if (e.currentTarget instanceof HTMLElement) e.currentTarget.style.opacity = "0.5";
   };
   const handleParkedDragStart = (e: DragEvent, post: Post) => {
     if (!isAdmin) { e.preventDefault(); return; }
     const item: CalendarItem = { id: post.id, title: post.title, type: "post", date: "", time: post.time, color: POST_COLOR, status: post.status };
-    setDragItem(item); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", post.id);
+    setDragItem(item); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", JSON.stringify(item));
     if (e.currentTarget instanceof HTMLElement) e.currentTarget.style.opacity = "0.5";
   };
   const handleDragEnd = (e: DragEvent) => {
@@ -148,15 +148,19 @@ export default function CalendarPage() {
   const handleParkingDragLeave = () => setParkingDropActive(false);
   const handleParkingDrop = (e: DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setParkingDropActive(false);
     if (!isAdmin) { setDragItem(null); return; }
-    if (!dragItem) return;
-    if (dragItem.type !== "post") {
+    const droppedItem = dragItem ?? (() => {
+      try { return JSON.parse(e.dataTransfer.getData("text/plain")) as CalendarItem; } catch { return null; }
+    })();
+    if (!droppedItem) return;
+    if (droppedItem.type !== "post") {
       toast.error("Apenas publicações podem ser estacionadas");
       setDragItem(null);
       return;
     }
-    const post = posts.find(p => p.id === dragItem.id);
+    const post = posts.find(p => p.id === droppedItem.id);
     if (post) {
       updatePost({ ...post, date: "", time: "" });
       toast.success("Publicação estacionada");
