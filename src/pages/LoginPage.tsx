@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function LoginPage() {
-  const { user, loading, signIn, signUp, resetPassword } = useAuth();
+  const { user, loading, signIn, signUp, resetPassword, refreshMembership } = useAuth();
   const navigate = useNavigate();
   const [isSignUp, setIsSignUp] = useState(false);
   const [isForgot, setIsForgot] = useState(false);
@@ -67,6 +67,7 @@ export default function LoginPage() {
         // Always require admin code re-entry on each login
         try {
           await (supabase.rpc as any)("demote_self_to_viewer");
+          await refreshMembership();
         } catch {}
       }
     }
