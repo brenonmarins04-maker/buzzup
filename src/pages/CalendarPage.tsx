@@ -243,7 +243,7 @@ export default function CalendarPage() {
   };
 
   return (
-    <div className="animate-fade-in space-y-4">
+    <div className="animate-fade-in flex flex-col gap-4 h-full min-h-[600px]">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-4">
           {viewMode === "month" && (
@@ -304,9 +304,9 @@ export default function CalendarPage() {
       </div>
 
       {viewMode === "month" && (
-        <div className={`grid gap-4 ${parkingOpen ? "grid-cols-1 lg:grid-cols-[260px_1fr]" : "grid-cols-1"}`}>
+        <div className={`grid gap-4 flex-1 min-h-0 w-full ${parkingOpen ? "grid-cols-1 lg:grid-cols-[260px_1fr]" : "grid-cols-1"}`}>
           {parkingOpen && (
-            <aside className="bg-card border border-border rounded-lg flex flex-col overflow-hidden self-start max-h-[calc(100vh-180px)]">
+            <aside className="bg-card border border-border rounded-lg flex flex-col overflow-hidden h-full min-h-0">
               <div className="px-3 py-2.5 border-b border-border flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <div className="text-xs font-semibold text-foreground uppercase tracking-wide">Estacionamento</div>
@@ -359,7 +359,7 @@ export default function CalendarPage() {
               </div>
             </aside>
           )}
-          <div className="bg-card border border-border rounded-lg overflow-hidden flex flex-col h-[calc(100vh-160px)] min-h-[500px]">
+          <div className="bg-card border border-border rounded-lg overflow-hidden flex flex-col h-full min-h-0 w-full">
             <div className="grid grid-cols-7 border-b border-border shrink-0">
               {weekDays.map(d => (<div key={d} className="py-2 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">{d}</div>))}
             </div>
