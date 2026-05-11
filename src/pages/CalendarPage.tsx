@@ -1,4 +1,4 @@
-import { useState, useMemo, type DragEvent } from "react";
+import { useState, useMemo, useRef, type DragEvent } from "react";
 import { ChevronLeft, ChevronRight, Plus, X, PanelLeftClose, PanelLeftOpen, GripVertical } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
@@ -52,6 +52,8 @@ export default function CalendarPage() {
   const [filterTeams, setFilterTeams] = useState<string[]>([]);
   const [parkingOpen, setParkingOpen] = useState(true);
   const [newIdea, setNewIdea] = useState("");
+  const [parkingDropActive, setParkingDropActive] = useState(false);
+  const newIdeaRef = useRef<HTMLInputElement>(null);
 
   const [taskModal, setTaskModal] = useState<{ open: boolean; task?: Task | null; date?: string }>({ open: false });
   const [postModal, setPostModal] = useState<{ open: boolean; post?: Post | null; date?: string }>({ open: false });
@@ -73,6 +75,8 @@ export default function CalendarPage() {
       responsibleIds: [], media_url: "", teamId: null,
     });
     setNewIdea("");
+    toast.success("Ideia estacionada");
+    setTimeout(() => newIdeaRef.current?.focus(), 0);
   };
 
   const cyclePostStatus = (postId: string) => {
@@ -134,6 +138,31 @@ export default function CalendarPage() {
   };
   const handleDragOver = (e: DragEvent, dayStr: string) => { if (!isAdmin) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropTarget(dayStr); };
   const handleDragLeave = () => setDropTarget(null);
+
+  const handleParkingDragOver = (e: DragEvent) => {
+    if (!isAdmin || !dragItem) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragItem.type === "post") setParkingDropActive(true);
+  };
+  const handleParkingDragLeave = () => setParkingDropActive(false);
+  const handleParkingDrop = (e: DragEvent) => {
+    e.preventDefault();
+    setParkingDropActive(false);
+    if (!isAdmin) { setDragItem(null); return; }
+    if (!dragItem) return;
+    if (dragItem.type !== "post") {
+      toast.error("Apenas publicações podem ser estacionadas");
+      setDragItem(null);
+      return;
+    }
+    const post = posts.find(p => p.id === dragItem.id);
+    if (post) {
+      updatePost({ ...post, date: "", time: "" });
+      toast.success("Publicação estacionada");
+    }
+    setDragItem(null);
+  };
 
   const handleDrop = (e: DragEvent, dayStr: string) => {
     e.preventDefault(); setDropTarget(null);
@@ -312,7 +341,12 @@ export default function CalendarPage() {
       {viewMode === "month" && (
         <div className={`grid gap-4 flex-1 min-h-0 w-full ${parkingOpen ? "grid-cols-1 lg:grid-cols-[260px_1fr]" : "grid-cols-1"}`}>
           {parkingOpen && (
-            <aside className="bg-card border border-border rounded-lg flex flex-col overflow-hidden h-full min-h-0">
+            <aside
+              onDragOver={handleParkingDragOver}
+              onDragLeave={handleParkingDragLeave}
+              onDrop={handleParkingDrop}
+              className={`bg-card border rounded-lg flex flex-col overflow-hidden h-full min-h-0 transition-colors ${parkingDropActive ? "border-primary ring-2 ring-primary/30 bg-primary/5" : "border-border"}`}
+            >
               <div className="px-3 py-2.5 border-b border-border flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <div className="text-xs font-semibold text-foreground uppercase tracking-wide">Estacionamento</div>
@@ -334,7 +368,7 @@ export default function CalendarPage() {
               </div>
               {isAdmin && (
                 <form onSubmit={handleQuickIdea} className="px-3 py-2 border-b border-border">
-                  <input value={newIdea} onChange={e => setNewIdea(e.target.value)} placeholder="Nova ideia + Enter"
+                  <input ref={newIdeaRef} value={newIdea} onChange={e => setNewIdea(e.target.value)} placeholder="Nova ideia + Enter"
                     className="w-full bg-muted/50 rounded-md px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60" />
                 </form>
               )}

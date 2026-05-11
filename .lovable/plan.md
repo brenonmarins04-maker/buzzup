@@ -1,64 +1,25 @@
+## Objetivo
 
+Tornar o estacionamento mais dinâmico no `CalendarPage`:
 
-# Plano: Aba "Equipes" + Dashboard com métricas por equipe
+1. **Criação rápida no estacionamento** já existe (input "Nova ideia + Enter"), mas vou reforçar o feedback e garantir que funcione bem:
+   - Manter o foco no input após criar (para criar várias seguidas).
+   - Mostrar um pequeno toast de confirmação.
+   - Garantir que o item recém-criado apareça no topo da lista.
 
-## Resumo
-Criar a funcionalidade de **Equipes** (agrupamentos de pessoas) com tabela no banco, página de gestão, e gráfico no dashboard mostrando tarefas concluídas por equipe. Renomear "Dashboard" para "Início".
-
-## Fase 1 — Banco de Dados (1 migration)
-
-Nova tabela `teams`:
-```text
-teams (id uuid PK, workspace_id uuid NOT NULL, name text NOT NULL, created_at timestamptz)
-```
-
-Nova tabela de junção `team_members`:
-```text
-team_members (id uuid PK, team_id uuid NOT NULL → teams, person_id uuid NOT NULL → people)
-```
-
-RLS em ambas usando `get_workspace_id(auth.uid())` (teams direto, team_members via EXISTS no parent).
-
-Index em `teams.workspace_id`.
-
-## Fase 2 — DataContext
-
-Adicionar tipos:
-```text
-Team { id, name, members: Person[] }
-```
-
-Adicionar estado `teams` + fetch de `teams` e `team_members` no `fetchAll`.
-
-Adicionar funções CRUD:
-- `addTeam(name, memberIds)`
-- `updateTeam(team)`
-- `deleteTeam(id)`
-
-Exportar `teams` no contexto.
-
-## Fase 3 — Página TeamsPage (`/teams`)
-
-- Lista de equipes com membros exibidos como badges
-- Modal para criar equipe: nome + multi-select de pessoas
-- Editar e excluir equipes
-- Rota `/teams` no App.tsx
-- Nav item "Equipes" com ícone `UsersRound` no AppLayout (sidebar e bottom nav mobile)
-
-## Fase 4 — Dashboard → Início
-
-- Renomear label no nav de "Dashboard" para "Início"
-- Renomear h1 na página de "Dashboard" para "Início"
-- Adicionar gráfico de barras "Tarefas Concluídas por Equipe":
-  - Para cada equipe, somar tarefas concluídas de todos os seus membros (via `task_assignees`)
-  - Exibir como bar chart horizontal ao lado do existente "por Pessoa"
+2. **Arrastar publicações do calendário de volta para o estacionamento**:
+   - Tornar o painel do estacionamento (aside) um drop target.
+   - Ao soltar uma publicação ali, definir `date = ""` e `time = ""` → ela some do calendário e aparece na lista.
+   - Tarefas e eventos não podem ser estacionados (estacionamento é só de posts) → mostrar feedback "Apenas publicações podem ser estacionadas" e ignorar o drop.
+   - Destaque visual no aside enquanto há um post sendo arrastado por cima (ring + bg sutil).
 
 ## Arquivos afetados
-- 1 migration SQL (tabelas `teams`, `team_members`, RLS, indexes)
-- `src/contexts/DataContext.tsx` — tipos, fetch, CRUD de teams
-- `src/pages/TeamsPage.tsx` — nova página
-- `src/pages/DashboardPage.tsx` — renomear título + novo gráfico por equipe
-- `src/components/AppLayout.tsx` — nav item "Equipes", label "Início"
-- `src/App.tsx` — rota `/teams`
-- `src/integrations/supabase/types.ts` — tipos atualizados
 
+- `src/pages/CalendarPage.tsx` — única alteração; tudo é UI/handlers de drag-and-drop, sem mudanças de schema nem em outros componentes.
+
+## Detalhes técnicos
+
+- Novo handler `handleParkingDragOver` / `handleParkingDrop` no `<aside>` do estacionamento.
+- No drop: se `dragItem.type !== "post"` → `toast.error` e retorna; senão `updatePost({ ...post, date: "", time: "" })`.
+- Novo state `parkingDropActive: boolean` para o highlight visual.
+- Ajuste no `handleQuickIdea` para refocar o input via `ref` após submit.
