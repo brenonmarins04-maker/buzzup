@@ -441,6 +441,20 @@ export default function CalendarPage() {
         )}
       </div>
 
+      {/* Metric: upcoming pending posts */}
+      <div className="flex items-center gap-3 bg-card border border-border rounded-lg px-4 py-3">
+        <div className="h-9 w-9 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: `${POST_COLOR}20` }}>
+          <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: POST_COLOR }} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-xs text-muted-foreground">Publicações próximas pendentes</div>
+          <div className="text-lg font-bold text-foreground leading-tight">{upcomingPendingPosts.length}</div>
+        </div>
+        <div className="text-[10px] text-muted-foreground/70 shrink-0">
+          {upcomingPendingPosts.length === 1 ? "1 publicação" : `${upcomingPendingPosts.length} publicações`}
+        </div>
+      </div>
+
       {viewMode === "month" && (
         <div className={`grid gap-2 sm:gap-4 flex-1 min-h-0 w-full ${parkingOpen ? "grid-cols-[1fr] lg:grid-cols-[260px_1fr]" : "grid-cols-[28px_1fr] lg:grid-cols-[32px_1fr]"}`}>
           {!parkingOpen && (
