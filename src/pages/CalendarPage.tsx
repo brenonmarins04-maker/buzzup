@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, type DragEvent } from "react";
-import { ChevronLeft, ChevronRight, Plus, X, PanelLeftClose, PanelLeftOpen, GripVertical } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import type { Task, Post, CalendarEvent } from "@/contexts/DataContext";
@@ -123,12 +123,6 @@ export default function CalendarPage() {
 
   const handleDragStart = (e: DragEvent, item: CalendarItem) => {
     if (!isAdmin) { e.preventDefault(); return; }
-    setDragItem(item); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", JSON.stringify(item));
-    if (e.currentTarget instanceof HTMLElement) e.currentTarget.style.opacity = "0.5";
-  };
-  const handleParkedDragStart = (e: DragEvent, post: Post) => {
-    if (!isAdmin) { e.preventDefault(); return; }
-    const item: CalendarItem = { id: post.id, title: post.title, type: "post", date: "", time: post.time, color: POST_COLOR, status: post.status };
     setDragItem(item); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", JSON.stringify(item));
     if (e.currentTarget instanceof HTMLElement) e.currentTarget.style.opacity = "0.5";
   };
