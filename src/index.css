@@ -87,6 +87,21 @@
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-sans);
   }
+
+  /* Mobile: disable text selection, callouts and tap highlight for native app feel */
+  @media (max-width: 768px) {
+    html, body {
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      overscroll-behavior-y: contain;
+    }
+    input, textarea, [contenteditable="true"] {
+      -webkit-user-select: text;
+      user-select: text;
+    }
+  }
 }
 
 @layer utilities {
