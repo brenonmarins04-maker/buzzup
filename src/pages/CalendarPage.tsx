@@ -171,10 +171,13 @@ export default function CalendarPage() {
   const handleDrop = (e: DragEvent, dayStr: string) => {
     e.preventDefault(); setDropTarget(null);
     if (!isAdmin) { toast.error("Apenas administradores podem alterar datas"); setDragItem(null); return; }
-    if (!dragItem) return;
-    if (dragItem.type === "task") { const task = tasks.find(t => t.id === dragItem.id); if (task) updateTask({ ...task, deadline: dayStr }); }
-    else if (dragItem.type === "post") { const post = posts.find(p => p.id === dragItem.id); if (post) updatePost({ ...post, date: dayStr }); }
-    else if (dragItem.type === "event") { const ev = events.find(e => e.id === dragItem.id); if (ev) updateEvent({ ...ev, date: dayStr }); }
+    const droppedItem = dragItem ?? (() => {
+      try { return JSON.parse(e.dataTransfer.getData("text/plain")) as CalendarItem; } catch { return null; }
+    })();
+    if (!droppedItem) return;
+    if (droppedItem.type === "task") { const task = tasks.find(t => t.id === droppedItem.id); if (task) updateTask({ ...task, deadline: dayStr }); }
+    else if (droppedItem.type === "post") { const post = posts.find(p => p.id === droppedItem.id); if (post) updatePost({ ...post, date: dayStr }); }
+    else if (droppedItem.type === "event") { const ev = events.find(e => e.id === droppedItem.id); if (ev) updateEvent({ ...ev, date: dayStr }); }
     setDragItem(null);
   };
 
