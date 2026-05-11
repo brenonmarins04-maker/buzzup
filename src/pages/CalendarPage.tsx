@@ -187,7 +187,13 @@ export default function CalendarPage() {
   const renderItemPill = (item: CalendarItem) => (
     <Tooltip key={item.id}>
       <TooltipTrigger asChild>
-        <div className="relative group/pill flex items-stretch rounded-sm overflow-hidden">
+        <div
+          draggable={isAdmin}
+          onDragStart={(e) => handleDragStart(e, item)}
+          onDragEnd={handleDragEnd}
+          onClick={(e) => { e.stopPropagation(); handleItemClick(item); }}
+          className={`relative group/pill flex items-stretch rounded-sm overflow-hidden ${isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}`}
+        >
           {item.type === "post" && (
             <button
               type="button"
@@ -197,10 +203,10 @@ export default function CalendarPage() {
               className={`w-1 shrink-0 ${isAdmin ? "cursor-pointer hover:w-1.5 transition-all" : ""}`}
             />
           )}
-          <div draggable={isAdmin} onDragStart={(e) => handleDragStart(e, item)} onDragEnd={handleDragEnd}
-            onClick={(e) => { e.stopPropagation(); handleItemClick(item); }}
+          <div
             style={{ backgroundColor: item.color }}
-            className={`flex-1 min-w-0 text-[10px] leading-tight px-1.5 py-0.5 truncate ${isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} text-white font-medium hover:opacity-80 transition-opacity pr-4`}>
+            className="flex-1 min-w-0 text-[10px] leading-tight px-1.5 py-0.5 truncate text-white font-medium hover:opacity-80 transition-opacity pr-4 pointer-events-none"
+          >
             {item.title}
           </div>
           <button onClick={(e) => { e.stopPropagation(); setDeleting({ open: true, id: item.id, title: item.title, type: item.type }); }}
