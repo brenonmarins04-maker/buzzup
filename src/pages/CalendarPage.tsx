@@ -148,6 +148,16 @@ export default function CalendarPage() {
     return items;
   }, [tasks, posts, events, filterTypes, filterTeams, eventTypes]);
 
+  const upcomingPendingPosts = useMemo(() => {
+    const today = getNowBrasilia();
+    const todayStr = format(today, "yyyy-MM-dd");
+    return posts.filter(p => {
+      if (!p.date) return false;
+      if (p.status === "published") return false;
+      return p.date >= todayStr;
+    });
+  }, [posts]);
+
   const handleDragStart = (e: DragEvent, item: CalendarItem) => {
     if (!isAdmin) { e.preventDefault(); return; }
     setDragItem(item); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", JSON.stringify(item));
