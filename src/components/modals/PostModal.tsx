@@ -51,7 +51,6 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
 
   const handleSave = () => {
     if (!form.title.trim()) { toast.error("Título é obrigatório"); return; }
-    if (!form.date) { toast.error("Data é obrigatória"); return; }
     remember({ lastChannel: form.channel, lastCategory: form.category, lastTeamId: form.teamId });
     if (post) {
       updatePost({
