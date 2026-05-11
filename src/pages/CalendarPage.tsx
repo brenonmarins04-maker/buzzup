@@ -140,10 +140,10 @@ export default function CalendarPage() {
   const handleDragLeave = () => setDropTarget(null);
 
   const handleParkingDragOver = (e: DragEvent) => {
-    if (!isAdmin || !dragItem) return;
+    if (!isAdmin) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
-    if (dragItem.type === "post") setParkingDropActive(true);
+    if (!dragItem || dragItem.type === "post") setParkingDropActive(true);
   };
   const handleParkingDragLeave = () => setParkingDropActive(false);
   const handleParkingDrop = (e: DragEvent) => {
@@ -354,12 +354,6 @@ export default function CalendarPage() {
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <span className="text-[10px] text-muted-foreground bg-muted rounded-full px-1.5 py-0.5 font-medium">{parkedPosts.length}</span>
-                  {isAdmin && (
-                    <button onClick={() => setPostModal({ open: true })} title="Nova publicação"
-                      className="h-6 w-6 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 flex items-center justify-center transition-colors">
-                      <Plus className="h-3.5 w-3.5" />
-                    </button>
-                  )}
                   <button onClick={() => setParkingOpen(false)} title="Recolher estacionamento"
                     className="h-6 w-6 rounded-md hover:bg-accent text-muted-foreground flex items-center justify-center transition-colors">
                     <PanelLeftClose className="h-3.5 w-3.5" />
