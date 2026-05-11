@@ -267,7 +267,7 @@ export default function CalendarPage() {
           )}
           <div
             style={{ backgroundColor: item.color }}
-            className="flex-1 min-w-0 text-[10px] sm:text-[10px] leading-tight px-1.5 py-0.5 text-white font-medium hover:opacity-80 transition-opacity pr-4 pointer-events-none break-words line-clamp-2 sm:line-clamp-1 sm:truncate"
+            className="flex-1 min-w-0 text-[9px] sm:text-[10px] leading-tight px-1 sm:px-1.5 py-0.5 text-white font-medium hover:opacity-80 transition-opacity pr-4 pointer-events-none truncate whitespace-nowrap"
           >
             {item.title}
           </div>
