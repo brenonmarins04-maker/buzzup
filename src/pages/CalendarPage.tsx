@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, type DragEvent } from "react";
-import { ChevronLeft, ChevronRight, Plus, X, PanelLeftClose, PanelLeftOpen, Inbox } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, PanelLeftClose, PanelLeftOpen, Inbox, ChevronUp, ChevronDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import type { Task, Post, CalendarEvent } from "@/contexts/DataContext";
@@ -57,6 +57,8 @@ export default function CalendarPage() {
   const [newIdea, setNewIdea] = useState("");
   const [parkingDropActive, setParkingDropActive] = useState(false);
   const newIdeaRef = useRef<HTMLInputElement>(null);
+  const [showPast, setShowPast] = useState(false);
+  const upcomingTopRef = useRef<HTMLDivElement>(null);
 
   const [taskModal, setTaskModal] = useState<{ open: boolean; task?: Task | null; date?: string }>({ open: false });
   const [postModal, setPostModal] = useState<{ open: boolean; post?: Post | null; date?: string }>({ open: false });
@@ -329,12 +331,44 @@ export default function CalendarPage() {
     return days;
   }, [allItems]);
 
+  // Past list (mobile-only): previous 14 days, most recent first
+  const pastDays = useMemo(() => {
+    const today = getNowBrasilia();
+    const todayStr = format(today, "yyyy-MM-dd");
+    const days: { date: Date; dateStr: string; items: CalendarItem[] }[] = [];
+    for (let i = 1; i <= 14; i++) {
+      const d = subDays(today, i);
+      const dateStr = format(d, "yyyy-MM-dd");
+      if (dateStr >= todayStr) continue;
+      const items = allItems
+        .filter(it => it.date === dateStr)
+        .sort((a, b) => (a.time || "99:99").localeCompare(b.time || "99:99"));
+      if (items.length > 0) days.push({ date: d, dateStr, items });
+    }
+    return days; // already most-recent-first
+  }, [allItems]);
+
   const formatDayHeader = (d: Date) => {
     const today = getNowBrasilia();
     if (isSameDay(d, today)) return "Hoje";
     if (isTomorrow(d)) return "Amanhã";
     return format(d, "EEE, d 'de' MMM", { locale: ptBR });
   };
+
+  const renderListItem = (item: CalendarItem, dim = false) => (
+    <button
+      key={item.id}
+      onClick={() => handleItemClick(item)}
+      className={`flex items-center gap-2 text-left rounded-md px-2 py-1.5 hover:bg-accent transition-colors ${dim ? "opacity-60" : ""}`}
+    >
+      <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+      <span className="flex-1 min-w-0 text-xs text-foreground truncate">{item.title}</span>
+      {item.time && <span className="text-[10px] text-muted-foreground tabular-nums">{item.time}</span>}
+      {item.type === "post" && item.status && (
+        <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: POST_STATUS_META[item.status]?.color || "#9CA3AF" }} />
+      )}
+    </button>
+  );
 
   return (
     <div className="animate-fade-in flex flex-col gap-4 h-full min-h-[600px]">
@@ -469,7 +503,52 @@ export default function CalendarPage() {
 
       {viewMode === "month" && isMobile && (
         <div className="bg-card border border-border rounded-lg overflow-hidden">
-          <div className="px-3 py-2 border-b border-border">
+          {/* Past toggle / list */}
+          <button
+            onClick={() => {
+              setShowPast(v => {
+                const next = !v;
+                if (next) {
+                  // expand past upward; keep upcoming roughly in place by scrolling to it after layout
+                  setTimeout(() => upcomingTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+                }
+                return next;
+              });
+            }}
+            className="w-full px-3 py-2 border-b border-border flex items-center justify-between gap-2 hover:bg-accent transition-colors"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              {showPast ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground shrink-0" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+              <span className="text-[11px] font-medium text-muted-foreground truncate">
+                {showPast ? "Ocultar publicações anteriores" : `Ver últimas publicações (${pastDays.reduce((a, d) => a + d.items.length, 0)})`}
+              </span>
+            </div>
+            {!showPast && pastDays.length > 0 && (
+              <span className="text-[10px] text-muted-foreground/70">role para cima</span>
+            )}
+          </button>
+
+          {showPast && (
+            <div className="divide-y divide-border bg-muted/20">
+              {pastDays.length === 0 ? (
+                <div className="px-3 py-4 text-center text-xs text-muted-foreground">Nenhuma publicação anterior nos últimos 14 dias</div>
+              ) : (
+                pastDays.map(({ date, dateStr, items }) => (
+                  <div key={dateStr} className="px-3 py-2.5">
+                    <div className="flex items-baseline justify-between mb-1.5">
+                      <span className="text-xs font-semibold capitalize text-muted-foreground">{format(date, "EEE, d 'de' MMM", { locale: ptBR })}</span>
+                      <span className="text-[10px] text-muted-foreground/70">{items.length} {items.length === 1 ? "item" : "itens"}</span>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      {items.map(item => renderListItem(item, true))}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          <div ref={upcomingTopRef} className="px-3 py-2 border-b border-border bg-card scroll-mt-16">
             <div className="text-xs font-semibold uppercase tracking-wide text-foreground">Próximos dias</div>
             <div className="text-[10px] text-muted-foreground mt-0.5">O que vem por aí nos próximos 7 dias</div>
           </div>
@@ -484,20 +563,7 @@ export default function CalendarPage() {
                     <span className="text-[10px] text-muted-foreground">{items.length} {items.length === 1 ? "item" : "itens"}</span>
                   </div>
                   <div className="flex flex-col gap-1">
-                    {items.map(item => (
-                      <button
-                        key={item.id}
-                        onClick={() => handleItemClick(item)}
-                        className="flex items-center gap-2 text-left rounded-md px-2 py-1.5 hover:bg-accent transition-colors"
-                      >
-                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                        <span className="flex-1 min-w-0 text-xs text-foreground truncate">{item.title}</span>
-                        {item.time && <span className="text-[10px] text-muted-foreground tabular-nums">{item.time}</span>}
-                        {item.type === "post" && item.status && (
-                          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: POST_STATUS_META[item.status]?.color || "#9CA3AF" }} />
-                        )}
-                      </button>
-                    ))}
+                    {items.map(item => renderListItem(item))}
                   </div>
                 </div>
               ))}
