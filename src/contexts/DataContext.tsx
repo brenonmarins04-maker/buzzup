@@ -333,11 +333,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // === POSTS ===
   const addPost = useCallback(async (p: Omit<Post, "id" | "responsible"> & { responsibleIds: string[] }) => {
     if (!workspaceId) return;
-    const { data, error } = await supabase.from("posts").insert({
+      const { data, error } = await supabase.from("posts").insert({
       workspace_id: workspaceId, title: p.title, copy: p.copy, channel: p.channel,
       category: p.category,
-      date: p.date ? p.date : null,
-      time: p.time ? p.time : null,
+        date: p.date || "",
+        time: p.time || "",
       status: p.status,
       link: p.link, media_url: p.media_url, team_id: p.teamId,
     } as any).select().single();
@@ -347,7 +347,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const resp = people.filter(per => p.responsibleIds.includes(per.id));
       setPosts(prev => [...prev, {
         id: data.id, title: data.title, copy: data.copy, channel: data.channel, category: data.category,
-        date: data.date, time: data.time, status: data.status, responsible: resp,
+        date: data.date || "", time: data.time || "", status: data.status, responsible: resp,
         link: data.link, media_url: data.media_url, teamId: (data as any).team_id ?? null,
       }]);
     }
@@ -356,8 +356,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const updatePost = useCallback(async (p: Post) => {
     const { error } = await supabase.from("posts").update({
       title: p.title, copy: p.copy, channel: p.channel, category: p.category,
-      date: p.date ? p.date : null,
-      time: p.time ? p.time : null,
+      date: p.date || "",
+      time: p.time || "",
       status: p.status, link: p.link, media_url: p.media_url, team_id: p.teamId,
     } as any).eq("id", p.id);
     if (error) { toast.error("Erro ao atualizar publicação"); return; }
