@@ -31,7 +31,7 @@ export default function DashboardPage() {
     return diff > 0 && diff <= 3;
   });
   const todayPosts = posts.filter(p => p.date === today && p.status !== "published" && p.status !== "done");
-  const overduePosts = posts.filter(p => p.date < today && p.status !== "published" && p.status !== "done");
+  const overduePosts = posts.filter(p => !!p.date && p.date < today && p.status !== "published" && p.status !== "done");
 
   const postsByChannel = channels.map(ch => ({ channel: ch.name, count: posts.filter(p => p.channel === ch.id).length }));
 
