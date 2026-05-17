@@ -120,7 +120,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <main className="flex-1 overflow-auto p-4 pb-24 scrollbar-thin">{children}</main>
         {isAdmin && (
           <QuickCreateMenu onCreateTask={() => setTaskModal(true)} onCreatePost={() => setPostModal(true)} onCreateItem={() => setEventModal(true)}>
-            <button className="fixed bottom-20 right-4 z-40 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all">
+            <button className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all">
               <Plus className="h-6 w-6" />
             </button>
           </QuickCreateMenu>
