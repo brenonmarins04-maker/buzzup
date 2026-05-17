@@ -248,6 +248,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     });
     posts.forEach(p => {
       if (p.status === "published" || p.status === "done") return;
+      if (!p.date) return; // estacionamento — sem data, não pode estar atrasado
       if (p.date === today) notifs.push({ id: `n_${p.id}_today`, title: "Publicação do dia", message: p.title, type: "info", read: false, date: p.date });
       else if (p.date < today) notifs.push({ id: `n_${p.id}_overdue`, title: "Publicação atrasada", message: p.title, type: "danger", read: false, date: p.date });
     });
