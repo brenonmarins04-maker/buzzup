@@ -12,7 +12,7 @@ export type Project = { id: string; name: string; description: string; color: st
 export type Task = {
   id: string; title: string; description: string; team: string;
   teamId: string | null;
-  responsible: Person[]; deadline: string; status: string; priority: string;
+  responsible: Person[]; deadline: string; status: string;
   checklist: { text: string; checked: boolean }[];
   points: number;
 };
@@ -192,7 +192,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           id: r.id, title: r.title, description: r.description, team: r.team,
           teamId: (r as any).team_id ?? null,
           responsible: taskAssignees.get(r.id) || [], deadline: r.deadline, status: r.status,
-          priority: r.priority, checklist, points: (r as any).points ?? 0,
+          checklist, points: (r as any).points ?? 0,
         };
       }));
       setPosts((psRes.data || []).map(r => ({
@@ -305,7 +305,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!workspaceId) return;
     const { data, error } = await supabase.from("tasks").insert({
       workspace_id: workspaceId, title: t.title, description: t.description, team: t.team,
-      deadline: t.deadline, status: t.status, priority: t.priority,
+      deadline: t.deadline, status: t.status,
       checklist: t.checklist as unknown as Json,
       team_id: t.teamId,
       points: t.points ?? 0,
@@ -318,7 +318,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setTasks(prev => [...prev, {
         id: data.id, title: data.title, description: data.description, team: data.team,
         teamId: (data as any).team_id ?? null,
-        responsible: resp, deadline: data.deadline, status: data.status, priority: data.priority, checklist,
+        responsible: resp, deadline: data.deadline, status: data.status, checklist,
         points: (data as any).points ?? 0,
       }]);
     }
@@ -327,7 +327,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const updateTask = useCallback(async (t: Task) => {
     const { error } = await supabase.from("tasks").update({
       title: t.title, description: t.description, team: t.team,
-      deadline: t.deadline, status: t.status, priority: t.priority,
+      deadline: t.deadline, status: t.status,
       checklist: t.checklist as unknown as Json,
       team_id: t.teamId,
       points: t.points ?? 0,
