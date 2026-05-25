@@ -5,9 +5,10 @@ import { ChevronDown, ChevronRight, Users } from "lucide-react";
 interface Props {
   selectedIds: string[];
   onToggle: (personId: string) => void;
+  restrictTeamId?: string | null;
 }
 
-export default function TeamPersonSelector({ selectedIds, onToggle }: Props) {
+export default function TeamPersonSelector({ selectedIds, onToggle, restrictTeamId }: Props) {
   const { teams, people } = useData();
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
 
@@ -24,6 +25,24 @@ export default function TeamPersonSelector({ selectedIds, onToggle }: Props) {
 
   const countSelected = (memberIds: string[]) =>
     memberIds.filter(id => selectedIds.includes(id)).length;
+
+  // When restricted to a specific team, show only its members as flat chips
+  if (restrictTeamId !== undefined) {
+    const restrictedPeople = restrictTeamId === null
+      ? unassigned
+      : people.filter(p => teams.find(t => t.id === restrictTeamId)?.memberIds.includes(p.id));
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        {restrictedPeople.map(p => (
+          <button key={p.id} type="button" onClick={() => onToggle(p.id)}
+            className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${selectedIds.includes(p.id) ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input text-muted-foreground hover:bg-accent"}`}>
+            {p.name}
+          </button>
+        ))}
+        {restrictedPeople.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma pessoa nesta equipe.</p>}
+      </div>
+    );
+  }
 
   if (teams.length === 0) {
     // Fallback: show people directly if no teams exist
