@@ -7,13 +7,14 @@ import { toast } from "sonner";
 
 type Json = Database["public"]["Tables"]["tasks"]["Row"]["checklist"];
 
-export type Person = { id: string; name: string };
+export type Person = { id: string; name: string; nickname?: string | null };
 export type Project = { id: string; name: string; description: string; color: string; status: string; members: Person[] };
 export type Task = {
   id: string; title: string; description: string; team: string;
   teamId: string | null;
   responsible: Person[]; deadline: string; status: string; priority: string;
   checklist: { text: string; checked: boolean }[];
+  points: number;
 };
 export type Post = {
   id: string; title: string; copy: string; channel: string; category: string;
@@ -38,6 +39,7 @@ type DataContextType = {
 
   addPerson: (name: string) => void;
   updatePerson: (id: string, name: string) => void;
+  updatePersonNickname: (id: string, nickname: string | null) => void;
   deletePerson: (id: string) => void;
 
   addTask: (task: Omit<Task, "id" | "responsible"> & { responsibleIds: string[] }) => void;
@@ -120,7 +122,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setWorkspaceId(wsId);
 
       const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes, etRes] = await Promise.all([
-        supabase.from("people").select("id, name").eq("workspace_id", wsId),
+        supabase.from("people").select("id, name, nickname").eq("workspace_id", wsId),
         supabase.from("projects").select("*").eq("workspace_id", wsId),
         supabase.from("tasks").select("*").eq("workspace_id", wsId),
         supabase.from("posts").select("*").eq("workspace_id", wsId),
@@ -136,7 +138,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       ]);
       if (cancelled) return;
 
-      const pplList: Person[] = (pplRes.data || []).map(p => ({ id: p.id, name: p.name }));
+      const pplList: Person[] = (pplRes.data || []).map((p: any) => ({ id: p.id, name: p.name, nickname: p.nickname ?? null }));
       const pplMap = new Map(pplList.map(p => [p.id, p]));
       setPeople(pplList);
 
@@ -190,7 +192,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           id: r.id, title: r.title, description: r.description, team: r.team,
           teamId: (r as any).team_id ?? null,
           responsible: taskAssignees.get(r.id) || [], deadline: r.deadline, status: r.status,
-          priority: r.priority, checklist,
+          priority: r.priority, checklist, points: (r as any).points ?? 0,
         };
       }));
       setPosts((psRes.data || []).map(r => ({
@@ -281,6 +283,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setProjects(prev => prev.map(p => ({ ...p, members: p.members.map(m => m.id === id ? { ...m, name } : m) })));
   }, []);
 
+  const updatePersonNickname = useCallback(async (id: string, nickname: string | null) => {
+    const value = nickname && nickname.trim() ? nickname.trim() : null;
+    const { error } = await (supabase.from("people") as any).update({ nickname: value }).eq("id", id);
+    if (error) { toast.error("Erro ao atualizar apelido"); return; }
+    setPeople(prev => prev.map(p => p.id === id ? { ...p, nickname: value } : p));
+  }, []);
+
   const deletePerson = useCallback(async (id: string) => {
     const { error } = await supabase.from("people").delete().eq("id", id);
     if (error) { toast.error("Erro ao excluir pessoa"); return; }
@@ -299,6 +308,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       deadline: t.deadline, status: t.status, priority: t.priority,
       checklist: t.checklist as unknown as Json,
       team_id: t.teamId,
+      points: t.points ?? 0,
     } as any).select().single();
     if (error) { toast.error("Erro ao criar tarefa"); return; }
     if (data) {
@@ -309,6 +319,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         id: data.id, title: data.title, description: data.description, team: data.team,
         teamId: (data as any).team_id ?? null,
         responsible: resp, deadline: data.deadline, status: data.status, priority: data.priority, checklist,
+        points: (data as any).points ?? 0,
       }]);
     }
   }, [workspaceId, people, syncJunction]);
@@ -319,6 +330,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       deadline: t.deadline, status: t.status, priority: t.priority,
       checklist: t.checklist as unknown as Json,
       team_id: t.teamId,
+      points: t.points ?? 0,
     } as any).eq("id", t.id);
     if (error) { toast.error("Erro ao atualizar tarefa"); return; }
     await syncJunction("task_assignees", "task_id", t.id, t.responsible.map(r => r.id));
@@ -528,7 +540,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   return (
     <DataContext.Provider value={{
       people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, loading, workspaceId,
-      addPerson, updatePerson, deletePerson,
+      addPerson, updatePerson, updatePersonNickname, deletePerson,
       addTask, updateTask, deleteTask,
       addPost, updatePost, deletePost,
       addProject, updateProject, deleteProject,

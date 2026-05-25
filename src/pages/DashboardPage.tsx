@@ -1,11 +1,10 @@
 import { useData } from "@/contexts/DataContext";
 import {
-  Clock, AlertTriangle, AlertCircle, TrendingUp, BarChart3, Megaphone, Users, UsersRound,
+  TrendingUp, BarChart3, Users, UsersRound, Trophy, Medal,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
 } from "recharts";
-import { getNowBrasilia, getTodayBrasilia } from "@/lib/utils";
 
 const PIE_COLORS = ["hsl(330, 70%, 55%)", "hsl(210, 80%, 52%)", "hsl(170, 80%, 40%)", "hsl(40, 6%, 10%)", "hsl(280, 60%, 55%)"];
 
@@ -20,20 +19,22 @@ export default function DashboardPage() {
     );
   }
 
-  const today = getTodayBrasilia();
-  const todayDate = getNowBrasilia();
-
-  const overdueTasks = tasks.filter(t => t.status !== "done" && t.deadline < today);
-  const dueTodayTasks = tasks.filter(t => t.status !== "done" && t.deadline === today);
-  const upcomingSoonTasks = tasks.filter(t => {
-    if (t.status === "done") return false;
-    const diff = Math.ceil((new Date(t.deadline).getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
-    return diff > 0 && diff <= 3;
-  });
-  const todayPosts = posts.filter(p => p.date === today && p.status !== "published" && p.status !== "done");
-  const overduePosts = posts.filter(p => !!p.date && p.date < today && p.status !== "published" && p.status !== "done");
-
   const postsByChannel = channels.map(ch => ({ channel: ch.name, count: posts.filter(p => p.channel === ch.id).length }));
+
+  // Ranking gamificação
+  const doneTasksAll = tasks.filter(t => t.status === "done");
+  const pointsByPerson: Record<string, number> = {};
+  doneTasksAll.forEach(t => {
+    t.responsible.forEach(r => { pointsByPerson[r.id] = (pointsByPerson[r.id] || 0) + (t.points || 0); });
+  });
+  const ranking = people
+    .map(p => ({
+      id: p.id,
+      label: (p.nickname && p.nickname.trim()) ? p.nickname.trim() : p.name,
+      points: pointsByPerson[p.id] || 0,
+    }))
+    .filter(r => r.points > 0)
+    .sort((a, b) => b.points - a.points);
 
   // People in projects stats
   const activeProjects = projects.filter(p => p.status === "active");
@@ -65,8 +66,6 @@ export default function DashboardPage() {
     completed: doneTasks.filter(t => t.teamId === team.id).length,
   })).sort((a, b) => b.completed - a.completed).filter(d => d.completed > 0);
 
-  const hasAlerts = overdueTasks.length > 0 || dueTodayTasks.length > 0 || upcomingSoonTasks.length > 0 || todayPosts.length > 0 || overduePosts.length > 0;
-
   return (
     <div className="animate-fade-in space-y-6">
       <div>
@@ -74,60 +73,30 @@ export default function DashboardPage() {
         <p className="text-sm text-muted-foreground mt-1">Resumo geral</p>
       </div>
 
-      {hasAlerts && (
-        <div className="bg-card border border-border rounded-lg p-5">
-          <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-priority-high" /> Atenção Hoje
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {overdueTasks.length > 0 && (
-              <div className="flex items-start gap-3 p-3 rounded-md bg-destructive/5 border border-destructive/20">
-                <AlertCircle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-xs font-semibold text-destructive">Tarefas atrasadas</p>
-                  {overdueTasks.map(t => <p key={t.id} className="text-xs text-muted-foreground">{t.title}</p>)}
-                </div>
-              </div>
-            )}
-            {dueTodayTasks.length > 0 && (
-              <div className="flex items-start gap-3 p-3 rounded-md bg-destructive/5 border border-destructive/20">
-                <Clock className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-xs font-semibold text-destructive">Vence hoje</p>
-                  {dueTodayTasks.map(t => <p key={t.id} className="text-xs text-muted-foreground">{t.title}</p>)}
-                </div>
-              </div>
-            )}
-            {upcomingSoonTasks.length > 0 && (
-              <div className="flex items-start gap-3 p-3 rounded-md bg-status-in-progress/5 border border-status-in-progress/20">
-                <AlertTriangle className="h-4 w-4 text-status-in-progress shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-xs font-semibold text-status-in-progress">Prazos próximos</p>
-                  {upcomingSoonTasks.map(t => <p key={t.id} className="text-xs text-muted-foreground">{t.title} — {t.deadline}</p>)}
-                </div>
-              </div>
-            )}
-            {todayPosts.length > 0 && (
-              <div className="flex items-start gap-3 p-3 rounded-md bg-status-published/5 border border-status-published/20">
-                <Megaphone className="h-4 w-4 text-status-published shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-xs font-semibold text-status-published">Publicações do dia</p>
-                  {todayPosts.map(p => <p key={p.id} className="text-xs text-muted-foreground">{p.title}</p>)}
-                </div>
-              </div>
-            )}
-            {overduePosts.length > 0 && (
-              <div className="flex items-start gap-3 p-3 rounded-md bg-destructive/5 border border-destructive/20">
-                <Megaphone className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-xs font-semibold text-destructive">Publicações atrasadas</p>
-                  {overduePosts.map(p => <p key={p.id} className="text-xs text-muted-foreground">{p.title}</p>)}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Ranking de Gamificação */}
+      <div className="bg-card border border-border rounded-lg p-5">
+        <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <Trophy className="h-4 w-4 text-primary" /> Ranking
+        </h2>
+        {ranking.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Nenhum ponto ainda. Conclua tarefas com pontos atribuídos para entrar no ranking.</p>
+        ) : (
+          <ol className="flex flex-col gap-2">
+            {ranking.map((r, i) => {
+              const medalColor = i === 0 ? "text-yellow-500" : i === 1 ? "text-gray-400" : i === 2 ? "text-amber-700" : "text-muted-foreground";
+              return (
+                <li key={r.id} className="flex items-center gap-3 p-2.5 rounded-md bg-muted/40">
+                  <div className="flex items-center justify-center w-7 h-7 shrink-0">
+                    {i < 3 ? <Medal className={`h-5 w-5 ${medalColor}`} /> : <span className="text-xs font-bold text-muted-foreground">{i + 1}</span>}
+                  </div>
+                  <span className="flex-1 text-sm font-medium text-foreground truncate">{r.label}</span>
+                  <span className="text-sm font-bold text-primary">{r.points} pts</span>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </div>
 
       {/* Pessoas em Projetos */}
       <div className="bg-card border border-border rounded-lg p-5">

@@ -33,6 +33,7 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate, locke
     deadline: defaultDate || "",
     status: "not-started", priority: "medium",
     checklist: [] as { text: string; checked: boolean }[],
+    points: 0,
   });
 
   const [form, setForm] = useState(makeBlank);
@@ -46,6 +47,7 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate, locke
         teamId: task.teamId,
         deadline: task.deadline, status: task.status,
         priority: task.priority, checklist: task.checklist || [],
+        points: task.points ?? 0,
       });
     } else {
       setForm(makeBlank());
@@ -63,6 +65,7 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate, locke
         teamId: form.teamId,
         responsible: people.filter(p => form.responsibleIds.includes(p.id)),
         deadline: form.deadline, status: form.status, priority: form.priority, checklist: form.checklist,
+        points: form.points,
       });
       toast.success("Tarefa atualizada");
       onOpenChange(false);
@@ -106,6 +109,16 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate, locke
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Prazo *</label>
               <Input type="date" value={form.deadline} onChange={e => setForm(p => ({ ...p, deadline: e.target.value }))} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Pontos</label>
+              <Input
+                type="number"
+                min={0}
+                value={form.points}
+                onChange={e => setForm(p => ({ ...p, points: Math.max(0, parseInt(e.target.value) || 0) }))}
+                placeholder="0"
+              />
             </div>
           </div>
           <div>
