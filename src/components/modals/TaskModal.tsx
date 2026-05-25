@@ -124,7 +124,11 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate, locke
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Equipe</label>
-            {lockedTeamId !== undefined && !task ? (
+            {task ? (
+              <div className="text-xs px-2.5 py-1 rounded-full border border-primary bg-primary/10 text-primary inline-block">
+                {form.teamId === null ? "Sem equipe" : (teams.find(t => t.id === form.teamId)?.name ?? "Equipe")}
+              </div>
+            ) : lockedTeamId !== undefined ? (
               <div className="text-xs px-2.5 py-1 rounded-full border border-primary bg-primary/10 text-primary inline-block">
                 {lockedTeamId === null ? "Sem equipe" : (teams.find(t => t.id === lockedTeamId)?.name ?? "Equipe")}
               </div>
@@ -145,7 +149,7 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate, locke
             <TeamPersonSelector
               selectedIds={form.responsibleIds}
               onToggle={toggleResponsible}
-              restrictTeamId={lockedTeamId !== undefined && !task ? lockedTeamId : undefined}
+              restrictTeamId={task ? form.teamId : (lockedTeamId !== undefined ? lockedTeamId : undefined)}
             />
           </div>
           <div>
