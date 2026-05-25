@@ -15,7 +15,7 @@ import EventModal from "@/components/modals/EventModal";
 import NotificationPanel from "@/components/NotificationPanel";
 
 const navItems = [
-  { to: "/", icon: LayoutDashboard, label: "Início" },
+  { to: "/", icon: Trophy, label: "Gamificação" },
   { to: "/calendar", icon: CalendarDays, label: "Calendário" },
   { to: "/tasks", icon: CheckSquare, label: "Tarefas" },
   { to: "/content", icon: Megaphone, label: "Conteúdo" },
@@ -154,7 +154,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {[
             ...navItems,
             { to: "/people", icon: Users, label: "Pessoas" },
-            ...(isAdmin ? [{ to: "/gamification", icon: Trophy, label: "Gamificação" }] : []),
+            ...(isAdmin ? [{ to: "/gamification", icon: Trophy, label: "Apelidos" }] : []),
           ].map((item) => (
             <NavLink key={item.to} to={item.to}
               className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive ? "bg-accent text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"} ${collapsed ? "justify-center" : ""}`}>

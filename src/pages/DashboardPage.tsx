@@ -1,6 +1,6 @@
 import { useData } from "@/contexts/DataContext";
 import {
-  TrendingUp, BarChart3, Users, UsersRound, Trophy, Medal,
+  TrendingUp, Users, UsersRound, Trophy, Medal,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
@@ -69,8 +69,8 @@ export default function DashboardPage() {
   return (
     <div className="animate-fade-in space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground tracking-tight">Início</h1>
-        <p className="text-sm text-muted-foreground mt-1">Resumo geral</p>
+        <h1 className="text-2xl font-semibold text-foreground tracking-tight">Gamificação</h1>
+        <p className="text-sm text-muted-foreground mt-1">Ranking e visão geral</p>
       </div>
 
       {/* Ranking de Gamificação */}
@@ -153,37 +153,8 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Tarefas concluídas por pessoa */}
-        <div className="bg-card border border-border rounded-lg p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold text-foreground">Tarefas Concluídas por Pessoa</h2>
-          </div>
-          <div className="h-48">
-            {tasksByPerson.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={tasksByPerson} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(40, 6%, 90%)" />
-                  <XAxis type="number" tick={{ fontSize: 11 }} stroke="hsl(40, 3%, 55%)" />
-                  <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} stroke="hsl(40, 3%, 55%)" width={80} />
-                  <Tooltip
-                    contentStyle={{ borderRadius: "8px", border: "1px solid hsl(40, 6%, 90%)", fontSize: "12px" }}
-                    formatter={(value: number, _name: string, props: any) => [value, props.payload.fullName]}
-                  />
-                  <Bar dataKey="completed" fill="hsl(40, 6%, 10%)" radius={[0, 4, 4, 0]} name="Concluídas" />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
-                Nenhuma tarefa concluída ainda
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Tarefas concluídas por equipe */}
-        <div className="bg-card border border-border rounded-lg p-5">
+      {/* Tarefas concluídas por equipe */}
+      <div className="bg-card border border-border rounded-lg p-5">
           <div className="flex items-center gap-2 mb-4">
             <UsersRound className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-sm font-semibold text-foreground">Tarefas Concluídas por Equipe</h2>
@@ -205,7 +176,6 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
-        </div>
       </div>
 
       {/* Posts por canal */}
