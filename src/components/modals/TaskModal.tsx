@@ -31,7 +31,7 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate, locke
     team: memory.lastTeam || "",
     teamId: lockedTeamId !== undefined ? lockedTeamId : ((memory.lastTeamId as string | null) ?? null),
     deadline: defaultDate || "",
-    status: "not-started", priority: "medium",
+    status: "not-started",
     checklist: [] as { text: string; checked: boolean }[],
     points: 0,
   });
@@ -46,7 +46,7 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate, locke
         responsibleIds: task.responsible.map(r => r.id), team: task.team,
         teamId: task.teamId,
         deadline: task.deadline, status: task.status,
-        priority: task.priority, checklist: task.checklist || [],
+        checklist: task.checklist || [],
         points: task.points ?? 0,
       });
     } else {
@@ -58,13 +58,14 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate, locke
   const handleSave = () => {
     if (!form.title.trim()) { toast.error("Título é obrigatório"); return; }
     if (!form.deadline) { toast.error("Prazo é obrigatório"); return; }
+    if (form.responsibleIds.length === 0) { toast.error("Selecione pelo menos um responsável"); return; }
     remember({ lastTeam: form.team, lastTeamId: form.teamId });
     if (task) {
       updateTask({
         ...task, title: form.title, description: form.description, team: form.team,
         teamId: form.teamId,
         responsible: people.filter(p => form.responsibleIds.includes(p.id)),
-        deadline: form.deadline, status: form.status, priority: form.priority, checklist: form.checklist,
+        deadline: form.deadline, status: form.status, checklist: form.checklist,
         points: form.points,
       });
       toast.success("Tarefa atualizada");
@@ -131,26 +132,16 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate, locke
               <TeamSelector selectedId={form.teamId} onChange={(id) => setForm(p => ({ ...p, teamId: id }))} />
             )}
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Prioridade</label>
-              <select value={form.priority} onChange={e => setForm(p => ({ ...p, priority: e.target.value }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-                <option value="high">Alta</option>
-                <option value="medium">Média</option>
-                <option value="low">Baixa</option>
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Status</label>
-              <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-                <option value="not-started">Não Começado</option>
-                <option value="in-progress">Em Andamento</option>
-                <option value="done">Pronto</option>
-              </select>
-            </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Status</label>
+            <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
+              <option value="not-started">Não Começado</option>
+              <option value="in-progress">Em Andamento</option>
+              <option value="done">Pronto</option>
+            </select>
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Responsáveis</label>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Responsáveis *</label>
             <TeamPersonSelector
               selectedIds={form.responsibleIds}
               onToggle={toggleResponsible}

@@ -1,0 +1,1 @@
+ALTER TABLE public.tasks DROP COLUMN IF EXISTS priority;
