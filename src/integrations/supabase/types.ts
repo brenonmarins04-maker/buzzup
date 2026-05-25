@@ -409,7 +409,6 @@ export type Database = {
           description: string
           id: string
           points: number
-          priority: string
           status: string
           team: string
           team_id: string | null
@@ -423,7 +422,6 @@ export type Database = {
           description?: string
           id?: string
           points?: number
-          priority?: string
           status?: string
           team?: string
           team_id?: string | null
@@ -437,7 +435,6 @@ export type Database = {
           description?: string
           id?: string
           points?: number
-          priority?: string
           status?: string
           team?: string
           team_id?: string | null
