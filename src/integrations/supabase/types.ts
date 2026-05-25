@@ -147,6 +147,7 @@ export type Database = {
           id: string
           invite_status: string
           name: string
+          nickname: string | null
           role: string
           user_id: string | null
           workspace_id: string
@@ -157,6 +158,7 @@ export type Database = {
           id?: string
           invite_status?: string
           name: string
+          nickname?: string | null
           role?: string
           user_id?: string | null
           workspace_id: string
@@ -167,6 +169,7 @@ export type Database = {
           id?: string
           invite_status?: string
           name?: string
+          nickname?: string | null
           role?: string
           user_id?: string | null
           workspace_id?: string
@@ -405,6 +408,7 @@ export type Database = {
           deadline: string
           description: string
           id: string
+          points: number
           priority: string
           status: string
           team: string
@@ -418,6 +422,7 @@ export type Database = {
           deadline?: string
           description?: string
           id?: string
+          points?: number
           priority?: string
           status?: string
           team?: string
@@ -431,6 +436,7 @@ export type Database = {
           deadline?: string
           description?: string
           id?: string
+          points?: number
           priority?: string
           status?: string
           team?: string
