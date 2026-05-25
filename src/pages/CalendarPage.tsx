@@ -130,8 +130,10 @@ export default function CalendarPage() {
     };
     tasks.forEach((t) => {
       if (filterTypes.length > 0 && !filterTypes.includes("task")) return;
+      if (t.status === "done") return; // tarefas concluídas não aparecem no calendário
       if (!teamMatch(t.teamId)) return;
-      items.push({ id: t.id, title: t.title, type: "task", date: t.deadline, color: TASK_COLOR, status: t.status });
+      const taskColor = t.status === "in-progress" ? "#F59E0B" : t.status === "not-started" ? "#9CA3AF" : TASK_COLOR;
+      items.push({ id: t.id, title: t.title, type: "task", date: t.deadline, color: taskColor, status: t.status });
     });
     posts.forEach((p) => {
       if (!p.date) return; // estacionamento

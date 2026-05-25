@@ -138,11 +138,27 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate, locke
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Status</label>
-            <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-              <option value="not-started">Não Começado</option>
-              <option value="in-progress">Em Andamento</option>
-              <option value="done">Pronto</option>
-            </select>
+            <div className="flex gap-2">
+              {[
+                { v: "not-started", label: "Não Começado", color: "#9CA3AF" },
+                { v: "in-progress", label: "Em Andamento", color: "#F59E0B" },
+                { v: "done",        label: "Concluída",    color: "#10B981" },
+              ].map(s => {
+                const active = form.status === s.v;
+                return (
+                  <button
+                    key={s.v}
+                    type="button"
+                    onClick={() => setForm(p => ({ ...p, status: s.v }))}
+                    className={`flex-1 h-10 px-2 rounded-md border text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${active ? "border-transparent text-white shadow-sm" : "border-input bg-background text-foreground hover:bg-accent"}`}
+                    style={active ? { backgroundColor: s.color } : undefined}
+                  >
+                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: active ? "#fff" : s.color }} />
+                    {s.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Responsáveis *</label>
