@@ -210,7 +210,20 @@ export default function TasksPage() {
         </div>
       )}
 
-      <TaskModal open={modal.open} onOpenChange={o => setModal({ open: o })} task={modal.task} />
+      <TaskModal
+        open={modal.open}
+        onOpenChange={o => setModal({ open: o })}
+        task={modal.task}
+        lockedTeamId={
+          modal.task
+            ? undefined
+            : teamFilter === null
+              ? undefined
+              : teamFilter === "__none"
+                ? null
+                : teamFilter
+        }
+      />
       <DeleteConfirmDialog open={deleting.open} onOpenChange={o => setDeleting(p => ({ ...p, open: o }))}
         title={deleting.title} onConfirm={() => { deleteTask(deleting.id); toast.success("Tarefa excluída"); }} />
     </div>
