@@ -138,7 +138,11 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate, locke
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Responsáveis</label>
-            <TeamPersonSelector selectedIds={form.responsibleIds} onToggle={toggleResponsible} />
+            <TeamPersonSelector
+              selectedIds={form.responsibleIds}
+              onToggle={toggleResponsible}
+              restrictTeamId={lockedTeamId !== undefined && !task ? lockedTeamId : undefined}
+            />
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Checklist</label>
