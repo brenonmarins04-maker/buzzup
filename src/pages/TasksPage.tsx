@@ -157,7 +157,9 @@ export default function TasksPage() {
                       </button>
                       <div className="flex items-start justify-between mb-2 pr-5">
                         <span className="text-[11px] font-medium tracking-wide uppercase text-muted-foreground bg-muted px-2 py-0.5 rounded-sm">{task.team || "Sem equipe"}</span>
-                        <span className={`h-2 w-2 rounded-full shrink-0 mt-1 ${task.priority === "high" ? "bg-priority-high" : task.priority === "medium" ? "bg-priority-medium" : "bg-priority-low"}`} />
+                        {task.points > 0 && (
+                          <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-sm shrink-0">{task.points} pts</span>
+                        )}
                       </div>
                       <p className="text-sm font-medium text-foreground leading-snug mb-2">{task.title}</p>
                       {task.description && <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{task.description}</p>}
