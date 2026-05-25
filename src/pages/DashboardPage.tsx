@@ -1,6 +1,6 @@
 import { useData } from "@/contexts/DataContext";
 import {
-  TrendingUp, BarChart3, Users, UsersRound, Trophy, Medal,
+  TrendingUp, Users, UsersRound, Trophy, Medal,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
