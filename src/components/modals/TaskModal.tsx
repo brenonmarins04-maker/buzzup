@@ -17,16 +17,20 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   task?: Task | null;
   defaultDate?: string;
+  lockedTeamId?: string | null;
 };
 
-export default function TaskModal({ open, onOpenChange, task, defaultDate }: Props) {
+export default function TaskModal({ open, onOpenChange, task, defaultDate, lockedTeamId }: Props) {
   const { people, addTask, updateTask } = useData();
+  const { teams } = useData();
   const { memory, remember } = useFormMemory();
   const titleRef = useRef<HTMLInputElement>(null);
 
   const makeBlank = () => ({
     title: "", description: "", responsibleIds: [] as string[],
-    team: memory.lastTeam || "", teamId: (memory.lastTeamId as string | null) ?? null, deadline: defaultDate || "",
+    team: memory.lastTeam || "",
+    teamId: lockedTeamId !== undefined ? lockedTeamId : ((memory.lastTeamId as string | null) ?? null),
+    deadline: defaultDate || "",
     status: "not-started", priority: "medium",
     checklist: [] as { text: string; checked: boolean }[],
   });
@@ -47,7 +51,7 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
       setForm(makeBlank());
     }
     setNewCheckItem("");
-  }, [task, defaultDate, open]);
+  }, [task, defaultDate, open, lockedTeamId]);
 
   const handleSave = () => {
     if (!form.title.trim()) { toast.error("Título é obrigatório"); return; }
@@ -106,7 +110,13 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate }: Pro
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Equipe</label>
-            <TeamSelector selectedId={form.teamId} onChange={(id) => setForm(p => ({ ...p, teamId: id }))} />
+            {lockedTeamId !== undefined && !task ? (
+              <div className="text-xs px-2.5 py-1 rounded-full border border-primary bg-primary/10 text-primary inline-block">
+                {lockedTeamId === null ? "Sem equipe" : (teams.find(t => t.id === lockedTeamId)?.name ?? "Equipe")}
+              </div>
+            ) : (
+              <TeamSelector selectedId={form.teamId} onChange={(id) => setForm(p => ({ ...p, teamId: id }))} />
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
