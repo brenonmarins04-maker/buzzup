@@ -9,12 +9,8 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import DashboardPage from "./pages/DashboardPage";
 import CalendarPage from "./pages/CalendarPage";
-import TasksPage from "./pages/TasksPage";
-import ContentPage from "./pages/ContentPage";
 import PeoplePage from "./pages/PeoplePage";
-import ProjectsPage from "./pages/ProjectsPage";
-import TeamsPage from "./pages/TeamsPage";
-import GamificationAdminPage from "./pages/GamificationAdminPage";
+import AreaPage from "./pages/AreaPage";
 import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import WelcomePage from "./pages/WelcomePage";
@@ -43,12 +39,11 @@ const App = () => (
             <Route path="/welcome" element={<WelcomePage />} />
             <Route path="/" element={<ProtectedApp><DashboardPage /></ProtectedApp>} />
             <Route path="/calendar" element={<ProtectedApp><CalendarPage /></ProtectedApp>} />
-            <Route path="/tasks" element={<ProtectedApp><TasksPage /></ProtectedApp>} />
-            <Route path="/content" element={<ProtectedApp><ContentPage /></ProtectedApp>} />
             <Route path="/people" element={<ProtectedApp><PeoplePage /></ProtectedApp>} />
-            <Route path="/projects" element={<ProtectedApp><ProjectsPage /></ProtectedApp>} />
-            <Route path="/teams" element={<ProtectedApp><TeamsPage /></ProtectedApp>} />
-            <Route path="/gamification" element={<ProtectedApp><GamificationAdminPage /></ProtectedApp>} />
+            <Route path="/projetos"    element={<ProtectedApp><AreaPage area="projetos" /></ProtectedApp>} />
+            <Route path="/mercado"     element={<ProtectedApp><AreaPage area="mercado" /></ProtectedApp>} />
+            <Route path="/gg"          element={<ProtectedApp><AreaPage area="gg" /></ProtectedApp>} />
+            <Route path="/presidencia" element={<ProtectedApp><AreaPage area="presidencia" /></ProtectedApp>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 type Json = Database["public"]["Tables"]["tasks"]["Row"]["checklist"];
 
-export type Person = { id: string; name: string; nickname?: string | null };
+export type Person = { id: string; name: string; nickname?: string | null; area?: string | null };
 export type Project = { id: string; name: string; description: string; color: string; status: string; members: Person[] };
 export type Task = {
   id: string; title: string; description: string; team: string;
@@ -15,6 +15,7 @@ export type Task = {
   responsible: Person[]; deadline: string; status: string;
   checklist: { text: string; checked: boolean }[];
   points: number;
+  area?: string | null;
 };
 export type Post = {
   id: string; title: string; copy: string; channel: string; category: string;
@@ -26,6 +27,9 @@ export type Channel = { id: string; name: string; color: string };
 export type Team = { id: string; name: string; memberIds: string[] };
 export type EventType = { id: string; name: string; color: string };
 
+export type AreaNote = { id: string; area: string; name: string; url: string; position: number };
+export type ParkingItem = { id: string; area: string; personId: string | null; title: string; description: string; position: number };
+
 export type Notification = {
   id: string; title: string; message: string;
   type: "warning" | "danger" | "info"; read: boolean; date: string;
@@ -35,11 +39,13 @@ type DataContextType = {
   people: Person[]; projects: Project[]; tasks: Task[]; posts: Post[];
   events: CalendarEvent[]; teams: Team[];
   categories: string[]; channels: Channel[]; eventTypes: EventType[]; notifications: Notification[];
+  areaNotes: AreaNote[]; parkingItems: ParkingItem[];
   loading: boolean; workspaceId: string | null;
 
   addPerson: (name: string) => void;
   updatePerson: (id: string, name: string) => void;
   updatePersonNickname: (id: string, nickname: string | null) => void;
+  updatePersonArea: (id: string, area: string | null) => void;
   deletePerson: (id: string) => void;
 
   addTask: (task: Omit<Task, "id" | "responsible"> & { responsibleIds: string[] }) => void;
@@ -76,6 +82,15 @@ type DataContextType = {
 
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
+
+  addAreaNote: (area: string, name: string, url: string) => Promise<void>;
+  updateAreaNote: (n: AreaNote) => Promise<void>;
+  deleteAreaNote: (id: string) => Promise<void>;
+
+  addParkingItem: (area: string, title: string, description?: string) => Promise<void>;
+  updateParkingItem: (p: ParkingItem) => Promise<void>;
+  moveParkingItem: (id: string, personId: string | null) => Promise<void>;
+  deleteParkingItem: (id: string) => Promise<void>;
 };
 
 const DataContext = createContext<DataContextType | null>(null);
@@ -95,6 +110,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [teams, setTeams] = useState<Team[]>([]);
   const [eventTypes, setEventTypes] = useState<EventType[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [areaNotes, setAreaNotes] = useState<AreaNote[]>([]);
+  const [parkingItems, setParkingItems] = useState<ParkingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoriesRaw, setCategoriesRaw] = useState<{ id: string; name: string }[]>([]);
   const [refetchTick, setRefetchTick] = useState(0);
@@ -104,7 +121,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!uid) {
       setWorkspaceId(null); setPeople([]); setProjects([]); setTasks([]); setPosts([]);
       setEvents([]); setCategories([]); setChannels([]); setTeams([]);
-      setCategoriesRaw([]); setEventTypes([]); setLoading(false);
+      setCategoriesRaw([]); setEventTypes([]); setAreaNotes([]); setParkingItems([]); setLoading(false);
       return;
     }
     let cancelled = false;
@@ -121,8 +138,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const wsId = ws.id;
       setWorkspaceId(wsId);
 
-      const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes, etRes] = await Promise.all([
-        supabase.from("people").select("id, name, nickname").eq("workspace_id", wsId),
+      const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes, etRes, anRes, piRes] = await Promise.all([
+        (supabase.from("people") as any).select("id, name, nickname, area").eq("workspace_id", wsId),
         supabase.from("projects").select("*").eq("workspace_id", wsId),
         supabase.from("tasks").select("*").eq("workspace_id", wsId),
         supabase.from("posts").select("*").eq("workspace_id", wsId),
@@ -135,10 +152,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         supabase.from("teams").select("id, name").eq("workspace_id", wsId),
         supabase.from("team_members").select("team_id, person_id"),
         (supabase.from as any)("event_types").select("id, name, color").eq("workspace_id", wsId),
+        (supabase.from as any)("area_notes").select("*").eq("workspace_id", wsId),
+        (supabase.from as any)("parking_items").select("*").eq("workspace_id", wsId),
       ]);
       if (cancelled) return;
 
-      const pplList: Person[] = (pplRes.data || []).map((p: any) => ({ id: p.id, name: p.name, nickname: p.nickname ?? null }));
+      const pplList: Person[] = (pplRes.data || []).map((p: any) => ({ id: p.id, name: p.name, nickname: p.nickname ?? null, area: p.area ?? null }));
       const pplMap = new Map(pplList.map(p => [p.id, p]));
       setPeople(pplList);
 
@@ -193,6 +212,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           teamId: (r as any).team_id ?? null,
           responsible: taskAssignees.get(r.id) || [], deadline: r.deadline, status: r.status,
           checklist, points: (r as any).points ?? 0,
+          area: (r as any).area ?? null,
         };
       }));
       setPosts((psRes.data || []).map(r => ({
@@ -208,6 +228,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setCategories(rawCats.map(c => c.name));
       setChannels((chRes.data || []).map(c => ({ id: c.id, name: c.name, color: c.color })));
       setEventTypes(((etRes as any)?.data || []).map((e: any) => ({ id: e.id, name: e.name, color: e.color })));
+      setAreaNotes(((anRes as any)?.data || []).map((n: any) => ({ id: n.id, area: n.area, name: n.name, url: n.url, position: n.position ?? 0 })));
+      setParkingItems(((piRes as any)?.data || []).map((p: any) => ({ id: p.id, area: p.area, personId: p.person_id ?? null, title: p.title, description: p.description ?? "", position: p.position ?? 0 })));
       setLoading(false);
     }
     fetchAll();
@@ -221,6 +243,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       "people", "tasks", "posts", "projects", "calendar_items",
       "categories", "channels", "teams", "team_members",
       "task_assignees", "post_assignees", "project_participants", "event_types",
+      "area_notes", "parking_items",
     ];
     let scheduled: ReturnType<typeof setTimeout> | null = null;
     const trigger = () => {
@@ -288,6 +311,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const { error } = await (supabase.from("people") as any).update({ nickname: value }).eq("id", id);
     if (error) { toast.error("Erro ao atualizar apelido"); return; }
     setPeople(prev => prev.map(p => p.id === id ? { ...p, nickname: value } : p));
+  }, []);
+
+  const updatePersonArea = useCallback(async (id: string, area: string | null) => {
+    const { error } = await (supabase.from("people") as any).update({ area }).eq("id", id);
+    if (error) { toast.error("Erro ao atualizar área"); return; }
+    setPeople(prev => prev.map(p => p.id === id ? { ...p, area } : p));
   }, []);
 
   const deletePerson = useCallback(async (id: string) => {
@@ -537,10 +566,62 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const markNotificationRead = useCallback((id: string) => setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n)), []);
   const markAllNotificationsRead = useCallback(() => setNotifications(prev => prev.map(n => ({ ...n, read: true }))), []);
 
+  // === AREA NOTES (link shortcuts) ===
+  const addAreaNote = useCallback(async (area: string, name: string, url: string) => {
+    if (!workspaceId) return;
+    const { data, error } = await (supabase.from("area_notes") as any)
+      .insert({ workspace_id: workspaceId, area, name, url, position: areaNotes.filter(n => n.area === area).length })
+      .select().single();
+    if (error) { toast.error("Erro ao criar atalho"); return; }
+    if (data) setAreaNotes(prev => [...prev, { id: data.id, area: data.area, name: data.name, url: data.url, position: data.position ?? 0 }]);
+  }, [workspaceId, areaNotes]);
+
+  const updateAreaNote = useCallback(async (n: AreaNote) => {
+    const { error } = await (supabase.from("area_notes") as any).update({ name: n.name, url: n.url, position: n.position }).eq("id", n.id);
+    if (error) { toast.error("Erro ao atualizar"); return; }
+    setAreaNotes(prev => prev.map(x => x.id === n.id ? n : x));
+  }, []);
+
+  const deleteAreaNote = useCallback(async (id: string) => {
+    const { error } = await (supabase.from("area_notes") as any).delete().eq("id", id);
+    if (error) { toast.error("Erro ao excluir"); return; }
+    setAreaNotes(prev => prev.filter(x => x.id !== id));
+  }, []);
+
+  // === PARKING ITEMS (Quadro CB) ===
+  const addParkingItem = useCallback(async (area: string, title: string, description = "") => {
+    if (!workspaceId) return;
+    const { data, error } = await (supabase.from("parking_items") as any)
+      .insert({ workspace_id: workspaceId, area, title, description, person_id: null, position: parkingItems.filter(p => p.area === area && p.personId === null).length })
+      .select().single();
+    if (error) { toast.error("Erro ao criar card"); return; }
+    if (data) setParkingItems(prev => [...prev, { id: data.id, area: data.area, personId: data.person_id ?? null, title: data.title, description: data.description ?? "", position: data.position ?? 0 }]);
+  }, [workspaceId, parkingItems]);
+
+  const updateParkingItem = useCallback(async (p: ParkingItem) => {
+    const { error } = await (supabase.from("parking_items") as any)
+      .update({ title: p.title, description: p.description, person_id: p.personId, position: p.position })
+      .eq("id", p.id);
+    if (error) { toast.error("Erro ao atualizar"); return; }
+    setParkingItems(prev => prev.map(x => x.id === p.id ? p : x));
+  }, []);
+
+  const moveParkingItem = useCallback(async (id: string, personId: string | null) => {
+    const { error } = await (supabase.from("parking_items") as any).update({ person_id: personId }).eq("id", id);
+    if (error) { toast.error("Erro ao mover"); return; }
+    setParkingItems(prev => prev.map(x => x.id === id ? { ...x, personId } : x));
+  }, []);
+
+  const deleteParkingItem = useCallback(async (id: string) => {
+    const { error } = await (supabase.from("parking_items") as any).delete().eq("id", id);
+    if (error) { toast.error("Erro ao excluir"); return; }
+    setParkingItems(prev => prev.filter(x => x.id !== id));
+  }, []);
+
   return (
     <DataContext.Provider value={{
-      people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, loading, workspaceId,
-      addPerson, updatePerson, updatePersonNickname, deletePerson,
+      people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, loading, workspaceId,
+      addPerson, updatePerson, updatePersonNickname, updatePersonArea, deletePerson,
       addTask, updateTask, deleteTask,
       addPost, updatePost, deletePost,
       addProject, updateProject, deleteProject,
@@ -550,6 +631,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addTeam, updateTeam, deleteTeam,
       addEventType, updateEventType, deleteEventType,
       markNotificationRead, markAllNotificationsRead,
+      addAreaNote, updateAreaNote, deleteAreaNote,
+      addParkingItem, updateParkingItem, moveParkingItem, deleteParkingItem,
     }}>
       {children}
     </DataContext.Provider>

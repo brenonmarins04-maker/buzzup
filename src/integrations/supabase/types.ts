@@ -14,8 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      area_notes: {
+        Row: {
+          area: string
+          created_at: string
+          id: string
+          name: string
+          position: number
+          url: string
+          workspace_id: string
+        }
+        Insert: {
+          area: string
+          created_at?: string
+          id?: string
+          name: string
+          position?: number
+          url?: string
+          workspace_id: string
+        }
+        Update: {
+          area?: string
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+          url?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       calendar_items: {
         Row: {
+          area: string | null
           created_at: string
           date: string
           description: string
@@ -26,6 +57,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          area?: string | null
           created_at?: string
           date?: string
           description?: string
@@ -36,6 +68,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          area?: string | null
           created_at?: string
           date?: string
           description?: string
@@ -140,8 +173,42 @@ export type Database = {
         }
         Relationships: []
       }
+      parking_items: {
+        Row: {
+          area: string
+          created_at: string
+          description: string
+          id: string
+          person_id: string | null
+          position: number
+          title: string
+          workspace_id: string
+        }
+        Insert: {
+          area: string
+          created_at?: string
+          description?: string
+          id?: string
+          person_id?: string | null
+          position?: number
+          title: string
+          workspace_id: string
+        }
+        Update: {
+          area?: string
+          created_at?: string
+          description?: string
+          id?: string
+          person_id?: string | null
+          position?: number
+          title?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       people: {
         Row: {
+          area: string | null
           created_at: string
           email: string
           id: string
@@ -153,6 +220,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          area?: string | null
           created_at?: string
           email?: string
           id?: string
@@ -164,6 +232,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          area?: string | null
           created_at?: string
           email?: string
           id?: string
@@ -403,6 +472,7 @@ export type Database = {
       }
       tasks: {
         Row: {
+          area: string | null
           checklist: Json
           created_at: string
           deadline: string
@@ -416,6 +486,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          area?: string | null
           checklist?: Json
           created_at?: string
           deadline?: string
@@ -429,6 +500,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          area?: string | null
           checklist?: Json
           created_at?: string
           deadline?: string

@@ -387,7 +387,7 @@ export default function CalendarPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-4">
           {viewMode === "month" && (
-            <button onClick={() => setParkingOpen(o => !o)} title={parkingOpen ? "Esconder estacionamento" : "Mostrar estacionamento"}
+            <button onClick={() => setParkingOpen(o => !o)} title={parkingOpen ? "Esconder ideias gerais" : "Mostrar ideias gerais"}
               className="p-1.5 rounded-md hover:bg-accent text-muted-foreground">
               {parkingOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
             </button>
@@ -466,7 +466,7 @@ export default function CalendarPage() {
               onDragOver={handleParkingDragOver}
               onDragLeave={handleParkingDragLeave}
               onDrop={handleParkingDrop}
-              title={`Abrir estacionamento (${parkedPosts.length})`}
+              title={`Abrir ideias gerais (${parkedPosts.length})`}
               className={`group h-full min-h-0 bg-card border rounded-lg flex flex-col items-center justify-start gap-2 py-3 transition-colors hover:bg-accent ${parkingDropActive ? "border-primary ring-2 ring-primary/30 bg-primary/5" : "border-border"}`}
             >
               <Inbox className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />
@@ -477,7 +477,7 @@ export default function CalendarPage() {
               )}
               <div className="flex-1 flex items-center">
                 <span className="text-[9px] uppercase tracking-wider text-muted-foreground" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
-                  Estacionamento
+                  Ideias gerais
                 </span>
               </div>
             </button>
@@ -492,12 +492,12 @@ export default function CalendarPage() {
             >
               <div className="px-3 py-2.5 border-b border-border flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="text-xs font-semibold text-foreground uppercase tracking-wide">Estacionamento</div>
+                  <div className="text-xs font-semibold text-foreground uppercase tracking-wide">Ideias gerais</div>
                   <div className="text-[10px] text-muted-foreground mt-0.5 truncate">Ideias sem data — arraste para o calendário</div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <span className="text-[10px] text-muted-foreground bg-muted rounded-full px-1.5 py-0.5 font-medium">{parkedPosts.length}</span>
-                  <button onClick={() => setParkingOpen(false)} title="Recolher estacionamento"
+                  <button onClick={() => setParkingOpen(false)} title="Recolher ideias gerais"
                     className="h-6 w-6 rounded-md hover:bg-accent text-muted-foreground flex items-center justify-center transition-colors">
                     <PanelLeftClose className="h-3.5 w-3.5" />
                   </button>
