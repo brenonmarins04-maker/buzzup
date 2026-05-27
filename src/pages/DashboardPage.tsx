@@ -1,15 +1,16 @@
+import { useMemo } from "react";
+import { Link } from "react-router-dom";
 import { useData } from "@/contexts/DataContext";
+import { Trophy, Medal, FolderKanban, ListChecks, CalendarDays } from "lucide-react";
 import {
-  TrendingUp, Users, UsersRound, Trophy, Medal,
-} from "lucide-react";
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
-
-const PIE_COLORS = ["hsl(330, 70%, 55%)", "hsl(210, 80%, 52%)", "hsl(170, 80%, 40%)", "hsl(40, 6%, 10%)", "hsl(280, 60%, 55%)"];
+import { getNowBrasilia } from "@/lib/utils";
+import { addDays, format, endOfWeek, isSameDay } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 export default function DashboardPage() {
-  const { people, tasks, posts, channels, projects, teams, loading } = useData();
+  const { people, tasks, projects, events, loading } = useData();
 
   if (loading) {
     return (
@@ -18,8 +19,6 @@ export default function DashboardPage() {
       </div>
     );
   }
-
-  const postsByChannel = channels.map(ch => ({ channel: ch.name, count: posts.filter(p => p.channel === ch.id).length }));
 
   // Ranking gamificação
   const doneTasksAll = tasks.filter(t => t.status === "done");
@@ -36,47 +35,41 @@ export default function DashboardPage() {
     .filter(r => r.points > 0)
     .sort((a, b) => b.points - a.points);
 
-  // People in projects stats
+  // Active tasks per person (não começada + em andamento)
+  const activeByPerson = people.map(p => {
+    let nao = 0, andamento = 0;
+    tasks.forEach(t => {
+      if (!t.responsible.some(r => r.id === p.id)) return;
+      if (t.status === "not-started") nao++;
+      else if (t.status === "in-progress") andamento++;
+    });
+    return { name: p.name.split(" ")[0], fullName: p.name, naoComecada: nao, emAndamento: andamento };
+  }).filter(d => d.naoComecada + d.emAndamento > 0)
+    .sort((a, b) => (b.naoComecada + b.emAndamento) - (a.naoComecada + a.emAndamento));
+
+  // Active projects
   const activeProjects = projects.filter(p => p.status === "active");
-  const memberProjectCount: Record<string, number> = {};
-  activeProjects.forEach(p => p.members.forEach(m => { memberProjectCount[m.id] = (memberProjectCount[m.id] || 0) + 1; }));
-  const membersNotInProjects = people.filter(p => !memberProjectCount[p.id]);
-  const membersInMultiple = people.filter(p => (memberProjectCount[p.id] || 0) > 1).map(p => ({ name: p.name, count: memberProjectCount[p.id] }));
 
-  const membersIn0 = people.filter(p => !memberProjectCount[p.id]).length;
-  const membersIn1 = people.filter(p => memberProjectCount[p.id] === 1).length;
-  const membersIn2Plus = people.filter(p => (memberProjectCount[p.id] || 0) >= 2).length;
-  const allocationPieData = [
-    { name: "Sem projeto", value: membersIn0, color: "#ef4444" },
-    { name: "1 projeto", value: membersIn1, color: "#22c55e" },
-    { name: "2+ projetos", value: membersIn2Plus, color: "#ec4899" },
-  ].filter(d => d.value > 0);
-
-  // Tasks completed by person
-  const doneTasks = tasks.filter(t => t.status === "done");
-  const tasksByPerson = people.map(person => ({
-    name: person.name.split(" ")[0],
-    fullName: person.name,
-    completed: doneTasks.filter(t => t.responsible.some(r => r.id === person.id)).length,
-  })).sort((a, b) => b.completed - a.completed).filter(d => d.completed > 0);
-
-  // Tasks completed by team
-  const tasksByTeam = teams.map(team => ({
-    name: team.name,
-    completed: doneTasks.filter(t => t.teamId === team.id).length,
-  })).sort((a, b) => b.completed - a.completed).filter(d => d.completed > 0);
+  // Events this week (today → end of week, weekStartsOn = sunday)
+  const today = getNowBrasilia();
+  const weekEnd = endOfWeek(today, { weekStartsOn: 0 });
+  const todayStr = format(today, "yyyy-MM-dd");
+  const weekEndStr = format(weekEnd, "yyyy-MM-dd");
+  const weekEvents = events
+    .filter(e => e.date && e.date >= todayStr && e.date <= weekEndStr)
+    .sort((a, b) => a.date.localeCompare(b.date));
 
   return (
     <div className="animate-fade-in space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-foreground tracking-tight">Gamificação</h1>
-        <p className="text-sm text-muted-foreground mt-1">Ranking e visão geral</p>
+        <h1 className="text-2xl font-semibold text-foreground tracking-tight">Início</h1>
+        <p className="text-sm text-muted-foreground mt-1">Visão geral do workspace</p>
       </div>
 
       {/* Ranking de Gamificação */}
       <div className="bg-card border border-border rounded-lg p-5">
         <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-          <Trophy className="h-4 w-4 text-primary" /> Ranking
+          <Trophy className="h-4 w-4 text-primary" /> Gamificação — Ranking
         </h2>
         {ranking.length === 0 ? (
           <p className="text-xs text-muted-foreground">Nenhum ponto ainda. Conclua tarefas com pontos atribuídos para entrar no ranking.</p>
@@ -98,111 +91,86 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Pessoas em Projetos */}
+      {/* Projetos ativos */}
       <div className="bg-card border border-border rounded-lg p-5">
         <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-          <Users className="h-4 w-4 text-muted-foreground" /> Pessoas em Projetos
+          <FolderKanban className="h-4 w-4 text-muted-foreground" /> Projetos ativos
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-4">
-            {membersNotInProjects.length > 0 && (
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-2">Sem projeto ({membersNotInProjects.length})</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {membersNotInProjects.map(m => (
-                    <span key={m.id} className="text-xs bg-muted text-foreground px-2 py-0.5 rounded-full">{m.name}</span>
-                  ))}
+        {activeProjects.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Nenhum projeto ativo.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {activeProjects.map(p => (
+              <div key={p.id} className="border border-border rounded-md p-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: p.color }} />
+                  <span className="text-sm font-medium text-foreground truncate">{p.name}</span>
                 </div>
+                {p.description && <p className="text-[11px] text-muted-foreground line-clamp-2 mb-1.5">{p.description}</p>}
+                <p className="text-[11px] text-muted-foreground">{p.members.length} membro(s)</p>
               </div>
-            )}
-            {membersInMultiple.length > 0 && (
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-2">Em mais de 1 projeto</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {membersInMultiple.map(({ name, count }) => (
-                    <span key={name} className="text-xs bg-accent text-foreground px-2 py-0.5 rounded-full">{name} ({count})</span>
-                  ))}
-                </div>
-              </div>
-            )}
-            {membersNotInProjects.length === 0 && membersInMultiple.length === 0 && (
-              <p className="text-xs text-muted-foreground">Todos os membros estão em exatamente 1 projeto.</p>
-            )}
+            ))}
           </div>
-          {allocationPieData.length > 0 && (
-            <div className="h-48 flex items-center">
-              <ResponsiveContainer width="50%" height="100%">
-                <PieChart>
-                  <Pie data={allocationPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} innerRadius={40}>
-                    {allocationPieData.map((entry, index) => <Cell key={index} fill={entry.color} />)}
-                  </Pie>
-                  <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid hsl(40, 6%, 90%)", fontSize: "12px" }} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="flex-1 flex flex-col gap-2">
-                {allocationPieData.map(item => (
-                  <div key={item.name} className="flex items-center gap-2 text-sm">
-                    <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                    <span className="text-muted-foreground">{item.name}</span>
-                    <span className="ml-auto font-semibold text-foreground">{item.value}</span>
-                  </div>
-                ))}
-              </div>
+        )}
+      </div>
+
+      {/* Tarefas ativas por pessoa */}
+      <div className="bg-card border border-border rounded-lg p-5">
+        <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <ListChecks className="h-4 w-4 text-muted-foreground" /> Tarefas por pessoa (ativas)
+        </h2>
+        <div className="h-64">
+          {activeByPerson.length === 0 ? (
+            <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+              Nenhuma tarefa em andamento ou não começada.
             </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={activeByPerson}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(40, 6%, 90%)" />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="hsl(40, 3%, 55%)" />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="hsl(40, 3%, 55%)" />
+                <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid hsl(40, 6%, 90%)", fontSize: "12px" }} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="naoComecada" name="Não começada" fill="#9CA3AF" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="emAndamento" name="Em andamento" fill="#F59E0B" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           )}
         </div>
       </div>
 
-      {/* Tarefas concluídas por equipe */}
+      {/* Eventos da semana */}
       <div className="bg-card border border-border rounded-lg p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <UsersRound className="h-4 w-4 text-muted-foreground" />
-            <h2 className="text-sm font-semibold text-foreground">Tarefas Concluídas por Equipe</h2>
-          </div>
-          <div className="h-48">
-            {tasksByTeam.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={tasksByTeam} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(40, 6%, 90%)" />
-                  <XAxis type="number" tick={{ fontSize: 11 }} stroke="hsl(40, 3%, 55%)" />
-                  <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} stroke="hsl(40, 3%, 55%)" width={100} />
-                  <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid hsl(40, 6%, 90%)", fontSize: "12px" }} />
-                  <Bar dataKey="completed" fill="hsl(210, 80%, 52%)" radius={[0, 4, 4, 0]} name="Concluídas" />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
-                {teams.length === 0 ? "Nenhuma equipe criada ainda" : "Nenhuma tarefa concluída por equipe"}
-              </div>
-            )}
-          </div>
-      </div>
-
-      {/* Posts por canal */}
-      <div className="bg-card border border-border rounded-lg p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold text-foreground">Posts por Canal</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <CalendarDays className="h-4 w-4 text-muted-foreground" /> Eventos da semana
+          </h2>
+          <Link to="/calendar" className="text-xs text-primary hover:underline">Ver calendário</Link>
         </div>
-        <div className="h-48 flex items-center">
-          <ResponsiveContainer width="50%" height="100%">
-            <PieChart>
-              <Pie data={postsByChannel} dataKey="count" nameKey="channel" cx="50%" cy="50%" outerRadius={70} innerRadius={40}>
-                {postsByChannel.map((_, index) => <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} />)}
-              </Pie>
-              <Tooltip contentStyle={{ borderRadius: "8px", border: "1px solid hsl(40, 6%, 90%)", fontSize: "12px" }} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="flex-1 flex flex-col gap-2">
-            {postsByChannel.map((item, i) => (
-              <div key={item.channel} className="flex items-center gap-2 text-sm">
-                <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
-                <span className="text-muted-foreground">{item.channel}</span>
-                <span className="ml-auto font-semibold text-foreground">{item.count}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        {weekEvents.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Nenhum evento até o fim da semana.</p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {weekEvents.map(e => {
+              const d = new Date(`${e.date}T00:00:00`);
+              const isToday = isSameDay(d, today);
+              return (
+                <li key={e.id} className="flex items-center gap-3 p-2.5 rounded-md bg-muted/40">
+                  <div className="flex flex-col items-center justify-center w-12 shrink-0">
+                    <span className="text-[10px] text-muted-foreground uppercase">{format(d, "EEE", { locale: ptBR })}</span>
+                    <span className="text-sm font-bold text-foreground">{format(d, "dd/MM")}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{e.title}</p>
+                    {e.type && <p className="text-[11px] text-muted-foreground truncate">{e.type}</p>}
+                  </div>
+                  {isToday && <span className="text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">Hoje</span>}
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
     </div>
   );
