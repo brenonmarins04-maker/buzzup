@@ -2,7 +2,7 @@ import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard, CalendarDays, CheckSquare, Megaphone,
-  FolderKanban, Bell, Search, ChevronLeft, Plus, Users, LogOut, UsersRound, Eye, Shield, KeyRound, Trophy,
+  FolderKanban, Bell, Search, ChevronLeft, Plus, Users, LogOut, UsersRound, Eye, Shield, KeyRound, Trophy, Briefcase, Crown, Sparkles, Home,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useData } from "@/contexts/DataContext";
@@ -15,12 +15,13 @@ import EventModal from "@/components/modals/EventModal";
 import NotificationPanel from "@/components/NotificationPanel";
 
 const navItems = [
-  { to: "/", icon: Trophy, label: "Gamificação" },
-  { to: "/calendar", icon: CalendarDays, label: "Calendário" },
-  { to: "/tasks", icon: CheckSquare, label: "Tarefas" },
-  { to: "/content", icon: Megaphone, label: "Conteúdo" },
-  { to: "/projects", icon: FolderKanban, label: "Projetos" },
-  { to: "/teams", icon: UsersRound, label: "Equipes" },
+  { to: "/",            icon: Home,         label: "Início" },
+  { to: "/calendar",    icon: CalendarDays, label: "Calendário" },
+  { to: "/people",      icon: Users,        label: "Pessoas" },
+  { to: "/projetos",    icon: FolderKanban, label: "Projetos" },
+  { to: "/mercado",     icon: Briefcase,    label: "Mercado" },
+  { to: "/gg",          icon: Sparkles,     label: "GG" },
+  { to: "/presidencia", icon: Crown,        label: "Presidência" },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
