@@ -38,8 +38,8 @@ export default function PeoplePage() {
         ))}
       </div>
 
-      {tab === "apelidos" && isAdmin && <GamificationAdminPage embedded />}
-      {tab === "equipes" && <TeamsPage embedded />}
+      {tab === "apelidos" && isAdmin && <GamificationAdminPage />}
+      {tab === "equipes" && <TeamsPage />}
       {tab === "membros" && <MembersTab />}
     </div>
   );
