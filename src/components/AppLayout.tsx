@@ -152,11 +152,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
         <nav className="flex-1 py-4 px-2 flex flex-col gap-1">
-          {[
-            ...navItems,
-            { to: "/people", icon: Users, label: "Pessoas" },
-            ...(isAdmin ? [{ to: "/gamification", icon: Trophy, label: "Apelidos" }] : []),
-          ].map((item) => (
+          {navItems.map((item) => (
             <NavLink key={item.to} to={item.to}
               className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive ? "bg-accent text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"} ${collapsed ? "justify-center" : ""}`}>
               <item.icon className="h-4 w-4 shrink-0" />
