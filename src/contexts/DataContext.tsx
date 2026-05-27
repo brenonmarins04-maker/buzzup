@@ -313,6 +313,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setPeople(prev => prev.map(p => p.id === id ? { ...p, nickname: value } : p));
   }, []);
 
+  const updatePersonArea = useCallback(async (id: string, area: string | null) => {
+    const { error } = await (supabase.from("people") as any).update({ area }).eq("id", id);
+    if (error) { toast.error("Erro ao atualizar área"); return; }
+    setPeople(prev => prev.map(p => p.id === id ? { ...p, area } : p));
+  }, []);
+
   const deletePerson = useCallback(async (id: string) => {
     const { error } = await supabase.from("people").delete().eq("id", id);
     if (error) { toast.error("Erro ao excluir pessoa"); return; }
@@ -560,10 +566,62 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const markNotificationRead = useCallback((id: string) => setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n)), []);
   const markAllNotificationsRead = useCallback(() => setNotifications(prev => prev.map(n => ({ ...n, read: true }))), []);
 
+  // === AREA NOTES (link shortcuts) ===
+  const addAreaNote = useCallback(async (area: string, name: string, url: string) => {
+    if (!workspaceId) return;
+    const { data, error } = await (supabase.from("area_notes") as any)
+      .insert({ workspace_id: workspaceId, area, name, url, position: areaNotes.filter(n => n.area === area).length })
+      .select().single();
+    if (error) { toast.error("Erro ao criar atalho"); return; }
+    if (data) setAreaNotes(prev => [...prev, { id: data.id, area: data.area, name: data.name, url: data.url, position: data.position ?? 0 }]);
+  }, [workspaceId, areaNotes]);
+
+  const updateAreaNote = useCallback(async (n: AreaNote) => {
+    const { error } = await (supabase.from("area_notes") as any).update({ name: n.name, url: n.url, position: n.position }).eq("id", n.id);
+    if (error) { toast.error("Erro ao atualizar"); return; }
+    setAreaNotes(prev => prev.map(x => x.id === n.id ? n : x));
+  }, []);
+
+  const deleteAreaNote = useCallback(async (id: string) => {
+    const { error } = await (supabase.from("area_notes") as any).delete().eq("id", id);
+    if (error) { toast.error("Erro ao excluir"); return; }
+    setAreaNotes(prev => prev.filter(x => x.id !== id));
+  }, []);
+
+  // === PARKING ITEMS (Quadro CB) ===
+  const addParkingItem = useCallback(async (area: string, title: string, description = "") => {
+    if (!workspaceId) return;
+    const { data, error } = await (supabase.from("parking_items") as any)
+      .insert({ workspace_id: workspaceId, area, title, description, person_id: null, position: parkingItems.filter(p => p.area === area && p.personId === null).length })
+      .select().single();
+    if (error) { toast.error("Erro ao criar card"); return; }
+    if (data) setParkingItems(prev => [...prev, { id: data.id, area: data.area, personId: data.person_id ?? null, title: data.title, description: data.description ?? "", position: data.position ?? 0 }]);
+  }, [workspaceId, parkingItems]);
+
+  const updateParkingItem = useCallback(async (p: ParkingItem) => {
+    const { error } = await (supabase.from("parking_items") as any)
+      .update({ title: p.title, description: p.description, person_id: p.personId, position: p.position })
+      .eq("id", p.id);
+    if (error) { toast.error("Erro ao atualizar"); return; }
+    setParkingItems(prev => prev.map(x => x.id === p.id ? p : x));
+  }, []);
+
+  const moveParkingItem = useCallback(async (id: string, personId: string | null) => {
+    const { error } = await (supabase.from("parking_items") as any).update({ person_id: personId }).eq("id", id);
+    if (error) { toast.error("Erro ao mover"); return; }
+    setParkingItems(prev => prev.map(x => x.id === id ? { ...x, personId } : x));
+  }, []);
+
+  const deleteParkingItem = useCallback(async (id: string) => {
+    const { error } = await (supabase.from("parking_items") as any).delete().eq("id", id);
+    if (error) { toast.error("Erro ao excluir"); return; }
+    setParkingItems(prev => prev.filter(x => x.id !== id));
+  }, []);
+
   return (
     <DataContext.Provider value={{
-      people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, loading, workspaceId,
-      addPerson, updatePerson, updatePersonNickname, deletePerson,
+      people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, loading, workspaceId,
+      addPerson, updatePerson, updatePersonNickname, updatePersonArea, deletePerson,
       addTask, updateTask, deleteTask,
       addPost, updatePost, deletePost,
       addProject, updateProject, deleteProject,
@@ -573,6 +631,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addTeam, updateTeam, deleteTeam,
       addEventType, updateEventType, deleteEventType,
       markNotificationRead, markAllNotificationsRead,
+      addAreaNote, updateAreaNote, deleteAreaNote,
+      addParkingItem, updateParkingItem, moveParkingItem, deleteParkingItem,
     }}>
       {children}
     </DataContext.Provider>
