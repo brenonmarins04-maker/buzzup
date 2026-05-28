@@ -69,12 +69,12 @@ export default function TasksPage() {
     <div className="animate-fade-in space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground tracking-tight">Tarefas</h1>
-          <p className="text-sm text-muted-foreground mt-1">{filteredTasks.length} tarefas</p>
+          <h1 className="text-2xl font-semibold text-foreground tracking-tight">Demandas</h1>
+          <p className="text-sm text-muted-foreground mt-1">{filteredTasks.length} demandas</p>
         </div>
         {isAdmin && (
           <button onClick={() => setModal({ open: true })} className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
-            <Plus className="h-4 w-4" /> Nova Tarefa
+            <Plus className="h-4 w-4" /> Nova Demanda
           </button>
         )}
       </div>
@@ -176,7 +176,7 @@ export default function TasksPage() {
                     </div>
                   ))}
                   {colTasks.length === 0 && (
-                    <div className="border-2 border-dashed border-border rounded-lg flex items-center justify-center py-8 text-sm text-muted-foreground">Sem tarefas</div>
+                    <div className="border-2 border-dashed border-border rounded-lg flex items-center justify-center py-8 text-sm text-muted-foreground">Sem demandas</div>
                   )}
                 </div>
               </div>
@@ -208,7 +208,7 @@ export default function TasksPage() {
               </div>
             </div>
           ))}
-          {filteredTasks.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">Nenhuma tarefa concluída</p>}
+          {filteredTasks.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">Nenhuma demanda concluída</p>}
         </div>
       )}
 
@@ -227,7 +227,7 @@ export default function TasksPage() {
         }
       />
       <DeleteConfirmDialog open={deleting.open} onOpenChange={o => setDeleting(p => ({ ...p, open: o }))}
-        title={deleting.title} onConfirm={() => { deleteTask(deleting.id); toast.success("Tarefa excluída"); }} />
+        title={deleting.title} onConfirm={() => { deleteTask(deleting.id); toast.success("Demanda excluída"); }} />
     </div>
   );
 }
