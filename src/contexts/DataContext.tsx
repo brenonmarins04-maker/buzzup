@@ -276,7 +276,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
     fetchAll();
     return () => { cancelled = true; };
-  }, [uid, refetchTick]);
+  }, [uid, workspaceId, refetchTick]);
 
   // Realtime: re-fetch all data when ANY workspace table changes
   useEffect(() => {
