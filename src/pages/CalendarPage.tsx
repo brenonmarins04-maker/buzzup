@@ -754,6 +754,51 @@ export default function CalendarPage() {
       />
       <DeleteConfirmDialog open={deleting.open} onOpenChange={o => setDeleting(p => ({ ...p, open: o }))}
         title={deleting.title} onConfirm={handleDelete} />
+
+      {isAdmin && (
+        <>
+          <style>{`
+            @keyframes trashShake {
+              0%, 100% { transform: rotate(0deg) scale(1.15); }
+              20% { transform: rotate(-12deg) scale(1.15); }
+              40% { transform: rotate(10deg) scale(1.15); }
+              60% { transform: rotate(-8deg) scale(1.15); }
+              80% { transform: rotate(6deg) scale(1.15); }
+            }
+            @keyframes trashFloat {
+              0%, 100% { transform: translateY(0); }
+              50% { transform: translateY(-4px); }
+            }
+          `}</style>
+          <div
+            onDragOver={handleTrashDragOver}
+            onDragLeave={handleTrashDragLeave}
+            onDrop={handleTrashDrop}
+            className={`fixed bottom-6 right-6 z-50 w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center transition-all duration-200 ${
+              trashActive
+                ? "bg-destructive/20 ring-4 ring-destructive/40 shadow-2xl"
+                : dragItem
+                ? "bg-background/80 ring-2 ring-border shadow-xl"
+                : "bg-background/60 ring-1 ring-border/60 shadow-lg hover:shadow-xl"
+            }`}
+            style={{ backdropFilter: "blur(4px)" }}
+            title="Arraste aqui para excluir"
+          >
+            <img
+              src={trashBinImg}
+              alt="Lixeira"
+              draggable={false}
+              className="w-full h-full object-contain pointer-events-none select-none"
+              style={{
+                animation: trashActive
+                  ? "trashShake 0.45s ease-in-out infinite"
+                  : "trashFloat 3s ease-in-out infinite",
+                transformOrigin: "center bottom",
+              }}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }
