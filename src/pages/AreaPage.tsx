@@ -785,24 +785,91 @@ function KanbanTab({ area }: { area: AreaKey }) {
       </div>
 
       <Dialog open={modal.open} onOpenChange={(o) => setModal({ open: o, item: null })}>
-        <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{modal.item ? "Editar card" : "Novo card"}</DialogTitle></DialogHeader>
-          <form onSubmit={(e) => { e.preventDefault(); save(); }} className="flex flex-col gap-3">
+        <DialogContent
+          className="max-w-md overflow-hidden shadow-2xl bg-background"
+          style={{
+            background: `linear-gradient(160deg, color-mix(in srgb, ${meta.color} 35%, white) 0%, color-mix(in srgb, ${meta.color} 15%, white) 45%, white 100%)`,
+          }}
+        >
+          <div className="absolute top-0 left-0 right-0 h-1.5" style={{ background: meta.color }} />
+          <DialogHeader>
+            <DialogTitle className="text-lg">{modal.item ? "Editar demanda" : "Nova demanda"}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); save(); }} className="flex flex-col gap-4">
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Título</label>
-              <Input value={title} onChange={e => setTitle(e.target.value)} autoFocus />
+              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Título</label>
+              <Input autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder="Descreva a demanda" className="rounded-full h-11 px-4" />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Data</label>
-              <Input type="date" value={date} onChange={e => setDate(e.target.value)} required />
+              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Responsável</label>
+              {members.length === 0 ? (
+                <div className="h-11 rounded-full border border-input bg-muted/30 px-4 flex items-center text-2xl">😞</div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {members.map(p => {
+                    const selected = personId === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setPersonId(selected ? "" : p.id)}
+                        className="px-4 h-9 rounded-full text-sm font-medium transition-all border"
+                        style={{
+                          backgroundColor: selected ? meta.color : `${meta.color}10`,
+                          color: selected ? "#fff" : "hsl(var(--foreground))",
+                          borderColor: selected ? meta.color : `${meta.color}30`,
+                          boxShadow: selected ? `0 4px 14px ${meta.color}55` : "none",
+                        }}
+                      >
+                        {p.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Descrição</label>
-              <Textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} />
+              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Data <span className="text-destructive">*</span></label>
+              <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="rounded-full h-11 px-4" required />
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" onClick={() => setModal({ open: false, item: null })}>Cancelar</Button>
-              <Button type="submit">{modal.item ? "Salvar" : "Criar"}</Button>
+            <div>
+              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Pontos <span className="text-destructive">*</span></label>
+              <div className="flex gap-2">
+                {[1, 2, 3].map(n => {
+                  const selected = points === n;
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setPoints(n)}
+                      className="flex-1 h-12 rounded-full text-base font-bold transition-all border"
+                      style={{
+                        backgroundColor: selected ? meta.color : `${meta.color}10`,
+                        color: selected ? "#fff" : meta.color,
+                        borderColor: selected ? meta.color : `${meta.color}30`,
+                        boxShadow: selected ? `0 4px 14px ${meta.color}55` : "none",
+                        transform: selected ? "translateY(-1px)" : "none",
+                      }}
+                    >
+                      {n} {n === 1 ? "ponto" : "pontos"}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">Somados na gamificação quando a demanda for concluída.</p>
+            </div>
+            <div className="flex items-center justify-between pt-2">
+              {modal.item ? (
+                <Button type="button" variant="ghost" size="sm" className="text-destructive hover:text-destructive rounded-full" onClick={async () => { await deleteParkingItem(modal.item!.id); toast.success("Excluído"); setModal({ open: false, item: null }); }}>
+                  <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir
+                </Button>
+              ) : <div />}
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" className="rounded-full px-5" onClick={() => setModal({ open: false, item: null })}>Cancelar</Button>
+                <Button type="submit" className="rounded-full px-5 text-white border-0 hover:opacity-90" style={{ backgroundColor: meta.color }}>
+                  {modal.item ? "Salvar" : "Criar"}
+                </Button>
+              </div>
             </div>
           </form>
         </DialogContent>
