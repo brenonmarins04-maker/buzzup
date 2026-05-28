@@ -196,7 +196,7 @@ export default function CalendarPage() {
     if (!isAdmin) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
-    if (!dragItem || dragItem.type === "post") setParkingDropActive(true);
+    if (!dragItem || dragItem.type === "post" || dragItem.type === "task") setParkingDropActive(true);
   };
   const handleParkingDragLeave = () => setParkingDropActive(false);
   const handleParkingDrop = (e: DragEvent) => {
@@ -208,8 +208,19 @@ export default function CalendarPage() {
       try { return JSON.parse(e.dataTransfer.getData("text/plain")) as CalendarItem; } catch { return null; }
     })();
     if (!droppedItem) return;
-    if (droppedItem.type !== "post") {
-      toast.error("Apenas publicações podem ser estacionadas");
+    if (droppedItem.parkingId) {
+      // already parked — no-op
+      setDragItem(null);
+      return;
+    }
+    if (droppedItem.type === "task") {
+      const task = tasks.find(t => t.id === droppedItem.id);
+      if (task) { updateTask({ ...task, deadline: "" }); toast.success("Demanda movida para Ideias gerais"); }
+      setDragItem(null);
+      return;
+    }
+    if (droppedItem.type === "event") {
+      toast.error("Eventos não podem ser estacionados");
       setDragItem(null);
       return;
     }
@@ -228,6 +239,7 @@ export default function CalendarPage() {
       try { return JSON.parse(e.dataTransfer.getData("text/plain")) as CalendarItem; } catch { return null; }
     })();
     if (!droppedItem) return;
+    if (droppedItem.parkingId) { dropParkingOnDate(droppedItem.parkingId, dayStr); setDragItem(null); return; }
     if (droppedItem.type === "task") { const task = tasks.find(t => t.id === droppedItem.id); if (task) updateTask({ ...task, deadline: dayStr }); }
     else if (droppedItem.type === "post") { const post = posts.find(p => p.id === droppedItem.id); if (post) updatePost({ ...post, date: dayStr }); }
     else if (droppedItem.type === "event") { const ev = events.find(e => e.id === droppedItem.id); if (ev) updateEvent({ ...ev, date: dayStr }); }
