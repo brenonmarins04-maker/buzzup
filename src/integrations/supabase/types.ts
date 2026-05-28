@@ -662,8 +662,13 @@ export type Database = {
           color: string
           created_at: string
           description: string
+          end_contract: string
+          end_delivered: string
           id: string
+          manager_id: string | null
           name: string
+          pipeline_status: string
+          start_date: string
           status: string
           workspace_id: string
         }
@@ -671,8 +676,13 @@ export type Database = {
           color?: string
           created_at?: string
           description?: string
+          end_contract?: string
+          end_delivered?: string
           id?: string
+          manager_id?: string | null
           name: string
+          pipeline_status?: string
+          start_date?: string
           status?: string
           workspace_id: string
         }
@@ -680,8 +690,13 @@ export type Database = {
           color?: string
           created_at?: string
           description?: string
+          end_contract?: string
+          end_delivered?: string
           id?: string
+          manager_id?: string | null
           name?: string
+          pipeline_status?: string
+          start_date?: string
           status?: string
           workspace_id?: string
         }
