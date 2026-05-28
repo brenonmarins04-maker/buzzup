@@ -338,7 +338,13 @@ export default function CalendarPage() {
           onPointerMove={longPress.handlers.onPointerMove}
           onPointerUp={longPress.handlers.onPointerUp}
           onPointerCancel={longPress.handlers.onPointerCancel}
-          style={{ touchAction: "pan-y" }}
+          style={{
+            touchAction: "pan-y",
+            transition: "transform 380ms cubic-bezier(0.4,0,0.2,1), opacity 380ms ease",
+            transform: shrinkingId === item.id ? "scale(0)" : "scale(1)",
+            opacity: shrinkingId === item.id ? 0 : 1,
+            transformOrigin: "bottom right",
+          }}
           className={`relative group/pill flex items-stretch rounded-sm overflow-hidden ${isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}`}
         >
           {item.type === "post" && (
