@@ -1,98 +1,99 @@
-# Refatoração de Autenticação, Membros e Permissões
+# Plano: Membros, Convites e correções de workspace
 
-Substituir o modelo atual (login compartilhado + código fixo de admin no localStorage/RPC) por um sistema profissional com **login individual**, **roles persistidas no banco** (`owner`/`admin`/`member`), **convites por código com hash** e **RLS estrita** que bloqueia qualquer ação proibida no servidor.
+## 1. Remover criação legada de workspace em `DataContext.tsx`
 
-## 1. Mudanças no banco (migração SQL)
+Trecho atual (linhas ~170–177) faz `select` em `workspaces` por `user_id` e, se vazio, faz `INSERT` direto criando "Meu Workspace" — sem registro em `workspace_members`, gerando workspace órfão.
 
-### Tabela `workspace_members`
-- Adicionar role `owner` ao `CHECK` (hoje só `admin`/`member`/`viewer`).
-- Adicionar coluna `status` (`active`/`removed`/`pending`).
-- Garantir UNIQUE em `(workspace_id, user_id)`.
-- Migrar dados existentes: o `user_id` dono do `workspaces.user_id` vira `owner`; demais membros `admin` permanecem `admin`; `viewer` vira `member`.
-- Remover/desligar a coluna `workspaces.access_code` (manter como deprecated/null) e a RPC `redeem_access_code` + `demote_self_to_viewer`.
-- Bloquear escrita direta com policy restritiva: nenhum INSERT/UPDATE/DELETE direto via PostgREST — tudo via RPC SECURITY DEFINER.
+Mudanças:
+- Apagar o `select`/`insert` direto em `workspaces`.
+- Usar `workspaceId` vindo do `AuthContext` (já populado por `fetchMembership` via `workspace_members`).
+- Se `workspaceId` estiver null após `AuthContext` carregar, **não** criar nada: `ProtectedRoute` já redireciona para `/welcome`. Apenas limpar listas e sair.
+- `DataProvider` passa a depender de `useAuth().workspaceId` em vez de buscar o próprio.
 
-### Nova tabela `workspace_invites` (substitui a atual baseada em e-mail)
-Recriar com: `id`, `workspace_id`, `code_hash`, `role` (`admin`|`member`), `created_by`, `expires_at`, `max_uses` (default 1), `used_count` (default 0), `status` (`active`|`used`|`expired`|`revoked`), `used_by`, `used_at`, timestamps. RLS: só owner/admin do workspace leem; escrita só via RPC.
+Resultado: única forma de criar workspace = RPC `create_workspace` (WelcomePage). Única forma de entrar = RPC `accept_workspace_invite`.
 
-### Nova tabela `activity_logs`
-`workspace_id`, `user_id`, `action`, `target_type`, `target_id`, `metadata jsonb`, `created_at`. RLS: owner vê tudo; admin vê operacionais; member não vê.
+## 2. Nova rota `/members` — "Membros e Convites"
 
-### Funções helper (SECURITY DEFINER, search_path=public)
-- `current_workspace_role(_ws uuid)` → retorna role do usuário no workspace.
-- `is_workspace_owner(_user, _ws)` e atualizar `is_workspace_admin` para aceitar `owner` ou `admin`.
-- `get_workspace_id` continua para retro-compatibilidade (workspace ativo = primeiro), mas RLS passa a usar checagem por `workspace_id` + role.
+- Adicionar em `App.tsx` dentro de `ProtectedApp`.
+- Adicionar item no `navItems` de `AppLayout.tsx` (sidebar + bottom nav) com ícone `Users` (renomear "Pessoas" para evitar conflito? Manter "Pessoas" e adicionar "Acessos" com ícone `Shield`).
+- Página visível para todos os roles; conteúdo administrativo condicional.
 
-### RPCs (SECURITY DEFINER) — única forma de alterar permissões
-- `create_workspace(name text)` → cria workspace + member `owner` + log.
-- `create_workspace_invite(_ws uuid, _role text, _expires_in interval, _max_uses int)`:
-  - owner pode criar `admin` ou `member`; admin só `member`; member bloqueado.
-  - Gera código aleatório `EMPRESA-XXXXX` (charset seguro, ~40 bits), salva `code_hash = crypt(code, gen_salt('bf'))`, retorna o código **apenas uma vez**.
-  - Default para `admin`: `max_uses=1`, `expires_in=1h`.
-- `accept_workspace_invite(_code text)`:
-  - Localiza convite ativo válido comparando hash, valida expiração/usos/status, valida que o usuário ainda não é membro, insere `workspace_members` com role do convite, incrementa `used_count`, marca `used` se atingir `max_uses`, registra log. Retorna `{workspace_id, role}`. Erros genéricos para evitar enumeration.
-- `revoke_workspace_invite(_ws, _invite)`: owner revoga qualquer um; admin só convites de member que ele criou.
-- `remove_workspace_member(_ws, _target_user)`: owner remove admin/member; admin remove só member; bloqueia remoção do último owner.
-- `update_member_role(_ws, _target_user, _new_role)`: somente owner; não permite remover último owner; permite promover member↔admin; transferência de propriedade futura fora de escopo.
+### Layout da página (`src/pages/MembersPage.tsx`)
 
-### RLS em tabelas operacionais
-Reescrever policies de `tasks`, `projects`, `calendar_items`, `posts`, `post_assignees`, `task_assignees`, `project_participants`, `parking_items`, `area_notes`, `attendance_*`, `lead_thermometer`, `broadcasts`, `categories`, `channels`, `event_types`, `gamification_*`, `people`, `teams`, `team_members` para:
-- SELECT: qualquer membro ativo do workspace.
-- INSERT/UPDATE/DELETE: somente `owner` ou `admin` (`is_workspace_admin` atualizado para incluir owner).
-- `member` nunca pode escrever.
+Duas seções/tabs:
 
-## 2. Mudanças no front-end
+**a) Membros**
+- Lista vinda de `workspace_members` JOIN `profiles` (por `user_id`):
+  - Nome (display_name), role badge (Owner/Admin/Member), data de entrada (`created_at`).
+  - E-mail: **não disponível via RLS** (auth.users é restrito). Mostrar só nome + role; deixar nota no resumo final como pendência (precisaria de view security-definer).
+- Ações por linha (somente se permitido):
+  - Owner vendo member → "Promover a admin" + "Remover".
+  - Owner vendo admin → "Rebaixar para member" + "Remover".
+  - Owner vendo owner → nenhuma ação (e nunca permitir remover a si mesmo se for único owner — desabilitar no front; RPC já bloqueia owner).
+  - Admin vendo member → "Remover".
+  - Admin vendo admin/owner → sem ações.
+  - Member → sem ações.
+- Chamadas:
+  - `update_member_role(_workspace_id, _target_user, _new_role)`
+  - `remove_workspace_member(_workspace_id, _target_user)`
 
-### `AuthContext`
-- Remover `accessCode`, `redeemCode`, `isAdmin` baseado em código, `demote_self_to_viewer`.
-- Expor: `user`, `session`, `memberships: {workspace_id, workspace_name, role}[]`, `activeWorkspaceId` (persistido em `localStorage` apenas como preferência), `role` (derivada do membership ativo), helpers `isOwner`, `isAdmin` (=owner||admin), `isMember`.
-- Carregar memberships após login via select em `workspace_members` + `workspaces`.
+**b) Convites**
+- Lista de `workspace_invites` do workspace atual (RLS já restringe a admins/owners).
+- Colunas: role, criado por (lookup em `profiles`), criado em, expira em, usos (`used_count`/`max_uses`), status.
+- **Não exibir `code_hash` nem código em claro** (impossível recuperar — é hash).
+- Botão "Revogar" se status=active e usuário tem permissão (owner sempre; admin só nos que ele criou de member — RPC valida).
+- Botão "Gerar convite" no topo:
+  - Owner: opção Admin ou Member.
+  - Admin: apenas Member.
+  - Member: botão oculto.
+- Modal de criação: role, validade (1h / 24h / 7d → enviar `_expires_in_hours`), `max_uses` (default 1, limitado a 50 pelo RPC para member; admin ignora e força 1).
+- Ao confirmar, chamar `create_workspace_invite` → mostrar `AlertDialog` com o código retornado, botão "Copiar", aviso "Este código será exibido apenas uma vez. Envie manualmente por WhatsApp/mensagem."
+- `revoke_workspace_invite(_workspace_id, _invite_id)` no botão revogar.
 
-### Hook central `usePermissions()`
-Retorna: `canViewContent`, `canEditContent`, `canInviteAdmin`, `canInviteMember`, `canRemoveMember(targetRole)`, `canChangeRoles`, `canRevokeInvite(invite)`, `canManageMembers`. Substitui todos os `isAdmin` espalhados.
+## 3. Seletor leve de multi-workspace
 
-### Telas
-- **LoginPage**: mantém login/cadastro individuais. Remover redirect para `/welcome` com código. No cadastro, NÃO cria workspace automaticamente; redireciona para nova tela "Onboarding" com duas opções:
-  - **Criar workspace** (input nome → chama `create_workspace`).
-  - **Entrar com código de convite** (input código → chama `accept_workspace_invite`).
-- **WelcomePage**: removida (não há mais código de admin para mostrar).
-- **AppLayout**: remover botão/popover de "Código admin"; remover chip "Visualizador/Admin" baseado em código; adicionar **seletor de workspace** quando o usuário tem >1 membership.
-- **MembersPage** (substitui/complementa `PeoplePage` para gestão real):
-  - Lista membros com nome (do `profiles`), email (de `auth.users` via view ou RPC), role, status, data.
-  - Owner: botões "Convidar admin", "Convidar member", promover/rebaixar, remover.
-  - Admin: botão "Convidar member", remover member.
-  - Member: somente leitura, sem botões.
-- **InvitesPage** (ou aba): lista convites com cargo, criado por, expiração, status; botão revogar conforme permissão. Modal de geração mostra o código uma única vez + copiar.
-- **Modal "Entrar em workspace"**: acessível dentro do app e na tela de onboarding pós-signup.
-- **Rotas protegidas**: criar `<RequireRole roles={['owner','admin']}>` para `/gamification-admin` etc.; rota sem permissão mostra "Você não tem permissão para acessar esta área."
+Hoje `get_workspace_id` retorna sempre o mais antigo; não vou refatorar RLS agora.
 
-### Limpeza
-- Remover toda leitura de role/admin do `localStorage` (manter apenas `activeWorkspaceId`).
-- Remover chamadas `redeem_access_code`/`demote_self_to_viewer`.
-- Auditar usos de `isAdmin` → trocar por `usePermissions().canEditContent` (escrita) ou `.canManageMembers` (administração de pessoas).
+Mínimo viável:
+- Em `AuthContext.fetchMembership`, buscar **todas** memberships ativas (lista completa) além da "ativa".
+- Expor `memberships: {workspace_id, role, workspace_name}[]` e `setActiveWorkspace(id)`.
+- A "ativa" sai de `localStorage("buzzup.activeWorkspace")` se válida (existe na lista), senão a mais antiga.
+- Em `AppLayout`, se `memberships.length > 1`, mostrar dropdown simples no header com nome + role; trocar atualiza estado + storage e dispara reload de dados.
+- **Limitação importante (deixar claro no resumo):** RLS continua usando `get_workspace_id` (mais antigo). Então trocar workspace no front **não muda** o que o backend retorna até refatorar `get_workspace_id` para aceitar parâmetro e/ou trocar policies para `EXISTS workspace_members`. Por isso o seletor só faz sentido completo após Fase 2. Decisão: **adiar o seletor** e apenas listar memberships em uma área de Settings? Ver pergunta abaixo.
 
-## 3. Segurança extra
-- Habilitar **Leaked Password Protection** (HIBP) no Supabase Auth.
-- Mensagens de erro genéricas em `accept_workspace_invite` (não revelar se workspace existe).
-- Convite admin: padrão 1h e 1 uso, forçado server-side independente do que o front enviar.
-- Logs gravados em todas as RPCs sensíveis.
+## 4. Páginas órfãs (`ProjectsPage`, `TasksPage`, `ContentPage`, `TeamsPage`, `GamificationAdminPage`)
 
-## 4. Migração de dados existentes
-- Workspaces atuais: `workspaces.user_id` → membership `owner`. Demais `admin` ficam `admin`, `viewer` vira `member`.
-- `access_code` deixa de ser usado (coluna mantida nullable para não quebrar tipos até a próxima limpeza).
-- Convites antigos baseados em e-mail (`workspace_invites` atual) ficam ignorados/arquivados; nova tabela tem nome diferente ou recriamos com schema novo (decisão: **dropar e recriar** a tabela atual já que não há fluxo de e-mail em uso).
+Investigação rápida mostra:
+- `TeamsPage` e `GamificationAdminPage` **já são usados** como sub-tabs dentro de `PeoplePage` — não são órfãs reais.
+- `ProjectsPage`, `TasksPage`, `ContentPage`: aparentam ser resquícios anteriores ao redesign por áreas. **Não conectar.** Listar no resumo como "candidatos a remoção em PR futuro".
 
-## 5. Critérios de aceite (testáveis)
-Os 10 cenários descritos no pedido (criação de workspace, convite member, convite admin, tentativas de burla por admin/member via devtools, convite usado/expirado/revogado, multi-workspace, persistência pós-refresh) — todos validados tanto no front quanto via RLS/RPC.
+## 5. Segurança preservada
 
-## Detalhes técnicos relevantes
-- Hash de código: `pgcrypto` (`crypt` + `gen_salt('bf')`).
-- Geração de código: função SQL retornando `EMPRESA-XXXXX` com 5 chars de `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`.
-- `is_workspace_admin` reescrita: `role IN ('owner','admin')` no workspace ativo.
-- Todas as policies de escrita passam a usar `is_workspace_admin(auth.uid())` (já cobre owner+admin) — basicamente só precisamos atualizar a função.
-- `get_workspace_id` continua existindo mas o app passará a respeitar `activeWorkspaceId` quando houver múltiplas memberships (policies precisarão evoluir para multi-workspace numa fase futura; nesta entrega seguimos com workspace único ativo, garantindo isolamento via membership).
+- Continua: role lido de `workspace_members`, convites por RPC com hash bcrypt, RLS por `workspace_id` + `is_workspace_admin`.
+- UI só esconde botões; toda ação sensível é RPC `SECURITY DEFINER` que revalida role.
+- Nada em `localStorage` representa permissão — apenas preferência de workspace ativo (validada contra banco).
 
-## Fora de escopo desta entrega
-- Transferência de propriedade (deixar RPC stub para futuro).
-- Histórico de logs visível na UI (tabela criada, viewer pode vir depois).
-- Multi-workspace seletor avançado (entregamos seletor simples; RLS continua via `get_workspace_id`).
+## 6. Arquivos a tocar
+
+- `src/contexts/DataContext.tsx` — remover criação legada, consumir `workspaceId` do AuthContext.
+- `src/contexts/AuthContext.tsx` — buscar `memberships[]`, expor `setActiveWorkspace` (se confirmarmos seletor).
+- `src/pages/MembersPage.tsx` — novo.
+- `src/components/modals/CreateInviteModal.tsx` — novo.
+- `src/components/modals/InviteCodeDialog.tsx` — novo (exibir código uma única vez).
+- `src/App.tsx` — registrar rota `/members`.
+- `src/components/AppLayout.tsx` — adicionar item de menu "Acessos" (sidebar + bottom-nav).
+
+## 7. Testes manuais (a executar após build)
+
+Conforme o roteiro do pedido — criar workspace, owner convidar admin/member, admin convidar member, member sem ações, convite usado/revogado, código antigo sem efeito, sem criação automática de workspace, build limpo.
+
+## Perguntas antes de implementar
+
+1. **Seletor de multi-workspace agora?** Como `get_workspace_id` ainda retorna só o mais antigo, trocar workspace no front **não muda** o que o backend devolve até refatorarmos RLS/RPC. Opções:
+   (a) Só implemento listagem de memberships (read-only) em Configurações + deixo como pendência clara.
+   (b) Implemento o seletor cosmético sabendo que ele só funcionará 100% depois da Fase 2.
+   (c) Refatoro `get_workspace_id` para aceitar `_workspace_id` explícito e ajusto as policies de `workspace_members` para validar membership por `EXISTS` (mudança grande, mas o pedido permite "o máximo possível sem quebrar o app").
+
+2. **E-mail dos membros na tela**: `auth.users` é inacessível via Data API. Posso (a) só mostrar `display_name`, (b) criar função `SECURITY DEFINER` que retorna `{user_id, email, display_name}` apenas para membros do workspace. Preferência?
+
+3. **Local do menu**: "Acessos" como item próprio na sidebar/bottom-nav, ou aba dentro de `/people` (já tem Membros/Equipes/Gamificação/Histórico)? A confusão é que "Pessoas/Membros" hoje são entidades de negócio, não usuários autenticados.

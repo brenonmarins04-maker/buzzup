@@ -130,10 +130,9 @@ type DataContextType = {
 const DataContext = createContext<DataContextType | null>(null);
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, workspaceId: authWorkspaceId } = useAuth();
   const uid = user?.id;
-
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const workspaceId = authWorkspaceId;
   const [people, setPeople] = useState<Person[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -158,8 +157,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // Fetch workspace + all data
   useEffect(() => {
-    if (!uid) {
-      setWorkspaceId(null); setPeople([]); setProjects([]); setTasks([]); setPosts([]);
+    if (!uid || !workspaceId) {
+      setPeople([]); setProjects([]); setTasks([]); setPosts([]);
       setEvents([]); setCategories([]); setChannels([]); setTeams([]);
       setCategoriesRaw([]); setEventTypes([]); setAreaNotes([]); setParkingItems([]); setGamificationActions([]); setGamificationAwards([]); setLeadThermometer([]); setAttendanceSettings([]); setAttendanceRecords([]); setBroadcasts([]); setLoading(false);
       return;
@@ -167,16 +166,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     async function fetchAll() {
       setLoading(true);
-      let { data: ws } = await supabase.from("workspaces").select("id").eq("user_id", uid!).maybeSingle();
-      if (cancelled) return;
-      if (!ws) {
-        const { data: newWs, error: wsErr } = await supabase.from("workspaces").insert({ user_id: uid!, name: "Meu Workspace" }).select("id").single();
-        if (cancelled) return;
-        if (wsErr || !newWs) { console.error("Failed to create workspace", wsErr); setLoading(false); return; }
-        ws = newWs;
-      }
-      const wsId = ws.id;
-      setWorkspaceId(wsId);
+      const wsId = workspaceId!;
 
       const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes, etRes, anRes, piRes, gaRes, gwRes, ltRes, asRes, arRes, bcRes] = await Promise.all([
         (supabase.from("people") as any).select("id, name, nickname, area").eq("workspace_id", wsId),
@@ -286,7 +276,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
     fetchAll();
     return () => { cancelled = true; };
-  }, [uid, refetchTick]);
+  }, [uid, workspaceId, refetchTick]);
 
   // Realtime: re-fetch all data when ANY workspace table changes
   useEffect(() => {

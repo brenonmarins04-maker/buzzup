@@ -10,6 +10,7 @@ import AppLayout from "@/components/AppLayout";
 import DashboardPage from "./pages/DashboardPage";
 import CalendarPage from "./pages/CalendarPage";
 import PeoplePage from "./pages/PeoplePage";
+import MembersPage from "./pages/MembersPage";
 import AreaPage from "./pages/AreaPage";
 import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/" element={<ProtectedApp><DashboardPage /></ProtectedApp>} />
             <Route path="/calendar" element={<ProtectedApp><CalendarPage /></ProtectedApp>} />
             <Route path="/people" element={<ProtectedApp><PeoplePage /></ProtectedApp>} />
+            <Route path="/members" element={<ProtectedApp><MembersPage /></ProtectedApp>} />
             <Route path="/projetos"    element={<ProtectedApp><AreaPage area="projetos" /></ProtectedApp>} />
             <Route path="/mercado"     element={<ProtectedApp><AreaPage area="mercado" /></ProtectedApp>} />
             <Route path="/gg"          element={<ProtectedApp><AreaPage area="gg" /></ProtectedApp>} />
