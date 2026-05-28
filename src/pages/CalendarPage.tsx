@@ -512,7 +512,7 @@ export default function CalendarPage() {
                   <div className="text-[10px] text-muted-foreground mt-0.5 truncate">Ideias sem data — arraste para o calendário</div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <span className="text-[10px] text-muted-foreground bg-muted rounded-full px-1.5 py-0.5 font-medium">{filterArea ? parkedAreaIdeas.length : parkedPosts.length}</span>
+                  <span className="text-[10px] text-muted-foreground bg-muted rounded-full px-1.5 py-0.5 font-medium">{parkedIdeas.length}</span>
                   <button onClick={() => setParkingOpen(false)} title="Recolher ideias gerais"
                     className="h-6 w-6 rounded-md hover:bg-accent text-muted-foreground flex items-center justify-center transition-colors">
                     <PanelLeftClose className="h-3.5 w-3.5" />
@@ -526,15 +526,19 @@ export default function CalendarPage() {
                 </form>
               )}
               <div className="flex-1 overflow-y-auto scrollbar-thin p-2 flex flex-col gap-1">
-                {filterArea ? (
-                  parkedAreaIdeas.length === 0 ? (
-                    <div className="text-[11px] text-muted-foreground/70 text-center py-6 px-2">Nenhuma ideia em {activeAreaMeta?.label}</div>
-                  ) : parkedAreaIdeas.map(p => renderItemPill({ id: p.id, title: p.title, type: "event", date: "", color: activeAreaMeta?.color || EVENT_FALLBACK_COLOR, eventTypeName: activeAreaMeta?.label }))
-                ) : (
-                  parkedPosts.length === 0 ? (
-                    <div className="text-[11px] text-muted-foreground/70 text-center py-6 px-2">Nenhuma ideia estacionada</div>
-                  ) : parkedPosts.map(p => renderItemPill({ id: p.id, title: p.title, type: "post", date: "", time: p.time, color: POST_COLOR, status: p.status }))
-                )}
+                {parkedIdeas.length === 0 ? (
+                  <div className="text-[11px] text-muted-foreground/70 text-center py-6 px-2">Nenhuma ideia estacionada</div>
+                ) : parkedIdeas.map(p => {
+                  const areaMeta = AREAS.find(a => a.key === p.area);
+                  // Without an area: light grey. With area: area color (or muted area color if a different area filter is active).
+                  const dim = filterArea && p.area && p.area !== filterArea;
+                  const color = areaMeta?.color || "#CBD5E1"; // slate-300 fallback for area-less ideas
+                  return (
+                    <div key={p.id} className={dim ? "opacity-40" : ""}>
+                      {renderItemPill({ id: p.id, parkingId: p.id, title: p.title, type: "event", date: "", color, eventTypeName: areaMeta?.label || "Sem área" })}
+                    </div>
+                  );
+                })}
               </div>
             </aside>
           )}
