@@ -108,7 +108,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
                 <select value={personId} onChange={e => setPersonId(e.target.value)}
                   disabled={!area}
                   className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                  <option value="">{!area ? "— Selecione a área antes —" : peopleForArea.length === 0 ? "— Nenhuma pessoa nesta área —" : "— Selecionar —"}</option>
+                  <option value="">{!area ? "— Selecione a área antes —" : peopleForArea.length === 0 ? "😞" : "— Selecionar —"}</option>
                   {peopleForArea.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
