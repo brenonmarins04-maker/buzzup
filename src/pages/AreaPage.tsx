@@ -625,6 +625,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
   const [doneOpen, setDoneOpen] = useState(false);
+  const [completing, setCompleting] = useState<Set<string>>(new Set());
 
   const onDragStart = (e: DragEvent, id: string) => {
     if (!isAdmin) { e.preventDefault(); return; }
