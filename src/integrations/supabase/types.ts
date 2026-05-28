@@ -230,6 +230,39 @@ export type Database = {
         }
         Relationships: []
       }
+      lead_thermometer: {
+        Row: {
+          area_size: string
+          created_at: string
+          id: string
+          name: string
+          position: number
+          type: string
+          value: string
+          workspace_id: string
+        }
+        Insert: {
+          area_size?: string
+          created_at?: string
+          id?: string
+          name: string
+          position?: number
+          type?: string
+          value?: string
+          workspace_id: string
+        }
+        Update: {
+          area_size?: string
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+          type?: string
+          value?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       parking_items: {
         Row: {
           area: string
