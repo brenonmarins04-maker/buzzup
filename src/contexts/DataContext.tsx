@@ -781,10 +781,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const setAttendance = useCallback(async (area: string, personId: string, date: string, status: AttendanceStatus, justification = "") => {
     if (!workspaceId) return;
+    // Optimistic update — UI reflects change immediately
+    const tempId = `tmp-${area}-${personId}-${date}`;
+    const optimistic: AttendanceRecord = { id: tempId, area, personId, date, status, justification };
+    setAttendanceRecords(prev => {
+      const others = prev.filter(r => !(r.area === area && r.personId === personId && r.date === date));
+      return [...others, optimistic];
+    });
     const { data, error } = await (supabase.from("attendance_records") as any)
       .upsert({ workspace_id: workspaceId, area, person_id: personId, date, status, justification }, { onConflict: "workspace_id,area,person_id,date" })
       .select().single();
-    if (error) { toast.error("Erro ao salvar presença"); return; }
+    if (error) {
+      toast.error("Erro ao salvar presença");
+      setAttendanceRecords(prev => prev.filter(r => r.id !== tempId));
+      return;
+    }
     if (data) {
       const mapped: AttendanceRecord = { id: data.id, area: data.area, personId: data.person_id, date: data.date, status: data.status, justification: data.justification ?? "" };
       setAttendanceRecords(prev => {
@@ -796,10 +807,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const clearAttendance = useCallback(async (area: string, personId: string, date: string) => {
     if (!workspaceId) return;
+    const prevRecords = attendanceRecords.filter(r => r.area === area && r.personId === personId && r.date === date);
+    setAttendanceRecords(prev => prev.filter(r => !(r.area === area && r.personId === personId && r.date === date)));
     const { error } = await (supabase.from("attendance_records") as any).delete()
       .eq("workspace_id", workspaceId).eq("area", area).eq("person_id", personId).eq("date", date);
-    if (error) { toast.error("Erro ao limpar"); return; }
-    setAttendanceRecords(prev => prev.filter(r => !(r.area === area && r.personId === personId && r.date === date)));
+    if (error) {
+      toast.error("Erro ao limpar");
+      setAttendanceRecords(prev => [...prev, ...prevRecords]);
+    }
   }, [workspaceId]);
 
   // === BROADCASTS (Mensagens gerais) ===
