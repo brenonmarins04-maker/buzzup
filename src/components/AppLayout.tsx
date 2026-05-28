@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   CalendarDays, Megaphone,
@@ -7,6 +7,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import QuickCreateMenu from "@/components/modals/QuickCreateMenu";
 import TaskModal from "@/components/modals/TaskModal";
@@ -31,10 +32,33 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const isMobile = useIsMobile();
   const { notifications } = useData();
-  const { displayName, signOut, isAdmin, role } = useAuth();
+  const { displayName, signOut, isAdmin, role, user, myWorkspaces } = useAuth();
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const unreadCount = notifications.filter(n => !n.read).length;
+  const [pendingJoinCount, setPendingJoinCount] = useState(0);
+
+  const ownedWorkspaceIds = myWorkspaces.filter(w => w.role === "owner").map(w => w.workspace_id);
+
+  useEffect(() => {
+    if (!user || ownedWorkspaceIds.length === 0) { setPendingJoinCount(0); return; }
+    let cancelled = false;
+    const load = async () => {
+      const { count } = await supabase
+        .from("workspace_join_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending")
+        .in("workspace_id", ownedWorkspaceIds)
+        .neq("user_id", user.id);
+      if (!cancelled) setPendingJoinCount(count || 0);
+    };
+    load();
+    const ch = supabase
+      .channel(`pending-joins-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "workspace_join_requests" }, () => load())
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(ch); };
+  }, [user?.id, ownedWorkspaceIds.join(",")]);
 
   const [taskModal, setTaskModal] = useState(false);
   const [postModal, setPostModal] = useState(false);
