@@ -2,6 +2,9 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from "
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 
+export type MyWorkspace = { workspace_id: string; name: string; code: string; role: "owner"|"admin"|"member"; created_at: string };
+export type MyJoinRequest = { id: string; workspace_id: string; workspace_name: string; workspace_code: string; status: "pending"|"approved"|"rejected"|"canceled"; requested_at: string; decided_at: string | null; decided_role: string | null };
+
 type AuthContextType = {
   user: User | null;
   session: Session | null;
@@ -9,11 +12,17 @@ type AuthContextType = {
   displayName: string;
   role: "owner" | "admin" | "member" | null;
   workspaceId: string | null;
+  activeWorkspaceId: string | null;
+  setActiveWorkspaceId: (id: string | null) => void;
+  myWorkspaces: MyWorkspace[];
+  myJoinRequests: MyJoinRequest[];
+  refreshHub: () => Promise<void>;
   isAdmin: boolean;
   isOwner: boolean;
   refreshMembership: () => Promise<void>;
-  acceptInvite: (code: string) => Promise<{ ok: boolean; error?: string }>;
-  createWorkspace: (name: string) => Promise<{ ok: boolean; error?: string }>;
+  requestJoinWorkspace: (code: string) => Promise<{ ok: boolean; error?: string }>;
+  cancelJoinRequest: (reqId: string) => Promise<{ ok: boolean; error?: string }>;
+  createWorkspace: (name: string) => Promise<{ ok: boolean; error?: string; workspace?: { id: string; name: string; code: string } }>;
   signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -23,25 +32,44 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const ACTIVE_WS_KEY = "buzzup.activeWorkspaceId";
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [displayName, setDisplayName] = useState("");
-  const [role, setRole] = useState<"owner" | "admin" | "member" | null>(null);
-  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
+  const [myWorkspaces, setMyWorkspaces] = useState<MyWorkspace[]>([]);
+  const [myJoinRequests, setMyJoinRequests] = useState<MyJoinRequest[]>([]);
+  const [activeWorkspaceId, setActiveWorkspaceIdState] = useState<string | null>(() => {
+    try { return localStorage.getItem(ACTIVE_WS_KEY); } catch { return null; }
+  });
 
-  async function fetchMembership(userId: string) {
-    const { data: mem } = await supabase
-      .from("workspace_members")
-      .select("role, workspace_id, status")
-      .eq("user_id", userId)
-      .eq("status", "active")
-      .order("created_at", { ascending: true })
-      .maybeSingle();
-    if (!mem) { setRole(null); setWorkspaceId(null); return; }
-    setRole(((mem.role as unknown) as "owner" | "admin" | "member") ?? "member");
-    setWorkspaceId((mem as any).workspace_id ?? null);
+  const setActiveWorkspaceId = (id: string | null) => {
+    setActiveWorkspaceIdState(id);
+    try {
+      if (id) localStorage.setItem(ACTIVE_WS_KEY, id);
+      else localStorage.removeItem(ACTIVE_WS_KEY);
+    } catch {}
+  };
+
+  async function fetchHub() {
+    const [wsRes, reqRes] = await Promise.all([
+      (supabase.rpc as any)("list_my_workspaces"),
+      (supabase.rpc as any)("list_my_join_requests"),
+    ]);
+    const ws: MyWorkspace[] = (wsRes.data as any[] | null) || [];
+    setMyWorkspaces(ws);
+    setMyJoinRequests(((reqRes.data as any[] | null) || []) as MyJoinRequest[]);
+    setActiveWorkspaceIdState(prev => {
+      if (prev && ws.find(w => w.workspace_id === prev)) return prev;
+      const next = ws[0]?.workspace_id ?? null;
+      try {
+        if (next) localStorage.setItem(ACTIVE_WS_KEY, next);
+        else localStorage.removeItem(ACTIVE_WS_KEY);
+      } catch {}
+      return next;
+    });
   }
 
   useEffect(() => {
@@ -51,12 +79,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         setTimeout(async () => {
           fetchDisplayName(session.user.id);
-          fetchMembership(session.user.id);
+          fetchHub();
         }, 0);
       } else {
         setDisplayName("");
-        setRole(null);
-        setWorkspaceId(null);
+        setMyWorkspaces([]);
+        setMyJoinRequests([]);
+        setActiveWorkspaceId(null);
       }
       setLoading(false);
     });
@@ -67,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         (async () => {
           fetchDisplayName(session.user.id);
-          fetchMembership(session.user.id);
+          fetchHub();
         })();
       }
       setLoading(false);
@@ -76,12 +105,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Realtime: re-fetch hub when memberships or join requests change for this user
+  useEffect(() => {
+    if (!user) return;
+    const ch = supabase
+      .channel(`hub-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "workspace_members", filter: `user_id=eq.${user.id}` }, () => fetchHub())
+      .on("postgres_changes", { event: "*", schema: "public", table: "workspace_join_requests", filter: `user_id=eq.${user.id}` }, () => fetchHub())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [user?.id]);
+
   async function fetchDisplayName(userId: string) {
     const { data } = await supabase
       .from("profiles")
       .select("display_name")
       .eq("user_id", userId)
-      .single();
+      .maybeSingle();
     if (data) setDisplayName(data.display_name || "");
   }
 
@@ -103,6 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    setActiveWorkspaceId(null);
     await supabase.auth.signOut();
   };
 
@@ -118,36 +159,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   };
 
-  const refreshMembership = async () => {
-    if (user) await fetchMembership(user.id);
-  };
+  const refreshMembership = async () => { await fetchHub(); };
+  const refreshHub = async () => { await fetchHub(); };
 
-  const acceptInvite = async (code: string) => {
-    const { error } = await (supabase.rpc as any)("accept_workspace_invite", { _code: code.trim().toUpperCase() });
+  const requestJoinWorkspace = async (code: string) => {
+    const { error } = await (supabase.rpc as any)("request_join_workspace", { _code: code.trim().toUpperCase() });
     if (error) {
       const msg = String(error.message || "").toLowerCase();
       if (msg.includes("already_member")) return { ok: false, error: "Você já pertence a este workspace." };
-      if (msg.includes("not_authenticated")) return { ok: false, error: "Faça login para usar o convite." };
-      if (msg.includes("invalid_code")) return { ok: false, error: "Código inválido, expirado, já usado ou revogado." };
-      return { ok: false, error: "Não foi possível entrar no workspace. Tente novamente." };
+      if (msg.includes("already_pending")) return { ok: false, error: "Você já tem um pedido pendente para esse workspace." };
+      if (msg.includes("invalid_code")) return { ok: false, error: "Código inválido. Confirme com o owner." };
+      if (msg.includes("not_authenticated")) return { ok: false, error: "Faça login para pedir entrada." };
+      return { ok: false, error: "Não foi possível pedir entrada." };
     }
-    await refreshMembership();
+    await fetchHub();
+    return { ok: true };
+  };
+
+  const cancelJoinRequest = async (reqId: string) => {
+    const { error } = await (supabase.rpc as any)("cancel_join_request", { _req_id: reqId });
+    if (error) return { ok: false, error: error.message };
+    await fetchHub();
     return { ok: true };
   };
 
   const createWorkspace = async (name: string) => {
-    const { error } = await (supabase.rpc as any)("create_workspace", { _name: name });
+    const { data, error } = await (supabase.rpc as any)("create_workspace", { _name: name });
     if (error) return { ok: false, error: error.message };
-    await refreshMembership();
-    return { ok: true };
+    const ws = Array.isArray(data) ? data[0] : data;
+    await fetchHub();
+    if (ws?.id) setActiveWorkspaceId(ws.id);
+    return { ok: true, workspace: ws ? { id: ws.id, name: ws.name, code: ws.code } : undefined };
   };
+
+  const activeWs = myWorkspaces.find(w => w.workspace_id === activeWorkspaceId) || null;
+  const role = activeWs?.role ?? null;
+  const workspaceId = activeWorkspaceId;
 
   return (
     <AuthContext.Provider value={{
       user, session, loading, displayName, role, workspaceId,
+      activeWorkspaceId, setActiveWorkspaceId,
+      myWorkspaces, myJoinRequests, refreshHub,
       isAdmin: role === "admin" || role === "owner",
       isOwner: role === "owner",
-      refreshMembership, acceptInvite, createWorkspace,
+      refreshMembership, requestJoinWorkspace, cancelJoinRequest, createWorkspace,
       signUp, signIn, signOut, resetPassword, updatePassword,
     }}>
       {children}
