@@ -93,9 +93,9 @@ export default function CalendarPage() {
     if (!isAdmin) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
-    setTrashActive(true);
+    setTrashActive((cur) => (cur ? cur : true));
   };
-  const handleTrashDragLeave = () => setTrashActive(false);
+  const handleTrashDragLeave = () => setTrashActive((cur) => (cur ? false : cur));
   const handleTrashDrop = (e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
