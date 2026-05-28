@@ -49,7 +49,7 @@ const nextPostStatus = (s?: string) => {
 };
 
 export default function CalendarPage() {
-  const { tasks, posts, events, eventTypes, parkingItems, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addPost, addParkingItem } = useData();
+  const { tasks, posts, events, eventTypes, parkingItems, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addPost, addParkingItem, updateParkingItem, people } = useData();
   const { isAdmin } = useAuth();
   const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(getNowBrasilia());
@@ -65,6 +65,7 @@ export default function CalendarPage() {
   const [taskModal, setTaskModal] = useState<{ open: boolean; task?: Task | null; date?: string }>({ open: false });
   const [postModal, setPostModal] = useState<{ open: boolean; post?: Post | null; date?: string }>({ open: false });
   const [eventModal, setEventModal] = useState<{ open: boolean; event?: CalendarEvent | null; date?: string }>({ open: false });
+  const [ideaModal, setIdeaModal] = useState<{ open: boolean; item: import("@/contexts/DataContext").ParkingItem | null; defaultDate?: string; defaultArea?: string; requireFull?: boolean }>({ open: false, item: null });
   const [deleting, setDeleting] = useState<{ open: boolean; id: string; title: string; type: string }>({ open: false, id: "", title: "", type: "" });
 
   const [dragItem, setDragItem] = useState<CalendarItem | null>(null);
@@ -72,25 +73,44 @@ export default function CalendarPage() {
 
   const activeAreaMeta = filterArea ? AREAS.find(a => a.key === filterArea) : null;
   const parkedPosts = useMemo(() => posts.filter(p => !p.date), [posts]);
-  const parkedAreaIdeas = useMemo(
-    () => filterArea ? parkingItems.filter(p => p.area === filterArea && !p.date) : [],
-    [parkingItems, filterArea]
-  );
+  // All ideas without a date — always shown in sidebar regardless of area filter.
+  const parkedIdeas = useMemo(() => parkingItems.filter(p => !p.date), [parkingItems]);
 
   const applyDrop = (item: CalendarItem, target: DragDropResult) => {
     if (!isAdmin) { toast.error("Apenas administradores podem alterar datas"); return; }
     if (target.kind === "none") return;
     if (target.kind === "parking") {
-      if (item.type !== "post") { toast.error("Apenas publicações podem ser estacionadas"); return; }
-      const post = posts.find(p => p.id === item.id);
-      if (post) { updatePost({ ...post, date: "", time: "" }); toast.success("Publicação estacionada"); }
-      return;
+      if (item.parkingId) {
+        const pk = parkingItems.find(p => p.id === item.parkingId);
+        if (pk) { updateParkingItem({ ...pk, date: "" }); toast.success("Ideia devolvida às Ideias gerais"); }
+        return;
+      }
+      if (item.type === "post") {
+        const post = posts.find(p => p.id === item.id);
+        if (post) { updatePost({ ...post, date: "", time: "" }); toast.success("Publicação estacionada"); }
+        return;
+      }
+      toast.error("Apenas ideias e publicações podem ser estacionadas"); return;
     }
     // day drop
     const dayStr = target.date;
+    if (item.parkingId) { handleParkingDrop(item.parkingId, dayStr); return; }
     if (item.type === "task") { const task = tasks.find(t => t.id === item.id); if (task) updateTask({ ...task, deadline: dayStr }); }
     else if (item.type === "post") { const post = posts.find(p => p.id === item.id); if (post) updatePost({ ...post, date: dayStr }); }
     else if (item.type === "event") { const ev = events.find(e => e.id === item.id); if (ev) updateEvent({ ...ev, date: dayStr }); }
+  };
+
+  // Drop a parking item onto a date. If it has area + responsável, update directly.
+  // Otherwise open the IdeaModal in "requireFull" mode so the user completes it before scheduling.
+  const handleParkingDrop = (parkingId: string, dayStr: string) => {
+    const pk = parkingItems.find(p => p.id === parkingId);
+    if (!pk) return;
+    if (pk.area && pk.personId) {
+      updateParkingItem({ ...pk, date: dayStr });
+      toast.success("Ideia agendada");
+    } else {
+      setIdeaModal({ open: true, item: pk, defaultDate: dayStr, defaultArea: filterArea || pk.area || "", requireFull: true });
+    }
   };
 
   const longPress = useLongPressDrag<CalendarItem>({
