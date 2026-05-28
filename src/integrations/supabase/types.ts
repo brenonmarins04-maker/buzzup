@@ -44,6 +44,69 @@ export type Database = {
         }
         Relationships: []
       }
+      attendance_records: {
+        Row: {
+          area: string
+          created_at: string
+          date: string
+          id: string
+          justification: string
+          person_id: string
+          status: string
+          workspace_id: string
+        }
+        Insert: {
+          area: string
+          created_at?: string
+          date: string
+          id?: string
+          justification?: string
+          person_id: string
+          status?: string
+          workspace_id: string
+        }
+        Update: {
+          area?: string
+          created_at?: string
+          date?: string
+          id?: string
+          justification?: string
+          person_id?: string
+          status?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
+      attendance_settings: {
+        Row: {
+          area: string
+          created_at: string
+          id: string
+          interval_days: number
+          meeting_count: number
+          start_date: string
+          workspace_id: string
+        }
+        Insert: {
+          area: string
+          created_at?: string
+          id?: string
+          interval_days?: number
+          meeting_count?: number
+          start_date?: string
+          workspace_id: string
+        }
+        Update: {
+          area?: string
+          created_at?: string
+          id?: string
+          interval_days?: number
+          meeting_count?: number
+          start_date?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       calendar_items: {
         Row: {
           area: string | null
