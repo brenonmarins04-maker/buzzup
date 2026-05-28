@@ -211,7 +211,6 @@ export default function DashboardPage() {
               <path d="M0,90 C40,80 60,60 90,55 C120,50 140,70 170,45 C195,25 215,20 240,15" stroke="#10B981" strokeWidth="2.5" fill="none" />
               <circle cx="195" cy="35" r="18" fill="#10B981" />
               <path d="M188,35 L193,40 L203,30" stroke="white" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-              <Sparkles />
             </svg>
           </div>
           <div className="flex-1 text-center md:text-left">
