@@ -1,0 +1,1 @@
+ALTER TABLE public.parking_items ADD COLUMN IF NOT EXISTS points integer NOT NULL DEFAULT 1; UPDATE public.parking_items SET points = 1 WHERE points IS NULL OR points NOT IN (1,2,3);
