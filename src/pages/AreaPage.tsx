@@ -658,19 +658,38 @@ function KanbanTab({ area }: { area: AreaKey }) {
 
   const setStatus = (item: ParkingItem, status: ParkingItemStatus) => {
     if (item.status === status) return;
+    if (status === "done") {
+      // Trigger walking animation then move to done after 2s
+      setCompleting(prev => {
+        const n = new Set(prev);
+        n.add(item.id);
+        return n;
+      });
+      setTimeout(() => {
+        updateParkingItem({ ...item, status: "done" });
+        setCompleting(prev => {
+          const n = new Set(prev);
+          n.delete(item.id);
+          return n;
+        });
+        setDoneOpen(true);
+      }, 2000);
+      return;
+    }
     updateParkingItem({ ...item, status });
   };
 
   const renderCard = (item: ParkingItem) => {
     const isDone = item.status === "done";
-    const tint = isDone ? "#10B981" : "#F59E0B"; // green / orange
+    const isCompleting = completing.has(item.id);
+    const tint = isDone || isCompleting ? "#10B981" : "#F59E0B"; // green / orange
     return (
       <div
         key={item.id}
         draggable={isAdmin}
         onDragStart={(e) => onDragStart(e, item.id)}
         onDragEnd={() => setDragId(null)}
-        className={`group bg-card border rounded-lg p-3 text-sm shadow-sm transition-colors ${isAdmin ? "cursor-grab active:cursor-grabbing" : ""}`}
+        className={`group bg-card border rounded-lg p-3 text-sm shadow-sm transition-colors ${isAdmin ? "cursor-grab active:cursor-grabbing" : ""} ${isCompleting ? "demand-walking" : ""}`}
         style={{ borderColor: `${tint}66`, backgroundColor: `${tint}10` }}
       >
         {/* Status toggle row */}
@@ -680,24 +699,22 @@ function KanbanTab({ area }: { area: AreaKey }) {
               type="button"
               onClick={(e) => { e.stopPropagation(); setStatus(item, "in-progress"); }}
               title="Em andamento"
-              className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-md transition-all border"
-              style={item.status === "in-progress"
-                ? { backgroundColor: "#F59E0B", color: "#fff", borderColor: "#F59E0B", boxShadow: "0 2px 6px #F59E0B66" }
-                : { backgroundColor: "#fff", color: "#9CA3AF", borderColor: "#E5E7EB" }}
-            >
-              <Circle className="h-3 w-3" /> Andamento
-            </button>
+              aria-label="Em andamento"
+              className="h-5 w-5 rounded-full transition-all border-2"
+              style={item.status === "in-progress" && !isCompleting
+                ? { backgroundColor: "#F59E0B", borderColor: "#F59E0B", boxShadow: "0 2px 6px #F59E0B88" }
+                : { backgroundColor: "transparent", borderColor: "#F59E0B" }}
+            />
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); setStatus(item, "done"); }}
               title="Concluída"
-              className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-md transition-all border"
-              style={item.status === "done"
-                ? { backgroundColor: "#10B981", color: "#fff", borderColor: "#10B981", boxShadow: "0 2px 6px #10B98166" }
-                : { backgroundColor: "#fff", color: "#9CA3AF", borderColor: "#E5E7EB" }}
-            >
-              <CheckCircle2 className="h-3 w-3" /> Concluída
-            </button>
+              aria-label="Concluída"
+              className="h-5 w-5 rounded-full transition-all border-2"
+              style={item.status === "done" || isCompleting
+                ? { backgroundColor: "#10B981", borderColor: "#10B981", boxShadow: "0 2px 6px #10B98188" }
+                : { backgroundColor: "transparent", borderColor: "#10B981" }}
+            />
             <button
               onClick={(e) => { e.stopPropagation(); deleteParkingItem(item.id); }}
               className="ml-auto text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
