@@ -590,6 +590,7 @@ function LeadRow({
 function KanbanTab({ area }: { area: AreaKey }) {
   const { people, parkingItems, addParkingItem, moveParkingItem, deleteParkingItem, updateParkingItem } = useData();
   const { isAdmin } = useAuth();
+  const meta = AREAS.find(a => a.key === area)!;
 
   const members = useMemo(() => people.filter(p => p.area === area), [people, area]);
   const items = useMemo(() => parkingItems.filter(p => p.area === area), [parkingItems, area]);
