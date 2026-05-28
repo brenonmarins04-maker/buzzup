@@ -18,7 +18,7 @@ export default function PeoplePage() {
   const [tab, setTab] = useState<Tab>(isAdmin ? "gamificacao" : "membros");
 
   const tabs: { v: Tab; label: string; show: boolean }[] = [
-    { v: "gamificacao", label: "Gamificação", show: isAdmin },
+    { v: "gamificacao", label: "Gameficação", show: isAdmin },
     { v: "historico",   label: "Histórico",   show: isAdmin },
     { v: "equipes",     label: "Equipes",     show: true },
     { v: "membros",     label: "Membros",     show: true },
