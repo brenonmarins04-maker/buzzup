@@ -12,6 +12,7 @@ import { ptBR } from "date-fns/locale";
 import TaskModal from "@/components/modals/TaskModal";
 import PostModal from "@/components/modals/PostModal";
 import EventModal from "@/components/modals/EventModal";
+import IdeaModal from "@/components/modals/IdeaModal";
 import QuickCreateMenu from "@/components/modals/QuickCreateMenu";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -25,6 +26,8 @@ export type CalendarItem = {
   id: string; title: string; type: "task" | "post" | "event";
   date: string; time?: string; color: string; status?: string;
   eventTypeName?: string;
+  /** Subtype for "event"-rendered parking items so drop logic can detect them. */
+  parkingId?: string;
 };
 
 type ViewMode = "month" | "week" | "day";
@@ -46,7 +49,7 @@ const nextPostStatus = (s?: string) => {
 };
 
 export default function CalendarPage() {
-  const { tasks, posts, events, eventTypes, parkingItems, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addPost, addParkingItem } = useData();
+  const { tasks, posts, events, eventTypes, parkingItems, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addParkingItem, updateParkingItem } = useData();
   const { isAdmin } = useAuth();
   const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(getNowBrasilia());
@@ -62,32 +65,51 @@ export default function CalendarPage() {
   const [taskModal, setTaskModal] = useState<{ open: boolean; task?: Task | null; date?: string }>({ open: false });
   const [postModal, setPostModal] = useState<{ open: boolean; post?: Post | null; date?: string }>({ open: false });
   const [eventModal, setEventModal] = useState<{ open: boolean; event?: CalendarEvent | null; date?: string }>({ open: false });
+  const [ideaModal, setIdeaModal] = useState<{ open: boolean; item: import("@/contexts/DataContext").ParkingItem | null; defaultDate?: string; defaultArea?: string; requireFull?: boolean }>({ open: false, item: null });
   const [deleting, setDeleting] = useState<{ open: boolean; id: string; title: string; type: string }>({ open: false, id: "", title: "", type: "" });
 
   const [dragItem, setDragItem] = useState<CalendarItem | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
 
   const activeAreaMeta = filterArea ? AREAS.find(a => a.key === filterArea) : null;
-  const parkedPosts = useMemo(() => posts.filter(p => !p.date), [posts]);
-  const parkedAreaIdeas = useMemo(
-    () => filterArea ? parkingItems.filter(p => p.area === filterArea && !p.date) : [],
-    [parkingItems, filterArea]
-  );
+  // All ideas without a date — always shown in sidebar regardless of area filter.
+  const parkedIdeas = useMemo(() => parkingItems.filter(p => !p.date), [parkingItems]);
 
   const applyDrop = (item: CalendarItem, target: DragDropResult) => {
     if (!isAdmin) { toast.error("Apenas administradores podem alterar datas"); return; }
     if (target.kind === "none") return;
     if (target.kind === "parking") {
-      if (item.type !== "post") { toast.error("Apenas publicações podem ser estacionadas"); return; }
-      const post = posts.find(p => p.id === item.id);
-      if (post) { updatePost({ ...post, date: "", time: "" }); toast.success("Publicação estacionada"); }
-      return;
+      if (item.parkingId) {
+        const pk = parkingItems.find(p => p.id === item.parkingId);
+        if (pk) { updateParkingItem({ ...pk, date: "" }); toast.success("Ideia devolvida às Ideias gerais"); }
+        return;
+      }
+      if (item.type === "post") {
+        const post = posts.find(p => p.id === item.id);
+        if (post) { updatePost({ ...post, date: "", time: "" }); toast.success("Publicação estacionada"); }
+        return;
+      }
+      toast.error("Apenas ideias e publicações podem ser estacionadas"); return;
     }
     // day drop
     const dayStr = target.date;
+    if (item.parkingId) { dropParkingOnDate(item.parkingId, dayStr); return; }
     if (item.type === "task") { const task = tasks.find(t => t.id === item.id); if (task) updateTask({ ...task, deadline: dayStr }); }
     else if (item.type === "post") { const post = posts.find(p => p.id === item.id); if (post) updatePost({ ...post, date: dayStr }); }
     else if (item.type === "event") { const ev = events.find(e => e.id === item.id); if (ev) updateEvent({ ...ev, date: dayStr }); }
+  };
+
+  // Drop a parking item onto a date. If it has area + responsável, update directly.
+  // Otherwise open the IdeaModal in "requireFull" mode so the user completes it before scheduling.
+  const dropParkingOnDate = (parkingId: string, dayStr: string) => {
+    const pk = parkingItems.find(p => p.id === parkingId);
+    if (!pk) return;
+    if (pk.area && pk.personId) {
+      updateParkingItem({ ...pk, date: dayStr });
+      toast.success("Ideia agendada");
+    } else {
+      setIdeaModal({ open: true, item: pk, defaultDate: dayStr, defaultArea: filterArea || pk.area || "", requireFull: true });
+    }
   };
 
   const longPress = useLongPressDrag<CalendarItem>({
@@ -100,17 +122,8 @@ export default function CalendarPage() {
     e.preventDefault();
     const title = newIdea.trim();
     if (!title) return;
-    if (filterArea) {
-      addParkingItem(filterArea, title, "");
-      toast.success(`Ideia adicionada em ${activeAreaMeta?.label ?? "área"}`);
-    } else {
-      addPost({
-        title, copy: "", link: "", date: "", time: "",
-        channel: "", category: "", status: "not-started",
-        responsibleIds: [], media_url: "", teamId: null,
-      });
-      toast.success("Ideia estacionada");
-    }
+    addParkingItem(filterArea || "", title, "");
+    toast.success(filterArea ? `Ideia adicionada em ${activeAreaMeta?.label}` : "Ideia adicionada");
     setNewIdea("");
     setTimeout(() => newIdeaRef.current?.focus(), 0);
   };
@@ -152,7 +165,7 @@ export default function CalendarPage() {
       if (!p.date) return;
       if (filterArea && p.area !== filterArea) return;
       const areaMeta = AREAS.find(a => a.key === p.area);
-      items.push({ id: p.id, title: p.title, type: "event", date: p.date, color: areaMeta?.color || EVENT_FALLBACK_COLOR, eventTypeName: areaMeta?.label });
+      items.push({ id: p.id, parkingId: p.id, title: p.title, type: "event", date: p.date, color: areaMeta?.color || "#CBD5E1", eventTypeName: areaMeta?.label || "Sem área" });
     });
     return items;
   }, [tasks, posts, events, parkingItems, filterArea, eventTypes]);
@@ -222,6 +235,11 @@ export default function CalendarPage() {
   };
 
   const handleItemClick = (item: CalendarItem) => {
+    if (item.parkingId) {
+      const pk = parkingItems.find(p => p.id === item.parkingId);
+      if (pk) setIdeaModal({ open: true, item: pk });
+      return;
+    }
     if (item.type === "task") setTaskModal({ open: true, task: tasks.find(t => t.id === item.id) });
     else if (item.type === "post") setPostModal({ open: true, post: posts.find(p => p.id === item.id) });
     else if (item.type === "event") setEventModal({ open: true, event: events.find(e => e.id === item.id) });
@@ -460,13 +478,13 @@ export default function CalendarPage() {
               onDragOver={handleParkingDragOver}
               onDragLeave={handleParkingDragLeave}
               onDrop={handleParkingDrop}
-              title={`Abrir ideias gerais (${parkedPosts.length})`}
+              title={`Abrir ideias gerais (${parkedIdeas.length})`}
               className={`group h-full min-h-0 bg-card border rounded-lg flex flex-col items-center justify-start gap-2 py-3 transition-colors hover:bg-accent ${parkingDropActive ? "border-primary ring-2 ring-primary/30 bg-primary/5" : "border-border"}`}
             >
               <Inbox className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />
-              {parkedPosts.length > 0 && (
+              {parkedIdeas.length > 0 && (
                 <span className="text-[10px] font-semibold text-foreground bg-muted rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center">
-                  {parkedPosts.length}
+                  {parkedIdeas.length}
                 </span>
               )}
               <div className="flex-1 flex items-center">
@@ -493,7 +511,7 @@ export default function CalendarPage() {
                   <div className="text-[10px] text-muted-foreground mt-0.5 truncate">Ideias sem data — arraste para o calendário</div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <span className="text-[10px] text-muted-foreground bg-muted rounded-full px-1.5 py-0.5 font-medium">{filterArea ? parkedAreaIdeas.length : parkedPosts.length}</span>
+                  <span className="text-[10px] text-muted-foreground bg-muted rounded-full px-1.5 py-0.5 font-medium">{parkedIdeas.length}</span>
                   <button onClick={() => setParkingOpen(false)} title="Recolher ideias gerais"
                     className="h-6 w-6 rounded-md hover:bg-accent text-muted-foreground flex items-center justify-center transition-colors">
                     <PanelLeftClose className="h-3.5 w-3.5" />
@@ -507,15 +525,19 @@ export default function CalendarPage() {
                 </form>
               )}
               <div className="flex-1 overflow-y-auto scrollbar-thin p-2 flex flex-col gap-1">
-                {filterArea ? (
-                  parkedAreaIdeas.length === 0 ? (
-                    <div className="text-[11px] text-muted-foreground/70 text-center py-6 px-2">Nenhuma ideia em {activeAreaMeta?.label}</div>
-                  ) : parkedAreaIdeas.map(p => renderItemPill({ id: p.id, title: p.title, type: "event", date: "", color: activeAreaMeta?.color || EVENT_FALLBACK_COLOR, eventTypeName: activeAreaMeta?.label }))
-                ) : (
-                  parkedPosts.length === 0 ? (
-                    <div className="text-[11px] text-muted-foreground/70 text-center py-6 px-2">Nenhuma ideia estacionada</div>
-                  ) : parkedPosts.map(p => renderItemPill({ id: p.id, title: p.title, type: "post", date: "", time: p.time, color: POST_COLOR, status: p.status }))
-                )}
+                {parkedIdeas.length === 0 ? (
+                  <div className="text-[11px] text-muted-foreground/70 text-center py-6 px-2">Nenhuma ideia estacionada</div>
+                ) : parkedIdeas.map(p => {
+                  const areaMeta = AREAS.find(a => a.key === p.area);
+                  // Without an area: light grey. With area: area color (or muted area color if a different area filter is active).
+                  const dim = filterArea && p.area && p.area !== filterArea;
+                  const color = areaMeta?.color || "#CBD5E1"; // slate-300 fallback for area-less ideas
+                  return (
+                    <div key={p.id} className={dim ? "opacity-40" : ""}>
+                      {renderItemPill({ id: p.id, parkingId: p.id, title: p.title, type: "event", date: "", color, eventTypeName: areaMeta?.label || "Sem área" })}
+                    </div>
+                  );
+                })}
               </div>
             </aside>
           )}
@@ -664,6 +686,14 @@ export default function CalendarPage() {
       <TaskModal open={taskModal.open} onOpenChange={o => setTaskModal({ open: o })} task={taskModal.task} defaultDate={taskModal.date} />
       <PostModal open={postModal.open} onOpenChange={o => setPostModal({ open: o })} post={postModal.post} defaultDate={postModal.date} />
       <EventModal open={eventModal.open} onOpenChange={o => setEventModal({ open: o })} event={eventModal.event} defaultDate={eventModal.date} />
+      <IdeaModal
+        open={ideaModal.open}
+        onOpenChange={(o) => setIdeaModal(s => ({ ...s, open: o }))}
+        item={ideaModal.item}
+        defaultDate={ideaModal.defaultDate}
+        defaultArea={ideaModal.defaultArea}
+        requireFull={ideaModal.requireFull}
+      />
       <DeleteConfirmDialog open={deleting.open} onOpenChange={o => setDeleting(p => ({ ...p, open: o }))}
         title={deleting.title} onConfirm={handleDelete} />
     </div>
