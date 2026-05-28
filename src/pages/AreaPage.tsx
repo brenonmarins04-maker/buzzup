@@ -12,7 +12,7 @@ import { toast } from "sonner";
 type Props = { area: AreaKey };
 
 export default function AreaPage({ area }: Props) {
-  const [tab, setTab] = useState<"notas" | "quadro">("notas");
+  const [tab, setTab] = useState<"notas" | "quadro">("quadro");
   const label = getAreaLabel(area);
   const meta = AREAS.find(a => a.key === area)!;
 
@@ -25,8 +25,8 @@ export default function AreaPage({ area }: Props) {
 
       <div className="flex items-center gap-1 border-b border-border">
         {[
-          { v: "notas", label: "Notas" },
           { v: "quadro", label: "Quadro CB" },
+          { v: "notas", label: "Notas" },
         ].map(t => (
           <button key={t.v} onClick={() => setTab(t.v as any)}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${tab === t.v ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
@@ -182,7 +182,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
         onDragOver={(e) => onDragOver(e, colKey)}
         onDragLeave={() => setOverCol(null)}
         onDrop={(e) => onDrop(e, personId)}
-        className={`w-80 shrink-0 flex flex-col rounded-lg border ${overCol === colKey ? "border-primary bg-primary/5" : "border-border bg-muted/30"} transition-colors`}
+        className={`w-52 shrink-0 flex flex-col rounded-lg border ${overCol === colKey ? "border-primary bg-primary/5" : "border-border bg-muted/30"} transition-colors`}
       >
         <div className={`px-4 py-3 border-b ${accent ? "bg-card border-primary/30" : "border-border"} rounded-t-lg flex items-center justify-between`}>
           <span className="text-sm font-semibold text-foreground truncate">{colTitle}</span>
