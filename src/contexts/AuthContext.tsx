@@ -7,11 +7,13 @@ type AuthContextType = {
   session: Session | null;
   loading: boolean;
   displayName: string;
-  role: "admin" | "viewer" | null;
+  role: "owner" | "admin" | "member" | null;
+  workspaceId: string | null;
   isAdmin: boolean;
-  accessCode: string | null;
+  isOwner: boolean;
   refreshMembership: () => Promise<void>;
-  redeemCode: (code: string) => Promise<{ ok: boolean; error?: string }>;
+  acceptInvite: (code: string) => Promise<{ ok: boolean; error?: string }>;
+  createWorkspace: (name: string) => Promise<{ ok: boolean; error?: string }>;
   signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -26,23 +28,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [displayName, setDisplayName] = useState("");
-  const [role, setRole] = useState<"admin" | "viewer" | null>(null);
-  const [accessCode, setAccessCode] = useState<string | null>(null);
+  const [role, setRole] = useState<"owner" | "admin" | "member" | null>(null);
+  const [workspaceId, setWorkspaceId] = useState<string | null>(null);
 
   async function fetchMembership(userId: string) {
     const { data: mem } = await supabase
       .from("workspace_members")
-      .select("role, workspace_id")
+      .select("role, workspace_id, status")
       .eq("user_id", userId)
+      .eq("status", "active")
+      .order("created_at", { ascending: true })
       .maybeSingle();
-    if (!mem) { setRole(null); setAccessCode(null); return; }
-    setRole((mem.role as "admin" | "viewer") ?? "viewer");
-    const { data: ws } = await supabase
-      .from("workspaces")
-      .select("access_code")
-      .eq("id", mem.workspace_id)
-      .maybeSingle();
-    setAccessCode((ws as any)?.access_code ?? null);
+    if (!mem) { setRole(null); setWorkspaceId(null); return; }
+    setRole(((mem.role as unknown) as "owner" | "admin" | "member") ?? "member");
+    setWorkspaceId((mem as any).workspace_id ?? null);
   }
 
   useEffect(() => {
@@ -57,7 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setDisplayName("");
         setRole(null);
-        setAccessCode(null);
+        setWorkspaceId(null);
       }
       setLoading(false);
     });
@@ -104,7 +103,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    try { await (supabase.rpc as any)("demote_self_to_viewer"); } catch {}
     await supabase.auth.signOut();
   };
 
@@ -124,16 +122,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (user) await fetchMembership(user.id);
   };
 
-  const redeemCode = async (code: string) => {
-    const { data, error } = await (supabase.rpc as any)("redeem_access_code", { _code: code.trim().toUpperCase() });
+  const acceptInvite = async (code: string) => {
+    const { error } = await (supabase.rpc as any)("accept_workspace_invite", { _code: code.trim().toUpperCase() });
+    if (error) {
+      const msg = String(error.message || "").toLowerCase();
+      if (msg.includes("already_member")) return { ok: false, error: "Você já pertence a este workspace." };
+      return { ok: false, error: "Convite inválido ou expirado." };
+    }
+    await refreshMembership();
+    return { ok: true };
+  };
+
+  const createWorkspace = async (name: string) => {
+    const { error } = await (supabase.rpc as any)("create_workspace", { _name: name });
     if (error) return { ok: false, error: error.message };
-    if (!data) return { ok: false, error: "Código inválido" };
     await refreshMembership();
     return { ok: true };
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, displayName, role, isAdmin: role === "admin", accessCode, refreshMembership, redeemCode, signUp, signIn, signOut, resetPassword, updatePassword }}>
+    <AuthContext.Provider value={{
+      user, session, loading, displayName, role, workspaceId,
+      isAdmin: role === "admin" || role === "owner",
+      isOwner: role === "owner",
+      refreshMembership, acceptInvite, createWorkspace,
+      signUp, signIn, signOut, resetPassword, updatePassword,
+    }}>
       {children}
     </AuthContext.Provider>
   );

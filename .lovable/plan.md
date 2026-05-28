@@ -1,107 +1,98 @@
+# Refatoração de Autenticação, Membros e Permissões
 
-# Reestruturação do BuzzUp
+Substituir o modelo atual (login compartilhado + código fixo de admin no localStorage/RPC) por um sistema profissional com **login individual**, **roles persistidas no banco** (`owner`/`admin`/`member`), **convites por código com hash** e **RLS estrita** que bloqueia qualquer ação proibida no servidor.
 
-## 1. Nova navegação (bottom nav)
-`Início · Calendário · Pessoas · Projetos · Mercado · GG · Presidência`
+## 1. Mudanças no banco (migração SQL)
 
-Remove abas atuais: Tarefas (vira "Demandas" dentro do Calendário e dentro de cada área), Conteúdo, Equipes (move para dentro de Pessoas), Gamificação admin (move para dentro de Pessoas como "Apelidos").
+### Tabela `workspace_members`
+- Adicionar role `owner` ao `CHECK` (hoje só `admin`/`member`/`viewer`).
+- Adicionar coluna `status` (`active`/`removed`/`pending`).
+- Garantir UNIQUE em `(workspace_id, user_id)`.
+- Migrar dados existentes: o `user_id` dono do `workspaces.user_id` vira `owner`; demais membros `admin` permanecem `admin`; `viewer` vira `member`.
+- Remover/desligar a coluna `workspaces.access_code` (manter como deprecated/null) e a RPC `redeem_access_code` + `demote_self_to_viewer`.
+- Bloquear escrita direta com policy restritiva: nenhum INSERT/UPDATE/DELETE direto via PostgREST — tudo via RPC SECURITY DEFINER.
 
-## 2. Modelo de dados — nova dimensão "Área"
-Áreas: `projetos`, `mercado`, `gg`, `presidencia`. Convivem com Equipes (não substituem).
+### Nova tabela `workspace_invites` (substitui a atual baseada em e-mail)
+Recriar com: `id`, `workspace_id`, `code_hash`, `role` (`admin`|`member`), `created_by`, `expires_at`, `max_uses` (default 1), `used_count` (default 0), `status` (`active`|`used`|`expired`|`revoked`), `used_by`, `used_at`, timestamps. RLS: só owner/admin do workspace leem; escrita só via RPC.
 
-Novos campos:
-- `people.area` (text, nullable) — área principal da pessoa
-- `tasks.area` (text, nullable) — área da tarefa/demanda
-- `calendar_items.area` (text, nullable) — opcional p/ filtrar
-- Nova tabela `area_notes` (id, workspace_id, area, name, url, position)
-- Nova tabela `parking_items` (id, workspace_id, area, person_id nullable, title, description, position) — alimenta o Quadro CB. `person_id = null` ⇒ está no Estacionamento; senão, está na coluna daquele membro.
+### Nova tabela `activity_logs`
+`workspace_id`, `user_id`, `action`, `target_type`, `target_id`, `metadata jsonb`, `created_at`. RLS: owner vê tudo; admin vê operacionais; member não vê.
 
-## 3. Início (novo)
-Três blocos, nessa ordem:
-1. **Ranking de Gamificação** (mantém atual, corrigir grafia "Gamificação")
-2. **Projetos** — cards/lista de projetos ativos (reaproveita ProjectsPage resumido)
-3. **Tarefas por pessoa (ativas)** — gráfico de barras agrupadas: 2 barras por pessoa (Não começada cinza, Em andamento laranja). Tarefas concluídas ignoradas.
-4. **Eventos da semana** — lista dos eventos do calendário do dia atual até domingo (fim de semana America/Sao_Paulo).
+### Funções helper (SECURITY DEFINER, search_path=public)
+- `current_workspace_role(_ws uuid)` → retorna role do usuário no workspace.
+- `is_workspace_owner(_user, _ws)` e atualizar `is_workspace_admin` para aceitar `owner` ou `admin`.
+- `get_workspace_id` continua para retro-compatibilidade (workspace ativo = primeiro), mas RLS passa a usar checagem por `workspace_id` + role.
 
-Remove "Atenção hoje" e qualquer card de "tarefas concluídas por pessoa".
+### RPCs (SECURITY DEFINER) — única forma de alterar permissões
+- `create_workspace(name text)` → cria workspace + member `owner` + log.
+- `create_workspace_invite(_ws uuid, _role text, _expires_in interval, _max_uses int)`:
+  - owner pode criar `admin` ou `member`; admin só `member`; member bloqueado.
+  - Gera código aleatório `EMPRESA-XXXXX` (charset seguro, ~40 bits), salva `code_hash = crypt(code, gen_salt('bf'))`, retorna o código **apenas uma vez**.
+  - Default para `admin`: `max_uses=1`, `expires_in=1h`.
+- `accept_workspace_invite(_code text)`:
+  - Localiza convite ativo válido comparando hash, valida expiração/usos/status, valida que o usuário ainda não é membro, insere `workspace_members` com role do convite, incrementa `used_count`, marca `used` se atingir `max_uses`, registra log. Retorna `{workspace_id, role}`. Erros genéricos para evitar enumeration.
+- `revoke_workspace_invite(_ws, _invite)`: owner revoga qualquer um; admin só convites de member que ele criou.
+- `remove_workspace_member(_ws, _target_user)`: owner remove admin/member; admin remove só member; bloqueia remoção do último owner.
+- `update_member_role(_ws, _target_user, _new_role)`: somente owner; não permite remover último owner; permite promover member↔admin; transferência de propriedade futura fora de escopo.
 
-## 4. Calendário
-- Renomear "Estacionamento" → **Ideias gerais** em toda UI.
-- Aba **Demandas** (substitui visão de tarefas): chips de filtro com as 4 áreas (single-select). Mostra só demandas da área selecionada. Botão "+" cria demanda já com `area` preenchida da seleção atual.
-- Mantém visão de calendário existente.
+### RLS em tabelas operacionais
+Reescrever policies de `tasks`, `projects`, `calendar_items`, `posts`, `post_assignees`, `task_assignees`, `project_participants`, `parking_items`, `area_notes`, `attendance_*`, `lead_thermometer`, `broadcasts`, `categories`, `channels`, `event_types`, `gamification_*`, `people`, `teams`, `team_members` para:
+- SELECT: qualquer membro ativo do workspace.
+- INSERT/UPDATE/DELETE: somente `owner` ou `admin` (`is_workspace_admin` atualizado para incluir owner).
+- `member` nunca pode escrever.
 
-## 5. Pessoas — 3 sub-abas
-- **Apelidos** (só admin) — conteúdo atual de GamificationAdminPage.
-- **Equipes** — conteúdo atual de TeamsPage.
-- **Membros** — conteúdo atual de PeoplePage. Clicar no nome abre modal com: nome, **Área** (select dos 4) e **Equipe** (select). Salvar atualiza `people.area` e `team_members`.
+## 2. Mudanças no front-end
 
-## 6. Áreas (Projetos, Mercado, GG, Presidência) — página única reutilizada
-Cada uma é a mesma página parametrizada por `area`. Duas abas internas:
+### `AuthContext`
+- Remover `accessCode`, `redeemCode`, `isAdmin` baseado em código, `demote_self_to_viewer`.
+- Expor: `user`, `session`, `memberships: {workspace_id, workspace_name, role}[]`, `activeWorkspaceId` (persistido em `localStorage` apenas como preferência), `role` (derivada do membership ativo), helpers `isOwner`, `isAdmin` (=owner||admin), `isMember`.
+- Carregar memberships após login via select em `workspace_members` + `workspaces`.
 
-### 6.1 Notas
-- Lista de "atalhos": cada item é um botão grande com **nome** visível (URL escondida).
-- Clicar abre URL em nova aba (`target=_blank`).
-- Admin pode adicionar/editar/remover (nome + URL).
+### Hook central `usePermissions()`
+Retorna: `canViewContent`, `canEditContent`, `canInviteAdmin`, `canInviteMember`, `canRemoveMember(targetRole)`, `canChangeRoles`, `canRevokeInvite(invite)`, `canManageMembers`. Substitui todos os `isAdmin` espalhados.
 
-### 6.2 Quadro CB
-Layout horizontal scrollável:
-```text
-[ Estacionamento ] [ Membro A ] [ Membro B ] [ Membro C ] ...
-       ↑                  ↑           ↑
-   parking_items    person_id=A   person_id=B
-```
-- Colunas = membros da área (`people.area = <area>`) + 1 coluna fixa "Estacionamento" à esquerda.
-- Cards = `parking_items` daquela área, agrupados por `person_id`.
-- Drag-and-drop livre: estacionamento↔membro, membro↔membro, membro↔estacionamento. Mover card = update `person_id` (null para estacionamento).
-- Admin cria/edita/remove cards. Cards mostram título + descrição curta.
+### Telas
+- **LoginPage**: mantém login/cadastro individuais. Remover redirect para `/welcome` com código. No cadastro, NÃO cria workspace automaticamente; redireciona para nova tela "Onboarding" com duas opções:
+  - **Criar workspace** (input nome → chama `create_workspace`).
+  - **Entrar com código de convite** (input código → chama `accept_workspace_invite`).
+- **WelcomePage**: removida (não há mais código de admin para mostrar).
+- **AppLayout**: remover botão/popover de "Código admin"; remover chip "Visualizador/Admin" baseado em código; adicionar **seletor de workspace** quando o usuário tem >1 membership.
+- **MembersPage** (substitui/complementa `PeoplePage` para gestão real):
+  - Lista membros com nome (do `profiles`), email (de `auth.users` via view ou RPC), role, status, data.
+  - Owner: botões "Convidar admin", "Convidar member", promover/rebaixar, remover.
+  - Admin: botão "Convidar member", remover member.
+  - Member: somente leitura, sem botões.
+- **InvitesPage** (ou aba): lista convites com cargo, criado por, expiração, status; botão revogar conforme permissão. Modal de geração mostra o código uma única vez + copiar.
+- **Modal "Entrar em workspace"**: acessível dentro do app e na tela de onboarding pós-signup.
+- **Rotas protegidas**: criar `<RequireRole roles={['owner','admin']}>` para `/gamification-admin` etc.; rota sem permissão mostra "Você não tem permissão para acessar esta área."
 
-## 7. Permissões
-- Admin: tudo (incluindo Apelidos, criar notas-link, mover/criar cards CB, mudar área de membros).
-- Membro: leitura + drag de cards no Quadro CB (decidir: por enquanto **leitura apenas** para manter padrão atual em que só admin escreve; cards movidos via admin). Confirmaremos no build se quiser permitir drag para todos.
+### Limpeza
+- Remover toda leitura de role/admin do `localStorage` (manter apenas `activeWorkspaceId`).
+- Remover chamadas `redeem_access_code`/`demote_self_to_viewer`.
+- Auditar usos de `isAdmin` → trocar por `usePermissions().canEditContent` (escrita) ou `.canManageMembers` (administração de pessoas).
 
-## 8. Detalhes técnicos
+## 3. Segurança extra
+- Habilitar **Leaked Password Protection** (HIBP) no Supabase Auth.
+- Mensagens de erro genéricas em `accept_workspace_invite` (não revelar se workspace existe).
+- Convite admin: padrão 1h e 1 uso, forçado server-side independente do que o front enviar.
+- Logs gravados em todas as RPCs sensíveis.
 
-**Migrations**
-- `ALTER TABLE people ADD COLUMN area text`
-- `ALTER TABLE tasks ADD COLUMN area text`
-- `ALTER TABLE calendar_items ADD COLUMN area text`
-- `CREATE TABLE area_notes (...)` + GRANTs + RLS (select para members, write para admins)
-- `CREATE TABLE parking_items (...)` + GRANTs + RLS idem
+## 4. Migração de dados existentes
+- Workspaces atuais: `workspaces.user_id` → membership `owner`. Demais `admin` ficam `admin`, `viewer` vira `member`.
+- `access_code` deixa de ser usado (coluna mantida nullable para não quebrar tipos até a próxima limpeza).
+- Convites antigos baseados em e-mail (`workspace_invites` atual) ficam ignorados/arquivados; nova tabela tem nome diferente ou recriamos com schema novo (decisão: **dropar e recriar** a tabela atual já que não há fluxo de e-mail em uso).
 
-**Rotas novas** (`src/App.tsx`):
-- `/projetos`, `/mercado`, `/gg`, `/presidencia` → `<AreaPage area="..."/>` (componente único)
-- `/pessoas` continua, mas página vira tabs (Apelidos/Equipes/Membros)
-- Remove `/tasks`, `/content`, `/teams`, `/gamification` (ou redireciona internamente)
+## 5. Critérios de aceite (testáveis)
+Os 10 cenários descritos no pedido (criação de workspace, convite member, convite admin, tentativas de burla por admin/member via devtools, convite usado/expirado/revogado, multi-workspace, persistência pós-refresh) — todos validados tanto no front quanto via RLS/RPC.
 
-**Componentes novos**
-- `src/pages/AreaPage.tsx` (Notas + Quadro CB)
-- `src/components/area/AreaNotesTab.tsx`
-- `src/components/area/AreaKanbanTab.tsx` (HTML5 drag-and-drop, sem libs novas)
-- `src/components/area/AreaFilterChips.tsx` (reuso para Demandas)
-- `src/pages/PeoplePage.tsx` refatorado para tabs
-- `src/components/modals/MemberEditModal.tsx` (nome + área + equipe)
+## Detalhes técnicos relevantes
+- Hash de código: `pgcrypto` (`crypt` + `gen_salt('bf')`).
+- Geração de código: função SQL retornando `EMPRESA-XXXXX` com 5 chars de `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`.
+- `is_workspace_admin` reescrita: `role IN ('owner','admin')` no workspace ativo.
+- Todas as policies de escrita passam a usar `is_workspace_admin(auth.uid())` (já cobre owner+admin) — basicamente só precisamos atualizar a função.
+- `get_workspace_id` continua existindo mas o app passará a respeitar `activeWorkspaceId` quando houver múltiplas memberships (policies precisarão evoluir para multi-workspace numa fase futura; nesta entrega seguimos com workspace único ativo, garantindo isolamento via membership).
 
-**Atualizações**
-- `DataContext`: adicionar `areaNotes`, `parkingItems`, `area` em people/tasks; CRUD + realtime das 2 novas tabelas
-- `DashboardPage`: substituir conteúdo conforme item 3
-- `CalendarPage`: renomear "Estacionamento"→"Ideias gerais", adicionar aba Demandas com filtro por área
-- `AppLayout`: nova bottom nav (7 itens — avaliar overflow em mobile; possivelmente agrupar as 4 áreas em um menu "Áreas" se necessário no mobile)
-
-**Bottom nav mobile**: com 7 itens fica apertado. Proposta: `Início · Calendário · Pessoas · Áreas ▾ · +`, onde "Áreas" abre folha com Projetos/Mercado/GG/Presidência. No desktop mostra todos os 7.
-
-**Gamificação**: nome correto = "Gamificação" (já está). Verificar todos os labels.
-
-## 9. Fora do escopo deste plano
-- Reescrever lógica de pontuação (mantida).
-- Mexer em Conteúdo/Posts (página `/content` será removida da nav; manter arquivo até confirmar que dados não são mais usados).
-
-## 10. Ordem de execução
-1. Migrations (área em people/tasks/calendar_items, area_notes, parking_items)
-2. DataContext + tipos
-3. Nova navegação + rotas + AreaPage skeleton
-4. PeoplePage com tabs + MemberEditModal
-5. Calendário (renome + aba Demandas com filtro)
-6. Início (4 blocos novos)
-7. Notas (atalhos)
-8. Quadro CB (drag-and-drop)
-9. QA visual + ajustes mobile
+## Fora de escopo desta entrega
+- Transferência de propriedade (deixar RPC stub para futuro).
+- Histórico de logs visível na UI (tabela criada, viewer pode vir depois).
+- Multi-workspace seletor avançado (entregamos seletor simples; RLS continua via `get_workspace_id`).
