@@ -510,7 +510,7 @@ export default function CalendarPage() {
               onDragLeave={handleParkingDragLeave}
               onDrop={handleParkingDrop}
               title={`Abrir ideias gerais (${parkedIdeas.length})`}
-              className={`group h-full min-h-0 bg-card border rounded-lg flex flex-col items-center justify-start gap-2 py-3 transition-colors hover:bg-accent ${parkingDropActive ? "border-primary ring-2 ring-primary/30 bg-primary/5" : "border-border"}`}
+              className={`group h-full min-h-0 bg-card border rounded-2xl flex flex-col items-center justify-start gap-2 py-3 transition-colors hover:bg-accent ${parkingDropActive ? "border-primary ring-2 ring-primary/30 bg-primary/5" : "border-border"}`}
             >
               <Inbox className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />
               {parkedIdeas.length > 0 && (
@@ -531,7 +531,7 @@ export default function CalendarPage() {
               onDragOver={handleParkingDragOver}
               onDragLeave={handleParkingDragLeave}
               onDrop={handleParkingDrop}
-              className={`bg-card border rounded-lg flex flex-col overflow-hidden h-full min-h-0 transition-colors ${parkingDropActive ? "border-primary ring-2 ring-primary/30 bg-primary/5" : "border-border"}`}
+              className={`bg-card border rounded-2xl flex flex-col overflow-hidden h-full min-h-0 transition-colors ${parkingDropActive ? "border-primary ring-2 ring-primary/30 bg-primary/5" : "border-border"}`}
             >
               <div className="px-3 py-2.5 border-b border-border flex items-center justify-between gap-2">
                 <div className="min-w-0">
@@ -572,7 +572,7 @@ export default function CalendarPage() {
               </div>
             </aside>
           )}
-          <div className="bg-card border border-border rounded-lg overflow-hidden flex flex-col h-full min-h-0 w-full">
+          <div className="bg-card border border-border rounded-2xl overflow-hidden flex flex-col h-full min-h-0 w-full">
             <div className="grid grid-cols-7 border-b border-border shrink-0">
               {weekDays.map(d => (<div key={d} className="py-2 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">{d}</div>))}
             </div>
@@ -584,7 +584,7 @@ export default function CalendarPage() {
       )}
 
       {viewMode === "month" && isMobile && (
-        <div className="bg-card border border-border rounded-lg overflow-hidden">
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
           {/* Past toggle / list */}
           <button
             onClick={() => {
@@ -655,7 +655,7 @@ export default function CalendarPage() {
       )}
 
       {viewMode === "week" && (
-        <div className="bg-card border border-border rounded-lg overflow-hidden">
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
           <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-border">
             <div className="py-2 text-center text-xs text-muted-foreground" />
             {weekDaysList.map(day => (
@@ -689,7 +689,7 @@ export default function CalendarPage() {
       )}
 
       {viewMode === "day" && (
-        <div className="bg-card border border-border rounded-lg overflow-hidden">
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
           <div className="px-4 py-3 border-b border-border">
             <div className={`text-lg font-semibold capitalize ${isToday(currentDate) ? "text-primary" : "text-foreground"}`}>
               {format(currentDate, "EEEE, d 'de' MMMM", { locale: ptBR })}
