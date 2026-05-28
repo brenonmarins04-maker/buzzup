@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, type DragEvent } from "react";
-import { ChevronLeft, ChevronRight, Plus, X, PanelLeftClose, PanelLeftOpen, Inbox, ChevronUp, ChevronDown, CalendarDays, ListChecks, Megaphone, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, PanelLeftClose, PanelLeftOpen, Inbox, ChevronUp, ChevronDown, CalendarDays } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import type { Task, Post, CalendarEvent } from "@/contexts/DataContext";
@@ -445,26 +445,6 @@ export default function CalendarPage() {
             )}
           </div>
         </div>
-      </div>
-
-      {/* KPI strip — mesma linguagem das métricas do Início */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          { title: "Tarefas em andamento", value: tasks.filter(t => t.status === "in-progress" || t.status === "not-started").length, icon: <ListChecks className="h-5 w-5" />, color: "#2563EB" },
-          { title: "Eventos agendados", value: events.length, icon: <CalendarDays className="h-5 w-5" />, color: "#F97316" },
-          { title: "Publicações ativas", value: posts.filter(p => !!p.date).length, icon: <Megaphone className="h-5 w-5" />, color: "#10B981" },
-          { title: "Ideias estacionadas", value: parkedIdeas.length, icon: <Sparkles className="h-5 w-5" />, color: "#8B5CF6" },
-        ].map(k => (
-          <div key={k.title} className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${k.color}1F`, color: k.color }}>
-              {k.icon}
-            </div>
-            <div className="min-w-0">
-              <p className="text-[11px] font-medium text-muted-foreground truncate">{k.title}</p>
-              <p className="text-2xl font-bold text-foreground leading-tight">{k.value}</p>
-            </div>
-          </div>
-        ))}
       </div>
 
       <div className="flex flex-col gap-2">
