@@ -49,7 +49,7 @@ const nextPostStatus = (s?: string) => {
 };
 
 export default function CalendarPage() {
-  const { tasks, posts, events, eventTypes, parkingItems, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addPost, addParkingItem, updateParkingItem, people } = useData();
+  const { tasks, posts, events, eventTypes, parkingItems, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addParkingItem, updateParkingItem } = useData();
   const { isAdmin } = useAuth();
   const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(getNowBrasilia());
@@ -72,7 +72,6 @@ export default function CalendarPage() {
   const [dropTarget, setDropTarget] = useState<string | null>(null);
 
   const activeAreaMeta = filterArea ? AREAS.find(a => a.key === filterArea) : null;
-  const parkedPosts = useMemo(() => posts.filter(p => !p.date), [posts]);
   // All ideas without a date — always shown in sidebar regardless of area filter.
   const parkedIdeas = useMemo(() => parkingItems.filter(p => !p.date), [parkingItems]);
 
