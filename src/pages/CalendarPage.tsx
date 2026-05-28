@@ -182,7 +182,7 @@ export default function CalendarPage() {
   const allItems = useMemo<CalendarItem[]>(() => {
     const items: CalendarItem[] = [];
     tasks.forEach((t) => {
-      if (t.status === "done") return; // tarefas concluídas não aparecem no calendário
+      if (t.status === "done") return; // demandas concluídas não aparecem no calendário
       if (filterArea && t.area !== filterArea) return;
       const taskColor = t.status === "in-progress" ? "#F59E0B" : t.status === "not-started" ? "#9CA3AF" : TASK_COLOR;
       items.push({ id: t.id, title: t.title, type: "task", date: t.deadline, color: taskColor, status: t.status });
@@ -331,7 +331,7 @@ export default function CalendarPage() {
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
   const weekDaysList = eachDayOfInterval({ start: weekStart, end: endOfWeek(currentDate, { weekStartsOn: 0 }) });
 
-  const typeLabels: Record<string, string> = { task: "Tarefa", post: "Post", event: "Evento" };
+  const typeLabels: Record<string, string> = { task: "Demanda", post: "Post", event: "Evento" };
 
   const renderItemPill = (item: CalendarItem) => (
     <Tooltip key={item.id}>
@@ -480,7 +480,7 @@ export default function CalendarPage() {
             <div className="min-w-0">
               <h1 className="text-xl md:text-2xl font-bold text-foreground tracking-tight">Calendário</h1>
               <p className="text-xs md:text-sm text-muted-foreground mt-0.5">
-                Organize tarefas, publicações e eventos em um só lugar.
+                Organize demandas, publicações e eventos em um só lugar.
               </p>
             </div>
           </div>

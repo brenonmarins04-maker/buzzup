@@ -19,7 +19,7 @@ export default function QuickCreateMenu({ children, onCreateTask, onCreatePost, 
       <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuItem onClick={onCreateTask}>
-          <CheckSquare className="h-4 w-4 mr-2" /> Nova Tarefa
+          <CheckSquare className="h-4 w-4 mr-2" /> Nova Demanda
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onCreatePost}>
           <Megaphone className="h-4 w-4 mr-2" /> Nova Publicação

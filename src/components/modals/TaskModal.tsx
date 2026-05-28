@@ -68,11 +68,11 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate, locke
         deadline: form.deadline, status: form.status, checklist: form.checklist,
         points: form.points,
       });
-      toast.success("Tarefa atualizada");
+      toast.success("Demanda atualizada");
       onOpenChange(false);
     } else {
       addTask({ ...form });
-      toast.success("Tarefa criada");
+      toast.success("Demanda criada");
       setForm({ ...makeBlank(), team: form.team, teamId: form.teamId, deadline: form.deadline });
       setNewCheckItem("");
       setTimeout(() => titleRef.current?.focus(), 50);
@@ -95,11 +95,11 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate, locke
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>{task ? "Editar Tarefa" : "Nova Tarefa"}</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{task ? "Editar Demanda" : "Nova Demanda"}</DialogTitle></DialogHeader>
         <form onSubmit={e => { e.preventDefault(); handleSave(); }} className="flex flex-col gap-4">
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Título *</label>
-            <Input ref={titleRef} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Título da tarefa" />
+            <Input ref={titleRef} value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} placeholder="Título da demanda" />
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Descrição</label>
@@ -192,7 +192,7 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate, locke
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="submit">{task ? "Salvar" : "Criar Tarefa"}</Button>
+            <Button type="submit">{task ? "Salvar" : "Criar Demanda"}</Button>
           </div>
         </form>
       </DialogContent>

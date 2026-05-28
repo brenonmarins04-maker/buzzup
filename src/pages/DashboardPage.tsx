@@ -166,7 +166,7 @@ export default function DashboardPage() {
     const items: { id: string; type: string; label: string; ts: string; icon: React.ReactNode; color: string }[] = [];
     tasks.filter(t => t.status === "done").forEach(t => {
       const r = t.responsible[0]?.name ?? "Alguém";
-      items.push({ id: `t-${t.id}`, type: "task", label: `${r} concluiu a tarefa "${t.title}"`, ts: (t as any).created_at ?? new Date().toISOString(), icon: <CheckCircle2 className="h-3.5 w-3.5" />, color: "#10B981" });
+      items.push({ id: `t-${t.id}`, type: "task", label: `${r} concluiu a demanda "${t.title}"`, ts: (t as any).created_at ?? new Date().toISOString(), icon: <CheckCircle2 className="h-3.5 w-3.5" />, color: "#10B981" });
     });
     projects.forEach(p => {
       items.push({ id: `p-${p.id}`, type: "project", label: `Novo projeto "${p.name}" criado`, ts: (p as any).created_at ?? new Date().toISOString(), icon: <FolderPlus className="h-3.5 w-3.5" />, color: "#2563EB" });
@@ -258,12 +258,12 @@ export default function DashboardPage() {
         <div className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <Users className="h-4 w-4 text-[#F97316]" /> Tarefas por pessoa
+              <Users className="h-4 w-4 text-[#F97316]" /> Demandas por pessoa
             </h2>
             <Link to="/people" className="text-xs text-primary hover:underline">Ver todas</Link>
           </div>
           {tasksPerPerson.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Sem tarefas atribuídas.</p>
+            <p className="text-xs text-muted-foreground">Sem demandas atribuídas.</p>
           ) : (
             <ul className="flex flex-col gap-3">
               {tasksPerPerson.map(p => (
@@ -328,7 +328,7 @@ export default function DashboardPage() {
             <Trophy className="h-4 w-4 text-[#F97316]" /> Gameficação — Ranking
           </h2>
           {ranking.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Nenhum ponto ainda. Conclua tarefas com pontos atribuídos para entrar no ranking.</p>
+            <p className="text-xs text-muted-foreground">Nenhum ponto ainda. Conclua demandas com pontos atribuídos para entrar no ranking.</p>
           ) : (
             <ol className="flex flex-col gap-2">
               {ranking.map((r, i) => {

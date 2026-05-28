@@ -331,7 +331,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (t.status === "done") return;
       const deadline = new Date(t.deadline);
       const diffDays = Math.ceil((deadline.getTime() - todayDate.getTime()) / (1000 * 60 * 60 * 24));
-      if (diffDays < 0) notifs.push({ id: `n_${t.id}_overdue`, title: "Tarefa atrasada", message: t.title, type: "danger", read: false, date: t.deadline });
+      if (diffDays < 0) notifs.push({ id: `n_${t.id}_overdue`, title: "Demanda atrasada", message: t.title, type: "danger", read: false, date: t.deadline });
       else if (diffDays === 0) notifs.push({ id: `n_${t.id}_today`, title: "Vence hoje", message: t.title, type: "danger", read: false, date: t.deadline });
       else if (diffDays <= 3) notifs.push({ id: `n_${t.id}_soon`, title: "Prazo próximo", message: `${t.title} — ${diffDays} dia(s)`, type: "warning", read: false, date: t.deadline });
     });
@@ -403,7 +403,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       team_id: t.teamId,
       points: t.points ?? 0,
     } as any).select().single();
-    if (error) { toast.error("Erro ao criar tarefa"); return; }
+    if (error) { toast.error("Erro ao criar demanda"); return; }
     if (data) {
       await syncJunction("task_assignees", "task_id", data.id, t.responsibleIds);
       const resp = people.filter(p => t.responsibleIds.includes(p.id));
@@ -426,7 +426,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       team_id: t.teamId,
       points: t.points ?? 0,
     } as any).eq("id", t.id);
-    if (error) { toast.error("Erro ao atualizar tarefa"); return; }
+    if (error) { toast.error("Erro ao atualizar demanda"); return; }
     await syncJunction("task_assignees", "task_id", t.id, t.responsible.map(r => r.id));
     setTasks(prev => prev.map(x => x.id === t.id ? t : x));
     // Award gamification points when task transitions to "done"
@@ -434,7 +434,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const pts = t.points;
       const inserts = t.responsible.map(r => ({
         workspace_id: workspaceId, person_id: r.id, action_id: null,
-        action_name: `Tarefa: ${t.title}`, points: pts, awarded_by: uid,
+        action_name: `Demanda: ${t.title}`, points: pts, awarded_by: uid,
       }));
       const { data: aws } = await (supabase.from("gamification_awards") as any).insert(inserts).select();
       if (aws && aws.length) {
@@ -449,7 +449,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const deleteTask = useCallback(async (id: string) => {
     const { error } = await supabase.from("tasks").delete().eq("id", id);
-    if (error) { toast.error("Erro ao excluir tarefa"); return; }
+    if (error) { toast.error("Erro ao excluir demanda"); return; }
     setTasks(prev => prev.filter(x => x.id !== id));
   }, []);
 
