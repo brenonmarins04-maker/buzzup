@@ -93,9 +93,9 @@ export default function CalendarPage() {
     if (!isAdmin) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
-    setTrashActive(true);
+    setTrashActive((cur) => (cur ? cur : true));
   };
-  const handleTrashDragLeave = () => setTrashActive(false);
+  const handleTrashDragLeave = () => setTrashActive((cur) => (cur ? false : cur));
   const handleTrashDrop = (e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -225,16 +225,23 @@ export default function CalendarPage() {
     if (e.currentTarget instanceof HTMLElement) e.currentTarget.style.opacity = "1";
     setDragItem(null); setDropTarget(null);
   };
-  const handleDragOver = (e: DragEvent, dayStr: string) => { if (!isAdmin) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropTarget(dayStr); };
-  const handleDragLeave = () => setDropTarget(null);
+  const handleDragOver = (e: DragEvent, dayStr: string) => {
+    if (!isAdmin) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDropTarget((cur) => (cur === dayStr ? cur : dayStr));
+  };
+  const handleDragLeave = () => setDropTarget((cur) => (cur === null ? cur : null));
 
   const handleParkingDragOver = (e: DragEvent) => {
     if (!isAdmin) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
-    if (!dragItem || dragItem.type === "post" || dragItem.type === "task") setParkingDropActive(true);
+    if (!dragItem || dragItem.type === "post" || dragItem.type === "task") {
+      setParkingDropActive((cur) => (cur ? cur : true));
+    }
   };
-  const handleParkingDragLeave = () => setParkingDropActive(false);
+  const handleParkingDragLeave = () => setParkingDropActive((cur) => (cur ? false : cur));
   const handleParkingDrop = (e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
