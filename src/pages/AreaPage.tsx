@@ -26,15 +26,22 @@ export default function AreaPage({ area }: Props) {
 
   return (
     <div className="animate-fade-in space-y-5">
-      <div className="flex items-center gap-3">
-        <span className="h-3 w-3 rounded-full" style={{ backgroundColor: meta.color }} />
-        <h1 className="text-2xl font-semibold text-foreground tracking-tight">{label}</h1>
+      <div
+        className="rounded-xl border-2 px-5 py-4 flex items-center gap-3"
+        style={{
+          backgroundColor: `${meta.color}1A`,
+          borderColor: meta.color,
+        }}
+      >
+        <span className="h-3.5 w-3.5 rounded-full ring-2 ring-white/60" style={{ backgroundColor: meta.color }} />
+        <h1 className="text-2xl font-bold tracking-tight" style={{ color: meta.color }}>{label}</h1>
       </div>
 
-      <div className="flex items-center gap-1 border-b border-border">
+      <div className="flex items-center gap-1 border-b-2 border-border">
         {tabs.map(t => (
           <button key={t.v} onClick={() => setTab(t.v as any)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${tab === t.v ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+            style={tab === t.v ? { borderColor: meta.color, color: meta.color } : undefined}
+            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors -mb-px ${tab === t.v ? "" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
             {t.label}
           </button>
         ))}
