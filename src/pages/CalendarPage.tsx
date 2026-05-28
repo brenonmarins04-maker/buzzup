@@ -479,13 +479,13 @@ export default function CalendarPage() {
               onDragOver={handleParkingDragOver}
               onDragLeave={handleParkingDragLeave}
               onDrop={handleParkingDrop}
-              title={`Abrir ideias gerais (${parkedPosts.length})`}
+              title={`Abrir ideias gerais (${parkedIdeas.length})`}
               className={`group h-full min-h-0 bg-card border rounded-lg flex flex-col items-center justify-start gap-2 py-3 transition-colors hover:bg-accent ${parkingDropActive ? "border-primary ring-2 ring-primary/30 bg-primary/5" : "border-border"}`}
             >
               <Inbox className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />
-              {parkedPosts.length > 0 && (
+              {parkedIdeas.length > 0 && (
                 <span className="text-[10px] font-semibold text-foreground bg-muted rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center">
-                  {parkedPosts.length}
+                  {parkedIdeas.length}
                 </span>
               )}
               <div className="flex-1 flex items-center">
