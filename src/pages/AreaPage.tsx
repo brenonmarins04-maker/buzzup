@@ -617,6 +617,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
 
   const [dragId, setDragId] = useState<string | null>(null);
   const [overCol, setOverCol] = useState<string | null>(null);
+  const [doneOpen, setDoneOpen] = useState(false);
 
   const onDragStart = (e: DragEvent, id: string) => {
     if (!isAdmin) { e.preventDefault(); return; }
@@ -633,17 +634,85 @@ function KanbanTab({ area }: { area: AreaKey }) {
     if (!id) return;
     const item = items.find(i => i.id === id);
     if (!item) return;
-    if (item.personId === personId) { setDragId(null); return; }
-    moveParkingItem(id, personId);
+    // Dropping anywhere (Demandas/membro) reactivates a "done" card and moves it.
+    if (item.status === "done") {
+      updateParkingItem({ ...item, personId, status: "in-progress" });
+    } else if (item.personId !== personId) {
+      moveParkingItem(id, personId);
+    }
     setDragId(null);
   };
 
+  // Only "in-progress" cards live in their assigned column.
   const columnItems = (personId: string | null) =>
-    items.filter(i => i.personId === personId).sort((a, b) => a.position - b.position);
+    items.filter(i => i.personId === personId && i.status !== "done").sort((a, b) => a.position - b.position);
+  const doneItems = useMemo(() => items.filter(i => i.status === "done").sort((a, b) => a.position - b.position), [items]);
+
+  const setStatus = (item: ParkingItem, status: ParkingItemStatus) => {
+    if (item.status === status) return;
+    updateParkingItem({ ...item, status });
+  };
+
+  const renderCard = (item: ParkingItem) => {
+    const isDone = item.status === "done";
+    const tint = isDone ? "#10B981" : "#F59E0B"; // green / orange
+    return (
+      <div
+        key={item.id}
+        draggable={isAdmin}
+        onDragStart={(e) => onDragStart(e, item.id)}
+        onDragEnd={() => setDragId(null)}
+        className={`group bg-card border rounded-lg p-3 text-sm shadow-sm transition-colors ${isAdmin ? "cursor-grab active:cursor-grabbing" : ""}`}
+        style={{ borderColor: `${tint}66`, backgroundColor: `${tint}10` }}
+      >
+        {/* Status toggle row */}
+        {isAdmin && (
+          <div className="flex items-center gap-1 mb-2">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setStatus(item, "in-progress"); }}
+              title="Em andamento"
+              className={`flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded transition-all ${item.status === "in-progress" ? "ring-1" : "opacity-50 hover:opacity-100"}`}
+              style={item.status === "in-progress" ? { backgroundColor: "#F59E0B22", color: "#B45309" } : { color: "#9CA3AF" }}
+            >
+              <Circle className="h-3 w-3" /> Andamento
+            </button>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setStatus(item, "done"); }}
+              title="Concluída"
+              className={`flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded transition-all ${item.status === "done" ? "ring-1" : "opacity-50 hover:opacity-100"}`}
+              style={item.status === "done" ? { backgroundColor: "#10B98122", color: "#047857" } : { color: "#9CA3AF" }}
+            >
+              <CheckCircle2 className="h-3 w-3" /> Concluída
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); deleteParkingItem(item.id); }}
+              className="ml-auto text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100"
+              title="Excluir"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+        <div onClick={() => isAdmin && openEdit(item)} className={isAdmin ? "cursor-pointer" : ""}>
+          <span className={`font-semibold leading-snug ${isDone ? "text-muted-foreground line-through" : "text-foreground"}`}>{item.title}</span>
+          {item.description && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-3">{item.description}</p>}
+          {item.date && (
+            <div className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded"
+              style={{ backgroundColor: `${tint}22`, color: tint }}>
+              {new Date(item.date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   const Column = ({ personId, title: colTitle, accent }: { personId: string | null; title: string; accent?: boolean }) => {
     const colKey = personId ?? "__park";
     const colItems = columnItems(personId);
+    const isDemandsCol = accent;
     return (
       <div
         onDragOver={(e) => onDragOver(e, colKey)}
@@ -664,33 +733,33 @@ function KanbanTab({ area }: { area: AreaKey }) {
               <Plus className="h-3.5 w-3.5" /> nova demanda
             </button>
           )}
-          {colItems.map(item => (
-            <div
-              key={item.id}
-              draggable={isAdmin}
-              onDragStart={(e) => onDragStart(e, item.id)}
-              onDragEnd={() => setDragId(null)}
-              onClick={() => isAdmin && openEdit(item)}
-              className={`group bg-card border border-border rounded-lg p-4 text-sm shadow-sm hover:border-primary/50 transition-colors ${isAdmin ? "cursor-grab active:cursor-grabbing" : ""}`}
+          {colItems.map(item => renderCard(item))}
+        </div>
+        {/* Concluídas — só aparece dentro da coluna "Demandas" */}
+        {isDemandsCol && (
+          <div className="border-t border-border bg-card/40 rounded-b-lg">
+            <button
+              type="button"
+              onClick={() => setDoneOpen(o => !o)}
+              className="w-full px-3 py-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
             >
-              <div className="flex items-start justify-between gap-2">
-                <span className="font-semibold text-foreground flex-1 leading-snug">{item.title}</span>
-                {isAdmin && (
-                  <button onClick={(e) => { e.stopPropagation(); deleteParkingItem(item.id); }} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive">
-                    <X className="h-4 w-4" />
-                  </button>
+              <span className="flex items-center gap-1.5">
+                {doneOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                Concluídas
+              </span>
+              <span className="text-[10px] bg-muted rounded-full px-1.5 py-0.5">{doneItems.length}</span>
+            </button>
+            {doneOpen && (
+              <div className="p-3 pt-0 flex flex-col gap-2">
+                {doneItems.length === 0 ? (
+                  <div className="text-[11px] text-muted-foreground/70 text-center py-3">Nenhuma demanda concluída</div>
+                ) : (
+                  doneItems.map(item => renderCard(item))
                 )}
               </div>
-              {item.description && <p className="text-xs text-muted-foreground mt-2 line-clamp-3">{item.description}</p>}
-              {item.date && (
-                <div className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded"
-                  style={{ backgroundColor: `${AREAS.find(a => a.key === area)?.color}22`, color: AREAS.find(a => a.key === area)?.color }}>
-                  {new Date(item.date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+            )}
+          </div>
+        )}
       </div>
     );
   };
