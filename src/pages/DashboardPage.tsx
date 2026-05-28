@@ -12,6 +12,7 @@ import { getNowBrasilia } from "@/lib/utils";
 import { format, endOfWeek, isSameDay, differenceInHours, differenceInDays, subDays, startOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AREAS } from "@/lib/areas";
+import buzzupLogo from "@/assets/buzzup-logo.png";
 
 function timeAgo(iso: string) {
   const d = new Date(iso);
@@ -202,19 +203,8 @@ export default function DashboardPage() {
       <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-accent to-secondary/40 p-6 md:p-8">
         <div className="flex flex-col md:flex-row items-center gap-6">
           {/* Illustration */}
-          <div className="relative w-full md:w-64 h-32 md:h-36 shrink-0 rounded-xl bg-card/70 border border-border/70 backdrop-blur-sm overflow-hidden flex items-center justify-center">
-            <svg viewBox="0 0 240 120" className="w-full h-full">
-              <defs>
-                <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#10B981" stopOpacity={0.4} />
-                  <stop offset="100%" stopColor="#10B981" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <path d="M0,90 C40,80 60,60 90,55 C120,50 140,70 170,45 C195,25 215,20 240,15 L240,120 L0,120 Z" fill="url(#trendFill)" />
-              <path d="M0,90 C40,80 60,60 90,55 C120,50 140,70 170,45 C195,25 215,20 240,15" stroke="#10B981" strokeWidth="2.5" fill="none" />
-              <circle cx="195" cy="35" r="18" fill="#10B981" />
-              <path d="M188,35 L193,40 L203,30" stroke="white" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+          <div className="relative w-full md:w-64 h-32 md:h-36 shrink-0 rounded-xl border border-border/70 overflow-hidden flex items-center justify-center bg-gradient-to-br from-emerald-400/30 via-teal-400/25 to-emerald-300/20">
+            <img src={buzzupLogo} alt="BuzzUp" className="h-24 md:h-28 w-auto object-contain drop-shadow-md" />
           </div>
           <div className="flex-1 text-center md:text-left">
             <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight flex items-center justify-center md:justify-start gap-2">
