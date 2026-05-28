@@ -14,47 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      activity_logs: {
-        Row: {
-          action: string
-          created_at: string
-          id: string
-          metadata: Json
-          target_id: string | null
-          target_type: string | null
-          user_id: string | null
-          workspace_id: string
-        }
-        Insert: {
-          action: string
-          created_at?: string
-          id?: string
-          metadata?: Json
-          target_id?: string | null
-          target_type?: string | null
-          user_id?: string | null
-          workspace_id: string
-        }
-        Update: {
-          action?: string
-          created_at?: string
-          id?: string
-          metadata?: Json
-          target_id?: string | null
-          target_type?: string | null
-          user_id?: string | null
-          workspace_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "activity_logs_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       area_notes: {
         Row: {
           area: string
@@ -83,7 +42,15 @@ export type Database = {
           url?: string
           workspace_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "area_notes_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       attendance_records: {
         Row: {
@@ -116,7 +83,15 @@ export type Database = {
           status?: string
           workspace_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "attendance_records_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       attendance_settings: {
         Row: {
@@ -146,7 +121,15 @@ export type Database = {
           start_date?: string
           workspace_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "attendance_settings_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       broadcasts: {
         Row: {
@@ -176,7 +159,15 @@ export type Database = {
           message?: string
           workspace_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "broadcasts_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       calendar_items: {
         Row: {
@@ -305,7 +296,15 @@ export type Database = {
           name?: string
           workspace_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "event_types_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       gamification_actions: {
         Row: {
@@ -329,7 +328,15 @@ export type Database = {
           points?: number
           workspace_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "gamification_actions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       gamification_awards: {
         Row: {
@@ -362,7 +369,15 @@ export type Database = {
           points?: number
           workspace_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "gamification_awards_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       lead_thermometer: {
         Row: {
@@ -395,7 +410,15 @@ export type Database = {
           value?: string
           workspace_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "lead_thermometer_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       parking_items: {
         Row: {
@@ -431,7 +454,15 @@ export type Database = {
           title?: string
           workspace_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "parking_items_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       people: {
         Row: {
@@ -573,21 +604,21 @@ export type Database = {
         Row: {
           created_at: string
           display_name: string
-          id: string
+          email: string
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
           display_name?: string
-          id?: string
+          email?: string
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
           display_name?: string
-          id?: string
+          email?: string
           updated_at?: string
           user_id?: string
         }
@@ -812,55 +843,40 @@ export type Database = {
           },
         ]
       }
-      workspace_invites: {
+      workspace_join_requests: {
         Row: {
-          code_hash: string
-          created_at: string
-          created_by: string | null
-          expires_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decided_role: string | null
           id: string
-          max_uses: number
-          role: string
+          requested_at: string
           status: string
-          updated_at: string
-          used_at: string | null
-          used_by: string | null
-          used_count: number
+          user_id: string
           workspace_id: string
         }
         Insert: {
-          code_hash: string
-          created_at?: string
-          created_by?: string | null
-          expires_at: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decided_role?: string | null
           id?: string
-          max_uses?: number
-          role: string
+          requested_at?: string
           status?: string
-          updated_at?: string
-          used_at?: string | null
-          used_by?: string | null
-          used_count?: number
+          user_id: string
           workspace_id: string
         }
         Update: {
-          code_hash?: string
-          created_at?: string
-          created_by?: string | null
-          expires_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decided_role?: string | null
           id?: string
-          max_uses?: number
-          role?: string
+          requested_at?: string
           status?: string
-          updated_at?: string
-          used_at?: string | null
-          used_by?: string | null
-          used_count?: number
+          user_id?: string
           workspace_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "workspace_invites_workspace_id_fkey"
+            foreignKeyName: "workspace_join_requests_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
@@ -871,31 +887,22 @@ export type Database = {
       workspace_members: {
         Row: {
           created_at: string
-          created_by: string | null
           id: string
           role: string
-          status: string
-          updated_at: string
           user_id: string
           workspace_id: string
         }
         Insert: {
           created_at?: string
-          created_by?: string | null
           id?: string
-          role?: string
-          status?: string
-          updated_at?: string
+          role: string
           user_id: string
           workspace_id: string
         }
         Update: {
           created_at?: string
-          created_by?: string | null
           id?: string
           role?: string
-          status?: string
-          updated_at?: string
           user_id?: string
           workspace_id?: string
         }
@@ -911,22 +918,25 @@ export type Database = {
       }
       workspaces: {
         Row: {
+          code: string
           created_at: string
           id: string
           name: string
-          user_id: string
+          owner_user_id: string
         }
         Insert: {
+          code: string
           created_at?: string
           id?: string
-          name?: string
-          user_id: string
+          name: string
+          owner_user_id: string
         }
         Update: {
+          code?: string
           created_at?: string
           id?: string
           name?: string
-          user_id?: string
+          owner_user_id?: string
         }
         Relationships: []
       }
@@ -935,44 +945,110 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      accept_workspace_invite: {
-        Args: { _code: string }
+      approve_join_request: {
+        Args: { _req_id: string; _role: string }
+        Returns: undefined
+      }
+      cancel_join_request: { Args: { _req_id: string }; Returns: undefined }
+      create_workspace: {
+        Args: { _name: string }
         Returns: {
+          code: string
+          created_at: string
+          id: string
+          name: string
+          owner_user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "workspaces"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      generate_workspace_code: { Args: never; Returns: string }
+      is_admin_of: {
+        Args: { _user_id: string; _ws_id: string }
+        Returns: boolean
+      }
+      is_member_of: {
+        Args: { _user_id: string; _ws_id: string }
+        Returns: boolean
+      }
+      is_owner_of: {
+        Args: { _user_id: string; _ws_id: string }
+        Returns: boolean
+      }
+      list_my_join_requests: {
+        Args: never
+        Returns: {
+          decided_at: string
+          decided_role: string
+          id: string
+          requested_at: string
+          status: string
+          workspace_code: string
+          workspace_id: string
+          workspace_name: string
+        }[]
+      }
+      list_my_workspaces: {
+        Args: never
+        Returns: {
+          code: string
+          created_at: string
+          name: string
           role: string
           workspace_id: string
         }[]
       }
-      create_workspace: { Args: { _name: string }; Returns: string }
-      create_workspace_invite: {
-        Args: {
-          _expires_in_hours?: number
-          _max_uses?: number
-          _role: string
-          _workspace_id: string
-        }
-        Returns: string
+      list_workspace_join_requests: {
+        Args: { _ws_id: string }
+        Returns: {
+          display_name: string
+          email: string
+          id: string
+          requested_at: string
+          status: string
+          user_id: string
+        }[]
       }
-      current_workspace_role: {
-        Args: { _workspace_id: string }
-        Returns: string
+      list_workspace_members: {
+        Args: { _ws_id: string }
+        Returns: {
+          created_at: string
+          display_name: string
+          email: string
+          role: string
+          user_id: string
+        }[]
       }
-      generate_invite_code: { Args: never; Returns: string }
-      get_workspace_id: { Args: { _user_id: string }; Returns: string }
-      is_workspace_admin: { Args: { _user_id: string }; Returns: boolean }
-      is_workspace_owner: {
-        Args: { _user_id: string; _workspace_id: string }
-        Returns: boolean
-      }
+      reject_join_request: { Args: { _req_id: string }; Returns: undefined }
       remove_workspace_member: {
-        Args: { _target_user: string; _workspace_id: string }
+        Args: { _target: string; _ws_id: string }
         Returns: undefined
       }
-      revoke_workspace_invite: {
-        Args: { _invite_id: string; _workspace_id: string }
-        Returns: undefined
+      request_join_workspace: {
+        Args: { _code: string }
+        Returns: {
+          decided_at: string | null
+          decided_by: string | null
+          decided_role: string | null
+          id: string
+          requested_at: string
+          status: string
+          user_id: string
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "workspace_join_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       update_member_role: {
-        Args: { _new_role: string; _target_user: string; _workspace_id: string }
+        Args: { _new_role: string; _target: string; _ws_id: string }
         Returns: undefined
       }
     }
