@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Sparkles, KeyRound, ArrowRight, ArrowLeft, LogOut, Building2, Clock, CheckCircle2, XCircle, Crown, Shield, User as UserIcon, Plus, X } from "lucide-react";
+import { KeyRound, ArrowRight, ArrowLeft, LogOut, Building2, Clock, CheckCircle2, XCircle, Crown, Shield, User as UserIcon, Plus, X } from "lucide-react";
 
 export default function WelcomePage() {
   const {
