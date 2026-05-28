@@ -24,6 +24,7 @@ const navItems = [
   { to: "/mercado",     icon: Briefcase,    label: "Mercado" },
   { to: "/gg",          icon: Sparkles,     label: "GG" },
   { to: "/presidencia", icon: Crown,        label: "Presidência" },
+  { to: "/members",     icon: Shield,       label: "Acessos" },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
