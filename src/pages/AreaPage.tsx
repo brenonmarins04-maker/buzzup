@@ -1,8 +1,8 @@
 import { useState, useMemo, useRef, useEffect, type DragEvent, type KeyboardEvent } from "react";
-import { useData, type ParkingItem, type LeadThermometerItem, type AttendanceStatus } from "@/contexts/DataContext";
+import { useData, type ParkingItem, type ParkingItemStatus, type LeadThermometerItem, type AttendanceStatus } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { AREAS, type AreaKey, getAreaLabel } from "@/lib/areas";
-import { Plus, ExternalLink, Pencil, Trash2, X, Settings } from "lucide-react";
+import { Plus, ExternalLink, Pencil, Trash2, X, Settings, ChevronDown, ChevronUp, Circle, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
