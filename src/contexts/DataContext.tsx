@@ -41,7 +41,7 @@ export type EventType = { id: string; name: string; color: string };
 
 export type AreaNote = { id: string; area: string; name: string; url: string; position: number };
 export type ParkingItemStatus = "in-progress" | "done";
-export type ParkingItem = { id: string; area: string; personId: string | null; title: string; description: string; date: string; position: number; status: ParkingItemStatus };
+export type ParkingItem = { id: string; area: string; personId: string | null; title: string; description: string; date: string; position: number; status: ParkingItemStatus; points: number };
 
 export type GamificationAction = { id: string; name: string; points: number };
 export type GamificationAward = { id: string; personId: string; actionId: string | null; actionName: string; points: number; awardedAt: string };
@@ -116,7 +116,7 @@ type DataContextType = {
   updateAreaNote: (n: AreaNote) => Promise<void>;
   deleteAreaNote: (id: string) => Promise<void>;
 
-  addParkingItem: (area: string, title: string, date: string, description?: string) => Promise<void>;
+  addParkingItem: (area: string, title: string, date: string, description?: string, points?: number) => Promise<void>;
   updateParkingItem: (p: ParkingItem) => Promise<void>;
   moveParkingItem: (id: string, personId: string | null) => Promise<void>;
   deleteParkingItem: (id: string) => Promise<void>;
