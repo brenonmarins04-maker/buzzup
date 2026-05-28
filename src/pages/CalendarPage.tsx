@@ -245,6 +245,11 @@ export default function CalendarPage() {
   };
 
   const handleItemClick = (item: CalendarItem) => {
+    if (item.parkingId) {
+      const pk = parkingItems.find(p => p.id === item.parkingId);
+      if (pk) setIdeaModal({ open: true, item: pk });
+      return;
+    }
     if (item.type === "task") setTaskModal({ open: true, task: tasks.find(t => t.id === item.id) });
     else if (item.type === "post") setPostModal({ open: true, post: posts.find(p => p.id === item.id) });
     else if (item.type === "event") setEventModal({ open: true, event: events.find(e => e.id === item.id) });
