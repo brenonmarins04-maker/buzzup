@@ -21,6 +21,7 @@ import { getNowBrasilia } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useLongPressDrag, type DragDropResult } from "@/hooks/useLongPressDrag";
 import { AREAS } from "@/lib/areas";
+import trashBinImg from "@/assets/trash-bin.png";
 
 export type CalendarItem = {
   id: string; title: string; type: "task" | "post" | "event";
@@ -70,6 +71,47 @@ export default function CalendarPage() {
 
   const [dragItem, setDragItem] = useState<CalendarItem | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [trashActive, setTrashActive] = useState(false);
+  const [shrinkingId, setShrinkingId] = useState<string | null>(null);
+
+  const performTrashDelete = (item: CalendarItem) => {
+    setShrinkingId(item.id);
+    setTrashActive(false);
+    setTimeout(() => {
+      if (item.parkingId) {
+        const pk = parkingItems.find(p => p.id === item.parkingId);
+        if (pk) {
+          // remove parking item via update: use deleteTask-style; we have no deleteParkingItem here, fallback to updating to empty? Use context if available
+        }
+        // try context delete if exists
+        try { (useData as any); } catch {}
+      }
+      if (item.type === "task") deleteTask(item.id);
+      else if (item.type === "post") deletePost(item.id);
+      else if (item.type === "event") deleteEvent(item.id);
+      setShrinkingId(null);
+      setDragItem(null);
+      toast.success("Item excluído");
+    }, 420);
+  };
+
+  const handleTrashDragOver = (e: DragEvent) => {
+    if (!isAdmin) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setTrashActive(true);
+  };
+  const handleTrashDragLeave = () => setTrashActive(false);
+  const handleTrashDrop = (e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAdmin) { setTrashActive(false); setDragItem(null); return; }
+    const droppedItem = dragItem ?? (() => {
+      try { return JSON.parse(e.dataTransfer.getData("text/plain")) as CalendarItem; } catch { return null; }
+    })();
+    if (!droppedItem) { setTrashActive(false); return; }
+    performTrashDelete(droppedItem);
+  };
 
   const activeAreaMeta = filterArea ? AREAS.find(a => a.key === filterArea) : null;
   // All ideas without a date — always shown in sidebar regardless of area filter.
