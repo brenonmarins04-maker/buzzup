@@ -1,5 +1,5 @@
 import { useState, useMemo, type DragEvent } from "react";
-import { useData, type ParkingItem } from "@/contexts/DataContext";
+import { useData, type ParkingItem, type LeadThermometerItem } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { AREAS, type AreaKey, getAreaLabel } from "@/lib/areas";
 import { Plus, ExternalLink, Pencil, Trash2, X } from "lucide-react";
@@ -12,9 +12,15 @@ import { toast } from "sonner";
 type Props = { area: AreaKey };
 
 export default function AreaPage({ area }: Props) {
-  const [tab, setTab] = useState<"notas" | "quadro">("quadro");
+  type Tab = "quadro" | "notas" | "termometro";
+  const [tab, setTab] = useState<Tab>("quadro");
   const label = getAreaLabel(area);
   const meta = AREAS.find(a => a.key === area)!;
+  const tabs: { v: Tab; label: string }[] = [
+    { v: "quadro", label: "Quadro CB" },
+    { v: "notas", label: "Notas" },
+    ...(area === "mercado" ? [{ v: "termometro" as Tab, label: "Termômetro de Lead" }] : []),
+  ];
 
   return (
     <div className="animate-fade-in space-y-5">
@@ -24,10 +30,7 @@ export default function AreaPage({ area }: Props) {
       </div>
 
       <div className="flex items-center gap-1 border-b border-border">
-        {[
-          { v: "quadro", label: "Quadro CB" },
-          { v: "notas", label: "Notas" },
-        ].map(t => (
+        {tabs.map(t => (
           <button key={t.v} onClick={() => setTab(t.v as any)}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${tab === t.v ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
             {t.label}
@@ -35,7 +38,9 @@ export default function AreaPage({ area }: Props) {
         ))}
       </div>
 
-      {tab === "notas" ? <NotesTab area={area} /> : <KanbanTab area={area} />}
+      {tab === "notas" && <NotesTab area={area} />}
+      {tab === "quadro" && <KanbanTab area={area} />}
+      {tab === "termometro" && area === "mercado" && <LeadThermometerTab />}
     </div>
   );
 }
