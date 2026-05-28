@@ -418,6 +418,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [workspaceId, people, syncJunction]);
 
   const updateTask = useCallback(async (t: Task) => {
+    const prevTask = tasks.find(x => x.id === t.id);
     const { error } = await supabase.from("tasks").update({
       title: t.title, description: t.description, team: t.team,
       deadline: t.deadline, status: t.status,
@@ -428,7 +429,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (error) { toast.error("Erro ao atualizar tarefa"); return; }
     await syncJunction("task_assignees", "task_id", t.id, t.responsible.map(r => r.id));
     setTasks(prev => prev.map(x => x.id === t.id ? t : x));
-  }, [syncJunction]);
+    // Award gamification points when task transitions to "done"
+    if (workspaceId && prevTask && prevTask.status !== "done" && t.status === "done" && (t.points ?? 0) > 0 && t.responsible.length > 0) {
+      const pts = t.points;
+      const inserts = t.responsible.map(r => ({
+        workspace_id: workspaceId, person_id: r.id, action_id: null,
+        action_name: `Tarefa: ${t.title}`, points: pts, awarded_by: uid,
+      }));
+      const { data: aws } = await (supabase.from("gamification_awards") as any).insert(inserts).select();
+      if (aws && aws.length) {
+        setGamificationAwards(curr => [
+          ...aws.map((aw: any) => ({ id: aw.id, personId: aw.person_id, actionId: aw.action_id ?? null, actionName: aw.action_name, points: aw.points ?? 0, awardedAt: aw.awarded_at })),
+          ...curr,
+        ]);
+        toast.success(`+${pts} ponto${pts > 1 ? "s" : ""} para ${t.responsible.length > 1 ? `${t.responsible.length} responsáveis` : t.responsible[0].name}`);
+      }
+    }
+  }, [syncJunction, tasks, workspaceId, uid]);
 
   const deleteTask = useCallback(async (id: string) => {
     const { error } = await supabase.from("tasks").delete().eq("id", id);
