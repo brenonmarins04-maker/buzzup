@@ -420,7 +420,27 @@ export default function CalendarPage() {
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-3 flex-wrap">
-        <FilterChips label="Área" options={AREAS.map(a => ({ value: a.key, label: a.label }))} selected={filterAreas} onChange={setFilterAreas} />
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mr-1">Área</span>
+          {AREAS.map(a => {
+            const active = filterArea === a.key;
+            return (
+              <button
+                key={a.key}
+                onClick={() => setFilterArea(active ? null : a.key)}
+                style={active ? { backgroundColor: a.color, borderColor: a.color, color: "#fff" } : undefined}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${active ? "" : "bg-background text-muted-foreground border-border hover:border-foreground/30 hover:text-foreground"}`}
+              >
+                {a.label}
+              </button>
+            );
+          })}
+          {filterArea && (
+            <span className="ml-1 text-[10px] uppercase tracking-wider font-semibold" style={{ color: activeAreaMeta?.color }}>
+              Modo {activeAreaMeta?.label}
+            </span>
+          )}
+        </div>
         <div className="ml-auto flex items-center gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: TASK_COLOR }} /> Tarefa</span>
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: POST_COLOR }} /> Marketing</span>
