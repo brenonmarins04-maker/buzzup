@@ -16,7 +16,6 @@ import QuickCreateMenu from "@/components/modals/QuickCreateMenu";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import FilterChips from "@/components/FilterChips";
 import { getNowBrasilia } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useLongPressDrag, type DragDropResult } from "@/hooks/useLongPressDrag";
@@ -47,12 +46,12 @@ const nextPostStatus = (s?: string) => {
 };
 
 export default function CalendarPage() {
-  const { tasks, posts, events, eventTypes, parkingItems, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addPost } = useData();
+  const { tasks, posts, events, eventTypes, parkingItems, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addPost, addParkingItem } = useData();
   const { isAdmin } = useAuth();
   const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(getNowBrasilia());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
-  const [filterAreas, setFilterAreas] = useState<string[]>([]);
+  const [filterArea, setFilterArea] = useState<string | null>(null);
   const [parkingOpen, setParkingOpen] = useState(true);
   const [newIdea, setNewIdea] = useState("");
   const [parkingDropActive, setParkingDropActive] = useState(false);
@@ -68,7 +67,12 @@ export default function CalendarPage() {
   const [dragItem, setDragItem] = useState<CalendarItem | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
 
+  const activeAreaMeta = filterArea ? AREAS.find(a => a.key === filterArea) : null;
   const parkedPosts = useMemo(() => posts.filter(p => !p.date), [posts]);
+  const parkedAreaIdeas = useMemo(
+    () => filterArea ? parkingItems.filter(p => p.area === filterArea && !p.date) : [],
+    [parkingItems, filterArea]
+  );
 
   const applyDrop = (item: CalendarItem, target: DragDropResult) => {
     if (!isAdmin) { toast.error("Apenas administradores podem alterar datas"); return; }
@@ -96,13 +100,18 @@ export default function CalendarPage() {
     e.preventDefault();
     const title = newIdea.trim();
     if (!title) return;
-    addPost({
-      title, copy: "", link: "", date: "", time: "",
-      channel: "", category: "", status: "not-started",
-      responsibleIds: [], media_url: "", teamId: null,
-    });
+    if (filterArea) {
+      addParkingItem(filterArea, title, "");
+      toast.success(`Ideia adicionada em ${activeAreaMeta?.label ?? "área"}`);
+    } else {
+      addPost({
+        title, copy: "", link: "", date: "", time: "",
+        channel: "", category: "", status: "not-started",
+        responsibleIds: [], media_url: "", teamId: null,
+      });
+      toast.success("Ideia estacionada");
+    }
     setNewIdea("");
-    toast.success("Ideia estacionada");
     setTimeout(() => newIdeaRef.current?.focus(), 0);
   };
 
@@ -125,28 +134,28 @@ export default function CalendarPage() {
     const items: CalendarItem[] = [];
     tasks.forEach((t) => {
       if (t.status === "done") return; // tarefas concluídas não aparecem no calendário
-      if (filterAreas.length > 0 && (!t.area || !filterAreas.includes(t.area))) return;
+      if (filterArea && t.area !== filterArea) return;
       const taskColor = t.status === "in-progress" ? "#F59E0B" : t.status === "not-started" ? "#9CA3AF" : TASK_COLOR;
       items.push({ id: t.id, title: t.title, type: "task", date: t.deadline, color: taskColor, status: t.status });
     });
     posts.forEach((p) => {
       if (!p.date) return; // estacionamento
-      if (filterAreas.length > 0) return;
+      if (filterArea) return;
       items.push({ id: p.id, title: p.title, type: "post", date: p.date, time: p.time, color: POST_COLOR, status: p.status });
     });
     events.forEach((e) => {
-      if (filterAreas.length > 0) return;
+      if (filterArea) return;
       const et = eventTypes.find(t => t.name === e.type);
       items.push({ id: e.id, title: e.title, type: "event", date: e.date, color: et?.color || EVENT_FALLBACK_COLOR, eventTypeName: e.type });
     });
     parkingItems.forEach((p) => {
       if (!p.date) return;
-      if (filterAreas.length > 0 && !filterAreas.includes(p.area)) return;
+      if (filterArea && p.area !== filterArea) return;
       const areaMeta = AREAS.find(a => a.key === p.area);
       items.push({ id: p.id, title: p.title, type: "event", date: p.date, color: areaMeta?.color || EVENT_FALLBACK_COLOR, eventTypeName: areaMeta?.label });
     });
     return items;
-  }, [tasks, posts, events, parkingItems, filterAreas, eventTypes]);
+  }, [tasks, posts, events, parkingItems, filterArea, eventTypes]);
 
   const upcomingPendingPosts = useMemo(() => {
     const today = getNowBrasilia();
@@ -411,7 +420,27 @@ export default function CalendarPage() {
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-3 flex-wrap">
-        <FilterChips label="Área" options={AREAS.map(a => ({ value: a.key, label: a.label }))} selected={filterAreas} onChange={setFilterAreas} />
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mr-1">Área</span>
+          {AREAS.map(a => {
+            const active = filterArea === a.key;
+            return (
+              <button
+                key={a.key}
+                onClick={() => setFilterArea(active ? null : a.key)}
+                style={active ? { backgroundColor: a.color, borderColor: a.color, color: "#fff" } : undefined}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${active ? "" : "bg-background text-muted-foreground border-border hover:border-foreground/30 hover:text-foreground"}`}
+              >
+                {a.label}
+              </button>
+            );
+          })}
+          {filterArea && (
+            <span className="ml-1 text-[10px] uppercase tracking-wider font-semibold" style={{ color: activeAreaMeta?.color }}>
+              Modo {activeAreaMeta?.label}
+            </span>
+          )}
+        </div>
         <div className="ml-auto flex items-center gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: TASK_COLOR }} /> Tarefa</span>
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: POST_COLOR }} /> Marketing</span>
@@ -457,11 +486,14 @@ export default function CalendarPage() {
             >
               <div className="px-3 py-2.5 border-b border-border flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="text-xs font-semibold text-foreground uppercase tracking-wide">Ideias gerais</div>
+                  <div className="text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5" style={filterArea ? { color: activeAreaMeta?.color } : undefined}>
+                    {filterArea && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: activeAreaMeta?.color }} />}
+                    {filterArea ? `Ideias — ${activeAreaMeta?.label}` : "Ideias gerais"}
+                  </div>
                   <div className="text-[10px] text-muted-foreground mt-0.5 truncate">Ideias sem data — arraste para o calendário</div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
-                  <span className="text-[10px] text-muted-foreground bg-muted rounded-full px-1.5 py-0.5 font-medium">{parkedPosts.length}</span>
+                  <span className="text-[10px] text-muted-foreground bg-muted rounded-full px-1.5 py-0.5 font-medium">{filterArea ? parkedAreaIdeas.length : parkedPosts.length}</span>
                   <button onClick={() => setParkingOpen(false)} title="Recolher ideias gerais"
                     className="h-6 w-6 rounded-md hover:bg-accent text-muted-foreground flex items-center justify-center transition-colors">
                     <PanelLeftClose className="h-3.5 w-3.5" />
@@ -470,14 +502,20 @@ export default function CalendarPage() {
               </div>
               {isAdmin && (
                 <form onSubmit={handleQuickIdea} className="px-3 py-2 border-b border-border">
-                  <input ref={newIdeaRef} value={newIdea} onChange={e => setNewIdea(e.target.value)} placeholder="Nova ideia + Enter"
+                  <input ref={newIdeaRef} value={newIdea} onChange={e => setNewIdea(e.target.value)} placeholder={filterArea ? `Nova ideia em ${activeAreaMeta?.label} + Enter` : "Nova ideia + Enter"}
                     className="w-full bg-muted/50 rounded-md px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60" />
                 </form>
               )}
               <div className="flex-1 overflow-y-auto scrollbar-thin p-2 flex flex-col gap-1">
-                {parkedPosts.length === 0 ? (
-                  <div className="text-[11px] text-muted-foreground/70 text-center py-6 px-2">Nenhuma ideia estacionada</div>
-                ) : parkedPosts.map(p => renderItemPill({ id: p.id, title: p.title, type: "post", date: "", time: p.time, color: POST_COLOR, status: p.status }))}
+                {filterArea ? (
+                  parkedAreaIdeas.length === 0 ? (
+                    <div className="text-[11px] text-muted-foreground/70 text-center py-6 px-2">Nenhuma ideia em {activeAreaMeta?.label}</div>
+                  ) : parkedAreaIdeas.map(p => renderItemPill({ id: p.id, title: p.title, type: "event", date: "", color: activeAreaMeta?.color || EVENT_FALLBACK_COLOR, eventTypeName: activeAreaMeta?.label }))
+                ) : (
+                  parkedPosts.length === 0 ? (
+                    <div className="text-[11px] text-muted-foreground/70 text-center py-6 px-2">Nenhuma ideia estacionada</div>
+                  ) : parkedPosts.map(p => renderItemPill({ id: p.id, title: p.title, type: "post", date: "", time: p.time, color: POST_COLOR, status: p.status }))
+                )}
               </div>
             </aside>
           )}
