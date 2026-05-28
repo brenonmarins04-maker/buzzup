@@ -81,10 +81,10 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
     <>
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent
-          className="max-w-md overflow-hidden shadow-2xl"
+          className="max-w-md overflow-hidden shadow-2xl bg-background"
           style={{
             background: area
-              ? `linear-gradient(180deg, ${AREAS.find(a => a.key === area)?.color}14 0%, hsl(var(--background)) 55%)`
+              ? `linear-gradient(160deg, ${AREAS.find(a => a.key === area)?.color}55 0%, ${AREAS.find(a => a.key === area)?.color}22 35%, hsl(var(--background)) 80%)`
               : undefined,
           }}
         >
