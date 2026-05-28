@@ -2,29 +2,44 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Copy, KeyRound, Check, ShieldAlert } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 export default function WelcomePage() {
-  const { user, loading, accessCode, refreshMembership } = useAuth();
+  const { user, loading, workspaceId, role, createWorkspace, acceptInvite, signOut } = useAuth();
   const navigate = useNavigate();
-  const [copied, setCopied] = useState(false);
+  const [mode, setMode] = useState<"choose" | "create" | "join">("choose");
+  const [name, setName] = useState("");
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) navigate("/login", { replace: true });
   }, [loading, user, navigate]);
 
   useEffect(() => {
-    // Garante que temos o código mais atual
-    if (user && !accessCode) refreshMembership();
-  }, [user, accessCode, refreshMembership]);
+    if (workspaceId && role) navigate("/", { replace: true });
+  }, [workspaceId, role, navigate]);
 
-  const copy = () => {
-    if (!accessCode) return;
-    navigator.clipboard.writeText(accessCode);
-    setCopied(true);
-    toast.success("Código copiado!");
-    setTimeout(() => setCopied(false), 2000);
+  const onCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || busy) return;
+    setBusy(true);
+    const { ok, error } = await createWorkspace(name.trim());
+    setBusy(false);
+    if (ok) { toast.success("Workspace criado!"); navigate("/", { replace: true }); }
+    else toast.error(error || "Erro ao criar workspace");
+  };
+
+  const onJoin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!code.trim() || busy) return;
+    setBusy(true);
+    const { ok, error } = await acceptInvite(code.trim().toUpperCase());
+    setBusy(false);
+    if (ok) { toast.success("Você entrou no workspace!"); navigate("/", { replace: true }); }
+    else toast.error(error || "Convite inválido");
   };
 
   return (
@@ -32,41 +47,42 @@ export default function WelcomePage() {
       <div className="w-full max-w-md space-y-8">
         <div className="text-center space-y-2">
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Bem-vindo ao BuzzUp</h1>
-          <p className="text-sm text-muted-foreground">Seu workspace foi criado com sucesso</p>
+          <p className="text-sm text-muted-foreground">
+            {mode === "choose" && "Crie um workspace ou entre em um existente."}
+            {mode === "create" && "Dê um nome para o seu workspace."}
+            {mode === "join" && "Digite o código de convite que você recebeu."}
+          </p>
         </div>
 
-        <div className="bg-card border border-border rounded-xl p-6 space-y-4">
-          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-            <KeyRound className="h-4 w-4 text-primary" />
-            Código de administrador
+        {mode === "choose" && (
+          <div className="space-y-3">
+            <Button className="w-full" onClick={() => setMode("create")}>Criar novo workspace</Button>
+            <Button variant="outline" className="w-full" onClick={() => setMode("join")}>Entrar com código de convite</Button>
+            <button onClick={() => signOut()} className="w-full text-xs text-muted-foreground hover:text-foreground pt-4">Sair</button>
           </div>
+        )}
 
-          <button
-            onClick={copy}
-            className="w-full flex items-center justify-center gap-3 py-5 rounded-lg bg-muted hover:bg-accent transition-colors group"
-          >
-            <span className="font-mono text-3xl font-bold tracking-[0.4em] text-foreground">
-              {accessCode || "------"}
-            </span>
-            {copied ? <Check className="h-5 w-5 text-status-done" /> : <Copy className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />}
-          </button>
+        {mode === "create" && (
+          <form onSubmit={onCreate} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="ws-name">Nome do workspace</Label>
+              <Input id="ws-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Minha empresa" autoFocus />
+            </div>
+            <Button type="submit" className="w-full" disabled={busy}>{busy ? "Criando..." : "Criar workspace"}</Button>
+            <button type="button" onClick={() => setMode("choose")} className="w-full text-xs text-muted-foreground hover:text-foreground">Voltar</button>
+          </form>
+        )}
 
-          <div className="flex items-start gap-2 p-3 rounded-md bg-amber-500/10 border border-amber-500/20">
-            <ShieldAlert className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <p className="text-xs text-foreground/80 leading-relaxed">
-              <strong>Salve este código em local seguro.</strong> Ele será necessário para liberar permissões de administrador no workspace. Sem ele, você só poderá visualizar o conteúdo.
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <Button onClick={copy} variant="outline" className="w-full">
-            <Copy className="h-4 w-4 mr-2" /> Copiar código
-          </Button>
-          <Button onClick={() => navigate("/", { replace: true })} className="w-full">
-            Já salvei, entrar no workspace
-          </Button>
-        </div>
+        {mode === "join" && (
+          <form onSubmit={onJoin} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="ws-code">Código de convite</Label>
+              <Input id="ws-code" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="BUZZ-XXXXXX" autoFocus className="font-mono tracking-wider" />
+            </div>
+            <Button type="submit" className="w-full" disabled={busy}>{busy ? "Verificando..." : "Entrar no workspace"}</Button>
+            <button type="button" onClick={() => setMode("choose")} className="w-full text-xs text-muted-foreground hover:text-foreground">Voltar</button>
+          </form>
+        )}
       </div>
     </div>
   );
