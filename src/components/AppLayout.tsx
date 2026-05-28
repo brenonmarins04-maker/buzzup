@@ -85,8 +85,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [eventModal, setEventModal] = useState(false);
   const [broadcastModal, setBroadcastModal] = useState(false);
 
-  const initials = displayName
-    ? displayName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
+  const fullName =
+    displayName ||
+    (user?.user_metadata as any)?.display_name ||
+    (user?.email ? user.email.split("@")[0] : "") ||
+    "Usuário";
+  const initials = fullName
+    ? fullName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
     : "U";
 
   const roleLabel = role === "owner" ? "Owner" : role === "admin" ? "Admin" : role === "member" ? "Member" : "—";
@@ -236,7 +241,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-semibold shrink-0">{initials}</div>
             {!collapsed && (
               <div className="flex flex-col min-w-0 flex-1">
-                <span className="text-sm font-medium text-foreground truncate">{displayName || "Usuário"}</span>
+                <span className="text-sm font-medium text-foreground truncate">{fullName}</span>
               </div>
             )}
             {!collapsed && (
