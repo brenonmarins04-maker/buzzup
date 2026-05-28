@@ -137,7 +137,6 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
           open={confirmDel}
           onOpenChange={setConfirmDel}
           title={item.title}
-          itemType="ideia"
           onConfirm={handleDelete}
         />
       )}
