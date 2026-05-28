@@ -22,7 +22,7 @@ export default function MembersPage() {
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
-  const [codeDialog, setCodeDialog] = useState<{ open: boolean; code: string; role: Role }>({ open: false, code: "", role: "member" });
+  const [codeDialog, setCodeDialog] = useState<{ open: boolean; code: string; role: "admin" | "member" }>({ open: false, code: "", role: "member" });
   const [confirm, setConfirm] = useState<null | { title: string; description: string; onConfirm: () => void | Promise<void> }>(null);
 
   const isOwner = myRole === "owner";
