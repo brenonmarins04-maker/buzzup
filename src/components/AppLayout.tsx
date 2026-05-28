@@ -51,7 +51,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const isMobile = useIsMobile();
   const { notifications } = useData();
-  const { displayName, signOut, isAdmin, role, user, myWorkspaces } = useAuth();
+  const { displayName, signOut, isAdmin, isOwner, role, user, myWorkspaces } = useAuth();
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -122,7 +122,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <BroadcastBar />
           <div className="p-4">{children}</div>
         </main>
-        {isAdmin && (
+        {isOwner && (
           <button
             onClick={() => setBroadcastModal(true)}
             title="Nova mensagem geral"
@@ -221,7 +221,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         <div className="p-3 border-t border-border">
-          {isAdmin && (
+          {isOwner && (
             <button
               onClick={() => setBroadcastModal(true)}
               title="Nova mensagem geral"
