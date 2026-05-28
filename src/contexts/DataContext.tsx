@@ -662,22 +662,35 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // === PARKING ITEMS (Quadro CB) ===
-  const addParkingItem = useCallback(async (area: string, title: string, date: string, description = "") => {
+  const addParkingItem = useCallback(async (area: string, title: string, date: string, description = "", points: number = 1) => {
     if (!workspaceId) return;
+    const pts = Math.max(1, Math.min(3, Math.round(points || 1)));
     const { data, error } = await (supabase.from("parking_items") as any)
-      .insert({ workspace_id: workspaceId, area, title, description, date, person_id: null, position: parkingItems.filter(p => p.area === area && p.personId === null).length })
+      .insert({ workspace_id: workspaceId, area, title, description, date, points: pts, person_id: null, position: parkingItems.filter(p => p.area === area && p.personId === null).length })
       .select().single();
     if (error) { toast.error("Erro ao criar card"); return; }
-    if (data) setParkingItems(prev => [...prev, { id: data.id, area: data.area, personId: data.person_id ?? null, title: data.title, description: data.description ?? "", date: data.date ?? "", position: data.position ?? 0, status: (data.status as ParkingItemStatus) ?? "in-progress" }]);
+    if (data) setParkingItems(prev => [...prev, { id: data.id, area: data.area, personId: data.person_id ?? null, title: data.title, description: data.description ?? "", date: data.date ?? "", position: data.position ?? 0, status: (data.status as ParkingItemStatus) ?? "in-progress", points: data.points ?? pts }]);
   }, [workspaceId, parkingItems]);
 
   const updateParkingItem = useCallback(async (p: ParkingItem) => {
+    const prev = parkingItems.find(x => x.id === p.id);
     const { error } = await (supabase.from("parking_items") as any)
-      .update({ title: p.title, description: p.description, date: p.date, person_id: p.personId, position: p.position, status: p.status })
+      .update({ title: p.title, description: p.description, date: p.date, person_id: p.personId, position: p.position, status: p.status, points: p.points })
       .eq("id", p.id);
     if (error) { toast.error("Erro ao atualizar"); return; }
     setParkingItems(prev => prev.map(x => x.id === p.id ? p : x));
-  }, []);
+    // Award gamification points when transitioning to "done"
+    if (workspaceId && prev && prev.status !== "done" && p.status === "done" && p.personId) {
+      const pts = Math.max(1, Math.min(3, p.points || 1));
+      const { data: aw } = await (supabase.from("gamification_awards") as any)
+        .insert({ workspace_id: workspaceId, person_id: p.personId, action_id: null, action_name: `Demanda: ${p.title}`, points: pts, awarded_by: uid })
+        .select().single();
+      if (aw) {
+        setGamificationAwards(curr => [{ id: aw.id, personId: aw.person_id, actionId: aw.action_id ?? null, actionName: aw.action_name, points: aw.points ?? 0, awardedAt: aw.awarded_at }, ...curr]);
+        toast.success(`+${pts} ponto${pts > 1 ? "s" : ""} para a gamificação`);
+      }
+    }
+  }, [parkingItems, workspaceId, uid]);
 
   const moveParkingItem = useCallback(async (id: string, personId: string | null) => {
     const { error } = await (supabase.from("parking_items") as any).update({ person_id: personId }).eq("id", id);
