@@ -187,6 +187,14 @@ function KanbanTab({ area }: { area: AreaKey }) {
           <span className="text-xs text-muted-foreground">{colItems.length}</span>
         </div>
         <div className="flex-1 p-3 flex flex-col gap-3 min-h-[160px]">
+          {accent && isAdmin && (
+            <button
+              onClick={openCreate}
+              className="w-full flex items-center justify-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-primary/50 rounded-lg py-2 transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" /> nova demanda
+            </button>
+          )}
           {colItems.map(item => (
             <div
               key={item.id}
@@ -214,11 +222,6 @@ function KanbanTab({ area }: { area: AreaKey }) {
 
   return (
     <div>
-      {isAdmin && (
-        <div className="flex justify-end mb-3">
-          <Button size="sm" onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Novo card</Button>
-        </div>
-      )}
       <div className="flex gap-3 overflow-x-auto pb-3 scrollbar-thin">
         <Column personId={null} title="Demandas" accent />
         {members.map(m => (
