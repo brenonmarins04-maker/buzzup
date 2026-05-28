@@ -566,7 +566,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
           <span className="text-xs text-muted-foreground">{colItems.length}</span>
         </div>
         <div className="flex-1 p-3 flex flex-col gap-3 min-h-[160px]">
-          {accent && isAdmin && (
+          {accent && (
             <button
               onClick={openCreate}
               className="w-full flex items-center justify-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-primary/50 rounded-lg py-2 transition-colors"
