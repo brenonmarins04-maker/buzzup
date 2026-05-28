@@ -8,6 +8,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { AREAS } from "@/lib/areas";
 import { toast } from "sonner";
 import QuickCreateMenu from "@/components/modals/QuickCreateMenu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -18,22 +19,24 @@ import NotificationPanel from "@/components/NotificationPanel";
 import BroadcastBar from "@/components/BroadcastBar";
 import BroadcastModal from "@/components/modals/BroadcastModal";
 
+const areaColor = (path: string) => AREAS.find(a => a.path === path)?.color;
+
 const navItems = [
   { to: "/",            icon: Home,         label: "Início" },
   { to: "/calendar",    icon: CalendarDays, label: "Calendário" },
   { to: "/people",      icon: Users,        label: "Pessoas" },
-  { to: "/projetos",    icon: FolderKanban, label: "Projetos" },
-  { to: "/mercado",     icon: Briefcase,    label: "Mercado" },
-  { to: "/gg",          icon: Sparkles,     label: "GG" },
-  { to: "/presidencia", icon: Crown,        label: "Presidência" },
+  { to: "/projetos",    icon: FolderKanban, label: "Projetos",    color: areaColor("/projetos") },
+  { to: "/mercado",     icon: Briefcase,    label: "Mercado",     color: areaColor("/mercado") },
+  { to: "/gg",          icon: Sparkles,     label: "GG",          color: areaColor("/gg") },
+  { to: "/presidencia", icon: Crown,        label: "Presidência", color: areaColor("/presidencia") },
   { to: "/members",     icon: Shield,       label: "Acessos" },
 ];
 
 const areaItems = [
-  { to: "/projetos",    icon: FolderKanban, label: "Projetos" },
-  { to: "/mercado",     icon: Briefcase,    label: "Mercado" },
-  { to: "/gg",          icon: Sparkles,     label: "GG" },
-  { to: "/presidencia", icon: Crown,        label: "Presidência" },
+  { to: "/projetos",    icon: FolderKanban, label: "Projetos",    color: areaColor("/projetos") },
+  { to: "/mercado",     icon: Briefcase,    label: "Mercado",     color: areaColor("/mercado") },
+  { to: "/gg",          icon: Sparkles,     label: "GG",          color: areaColor("/gg") },
+  { to: "/presidencia", icon: Crown,        label: "Presidência", color: areaColor("/presidencia") },
 ];
 
 const mobileNavItems = [
@@ -142,7 +145,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <PopoverContent side="top" align="center" className="w-48 p-1">
                     {areaItems.map((a) => (
                       <NavLink key={a.to} to={a.to}
-                        className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium ${isActive ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"}`}>
+                        style={({ isActive }) => isActive
+                          ? { backgroundColor: `${a.color}1F`, color: a.color }
+                          : { color: a.color }}
+                        className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold hover:bg-accent/50">
                         <a.icon className="h-4 w-4" />
                         <span>{a.label}</span>
                       </NavLink>
@@ -187,7 +193,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <nav className="flex-1 py-4 px-2 flex flex-col gap-1">
           {navItems.map((item) => (
             <NavLink key={item.to} to={item.to}
-              className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive ? "bg-accent text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"} ${collapsed ? "justify-center" : ""}`}>
+              style={({ isActive }) => (isActive && (item as any).color
+                ? { backgroundColor: `${(item as any).color}1F`, color: (item as any).color, boxShadow: `inset 3px 0 0 ${(item as any).color}` }
+                : (item as any).color
+                  ? { color: (item as any).color }
+                  : undefined)}
+              className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-colors ${isActive && !(item as any).color ? "bg-accent text-foreground shadow-sm" : !isActive ? "text-muted-foreground hover:text-foreground hover:bg-accent/50" : ""} ${collapsed ? "justify-center" : ""}`}>
               <div className="relative">
                 <item.icon className="h-4 w-4 shrink-0" />
                 {item.to === "/members" && pendingJoinCount > 0 && collapsed && (

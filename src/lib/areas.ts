@@ -1,10 +1,10 @@
 export type AreaKey = "projetos" | "mercado" | "gg" | "presidencia";
 
 export const AREAS: { key: AreaKey; label: string; path: string; color: string }[] = [
-  { key: "projetos",    label: "Projetos",    path: "/projetos",    color: "#3B7DD8" },
-  { key: "mercado",     label: "Mercado",     path: "/mercado",     color: "#E8804A" },
-  { key: "gg",          label: "GG",          path: "/gg",          color: "#2E9E6E" },
-  { key: "presidencia", label: "Presidência", path: "/presidencia", color: "#9B59B6" },
+  { key: "projetos",    label: "Projetos",    path: "/projetos",    color: "#2563EB" },
+  { key: "mercado",     label: "Mercado",     path: "/mercado",     color: "#F97316" },
+  { key: "gg",          label: "GG",          path: "/gg",          color: "#10B981" },
+  { key: "presidencia", label: "Presidência", path: "/presidencia", color: "#8B5CF6" },
 ];
 
 export const AREA_OPTIONS = AREAS.map(a => ({ value: a.key, label: a.label }));
