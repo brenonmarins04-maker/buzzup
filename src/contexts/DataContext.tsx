@@ -807,8 +807,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const clearAttendance = useCallback(async (area: string, personId: string, date: string) => {
     if (!workspaceId) return;
-    const prevRecords = attendanceRecords.filter(r => r.area === area && r.personId === personId && r.date === date);
-    setAttendanceRecords(prev => prev.filter(r => !(r.area === area && r.personId === personId && r.date === date)));
+    let prevRecords: AttendanceRecord[] = [];
+    setAttendanceRecords(prev => {
+      prevRecords = prev.filter(r => r.area === area && r.personId === personId && r.date === date);
+      return prev.filter(r => !(r.area === area && r.personId === personId && r.date === date));
+    });
     const { error } = await (supabase.from("attendance_records") as any).delete()
       .eq("workspace_id", workspaceId).eq("area", area).eq("person_id", personId).eq("date", date);
     if (error) {
