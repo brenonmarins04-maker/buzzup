@@ -106,7 +106,7 @@ export default function DashboardPage() {
   const postsScheduled = posts.filter(p => p.status === "scheduled" || (p.date && p.date >= todayStr)).length;
 
   // KPIs 7 days ago (snapshot)
-  const tasksInProgress7 = tasks.filter(t => new Date(t.created_at ?? 0).getTime() <= sevenDaysAgo.getTime() && t.status !== "done").length;
+  const tasksInProgress7 = tasks.filter(t => new Date((t as any).created_at ?? 0).getTime() <= sevenDaysAgo.getTime() && t.status !== "done").length;
   const projectsActive7 = projects.filter(p => p.status === "active").length; // no historical state; approximate
   const eventsPrevWeek = events.filter(e => e.date && e.date >= prevWeekStartStr && e.date <= prevWeekEndStr).length;
   const postsScheduled7 = posts.filter(p => p.date && p.date >= sevenAgoStr && p.date < todayStr).length;
