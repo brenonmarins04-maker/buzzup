@@ -127,6 +127,251 @@ function NotesTab({ area }: { area: AreaKey }) {
   );
 }
 
+// ===== Controle de Presenças =====
+const PRESET_OPTIONS = [
+  { label: "Semanal", days: 7 },
+  { label: "Quinzenal", days: 14 },
+  { label: "Mensal", days: 30 },
+];
+
+const STATUS_META: Record<AttendanceStatus, { label: string; bg: string; text: string }> = {
+  P:  { label: "Presente",           bg: "bg-emerald-500", text: "text-white" },
+  F:  { label: "Faltou",             bg: "bg-red-500",     text: "text-white" },
+  FJ: { label: "Falta Justificada",  bg: "bg-amber-400",   text: "text-black" },
+};
+
+function addDaysISO(iso: string, days: number) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+}
+
+function AttendanceTab({ area }: { area: AreaKey }) {
+  const { people, attendanceSettings, attendanceRecords, upsertAttendanceSetting, setAttendance, clearAttendance } = useData();
+  const { isAdmin } = useAuth();
+
+  const members = useMemo(() => people.filter(p => p.area === area), [people, area]);
+  const setting = useMemo(() => attendanceSettings.find(s => s.area === area), [attendanceSettings, area]);
+
+  const intervalDays = setting?.intervalDays ?? 7;
+  const startDate = setting?.startDate || new Date().toISOString().slice(0, 10);
+  const meetingCount = setting?.meetingCount ?? 8;
+
+  const dates = useMemo(() => {
+    const out: string[] = [];
+    for (let i = 0; i < meetingCount; i++) out.push(addDaysISO(startDate, i * intervalDays));
+    return out;
+  }, [startDate, intervalDays, meetingCount]);
+
+  const recordMap = useMemo(() => {
+    const m = new Map<string, { status: AttendanceStatus; justification: string }>();
+    attendanceRecords.filter(r => r.area === area).forEach(r => {
+      m.set(`${r.personId}|${r.date}`, { status: r.status, justification: r.justification });
+    });
+    return m;
+  }, [attendanceRecords, area]);
+
+  // settings popover state
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sIntervalDays, setSIntervalDays] = useState(intervalDays);
+  const [sStartDate, setSStartDate] = useState(startDate);
+  const [sMeetingCount, setSMeetingCount] = useState(meetingCount);
+
+  const openSettings = () => {
+    setSIntervalDays(intervalDays);
+    setSStartDate(startDate);
+    setSMeetingCount(meetingCount);
+    setSettingsOpen(true);
+  };
+
+  const saveSettings = async () => {
+    if (!sStartDate) { toast.error("Data inicial obrigatória"); return; }
+    if (sIntervalDays < 1) { toast.error("Intervalo inválido"); return; }
+    if (sMeetingCount < 1 || sMeetingCount > 52) { toast.error("Quantidade entre 1 e 52"); return; }
+    await upsertAttendanceSetting(area, { intervalDays: sIntervalDays, startDate: sStartDate, meetingCount: sMeetingCount });
+    toast.success("Configuração salva");
+    setSettingsOpen(false);
+  };
+
+  // justification dialog
+  const [justifyModal, setJustifyModal] = useState<{ open: boolean; personId: string; date: string; text: string }>({ open: false, personId: "", date: "", text: "" });
+
+  const handleCellClick = async (personId: string, date: string) => {
+    if (!isAdmin) return;
+    const current = recordMap.get(`${personId}|${date}`);
+    // Cycle: empty -> P -> F -> FJ -> empty
+    if (!current) { await setAttendance(area, personId, date, "P"); return; }
+    if (current.status === "P") { await setAttendance(area, personId, date, "F"); return; }
+    if (current.status === "F") {
+      setJustifyModal({ open: true, personId, date, text: "" });
+      return;
+    }
+    // FJ -> clear
+    await clearAttendance(area, personId, date);
+  };
+
+  const saveJustification = async () => {
+    const { personId, date, text } = justifyModal;
+    if (!text.trim()) { toast.error("Justificativa obrigatória"); return; }
+    await setAttendance(area, personId, date, "FJ", text.trim());
+    setJustifyModal({ open: false, personId: "", date: "", text: "" });
+    toast.success("Falta justificada registrada");
+  };
+
+  const fmtDate = (iso: string) => {
+    const [y, m, d] = iso.split("-");
+    return `${d}/${m}`;
+  };
+
+  if (members.length === 0) {
+    return (
+      <div className="text-sm text-muted-foreground py-8 text-center">
+        Nenhum membro vinculado a essa área. Atribua membros em Pessoas → Membros.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded-full bg-emerald-500 text-white text-[9px] font-bold flex items-center justify-center">P</span> Presente</span>
+          <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">F</span> Faltou</span>
+          <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded-full bg-amber-400 text-black text-[9px] font-bold flex items-center justify-center">FJ</span> Falta justificada</span>
+        </div>
+        {isAdmin && (
+          <Popover open={settingsOpen} onOpenChange={setSettingsOpen}>
+            <PopoverTrigger asChild>
+              <Button size="sm" variant="outline" onClick={openSettings}>
+                <Settings className="h-4 w-4 mr-1" /> Configurar período
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-80">
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Periodicidade</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {PRESET_OPTIONS.map(opt => (
+                      <button key={opt.days} type="button" onClick={() => setSIntervalDays(opt.days)}
+                        className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${sIntervalDays === opt.days ? "bg-primary text-primary-foreground border-primary" : "bg-background border-input text-muted-foreground hover:bg-accent"}`}>
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Intervalo (dias)</label>
+                  <Input type="number" min={1} value={sIntervalDays} onChange={e => setSIntervalDays(Math.max(1, parseInt(e.target.value) || 1))} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Primeira reunião</label>
+                  <Input type="date" value={sStartDate} onChange={e => setSStartDate(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Quantidade de reuniões</label>
+                  <Input type="number" min={1} max={52} value={sMeetingCount} onChange={e => setSMeetingCount(Math.max(1, Math.min(52, parseInt(e.target.value) || 1)))} />
+                </div>
+                <div className="flex justify-end gap-2 pt-1">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setSettingsOpen(false)}>Cancelar</Button>
+                  <Button type="button" size="sm" onClick={saveSettings}>Salvar</Button>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
+      </div>
+
+      <div className="rounded-lg border border-border overflow-x-auto bg-card">
+        <table className="w-full text-sm border-collapse">
+          <thead>
+            <tr className="bg-muted/60 border-b border-border">
+              <th className="text-left font-semibold px-3 py-2 sticky left-0 bg-muted/60 z-10 min-w-[160px]">Membro</th>
+              {dates.map(d => (
+                <th key={d} className="text-center font-semibold px-2 py-2 text-xs whitespace-nowrap">{fmtDate(d)}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {members.map(m => (
+              <tr key={m.id} className="border-b border-border last:border-b-0 hover:bg-accent/20">
+                <td className="px-3 py-2 font-medium text-foreground sticky left-0 bg-card z-10">{m.name}</td>
+                {dates.map(d => {
+                  const key = `${m.id}|${d}`;
+                  const rec = recordMap.get(key);
+                  if (rec) {
+                    const meta = STATUS_META[rec.status];
+                    const cell = (
+                      <button
+                        type="button"
+                        onClick={() => handleCellClick(m.id, d)}
+                        disabled={!isAdmin}
+                        title={rec.status === "FJ" && rec.justification ? `${meta.label}: ${rec.justification}` : meta.label}
+                        className={`h-7 w-7 rounded-full text-[10px] font-bold flex items-center justify-center mx-auto ${meta.bg} ${meta.text} ${isAdmin ? "hover:opacity-80 cursor-pointer" : "cursor-default"}`}
+                      >
+                        {rec.status}
+                      </button>
+                    );
+                    return (
+                      <td key={d} className="px-2 py-2 text-center align-middle">
+                        {rec.status === "FJ" && rec.justification ? (
+                          <Popover>
+                            <PopoverTrigger asChild>{cell}</PopoverTrigger>
+                            <PopoverContent className="w-64 text-sm">
+                              <p className="font-semibold text-foreground mb-1">Justificativa</p>
+                              <p className="text-muted-foreground whitespace-pre-wrap">{rec.justification}</p>
+                              {isAdmin && (
+                                <div className="mt-3 flex justify-end">
+                                  <Button size="sm" variant="outline" onClick={() => setJustifyModal({ open: true, personId: m.id, date: d, text: rec.justification })}>Editar</Button>
+                                </div>
+                              )}
+                            </PopoverContent>
+                          </Popover>
+                        ) : cell}
+                      </td>
+                    );
+                  }
+                  return (
+                    <td key={d} className="px-2 py-2 text-center align-middle">
+                      <button
+                        type="button"
+                        onClick={() => handleCellClick(m.id, d)}
+                        disabled={!isAdmin}
+                        title={isAdmin ? "Marcar presença" : "Sem registro"}
+                        className={`h-7 w-7 rounded-full border border-dashed border-border mx-auto block ${isAdmin ? "hover:border-primary hover:bg-primary/5 cursor-pointer" : "cursor-default opacity-50"}`}
+                      />
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <p className="text-[11px] text-muted-foreground">
+        Clique na bolinha para alternar: vazio → P → F → FJ (com justificativa) → vazio.
+      </p>
+
+      <Dialog open={justifyModal.open} onOpenChange={(o) => setJustifyModal(s => ({ ...s, open: o }))}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader><DialogTitle>Falta Justificada</DialogTitle></DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); saveJustification(); }} className="flex flex-col gap-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Justificativa</label>
+              <Textarea value={justifyModal.text} onChange={e => setJustifyModal(s => ({ ...s, text: e.target.value }))} rows={4} autoFocus placeholder="Motivo da falta..." />
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button type="button" variant="outline" onClick={() => setJustifyModal({ open: false, personId: "", date: "", text: "" })}>Cancelar</Button>
+              <Button type="submit">Salvar</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 // ===== Termômetro de Lead (Mercado) =====
 function LeadThermometerTab() {
   const { leadThermometer, addLeadThermometer, updateLeadThermometer, deleteLeadThermometer } = useData();
