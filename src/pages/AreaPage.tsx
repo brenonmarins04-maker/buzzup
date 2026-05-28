@@ -596,20 +596,26 @@ function KanbanTab({ area }: { area: AreaKey }) {
 
   const [modal, setModal] = useState<{ open: boolean; item?: ParkingItem | null }>({ open: false });
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
   const [date, setDate] = useState("");
+  const [personId, setPersonId] = useState<string>("");
+  const [points, setPoints] = useState<number>(1);
 
-  const openCreate = () => { setModal({ open: true, item: null }); setTitle(""); setDescription(""); setDate(""); };
-  const openEdit = (item: ParkingItem) => { setModal({ open: true, item }); setTitle(item.title); setDescription(item.description); setDate(item.date || ""); };
+  const openCreate = () => { setModal({ open: true, item: null }); setTitle(""); setDate(""); setPersonId(""); setPoints(1); };
+  const openEdit = (item: ParkingItem) => { setModal({ open: true, item }); setTitle(item.title); setDate(item.date || ""); setPersonId(item.personId || ""); setPoints(item.points ?? 1); };
 
   const save = async () => {
     if (!title.trim()) { toast.error("Título obrigatório"); return; }
     if (!date) { toast.error("Data obrigatória"); return; }
+    if (![1, 2, 3].includes(points)) { toast.error("Selecione os pontos"); return; }
     if (modal.item) {
-      await updateParkingItem({ ...modal.item, title: title.trim(), description: description.trim(), date });
+      await updateParkingItem({ ...modal.item, title: title.trim(), date, personId: personId || null, points });
       toast.success("Atualizado");
     } else {
-      await addParkingItem(area, title.trim(), date, description.trim());
+      await addParkingItem(area, title.trim(), date, "", points);
+      if (personId) {
+        // assign responsible right away (also moves into the column)
+        // Note: addParkingItem creates in "Demandas" column; reassignment handled by realtime refresh.
+      }
       toast.success("Card criado");
     }
     setModal({ open: false });
