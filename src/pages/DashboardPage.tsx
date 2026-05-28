@@ -224,14 +224,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard title="Tarefas em andamento" value={tasksInProgress} icon={<ListChecks className="h-5 w-5" />} color="#2563EB" delta={pctDelta(tasksInProgress, tasksInProgress7)} spark={spark(tasksInProgress, tasksInProgress7)} />
-        <KpiCard title="Projetos ativos" value={projectsActive} icon={<FolderKanban className="h-5 w-5" />} color="#8B5CF6" delta={pctDelta(projectsActive, projectsActive7)} spark={spark(projectsActive, projectsActive7)} />
-        <KpiCard title="Eventos da semana" value={eventsThisWeek} icon={<CalendarDays className="h-5 w-5" />} color="#F97316" delta={pctDelta(eventsThisWeek, eventsPrevWeek)} spark={spark(eventsThisWeek, eventsPrevWeek)} />
-        <KpiCard title="Publicações agendadas" value={postsScheduled} icon={<Megaphone className="h-5 w-5" />} color="#10B981" delta={pctDelta(postsScheduled, postsScheduled7)} spark={spark(postsScheduled, postsScheduled7)} />
-      </div>
-
       {/* 3 columns */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Active projects */}
