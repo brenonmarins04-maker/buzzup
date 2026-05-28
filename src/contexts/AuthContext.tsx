@@ -131,11 +131,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (currentUserIdRef.current === userId) setDisplayName(data.display_name.trim());
       return;
     }
-    // No profile row yet — create one from the account email prefix only.
-    // Do not trust stale auth metadata here, because it can keep old values like "teste".
+    // No profile row yet — create one from signup metadata when it looks valid,
+    // otherwise fall back to the email prefix so stale placeholders like "teste" don't appear.
     const { data: { user: authUser } } = await supabase.auth.getUser();
+    const metaName = ((authUser?.user_metadata as any)?.display_name as string | undefined)?.trim();
     const email = authUser?.email || "";
-    const finalName = email ? email.split("@")[0] : "Usuário";
+    const isPlaceholderName = !!metaName && /^(teste|test|usu[aá]rio|user)$/i.test(metaName);
+    const finalName = metaName && !isPlaceholderName ? metaName : (email ? email.split("@")[0] : "Usuário");
     await supabase.from("profiles").upsert(
       { user_id: userId, display_name: finalName, email },
       { onConflict: "user_id" }
