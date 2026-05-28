@@ -215,6 +215,12 @@ function KanbanTab({ area }: { area: AreaKey }) {
                 )}
               </div>
               {item.description && <p className="text-xs text-muted-foreground mt-2 line-clamp-3">{item.description}</p>}
+              {item.date && (
+                <div className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded"
+                  style={{ backgroundColor: `${AREAS.find(a => a.key === area)?.color}22`, color: AREAS.find(a => a.key === area)?.color }}>
+                  {new Date(item.date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+                </div>
+              )}
             </div>
           ))}
         </div>
