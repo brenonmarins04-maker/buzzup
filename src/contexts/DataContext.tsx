@@ -39,6 +39,8 @@ export type AttendanceStatus = "P" | "F" | "FJ";
 export type AttendanceSetting = { id: string; area: string; intervalDays: number; startDate: string; meetingCount: number };
 export type AttendanceRecord = { id: string; area: string; personId: string; date: string; status: AttendanceStatus; justification: string };
 
+export type Broadcast = { id: string; message: string; durationDays: number; createdAt: string; expiresAt: string; createdBy: string | null };
+
 export type Notification = {
   id: string; title: string; message: string;
   type: "warning" | "danger" | "info"; read: boolean; date: string;
@@ -53,6 +55,7 @@ type DataContextType = {
   leadThermometer: LeadThermometerItem[];
   attendanceSettings: AttendanceSetting[];
   attendanceRecords: AttendanceRecord[];
+  broadcasts: Broadcast[];
   loading: boolean; workspaceId: string | null;
 
   addPerson: (name: string) => void;
@@ -119,6 +122,9 @@ type DataContextType = {
   upsertAttendanceSetting: (area: string, data: { intervalDays: number; startDate: string; meetingCount: number }) => Promise<void>;
   setAttendance: (area: string, personId: string, date: string, status: AttendanceStatus, justification?: string) => Promise<void>;
   clearAttendance: (area: string, personId: string, date: string) => Promise<void>;
+
+  addBroadcast: (message: string, durationDays: number) => Promise<void>;
+  deleteBroadcast: (id: string) => Promise<void>;
 };
 
 const DataContext = createContext<DataContextType | null>(null);
