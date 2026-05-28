@@ -52,7 +52,7 @@ export default function CalendarPage() {
   const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(getNowBrasilia());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
-  const [filterTypes, setFilterTypes] = useState<string[]>([]);
+  const [filterAreas, setFilterAreas] = useState<string[]>([]);
   const [parkingOpen, setParkingOpen] = useState(true);
   const [newIdea, setNewIdea] = useState("");
   const [parkingDropActive, setParkingDropActive] = useState(false);
@@ -124,29 +124,29 @@ export default function CalendarPage() {
   const allItems = useMemo<CalendarItem[]>(() => {
     const items: CalendarItem[] = [];
     tasks.forEach((t) => {
-      if (filterTypes.length > 0 && !filterTypes.includes("task")) return;
       if (t.status === "done") return; // tarefas concluídas não aparecem no calendário
+      if (filterAreas.length > 0 && (!t.area || !filterAreas.includes(t.area))) return;
       const taskColor = t.status === "in-progress" ? "#F59E0B" : t.status === "not-started" ? "#9CA3AF" : TASK_COLOR;
       items.push({ id: t.id, title: t.title, type: "task", date: t.deadline, color: taskColor, status: t.status });
     });
     posts.forEach((p) => {
       if (!p.date) return; // estacionamento
-      if (filterTypes.length > 0 && !filterTypes.includes("post")) return;
+      if (filterAreas.length > 0) return;
       items.push({ id: p.id, title: p.title, type: "post", date: p.date, time: p.time, color: POST_COLOR, status: p.status });
     });
     events.forEach((e) => {
-      if (filterTypes.length > 0 && !filterTypes.includes("event") && !filterTypes.includes(`event:${e.type}`)) return;
+      if (filterAreas.length > 0) return;
       const et = eventTypes.find(t => t.name === e.type);
       items.push({ id: e.id, title: e.title, type: "event", date: e.date, color: et?.color || EVENT_FALLBACK_COLOR, eventTypeName: e.type });
     });
     parkingItems.forEach((p) => {
       if (!p.date) return;
-      if (filterTypes.length > 0 && !filterTypes.includes("event")) return;
+      if (filterAreas.length > 0 && !filterAreas.includes(p.area)) return;
       const areaMeta = AREAS.find(a => a.key === p.area);
       items.push({ id: p.id, title: p.title, type: "event", date: p.date, color: areaMeta?.color || EVENT_FALLBACK_COLOR, eventTypeName: areaMeta?.label });
     });
     return items;
-  }, [tasks, posts, events, parkingItems, filterTypes, eventTypes]);
+  }, [tasks, posts, events, parkingItems, filterAreas, eventTypes]);
 
   const upcomingPendingPosts = useMemo(() => {
     const today = getNowBrasilia();
@@ -406,25 +406,12 @@ export default function CalendarPage() {
               </button>
             ))}
           </div>
-          {isAdmin && (
-            <QuickCreateMenu onCreateTask={() => setTaskModal({ open: true })} onCreatePost={() => setPostModal({ open: true })} onCreateItem={() => setEventModal({ open: true })}>
-              <button className="flex items-center gap-2 bg-primary text-primary-foreground px-3 py-1.5 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
-                <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Novo Item</span>
-              </button>
-            </QuickCreateMenu>
-          )}
         </div>
       </div>
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-3 flex-wrap">
-        <FilterChips label="Tipo" options={[
-          { value: "task", label: "Tarefas" },
-          { value: "post", label: "Marketing" },
-          ...(eventTypes.length === 0
-            ? [{ value: "event", label: "Eventos" }]
-            : eventTypes.map(t => ({ value: `event:${t.name}`, label: t.name }))),
-        ]} selected={filterTypes} onChange={setFilterTypes} />
+        <FilterChips label="Área" options={AREAS.map(a => ({ value: a.key, label: a.label }))} selected={filterAreas} onChange={setFilterAreas} />
         <div className="ml-auto flex items-center gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: TASK_COLOR }} /> Tarefa</span>
           <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: POST_COLOR }} /> Marketing</span>
