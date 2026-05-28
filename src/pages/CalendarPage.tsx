@@ -123,17 +123,8 @@ export default function CalendarPage() {
     e.preventDefault();
     const title = newIdea.trim();
     if (!title) return;
-    if (filterArea) {
-      addParkingItem(filterArea, title, "");
-      toast.success(`Ideia adicionada em ${activeAreaMeta?.label ?? "área"}`);
-    } else {
-      addPost({
-        title, copy: "", link: "", date: "", time: "",
-        channel: "", category: "", status: "not-started",
-        responsibleIds: [], media_url: "", teamId: null,
-      });
-      toast.success("Ideia estacionada");
-    }
+    addParkingItem(filterArea || "", title, "");
+    toast.success(filterArea ? `Ideia adicionada em ${activeAreaMeta?.label}` : "Ideia adicionada");
     setNewIdea("");
     setTimeout(() => newIdeaRef.current?.focus(), 0);
   };
