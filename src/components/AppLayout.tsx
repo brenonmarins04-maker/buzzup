@@ -86,8 +86,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [broadcastModal, setBroadcastModal] = useState(false);
 
   const fullName =
-    displayName ||
-    (user?.user_metadata as any)?.display_name ||
+    (displayName && displayName.trim()) ||
     (user?.email ? user.email.split("@")[0] : "") ||
     "Usuário";
   const initials = fullName

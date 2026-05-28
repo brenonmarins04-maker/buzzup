@@ -192,7 +192,6 @@ export default function DashboardPage() {
 
   const fullName =
     (displayName && displayName.trim()) ||
-    (user?.user_metadata?.display_name as string | undefined) ||
     (user?.email ? user.email.split("@")[0] : "") ||
     "Usuário";
   const firstName = fullName.split(" ")[0];

@@ -119,10 +119,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function fetchDisplayName(userId: string) {
     const { data } = await supabase
       .from("profiles")
-      .select("display_name")
+      .select("display_name, email")
       .eq("user_id", userId)
       .maybeSingle();
-    if (data) setDisplayName(data.display_name || "");
+    if (data && data.display_name && data.display_name.trim()) {
+      setDisplayName(data.display_name);
+      return;
+    }
+    // No profile row yet — create one from auth metadata (or email fallback)
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const metaName = (authUser?.user_metadata as any)?.display_name as string | undefined;
+    const email = authUser?.email || "";
+    const finalName = (metaName && metaName.trim()) || (email ? email.split("@")[0] : "Usuário");
+    await supabase.from("profiles").upsert(
+      { user_id: userId, display_name: finalName, email },
+      { onConflict: "user_id" }
+    );
+    setDisplayName(finalName);
   }
 
   const signUp = async (email: string, password: string, name: string) => {
