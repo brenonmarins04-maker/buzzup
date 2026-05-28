@@ -124,6 +124,123 @@ function NotesTab({ area }: { area: AreaKey }) {
   );
 }
 
+// ===== Termômetro de Lead (Mercado) =====
+function LeadThermometerTab() {
+  const { leadThermometer, addLeadThermometer, updateLeadThermometer, deleteLeadThermometer } = useData();
+  const { isAdmin } = useAuth();
+  const items = useMemo(() => [...leadThermometer].sort((a, b) => a.position - b.position), [leadThermometer]);
+
+  const [modal, setModal] = useState<{ open: boolean; item?: LeadThermometerItem | null }>({ open: false });
+  const [name, setName] = useState("");
+  const [value, setValue] = useState("");
+  const [areaSize, setAreaSize] = useState("");
+  const [type, setType] = useState("");
+
+  const openCreate = () => { setModal({ open: true, item: null }); setName(""); setValue(""); setAreaSize(""); setType(""); };
+  const openEdit = (item: LeadThermometerItem) => { setModal({ open: true, item }); setName(item.name); setValue(item.value); setAreaSize(item.areaSize); setType(item.type); };
+
+  const save = async () => {
+    if (!name.trim()) { toast.error("Nome obrigatório"); return; }
+    if (modal.item) {
+      await updateLeadThermometer({ ...modal.item, name: name.trim(), value: value.trim(), areaSize: areaSize.trim(), type: type.trim() });
+      toast.success("Atualizado");
+    } else {
+      await addLeadThermometer({ name: name.trim(), value: value.trim(), areaSize: areaSize.trim(), type: type.trim() });
+      toast.success("Lead adicionado");
+    }
+    setModal({ open: false, item: null });
+  };
+
+  const remove = async (id: string, label: string) => {
+    if (!confirm(`Remover o lead "${label}"?`)) return;
+    await deleteLeadThermometer(id);
+    toast.success("Removido");
+  };
+
+  return (
+    <div>
+      {isAdmin && (
+        <div className="flex justify-end mb-3">
+          <Button size="sm" onClick={openCreate}><Plus className="h-4 w-4 mr-1" /> Novo lead</Button>
+        </div>
+      )}
+      <div className="rounded-lg border border-border overflow-hidden bg-card">
+        <div className="bg-primary/10 px-4 py-2.5 text-center text-sm font-semibold text-foreground border-b border-border">
+          Termômetro de Lead
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-muted/60 text-foreground border-b border-border">
+                <th className="text-left font-semibold px-3 py-2 w-[24%]">Nome</th>
+                <th className="text-left font-semibold px-3 py-2 w-[18%]">Valor +-</th>
+                <th className="text-left font-semibold px-3 py-2 w-[14%]">m²</th>
+                <th className="text-left font-semibold px-3 py-2">Tipo</th>
+                {isAdmin && <th className="w-16 px-2 py-2"></th>}
+              </tr>
+            </thead>
+            <tbody>
+              {items.length === 0 && (
+                <tr>
+                  <td colSpan={isAdmin ? 5 : 4} className="text-center text-muted-foreground px-3 py-8">
+                    Nenhum lead ainda.
+                  </td>
+                </tr>
+              )}
+              {items.map(item => (
+                <tr key={item.id} className="border-b border-border last:border-b-0 hover:bg-accent/30 transition-colors">
+                  <td className="px-3 py-2.5 font-medium text-foreground">{item.name}</td>
+                  <td className="px-3 py-2.5 text-foreground">{item.value || "—"}</td>
+                  <td className="px-3 py-2.5 text-foreground">{item.areaSize || "—"}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{item.type || "—"}</td>
+                  {isAdmin && (
+                    <td className="px-2 py-2.5">
+                      <div className="flex items-center gap-1 justify-end">
+                        <button onClick={() => openEdit(item)} className="p-1.5 hover:bg-accent rounded text-muted-foreground"><Pencil className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => remove(item.id, item.name)} className="p-1.5 hover:bg-accent rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <Dialog open={modal.open} onOpenChange={(o) => setModal({ open: o, item: null })}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>{modal.item ? "Editar lead" : "Novo lead"}</DialogTitle></DialogHeader>
+          <form onSubmit={(e) => { e.preventDefault(); save(); }} className="flex flex-col gap-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Nome</label>
+              <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: COTUCA" autoFocus />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Valor +-</label>
+                <Input value={value} onChange={e => setValue(e.target.value)} placeholder="Ex: 13k" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">m²</label>
+                <Input value={areaSize} onChange={e => setAreaSize(e.target.value)} placeholder="Ex: 100m²" />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Tipo</label>
+              <Input value={type} onChange={e => setType(e.target.value)} placeholder="Ex: arq, design, eletrico, hidro" />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setModal({ open: false, item: null })}>Cancelar</Button>
+              <Button type="submit">{modal.item ? "Salvar" : "Adicionar"}</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 // ===== Quadro CB (kanban: estacionamento + uma coluna por membro) =====
 function KanbanTab({ area }: { area: AreaKey }) {
   const { people, parkingItems, addParkingItem, moveParkingItem, deleteParkingItem, updateParkingItem } = useData();
