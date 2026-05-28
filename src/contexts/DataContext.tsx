@@ -151,6 +151,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [leadThermometer, setLeadThermometer] = useState<LeadThermometerItem[]>([]);
   const [attendanceSettings, setAttendanceSettings] = useState<AttendanceSetting[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoriesRaw, setCategoriesRaw] = useState<{ id: string; name: string }[]>([]);
   const [refetchTick, setRefetchTick] = useState(0);
@@ -160,7 +161,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!uid) {
       setWorkspaceId(null); setPeople([]); setProjects([]); setTasks([]); setPosts([]);
       setEvents([]); setCategories([]); setChannels([]); setTeams([]);
-      setCategoriesRaw([]); setEventTypes([]); setAreaNotes([]); setParkingItems([]); setGamificationActions([]); setGamificationAwards([]); setLeadThermometer([]); setAttendanceSettings([]); setAttendanceRecords([]); setLoading(false);
+      setCategoriesRaw([]); setEventTypes([]); setAreaNotes([]); setParkingItems([]); setGamificationActions([]); setGamificationAwards([]); setLeadThermometer([]); setAttendanceSettings([]); setAttendanceRecords([]); setBroadcasts([]); setLoading(false);
       return;
     }
     let cancelled = false;
@@ -177,7 +178,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const wsId = ws.id;
       setWorkspaceId(wsId);
 
-      const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes, etRes, anRes, piRes, gaRes, gwRes, ltRes, asRes, arRes] = await Promise.all([
+      const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes, etRes, anRes, piRes, gaRes, gwRes, ltRes, asRes, arRes, bcRes] = await Promise.all([
         (supabase.from("people") as any).select("id, name, nickname, area").eq("workspace_id", wsId),
         supabase.from("projects").select("*").eq("workspace_id", wsId),
         supabase.from("tasks").select("*").eq("workspace_id", wsId),
@@ -198,6 +199,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         (supabase.from as any)("lead_thermometer").select("*").eq("workspace_id", wsId).order("position", { ascending: true }),
         (supabase.from as any)("attendance_settings").select("*").eq("workspace_id", wsId),
         (supabase.from as any)("attendance_records").select("*").eq("workspace_id", wsId),
+        (supabase.from as any)("broadcasts").select("*").eq("workspace_id", wsId).gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }),
       ]);
       if (cancelled) return;
 
@@ -279,6 +281,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setLeadThermometer(((ltRes as any)?.data || []).map((l: any) => ({ id: l.id, name: l.name, value: l.value ?? "", areaSize: l.area_size ?? "", type: l.type ?? "", position: l.position ?? 0 })));
       setAttendanceSettings(((asRes as any)?.data || []).map((s: any) => ({ id: s.id, area: s.area, intervalDays: s.interval_days ?? 7, startDate: s.start_date ?? "", meetingCount: s.meeting_count ?? 8 })));
       setAttendanceRecords(((arRes as any)?.data || []).map((r: any) => ({ id: r.id, area: r.area, personId: r.person_id, date: r.date, status: (r.status ?? "P") as AttendanceStatus, justification: r.justification ?? "" })));
+      setBroadcasts(((bcRes as any)?.data || []).map((b: any) => ({ id: b.id, message: b.message, durationDays: b.duration_days ?? 7, createdAt: b.created_at, expiresAt: b.expires_at, createdBy: b.created_by ?? null })));
       setLoading(false);
     }
     fetchAll();
@@ -296,6 +299,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       "gamification_actions", "gamification_awards",
       "lead_thermometer",
       "attendance_settings", "attendance_records",
+      "broadcasts",
     ];
     let scheduled: ReturnType<typeof setTimeout> | null = null;
     const trigger = () => {
