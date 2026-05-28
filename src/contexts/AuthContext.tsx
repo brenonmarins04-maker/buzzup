@@ -127,7 +127,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) {
       const msg = String(error.message || "").toLowerCase();
       if (msg.includes("already_member")) return { ok: false, error: "Você já pertence a este workspace." };
-      return { ok: false, error: "Convite inválido ou expirado." };
+      if (msg.includes("not_authenticated")) return { ok: false, error: "Faça login para usar o convite." };
+      if (msg.includes("invalid_code")) return { ok: false, error: "Código inválido, expirado, já usado ou revogado." };
+      return { ok: false, error: "Não foi possível entrar no workspace. Tente novamente." };
     }
     await refreshMembership();
     return { ok: true };

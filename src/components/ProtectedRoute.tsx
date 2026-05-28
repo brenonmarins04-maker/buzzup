@@ -1,8 +1,9 @@
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, workspaceId } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -13,5 +14,8 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
   }
 
   if (!user) return <Navigate to="/login" replace />;
+  if (!workspaceId && location.pathname !== "/welcome") {
+    return <Navigate to="/welcome" replace />;
+  }
   return <>{children}</>;
 }
