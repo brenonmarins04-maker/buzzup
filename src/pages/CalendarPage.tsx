@@ -166,7 +166,7 @@ export default function CalendarPage() {
       if (!p.date) return;
       if (filterArea && p.area !== filterArea) return;
       const areaMeta = AREAS.find(a => a.key === p.area);
-      items.push({ id: p.id, title: p.title, type: "event", date: p.date, color: areaMeta?.color || EVENT_FALLBACK_COLOR, eventTypeName: areaMeta?.label });
+      items.push({ id: p.id, parkingId: p.id, title: p.title, type: "event", date: p.date, color: areaMeta?.color || "#CBD5E1", eventTypeName: areaMeta?.label || "Sem área" });
     });
     return items;
   }, [tasks, posts, events, parkingItems, filterArea, eventTypes]);
