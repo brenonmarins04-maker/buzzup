@@ -482,13 +482,6 @@ export default function CalendarPage() {
             </span>
           )}
         </div>
-        <div className="ml-auto flex items-center gap-4 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: TASK_COLOR }} /> Tarefa</span>
-          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: POST_COLOR }} /> Marketing</span>
-          {eventTypes.map(t => (
-            <span key={t.id} className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: t.color }} /> {t.name}</span>
-          ))}
-        </div>
         </div>
       </div>
 
