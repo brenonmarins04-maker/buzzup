@@ -21,6 +21,7 @@ import { getNowBrasilia } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useLongPressDrag, type DragDropResult } from "@/hooks/useLongPressDrag";
 import { AREAS } from "@/lib/areas";
+import trashBinImg from "@/assets/trash-bin.png";
 
 export type CalendarItem = {
   id: string; title: string; type: "task" | "post" | "event";
@@ -49,7 +50,7 @@ const nextPostStatus = (s?: string) => {
 };
 
 export default function CalendarPage() {
-  const { tasks, posts, events, eventTypes, parkingItems, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addParkingItem, updateParkingItem } = useData();
+  const { tasks, posts, events, eventTypes, parkingItems, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addParkingItem, updateParkingItem, deleteParkingItem } = useData();
   const { isAdmin } = useAuth();
   const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(getNowBrasilia());
@@ -70,6 +71,41 @@ export default function CalendarPage() {
 
   const [dragItem, setDragItem] = useState<CalendarItem | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [trashActive, setTrashActive] = useState(false);
+  const [shrinkingId, setShrinkingId] = useState<string | null>(null);
+
+  const performTrashDelete = (item: CalendarItem) => {
+    setShrinkingId(item.id);
+    setTrashActive(false);
+    setTimeout(() => {
+      if (item.parkingId) {
+        deleteParkingItem(item.parkingId);
+      } else if (item.type === "task") deleteTask(item.id);
+      else if (item.type === "post") deletePost(item.id);
+      else if (item.type === "event") deleteEvent(item.id);
+      setShrinkingId(null);
+      setDragItem(null);
+      toast.success("Item excluído");
+    }, 420);
+  };
+
+  const handleTrashDragOver = (e: DragEvent) => {
+    if (!isAdmin) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setTrashActive(true);
+  };
+  const handleTrashDragLeave = () => setTrashActive(false);
+  const handleTrashDrop = (e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAdmin) { setTrashActive(false); setDragItem(null); return; }
+    const droppedItem = dragItem ?? (() => {
+      try { return JSON.parse(e.dataTransfer.getData("text/plain")) as CalendarItem; } catch { return null; }
+    })();
+    if (!droppedItem) { setTrashActive(false); return; }
+    performTrashDelete(droppedItem);
+  };
 
   const activeAreaMeta = filterArea ? AREAS.find(a => a.key === filterArea) : null;
   // All ideas without a date — always shown in sidebar regardless of area filter.
@@ -302,7 +338,13 @@ export default function CalendarPage() {
           onPointerMove={longPress.handlers.onPointerMove}
           onPointerUp={longPress.handlers.onPointerUp}
           onPointerCancel={longPress.handlers.onPointerCancel}
-          style={{ touchAction: "pan-y" }}
+          style={{
+            touchAction: "pan-y",
+            transition: "transform 380ms cubic-bezier(0.4,0,0.2,1), opacity 380ms ease",
+            transform: shrinkingId === item.id ? "scale(0)" : "scale(1)",
+            opacity: shrinkingId === item.id ? 0 : 1,
+            transformOrigin: "bottom right",
+          }}
           className={`relative group/pill flex items-stretch rounded-sm overflow-hidden ${isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}`}
         >
           {item.type === "post" && (
@@ -712,6 +754,51 @@ export default function CalendarPage() {
       />
       <DeleteConfirmDialog open={deleting.open} onOpenChange={o => setDeleting(p => ({ ...p, open: o }))}
         title={deleting.title} onConfirm={handleDelete} />
+
+      {isAdmin && (
+        <>
+          <style>{`
+            @keyframes trashShake {
+              0%, 100% { transform: rotate(0deg) scale(1.15); }
+              20% { transform: rotate(-12deg) scale(1.15); }
+              40% { transform: rotate(10deg) scale(1.15); }
+              60% { transform: rotate(-8deg) scale(1.15); }
+              80% { transform: rotate(6deg) scale(1.15); }
+            }
+            @keyframes trashFloat {
+              0%, 100% { transform: translateY(0); }
+              50% { transform: translateY(-4px); }
+            }
+          `}</style>
+          <div
+            onDragOver={handleTrashDragOver}
+            onDragLeave={handleTrashDragLeave}
+            onDrop={handleTrashDrop}
+            className={`fixed bottom-6 right-6 z-50 w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center transition-all duration-200 ${
+              trashActive
+                ? "bg-destructive/20 ring-4 ring-destructive/40 shadow-2xl"
+                : dragItem
+                ? "bg-background/80 ring-2 ring-border shadow-xl"
+                : "bg-background/60 ring-1 ring-border/60 shadow-lg hover:shadow-xl"
+            }`}
+            style={{ backdropFilter: "blur(4px)" }}
+            title="Arraste aqui para excluir"
+          >
+            <img
+              src={trashBinImg}
+              alt="Lixeira"
+              draggable={false}
+              className="w-full h-full object-contain pointer-events-none select-none"
+              style={{
+                animation: trashActive
+                  ? "trashShake 0.45s ease-in-out infinite"
+                  : "trashFloat 3s ease-in-out infinite",
+                transformOrigin: "center bottom",
+              }}
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 }
