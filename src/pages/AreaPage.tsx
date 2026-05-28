@@ -1,24 +1,26 @@
 import { useState, useMemo, type DragEvent } from "react";
-import { useData, type ParkingItem, type LeadThermometerItem } from "@/contexts/DataContext";
+import { useData, type ParkingItem, type LeadThermometerItem, type AttendanceStatus } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { AREAS, type AreaKey, getAreaLabel } from "@/lib/areas";
-import { Plus, ExternalLink, Pencil, Trash2, X } from "lucide-react";
+import { Plus, ExternalLink, Pencil, Trash2, X, Settings } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 
 type Props = { area: AreaKey };
 
 export default function AreaPage({ area }: Props) {
-  type Tab = "quadro" | "notas" | "termometro";
+  type Tab = "quadro" | "notas" | "presencas" | "termometro";
   const [tab, setTab] = useState<Tab>("quadro");
   const label = getAreaLabel(area);
   const meta = AREAS.find(a => a.key === area)!;
   const tabs: { v: Tab; label: string }[] = [
     { v: "quadro", label: "Quadro CB" },
     { v: "notas", label: "Notas" },
+    { v: "presencas", label: "Controle de Presenças" },
     ...(area === "mercado" ? [{ v: "termometro" as Tab, label: "Termômetro de Lead" }] : []),
   ];
 
@@ -40,6 +42,7 @@ export default function AreaPage({ area }: Props) {
 
       {tab === "notas" && <NotesTab area={area} />}
       {tab === "quadro" && <KanbanTab area={area} />}
+      {tab === "presencas" && <AttendanceTab area={area} />}
       {tab === "termometro" && area === "mercado" && <LeadThermometerTab />}
     </div>
   );
