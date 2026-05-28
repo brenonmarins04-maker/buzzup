@@ -5,12 +5,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Sparkles, KeyRound, ArrowRight, ArrowLeft, LogOut } from "lucide-react";
+import { Sparkles, KeyRound, ArrowRight, ArrowLeft, LogOut, Building2, Clock, CheckCircle2, XCircle, Crown, Shield, User as UserIcon, Plus, X } from "lucide-react";
 
 export default function WelcomePage() {
-  const { user, loading, workspaceId, role, createWorkspace, requestJoinWorkspace, signOut } = useAuth();
+  const {
+    user, loading, displayName,
+    myWorkspaces, myJoinRequests,
+    setActiveWorkspaceId,
+    createWorkspace, requestJoinWorkspace, cancelJoinRequest,
+    signOut,
+  } = useAuth();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"choose" | "create" | "join">("choose");
+  const [mode, setMode] = useState<"hub" | "create" | "join">("hub");
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -19,9 +25,10 @@ export default function WelcomePage() {
     if (!loading && !user) navigate("/login", { replace: true });
   }, [loading, user, navigate]);
 
-  useEffect(() => {
-    if (workspaceId && role) navigate("/", { replace: true });
-  }, [workspaceId, role, navigate]);
+  const enterWorkspace = (id: string) => {
+    setActiveWorkspaceId(id);
+    navigate("/", { replace: true });
+  };
 
   const onCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,9 +46,17 @@ export default function WelcomePage() {
     setBusy(true);
     const { ok, error } = await requestJoinWorkspace(code.trim().toUpperCase());
     setBusy(false);
-    if (ok) { toast.success("Pedido enviado! Aguarde aprovação do owner."); navigate("/hub", { replace: true }); }
-    else toast.error(error || "Código inválido");
+    if (ok) {
+      toast.success("Pedido enviado! Aguarde aprovação do owner.");
+      setCode("");
+      setMode("hub");
+    } else toast.error(error || "Código inválido");
   };
+
+  const pendingRequests = myJoinRequests.filter(r => r.status === "pending");
+  const otherRequests = myJoinRequests.filter(r => r.status !== "pending").slice(0, 5);
+
+  const roleIcon = (r: string) => r === "owner" ? <Crown className="h-3 w-3" /> : r === "admin" ? <Shield className="h-3 w-3" /> : <UserIcon className="h-3 w-3" />;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -57,56 +72,131 @@ export default function WelcomePage() {
 
       <main className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-3xl">
-          {mode === "choose" && (
+          {mode === "hub" && (
             <div className="space-y-10">
-              <div className="text-center space-y-3 max-w-xl mx-auto">
+              <div className="space-y-2">
                 <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
-                  Como você quer começar?
+                  Olá{displayName ? `, ${displayName.split(" ")[0]}` : ""}
                 </h1>
                 <p className="text-sm sm:text-base text-muted-foreground">
-                  Crie um novo workspace para sua empresa ou entre em um ambiente
-                  existente usando um código de convite.
+                  Escolha um workspace para entrar, acompanhe seus pedidos ou crie um novo.
                 </p>
               </div>
 
-              <div className="grid sm:grid-cols-2 gap-4">
-                <button
-                  onClick={() => setMode("create")}
-                  className="group text-left rounded-2xl border border-border bg-card p-6 hover:border-primary hover:shadow-lg transition-all"
-                >
-                  <div className="h-11 w-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4">
-                    <Sparkles className="h-5 w-5" />
+              {/* My workspaces */}
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Meus workspaces</h2>
+                  <span className="text-xs text-muted-foreground">{myWorkspaces.length}</span>
+                </div>
+                {myWorkspaces.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border bg-card/50 p-6 text-center text-sm text-muted-foreground">
+                    Você ainda não participa de nenhum workspace.
                   </div>
-                  <h2 className="text-lg font-semibold text-foreground mb-1.5">
-                    Criar um novo workspace
-                  </h2>
-                  <p className="text-sm text-muted-foreground leading-relaxed mb-5">
-                    Você será o <span className="font-medium text-foreground">Owner</span> e
-                    poderá configurar o ambiente, convidar admins e adicionar
-                    members.
-                  </p>
-                  <span className="inline-flex items-center gap-1.5 text-sm font-medium text-primary group-hover:gap-2.5 transition-all">
-                    Criar workspace <ArrowRight className="h-4 w-4" />
-                  </span>
+                ) : (
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    {myWorkspaces.map(w => (
+                      <button
+                        key={w.workspace_id}
+                        onClick={() => enterWorkspace(w.workspace_id)}
+                        className="group text-left rounded-xl border border-border bg-card p-4 hover:border-primary hover:shadow-md transition-all flex items-start gap-3"
+                      >
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                          <Building2 className="h-5 w-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-foreground truncate">{w.name}</div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                              {roleIcon(w.role)} {w.role}
+                            </span>
+                            <span className="text-xs text-muted-foreground font-mono truncate">{w.code}</span>
+                          </div>
+                        </div>
+                        <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all mt-1" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              {/* Pending join requests */}
+              {pendingRequests.length > 0 && (
+                <section className="space-y-3">
+                  <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Pedidos pendentes</h2>
+                  <div className="space-y-2">
+                    {pendingRequests.map(r => (
+                      <div key={r.id} className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
+                          <Clock className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-foreground truncate">{r.workspace_name}</div>
+                          <div className="text-xs text-muted-foreground font-mono">{r.workspace_code} · aguardando aprovação</div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={async () => {
+                            const { ok, error } = await cancelJoinRequest(r.id);
+                            if (ok) toast.success("Pedido cancelado");
+                            else toast.error(error || "Erro");
+                          }}
+                        >
+                          <X className="h-3.5 w-3.5 mr-1" /> Cancelar
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Recent history */}
+              {otherRequests.length > 0 && (
+                <section className="space-y-3">
+                  <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Histórico</h2>
+                  <div className="space-y-1.5">
+                    {otherRequests.map(r => (
+                      <div key={r.id} className="flex items-center gap-3 px-3 py-2 text-sm">
+                        {r.status === "approved" ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> :
+                          r.status === "rejected" ? <XCircle className="h-4 w-4 text-red-500" /> :
+                            <X className="h-4 w-4 text-muted-foreground" />}
+                        <span className="flex-1 truncate text-foreground">{r.workspace_name}</span>
+                        <span className="text-xs text-muted-foreground capitalize">{r.status === "approved" ? "aprovado" : r.status === "rejected" ? "recusado" : "cancelado"}</span>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Actions */}
+              <div className="grid sm:grid-cols-2 gap-3 pt-2">
+                <button
+                  onClick={() => setMode("join")}
+                  className="group text-left rounded-xl border border-border bg-card p-4 hover:border-primary hover:shadow-md transition-all flex items-center gap-3"
+                >
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                    <KeyRound className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-foreground text-sm">Entrar em um workspace</div>
+                    <div className="text-xs text-muted-foreground">Enviar pedido com código</div>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                 </button>
 
                 <button
-                  onClick={() => setMode("join")}
-                  className="group text-left rounded-2xl border border-border bg-card p-6 hover:border-primary hover:shadow-lg transition-all"
+                  onClick={() => setMode("create")}
+                  className="group text-left rounded-xl border border-border bg-card p-4 hover:border-primary hover:shadow-md transition-all flex items-center gap-3"
                 >
-                  <div className="h-11 w-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center mb-4">
-                    <KeyRound className="h-5 w-5" />
+                  <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                    <Plus className="h-5 w-5" />
                   </div>
-                  <h2 className="text-lg font-semibold text-foreground mb-1.5">
-                    Entrar em um workspace
-                  </h2>
-                  <p className="text-sm text-muted-foreground leading-relaxed mb-5">
-                    Use um código de convite recebido de alguém da sua equipe. Seu
-                    cargo será definido automaticamente pelo convite.
-                  </p>
-                  <span className="inline-flex items-center gap-1.5 text-sm font-medium text-primary group-hover:gap-2.5 transition-all">
-                    Entrar com código <ArrowRight className="h-4 w-4" />
-                  </span>
+                  <div className="flex-1">
+                    <div className="font-semibold text-foreground text-sm">Criar novo workspace</div>
+                    <div className="text-xs text-muted-foreground">Você será o owner</div>
+                  </div>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
                 </button>
               </div>
             </div>
@@ -115,7 +205,7 @@ export default function WelcomePage() {
           {mode === "create" && (
             <div className="max-w-md mx-auto">
               <button
-                onClick={() => setMode("choose")}
+                onClick={() => setMode("hub")}
                 className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-6"
               >
                 <ArrowLeft className="h-3.5 w-3.5" /> Voltar
@@ -151,7 +241,7 @@ export default function WelcomePage() {
           {mode === "join" && (
             <div className="max-w-md mx-auto">
               <button
-                onClick={() => setMode("choose")}
+                onClick={() => setMode("hub")}
                 className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-6"
               >
                 <ArrowLeft className="h-3.5 w-3.5" /> Voltar
