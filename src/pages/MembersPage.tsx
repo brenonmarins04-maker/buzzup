@@ -75,7 +75,7 @@ export default function MembersPage() {
 
   const ownerCount = useMemo(() => members.filter(m => m.role === "owner").length, [members]);
 
-  const onCreateInvite = async (role: Role, expiresInHours: number, maxUses: number) => {
+  const onCreateInvite = async (role: "admin" | "member", expiresInHours: number, maxUses: number) => {
     if (!workspaceId) return;
     const { data, error } = await (supabase.rpc as any)("create_workspace_invite", {
       _workspace_id: workspaceId, _role: role, _expires_in_hours: expiresInHours, _max_uses: maxUses,
