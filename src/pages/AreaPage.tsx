@@ -1,4 +1,4 @@
-import { useState, useMemo, type DragEvent } from "react";
+import { useState, useMemo, useRef, useEffect, type DragEvent, type KeyboardEvent } from "react";
 import { useData, type ParkingItem, type LeadThermometerItem, type AttendanceStatus } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { AREAS, type AreaKey, getAreaLabel } from "@/lib/areas";
