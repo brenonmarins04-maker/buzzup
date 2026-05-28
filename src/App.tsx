@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Outlet, useParams } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -19,13 +19,26 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const ProtectedApp = ({ children }: { children: React.ReactNode }) => (
+// Layout route: keeps DataProvider + AppLayout mounted across page navigations,
+// so switching between areas doesn't trigger a full data re-fetch.
+const ProtectedApp = () => (
   <ProtectedRoute>
     <DataProvider>
-      <AppLayout>{children}</AppLayout>
+      <AppLayout>
+        <Outlet />
+      </AppLayout>
     </DataProvider>
   </ProtectedRoute>
 );
+
+const AREA_KEYS = ["projetos", "mercado", "gg", "presidencia"] as const;
+type AreaSlug = typeof AREA_KEYS[number];
+const AreaRoute = () => {
+  const { area } = useParams<{ area: string }>();
+  if (!area || !AREA_KEYS.includes(area as AreaSlug)) return <NotFound />;
+  // key forces internal state reset per area while the layout stays mounted
+  return <AreaPage key={area} area={area as AreaSlug} />;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -38,14 +51,13 @@ const App = () => (
             <Route path="/login" element={<LoginPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/welcome" element={<WelcomePage />} />
-            <Route path="/" element={<ProtectedApp><DashboardPage /></ProtectedApp>} />
-            <Route path="/calendar" element={<ProtectedApp><CalendarPage /></ProtectedApp>} />
-            <Route path="/people" element={<ProtectedApp><PeoplePage /></ProtectedApp>} />
-            <Route path="/members" element={<ProtectedApp><MembersPage /></ProtectedApp>} />
-            <Route path="/projetos"    element={<ProtectedApp><AreaPage area="projetos" /></ProtectedApp>} />
-            <Route path="/mercado"     element={<ProtectedApp><AreaPage area="mercado" /></ProtectedApp>} />
-            <Route path="/gg"          element={<ProtectedApp><AreaPage area="gg" /></ProtectedApp>} />
-            <Route path="/presidencia" element={<ProtectedApp><AreaPage area="presidencia" /></ProtectedApp>} />
+            <Route element={<ProtectedApp />}>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/calendar" element={<CalendarPage />} />
+              <Route path="/people" element={<PeoplePage />} />
+              <Route path="/members" element={<MembersPage />} />
+              <Route path="/:area" element={<AreaRoute />} />
+            </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
