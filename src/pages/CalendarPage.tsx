@@ -50,7 +50,7 @@ const nextPostStatus = (s?: string) => {
 };
 
 export default function CalendarPage() {
-  const { tasks, posts, events, eventTypes, parkingItems, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addParkingItem, updateParkingItem } = useData();
+  const { tasks, posts, events, eventTypes, parkingItems, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addParkingItem, updateParkingItem, deleteParkingItem } = useData();
   const { isAdmin } = useAuth();
   const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(getNowBrasilia());
@@ -79,14 +79,8 @@ export default function CalendarPage() {
     setTrashActive(false);
     setTimeout(() => {
       if (item.parkingId) {
-        const pk = parkingItems.find(p => p.id === item.parkingId);
-        if (pk) {
-          // remove parking item via update: use deleteTask-style; we have no deleteParkingItem here, fallback to updating to empty? Use context if available
-        }
-        // try context delete if exists
-        try { (useData as any); } catch {}
-      }
-      if (item.type === "task") deleteTask(item.id);
+        deleteParkingItem(item.parkingId);
+      } else if (item.type === "task") deleteTask(item.id);
       else if (item.type === "post") deletePost(item.id);
       else if (item.type === "event") deleteEvent(item.id);
       setShrinkingId(null);
