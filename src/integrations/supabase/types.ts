@@ -429,6 +429,7 @@ export type Database = {
           id: string
           person_id: string | null
           position: number
+          status: string
           title: string
           workspace_id: string
         }
@@ -440,6 +441,7 @@ export type Database = {
           id?: string
           person_id?: string | null
           position?: number
+          status?: string
           title: string
           workspace_id: string
         }
@@ -451,6 +453,7 @@ export type Database = {
           id?: string
           person_id?: string | null
           position?: number
+          status?: string
           title?: string
           workspace_id?: string
         }
