@@ -283,7 +283,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setChannels((chRes.data || []).map(c => ({ id: c.id, name: c.name, color: c.color })));
       setEventTypes(((etRes as any)?.data || []).map((e: any) => ({ id: e.id, name: e.name, color: e.color })));
       setAreaNotes(((anRes as any)?.data || []).map((n: any) => ({ id: n.id, area: n.area, name: n.name, url: n.url, position: n.position ?? 0 })));
-      setParkingItems(((piRes as any)?.data || []).map((p: any) => ({ id: p.id, area: p.area, personId: p.person_id ?? null, title: p.title, description: p.description ?? "", date: p.date ?? "", position: p.position ?? 0, status: (p.status as ParkingItemStatus) ?? "in-progress" })));
+      setParkingItems(((piRes as any)?.data || []).map((p: any) => ({ id: p.id, area: p.area, personId: p.person_id ?? null, title: p.title, description: p.description ?? "", date: p.date ?? "", position: p.position ?? 0, status: (p.status as ParkingItemStatus) ?? "in-progress", points: p.points ?? 1 })));
       setGamificationActions(((gaRes as any)?.data || []).map((a: any) => ({ id: a.id, name: a.name, points: a.points ?? 0 })));
       setGamificationAwards(((gwRes as any)?.data || []).map((w: any) => ({ id: w.id, personId: w.person_id, actionId: w.action_id ?? null, actionName: w.action_name, points: w.points ?? 0, awardedAt: w.awarded_at })));
       setLeadThermometer(((ltRes as any)?.data || []).map((l: any) => ({ id: l.id, name: l.name, value: l.value ?? "", areaSize: l.area_size ?? "", type: l.type ?? "", position: l.position ?? 0 })));
