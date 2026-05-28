@@ -687,6 +687,14 @@ export default function CalendarPage() {
       <TaskModal open={taskModal.open} onOpenChange={o => setTaskModal({ open: o })} task={taskModal.task} defaultDate={taskModal.date} />
       <PostModal open={postModal.open} onOpenChange={o => setPostModal({ open: o })} post={postModal.post} defaultDate={postModal.date} />
       <EventModal open={eventModal.open} onOpenChange={o => setEventModal({ open: o })} event={eventModal.event} defaultDate={eventModal.date} />
+      <IdeaModal
+        open={ideaModal.open}
+        onOpenChange={(o) => setIdeaModal(s => ({ ...s, open: o }))}
+        item={ideaModal.item}
+        defaultDate={ideaModal.defaultDate}
+        defaultArea={ideaModal.defaultArea}
+        requireFull={ideaModal.requireFull}
+      />
       <DeleteConfirmDialog open={deleting.open} onOpenChange={o => setDeleting(p => ({ ...p, open: o }))}
         title={deleting.title} onConfirm={handleDelete} />
     </div>
