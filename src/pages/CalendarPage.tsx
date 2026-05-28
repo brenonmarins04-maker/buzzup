@@ -94,7 +94,7 @@ export default function CalendarPage() {
     }
     // day drop
     const dayStr = target.date;
-    if (item.parkingId) { handleParkingDrop(item.parkingId, dayStr); return; }
+    if (item.parkingId) { dropParkingOnDate(item.parkingId, dayStr); return; }
     if (item.type === "task") { const task = tasks.find(t => t.id === item.id); if (task) updateTask({ ...task, deadline: dayStr }); }
     else if (item.type === "post") { const post = posts.find(p => p.id === item.id); if (post) updatePost({ ...post, date: dayStr }); }
     else if (item.type === "event") { const ev = events.find(e => e.id === item.id); if (ev) updateEvent({ ...ev, date: dayStr }); }
