@@ -32,7 +32,7 @@ const App = () => (
     <TooltipProvider>
       <AuthProvider>
         <Toaster />
-        <Sonner position="bottom-left" />
+        <Sonner position="bottom-left" offset={{ left: 96, bottom: 24 }} mobileOffset={{ left: 80, bottom: 16 }} />
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
