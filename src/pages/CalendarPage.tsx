@@ -16,7 +16,6 @@ import QuickCreateMenu from "@/components/modals/QuickCreateMenu";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
-import FilterChips from "@/components/FilterChips";
 import { getNowBrasilia } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useLongPressDrag, type DragDropResult } from "@/hooks/useLongPressDrag";
@@ -47,12 +46,12 @@ const nextPostStatus = (s?: string) => {
 };
 
 export default function CalendarPage() {
-  const { tasks, posts, events, eventTypes, parkingItems, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addPost } = useData();
+  const { tasks, posts, events, eventTypes, parkingItems, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addPost, addParkingItem } = useData();
   const { isAdmin } = useAuth();
   const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(getNowBrasilia());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
-  const [filterAreas, setFilterAreas] = useState<string[]>([]);
+  const [filterArea, setFilterArea] = useState<string | null>(null);
   const [parkingOpen, setParkingOpen] = useState(true);
   const [newIdea, setNewIdea] = useState("");
   const [parkingDropActive, setParkingDropActive] = useState(false);
@@ -68,7 +67,12 @@ export default function CalendarPage() {
   const [dragItem, setDragItem] = useState<CalendarItem | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
 
+  const activeAreaMeta = filterArea ? AREAS.find(a => a.key === filterArea) : null;
   const parkedPosts = useMemo(() => posts.filter(p => !p.date), [posts]);
+  const parkedAreaIdeas = useMemo(
+    () => filterArea ? parkingItems.filter(p => p.area === filterArea && !p.date) : [],
+    [parkingItems, filterArea]
+  );
 
   const applyDrop = (item: CalendarItem, target: DragDropResult) => {
     if (!isAdmin) { toast.error("Apenas administradores podem alterar datas"); return; }
@@ -96,13 +100,18 @@ export default function CalendarPage() {
     e.preventDefault();
     const title = newIdea.trim();
     if (!title) return;
-    addPost({
-      title, copy: "", link: "", date: "", time: "",
-      channel: "", category: "", status: "not-started",
-      responsibleIds: [], media_url: "", teamId: null,
-    });
+    if (filterArea) {
+      addParkingItem(filterArea, title, "");
+      toast.success(`Ideia adicionada em ${activeAreaMeta?.label ?? "área"}`);
+    } else {
+      addPost({
+        title, copy: "", link: "", date: "", time: "",
+        channel: "", category: "", status: "not-started",
+        responsibleIds: [], media_url: "", teamId: null,
+      });
+      toast.success("Ideia estacionada");
+    }
     setNewIdea("");
-    toast.success("Ideia estacionada");
     setTimeout(() => newIdeaRef.current?.focus(), 0);
   };
 
@@ -125,28 +134,28 @@ export default function CalendarPage() {
     const items: CalendarItem[] = [];
     tasks.forEach((t) => {
       if (t.status === "done") return; // tarefas concluídas não aparecem no calendário
-      if (filterAreas.length > 0 && (!t.area || !filterAreas.includes(t.area))) return;
+      if (filterArea && t.area !== filterArea) return;
       const taskColor = t.status === "in-progress" ? "#F59E0B" : t.status === "not-started" ? "#9CA3AF" : TASK_COLOR;
       items.push({ id: t.id, title: t.title, type: "task", date: t.deadline, color: taskColor, status: t.status });
     });
     posts.forEach((p) => {
       if (!p.date) return; // estacionamento
-      if (filterAreas.length > 0) return;
+      if (filterArea) return;
       items.push({ id: p.id, title: p.title, type: "post", date: p.date, time: p.time, color: POST_COLOR, status: p.status });
     });
     events.forEach((e) => {
-      if (filterAreas.length > 0) return;
+      if (filterArea) return;
       const et = eventTypes.find(t => t.name === e.type);
       items.push({ id: e.id, title: e.title, type: "event", date: e.date, color: et?.color || EVENT_FALLBACK_COLOR, eventTypeName: e.type });
     });
     parkingItems.forEach((p) => {
       if (!p.date) return;
-      if (filterAreas.length > 0 && !filterAreas.includes(p.area)) return;
+      if (filterArea && p.area !== filterArea) return;
       const areaMeta = AREAS.find(a => a.key === p.area);
       items.push({ id: p.id, title: p.title, type: "event", date: p.date, color: areaMeta?.color || EVENT_FALLBACK_COLOR, eventTypeName: areaMeta?.label });
     });
     return items;
-  }, [tasks, posts, events, parkingItems, filterAreas, eventTypes]);
+  }, [tasks, posts, events, parkingItems, filterArea, eventTypes]);
 
   const upcomingPendingPosts = useMemo(() => {
     const today = getNowBrasilia();
