@@ -128,28 +128,44 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Megaphone className="h-5 w-5" />
           </button>
         )}
-        {isAdmin && (
-          <QuickCreateMenu onCreateTask={() => setTaskModal(true)} onCreatePost={() => setPostModal(true)} onCreateItem={() => setEventModal(true)}>
-            <button className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 active:scale-95 transition-all">
-              <Plus className="h-6 w-6" />
-            </button>
-          </QuickCreateMenu>
-        )}
         <nav className="fixed bottom-0 left-0 right-0 z-30 bg-card border-t border-border flex items-center justify-around h-16 px-1">
-          {navItems.map((item) => (
-            <NavLink key={item.to} to={item.to}
-              className={({ isActive }) => `flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-md text-[10px] font-medium transition-colors min-w-0 ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
-              <div className="relative">
-                <item.icon className="h-5 w-5 shrink-0" />
-                {item.to === "/members" && pendingJoinCount > 0 && (
-                  <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
-                    {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
-                  </span>
-                )}
-              </div>
-              <span className="truncate">{item.label}</span>
-            </NavLink>
-          ))}
+          {mobileNavItems.map((item) => {
+            if (item.to === "areas") {
+              return (
+                <Popover key="areas">
+                  <PopoverTrigger asChild>
+                    <button className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-md text-[10px] font-medium transition-colors min-w-0 text-muted-foreground">
+                      <item.icon className="h-5 w-5 shrink-0" />
+                      <span className="truncate">{item.label}</span>
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent side="top" align="center" className="w-48 p-1">
+                    {areaItems.map((a) => (
+                      <NavLink key={a.to} to={a.to}
+                        className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium ${isActive ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"}`}>
+                        <a.icon className="h-4 w-4" />
+                        <span>{a.label}</span>
+                      </NavLink>
+                    ))}
+                  </PopoverContent>
+                </Popover>
+              );
+            }
+            return (
+              <NavLink key={item.to} to={item.to}
+                className={({ isActive }) => `flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-md text-[10px] font-medium transition-colors min-w-0 ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
+                <div className="relative">
+                  <item.icon className="h-5 w-5 shrink-0" />
+                  {item.to === "/members" && pendingJoinCount > 0 && (
+                    <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
+                      {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
+                    </span>
+                  )}
+                </div>
+                <span className="truncate">{item.label}</span>
+              </NavLink>
+            );
+          })}
         </nav>
         <TaskModal open={taskModal} onOpenChange={setTaskModal} />
         <PostModal open={postModal} onOpenChange={setPostModal} />
