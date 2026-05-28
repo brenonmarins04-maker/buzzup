@@ -49,7 +49,14 @@ export default function ProjectModal({ open, onOpenChange, project }: Props) {
       });
       toast.success("Projeto atualizado");
     } else {
-      addProject(form);
+      addProject({
+        ...form,
+        managerId: null,
+        pipelineStatus: "",
+        startDate: "",
+        endContract: "",
+        endDelivered: "",
+      });
       toast.success("Projeto criado");
     }
     onOpenChange(false);
