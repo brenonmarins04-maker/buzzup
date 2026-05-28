@@ -51,13 +51,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const isMobile = useIsMobile();
   const { notifications } = useData();
-  const { displayName, signOut, isAdmin, isOwner, role, user, myWorkspaces } = useAuth();
+  const { displayName, signOut, isAdmin, isOwner, role, user, myWorkspaces, activeWorkspaceId } = useAuth();
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const unreadCount = notifications.filter(n => !n.read).length;
   const [pendingJoinCount, setPendingJoinCount] = useState(0);
 
   const ownedWorkspaceIds = myWorkspaces.filter(w => w.role === "owner").map(w => w.workspace_id);
+  const activeWorkspaceName = myWorkspaces.find(w => w.workspace_id === activeWorkspaceId)?.name || "Workspace";
 
   useEffect(() => {
     if (!user || ownedWorkspaceIds.length === 0) { setPendingJoinCount(0); return; }
@@ -261,7 +262,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
           <div className="flex items-center gap-3">
             <RoleBadge />
-            <span className="text-sm font-medium text-muted-foreground">{displayName || "Workspace"}</span>
+            <span className="text-sm font-medium text-muted-foreground">{activeWorkspaceName}</span>
             <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 rounded-md hover:bg-accent transition-colors text-muted-foreground">
               <Bell className="h-4 w-4" />
               {unreadCount > 0 && <span className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">{unreadCount > 9 ? "9+" : unreadCount}</span>}
