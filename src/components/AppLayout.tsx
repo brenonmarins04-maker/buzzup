@@ -145,7 +145,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <PopoverContent side="top" align="center" className="w-48 p-1">
                     {areaItems.map((a) => (
                       <NavLink key={a.to} to={a.to}
-                        className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium ${isActive ? "bg-accent text-foreground" : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"}`}>
+                        style={({ isActive }) => isActive
+                          ? { backgroundColor: `${a.color}1F`, color: a.color }
+                          : { color: a.color }}
+                        className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold hover:bg-accent/50">
                         <a.icon className="h-4 w-4" />
                         <span>{a.label}</span>
                       </NavLink>
