@@ -47,13 +47,12 @@ const nextPostStatus = (s?: string) => {
 };
 
 export default function CalendarPage() {
-  const { tasks, posts, events, teams, eventTypes, parkingItems, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addPost } = useData();
+  const { tasks, posts, events, eventTypes, parkingItems, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addPost } = useData();
   const { isAdmin } = useAuth();
   const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(getNowBrasilia());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [filterTypes, setFilterTypes] = useState<string[]>([]);
-  const [filterTeams, setFilterTeams] = useState<string[]>([]);
   const [parkingOpen, setParkingOpen] = useState(true);
   const [newIdea, setNewIdea] = useState("");
   const [parkingDropActive, setParkingDropActive] = useState(false);
@@ -124,27 +123,19 @@ export default function CalendarPage() {
 
   const allItems = useMemo<CalendarItem[]>(() => {
     const items: CalendarItem[] = [];
-    const teamMatch = (teamId: string | null) => {
-      if (filterTeams.length === 0) return true;
-      if (!teamId) return filterTeams.includes("__none");
-      return filterTeams.includes(teamId);
-    };
     tasks.forEach((t) => {
       if (filterTypes.length > 0 && !filterTypes.includes("task")) return;
       if (t.status === "done") return; // tarefas concluídas não aparecem no calendário
-      if (!teamMatch(t.teamId)) return;
       const taskColor = t.status === "in-progress" ? "#F59E0B" : t.status === "not-started" ? "#9CA3AF" : TASK_COLOR;
       items.push({ id: t.id, title: t.title, type: "task", date: t.deadline, color: taskColor, status: t.status });
     });
     posts.forEach((p) => {
       if (!p.date) return; // estacionamento
       if (filterTypes.length > 0 && !filterTypes.includes("post")) return;
-      if (!teamMatch(p.teamId)) return;
       items.push({ id: p.id, title: p.title, type: "post", date: p.date, time: p.time, color: POST_COLOR, status: p.status });
     });
     events.forEach((e) => {
       if (filterTypes.length > 0 && !filterTypes.includes("event") && !filterTypes.includes(`event:${e.type}`)) return;
-      if (!teamMatch(e.teamId)) return;
       const et = eventTypes.find(t => t.name === e.type);
       items.push({ id: e.id, title: e.title, type: "event", date: e.date, color: et?.color || EVENT_FALLBACK_COLOR, eventTypeName: e.type });
     });
@@ -155,7 +146,7 @@ export default function CalendarPage() {
       items.push({ id: p.id, title: p.title, type: "event", date: p.date, color: areaMeta?.color || EVENT_FALLBACK_COLOR, eventTypeName: areaMeta?.label });
     });
     return items;
-  }, [tasks, posts, events, parkingItems, filterTypes, filterTeams, eventTypes]);
+  }, [tasks, posts, events, parkingItems, filterTypes, eventTypes]);
 
   const upcomingPendingPosts = useMemo(() => {
     const today = getNowBrasilia();
@@ -442,12 +433,6 @@ export default function CalendarPage() {
           ))}
         </div>
         </div>
-        {teams.length > 0 && (
-          <FilterChips label="Equipe" options={[
-            ...teams.map(t => ({ value: t.id, label: t.name })),
-            { value: "__none", label: "Sem equipe" },
-          ]} selected={filterTeams} onChange={setFilterTeams} />
-        )}
       </div>
 
       {/* Metric: upcoming pending posts */}
