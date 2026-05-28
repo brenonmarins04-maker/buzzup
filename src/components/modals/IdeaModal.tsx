@@ -27,6 +27,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
   const [area, setArea] = useState("");
   const [personId, setPersonId] = useState<string>("");
   const [date, setDate] = useState("");
+  const [points, setPoints] = useState<number>(1);
   const [savedOk, setSavedOk] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
 
@@ -37,6 +38,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
     setArea(item?.area || defaultArea || "");
     setPersonId(item?.personId || "");
     setDate(item?.date || defaultDate || "");
+    setPoints(item?.points ?? 1);
   }, [open, item, defaultArea, defaultDate]);
 
   const peopleForArea = useMemo(() => {
@@ -53,17 +55,16 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
     const t = title.trim();
     if (!t) { toast.error("Título é obrigatório"); return; }
     if (!area) { toast.error("Selecione a área primeiro"); return; }
+    if (![1, 2, 3].includes(points)) { toast.error("Selecione os pontos (1, 2 ou 3)"); return; }
     if (requireFull) {
       if (!personId) { toast.error("Selecione o responsável"); return; }
       if (!date) { toast.error("Selecione uma data"); return; }
     }
     if (item) {
-      await updateParkingItem({ ...item, title: t, area, personId: personId || null, date });
+      await updateParkingItem({ ...item, title: t, area, personId: personId || null, date, points });
       toast.success("Ideia atualizada");
     } else {
-      // addParkingItem only persists area/title/date/description; use updateParkingItem afterwards if person is set.
-      await addParkingItem(area, t, date, "");
-      // Note: new items go through addParkingItem which doesn't accept personId — we accept that for now.
+      await addParkingItem(area, t, date, "", points);
     }
     setSavedOk(true);
     onOpenChange(false);
