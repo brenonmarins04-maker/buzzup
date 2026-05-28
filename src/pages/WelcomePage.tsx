@@ -78,6 +78,9 @@ export default function WelcomePage() {
                 <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
                   Olá{displayName ? `, ${displayName.split(" ")[0]}` : ""}
                 </h1>
+                {user?.email && (
+                  <p className="text-sm sm:text-base text-foreground/50">{user.email}</p>
+                )}
                 <p className="text-sm sm:text-base text-muted-foreground">
                   Escolha um workspace para entrar, acompanhe seus pedidos ou crie um novo.
                 </p>
