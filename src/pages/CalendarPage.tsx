@@ -12,6 +12,7 @@ import { ptBR } from "date-fns/locale";
 import TaskModal from "@/components/modals/TaskModal";
 import PostModal from "@/components/modals/PostModal";
 import EventModal from "@/components/modals/EventModal";
+import IdeaModal from "@/components/modals/IdeaModal";
 import QuickCreateMenu from "@/components/modals/QuickCreateMenu";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
