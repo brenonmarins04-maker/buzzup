@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, type DragEvent } from "react";
-import { ChevronLeft, ChevronRight, Plus, X, PanelLeftClose, PanelLeftOpen, Inbox, ChevronUp, ChevronDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, PanelLeftClose, PanelLeftOpen, Inbox, ChevronUp, ChevronDown, CalendarDays, ListChecks, Megaphone, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import type { Task, Post, CalendarEvent } from "@/contexts/DataContext";
@@ -408,32 +408,63 @@ export default function CalendarPage() {
   );
 
   return (
-    <div className="animate-fade-in flex flex-col gap-4 h-full min-h-[600px]">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-4">
-          {viewMode === "month" && (
-            <button onClick={() => setParkingOpen(o => !o)} title={parkingOpen ? "Esconder ideias gerais" : "Mostrar ideias gerais"}
-              className="p-1.5 rounded-md hover:bg-accent text-muted-foreground">
-              {parkingOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
-            </button>
-          )}
-          <h1 className="text-xl sm:text-2xl font-semibold text-foreground tracking-tight">Calendário</h1>
-          <div className="flex items-center gap-1">
-            <button onClick={navigatePrev} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground"><ChevronLeft className="h-4 w-4" /></button>
-            <span className="text-sm font-medium text-foreground min-w-[140px] sm:min-w-[180px] text-center capitalize">{headerLabel()}</span>
-            <button onClick={navigateNext} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground"><ChevronRight className="h-4 w-4" /></button>
+    <div className="animate-fade-in flex flex-col gap-5 h-full min-h-[600px]">
+      {/* Hero (mesma identidade visual do Início) */}
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-accent to-secondary/40 p-5 md:p-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-xl bg-card/70 border border-border/70 backdrop-blur-sm flex items-center justify-center shrink-0">
+              <CalendarDays className="h-6 w-6 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-xl md:text-2xl font-bold text-foreground tracking-tight">Calendário</h1>
+              <p className="text-xs md:text-sm text-muted-foreground mt-0.5">
+                Organize tarefas, publicações e eventos em um só lugar.
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex bg-muted rounded-md p-0.5">
-            {(["month", "week", "day"] as ViewMode[]).map(v => (
-              <button key={v} onClick={() => setViewMode(v)}
-                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${viewMode === v ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-                {v === "month" ? "Mês" : v === "week" ? "Semana" : "Dia"}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-1 bg-card/70 border border-border/70 rounded-lg p-0.5 backdrop-blur-sm">
+              <button onClick={navigatePrev} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground"><ChevronLeft className="h-4 w-4" /></button>
+              <span className="text-sm font-semibold text-foreground min-w-[140px] sm:min-w-[180px] text-center capitalize">{headerLabel()}</span>
+              <button onClick={navigateNext} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground"><ChevronRight className="h-4 w-4" /></button>
+            </div>
+            <div className="flex bg-card/70 border border-border/70 backdrop-blur-sm rounded-lg p-0.5">
+              {(["month", "week", "day"] as ViewMode[]).map(v => (
+                <button key={v} onClick={() => setViewMode(v)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${viewMode === v ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+                  {v === "month" ? "Mês" : v === "week" ? "Semana" : "Dia"}
+                </button>
+              ))}
+            </div>
+            {viewMode === "month" && (
+              <button onClick={() => setParkingOpen(o => !o)} title={parkingOpen ? "Esconder ideias gerais" : "Mostrar ideias gerais"}
+                className="p-2 rounded-lg bg-card/70 border border-border/70 backdrop-blur-sm text-muted-foreground hover:text-foreground transition-colors">
+                {parkingOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
               </button>
-            ))}
+            )}
           </div>
         </div>
+      </div>
+
+      {/* KPI strip — mesma linguagem das métricas do Início */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { title: "Tarefas em andamento", value: tasks.filter(t => t.status === "in-progress" || t.status === "not-started").length, icon: <ListChecks className="h-5 w-5" />, color: "#2563EB" },
+          { title: "Eventos agendados", value: events.length, icon: <CalendarDays className="h-5 w-5" />, color: "#F97316" },
+          { title: "Publicações ativas", value: posts.filter(p => !!p.date).length, icon: <Megaphone className="h-5 w-5" />, color: "#10B981" },
+          { title: "Ideias estacionadas", value: parkedIdeas.length, icon: <Sparkles className="h-5 w-5" />, color: "#8B5CF6" },
+        ].map(k => (
+          <div key={k.title} className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${k.color}1F`, color: k.color }}>
+              {k.icon}
+            </div>
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium text-muted-foreground truncate">{k.title}</p>
+              <p className="text-2xl font-bold text-foreground leading-tight">{k.value}</p>
+            </div>
+          </div>
+        ))}
       </div>
 
       <div className="flex flex-col gap-2">
@@ -479,7 +510,7 @@ export default function CalendarPage() {
               onDragLeave={handleParkingDragLeave}
               onDrop={handleParkingDrop}
               title={`Abrir ideias gerais (${parkedIdeas.length})`}
-              className={`group h-full min-h-0 bg-card border rounded-lg flex flex-col items-center justify-start gap-2 py-3 transition-colors hover:bg-accent ${parkingDropActive ? "border-primary ring-2 ring-primary/30 bg-primary/5" : "border-border"}`}
+              className={`group h-full min-h-0 bg-card border rounded-2xl flex flex-col items-center justify-start gap-2 py-3 transition-colors hover:bg-accent ${parkingDropActive ? "border-primary ring-2 ring-primary/30 bg-primary/5" : "border-border"}`}
             >
               <Inbox className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />
               {parkedIdeas.length > 0 && (
@@ -500,7 +531,7 @@ export default function CalendarPage() {
               onDragOver={handleParkingDragOver}
               onDragLeave={handleParkingDragLeave}
               onDrop={handleParkingDrop}
-              className={`bg-card border rounded-lg flex flex-col overflow-hidden h-full min-h-0 transition-colors ${parkingDropActive ? "border-primary ring-2 ring-primary/30 bg-primary/5" : "border-border"}`}
+              className={`bg-card border rounded-2xl flex flex-col overflow-hidden h-full min-h-0 transition-colors ${parkingDropActive ? "border-primary ring-2 ring-primary/30 bg-primary/5" : "border-border"}`}
             >
               <div className="px-3 py-2.5 border-b border-border flex items-center justify-between gap-2">
                 <div className="min-w-0">
@@ -541,7 +572,7 @@ export default function CalendarPage() {
               </div>
             </aside>
           )}
-          <div className="bg-card border border-border rounded-lg overflow-hidden flex flex-col h-full min-h-0 w-full">
+          <div className="bg-card border border-border rounded-2xl overflow-hidden flex flex-col h-full min-h-0 w-full">
             <div className="grid grid-cols-7 border-b border-border shrink-0">
               {weekDays.map(d => (<div key={d} className="py-2 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">{d}</div>))}
             </div>
@@ -553,7 +584,7 @@ export default function CalendarPage() {
       )}
 
       {viewMode === "month" && isMobile && (
-        <div className="bg-card border border-border rounded-lg overflow-hidden">
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
           {/* Past toggle / list */}
           <button
             onClick={() => {
@@ -624,7 +655,7 @@ export default function CalendarPage() {
       )}
 
       {viewMode === "week" && (
-        <div className="bg-card border border-border rounded-lg overflow-hidden">
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
           <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-border">
             <div className="py-2 text-center text-xs text-muted-foreground" />
             {weekDaysList.map(day => (
@@ -658,7 +689,7 @@ export default function CalendarPage() {
       )}
 
       {viewMode === "day" && (
-        <div className="bg-card border border-border rounded-lg overflow-hidden">
+        <div className="bg-card border border-border rounded-2xl overflow-hidden">
           <div className="px-4 py-3 border-b border-border">
             <div className={`text-lg font-semibold capitalize ${isToday(currentDate) ? "text-primary" : "text-foreground"}`}>
               {format(currentDate, "EEEE, d 'de' MMMM", { locale: ptBR })}
