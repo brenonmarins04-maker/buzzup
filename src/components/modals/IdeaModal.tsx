@@ -80,53 +80,109 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="max-w-md">
+        <DialogContent
+          className="max-w-md overflow-hidden shadow-2xl"
+          style={{
+            background: area
+              ? `linear-gradient(180deg, ${AREAS.find(a => a.key === area)?.color}14 0%, hsl(var(--background)) 55%)`
+              : undefined,
+          }}
+        >
+          <div
+            className="absolute top-0 left-0 right-0 h-1.5 transition-colors"
+            style={{ background: area ? AREAS.find(a => a.key === area)?.color : "hsl(var(--muted))" }}
+          />
           <DialogHeader>
-            <DialogTitle>{item ? "Editar ideia" : "Nova ideia"}</DialogTitle>
+            <DialogTitle className="text-lg">{item ? "Editar ideia" : "Nova ideia"}</DialogTitle>
             {requireFull && (
               <DialogDescription className="text-xs">
                 Para colocar no calendário, preencha área, responsável e data.
               </DialogDescription>
             )}
           </DialogHeader>
-          <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="flex flex-col gap-3">
+          <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="flex flex-col gap-4">
             <div>
-              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1 block">Título</label>
-              <Input autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder="Descreva a ideia" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1 block">Área <span className="text-destructive">*</span></label>
-                <select value={area} onChange={e => { setArea(e.target.value); setPersonId(""); }}
-                  className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-                  <option value="">— Selecione —</option>
-                  {AREAS.map(a => <option key={a.key} value={a.key}>{a.label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1 block">Responsável {requireFull && <span className="text-destructive">*</span>}</label>
-                <select value={personId} onChange={e => setPersonId(e.target.value)}
-                  disabled={!area}
-                  className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
-                  <option value="">{!area ? "— Selecione a área antes —" : peopleForArea.length === 0 ? "😞" : "— Selecionar —"}</option>
-                  {peopleForArea.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-              </div>
+              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Título</label>
+              <Input autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder="Descreva a ideia" className="rounded-full h-11 px-4" />
             </div>
             <div>
-              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1 block">Data {requireFull && <span className="text-destructive">*</span>}</label>
-              <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
+              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Área <span className="text-destructive">*</span></label>
+              <div className="flex flex-wrap gap-2">
+                {AREAS.map(a => {
+                  const selected = area === a.key;
+                  return (
+                    <button
+                      key={a.key}
+                      type="button"
+                      onClick={() => { setArea(a.key); setPersonId(""); }}
+                      className="px-4 h-9 rounded-full text-sm font-medium transition-all border"
+                      style={{
+                        backgroundColor: selected ? a.color : `${a.color}14`,
+                        color: selected ? "#fff" : a.color,
+                        borderColor: selected ? a.color : `${a.color}40`,
+                        boxShadow: selected ? `0 4px 14px ${a.color}55` : "none",
+                        transform: selected ? "translateY(-1px)" : "none",
+                      }}
+                    >
+                      {a.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Responsável {requireFull && <span className="text-destructive">*</span>}</label>
+              {!area ? (
+                <div className="h-11 rounded-full border border-dashed border-input bg-muted/30 px-4 flex items-center text-sm text-muted-foreground">
+                  Selecione a área primeiro
+                </div>
+              ) : peopleForArea.length === 0 ? (
+                <div className="h-11 rounded-full border border-input bg-muted/30 px-4 flex items-center text-2xl">😞</div>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {peopleForArea.map(p => {
+                    const selected = personId === p.id;
+                    const areaColor = AREAS.find(a => a.key === area)?.color || "#64748B";
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setPersonId(p.id)}
+                        className="px-4 h-9 rounded-full text-sm font-medium transition-all border"
+                        style={{
+                          backgroundColor: selected ? areaColor : `${areaColor}10`,
+                          color: selected ? "#fff" : "hsl(var(--foreground))",
+                          borderColor: selected ? areaColor : `${areaColor}30`,
+                          boxShadow: selected ? `0 4px 14px ${areaColor}55` : "none",
+                        }}
+                      >
+                        {p.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Data {requireFull && <span className="text-destructive">*</span>}</label>
+              <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="rounded-full h-11 px-4" />
               {!requireFull && <p className="text-[10px] text-muted-foreground mt-1">Deixe em branco para manter em Papel.</p>}
             </div>
             <div className="flex items-center justify-between pt-2">
               {item ? (
-                <Button type="button" variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => setConfirmDel(true)}>
+                <Button type="button" variant="ghost" size="sm" className="text-destructive hover:text-destructive rounded-full" onClick={() => setConfirmDel(true)}>
                   <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir
                 </Button>
               ) : <div />}
               <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={() => handleClose(false)}>Cancelar</Button>
-                <Button type="submit">{requireFull ? "Colocar no calendário" : "Salvar"}</Button>
+                <Button type="button" variant="outline" className="rounded-full px-5" onClick={() => handleClose(false)}>Cancelar</Button>
+                <Button
+                  type="submit"
+                  className="rounded-full px-5 text-white border-0 hover:opacity-90"
+                  style={area ? { backgroundColor: AREAS.find(a => a.key === area)?.color } : undefined}
+                >
+                  {requireFull ? "Colocar no calendário" : "Salvar"}
+                </Button>
               </div>
             </div>
           </form>
