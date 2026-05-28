@@ -130,17 +130,19 @@ function KanbanTab({ area }: { area: AreaKey }) {
   const [modal, setModal] = useState<{ open: boolean; item?: ParkingItem | null }>({ open: false });
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [date, setDate] = useState("");
 
-  const openCreate = () => { setModal({ open: true, item: null }); setTitle(""); setDescription(""); };
-  const openEdit = (item: ParkingItem) => { setModal({ open: true, item }); setTitle(item.title); setDescription(item.description); };
+  const openCreate = () => { setModal({ open: true, item: null }); setTitle(""); setDescription(""); setDate(""); };
+  const openEdit = (item: ParkingItem) => { setModal({ open: true, item }); setTitle(item.title); setDescription(item.description); setDate(item.date || ""); };
 
   const save = async () => {
     if (!title.trim()) { toast.error("Título obrigatório"); return; }
+    if (!date) { toast.error("Data obrigatória"); return; }
     if (modal.item) {
-      await updateParkingItem({ ...modal.item, title: title.trim(), description: description.trim() });
+      await updateParkingItem({ ...modal.item, title: title.trim(), description: description.trim(), date });
       toast.success("Atualizado");
     } else {
-      await addParkingItem(area, title.trim(), description.trim());
+      await addParkingItem(area, title.trim(), date, description.trim());
       toast.success("Card criado");
     }
     setModal({ open: false });
@@ -213,6 +215,12 @@ function KanbanTab({ area }: { area: AreaKey }) {
                 )}
               </div>
               {item.description && <p className="text-xs text-muted-foreground mt-2 line-clamp-3">{item.description}</p>}
+              {item.date && (
+                <div className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded"
+                  style={{ backgroundColor: `${AREAS.find(a => a.key === area)?.color}22`, color: AREAS.find(a => a.key === area)?.color }}>
+                  {new Date(item.date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -241,6 +249,10 @@ function KanbanTab({ area }: { area: AreaKey }) {
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Título</label>
               <Input value={title} onChange={e => setTitle(e.target.value)} autoFocus />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Data</label>
+              <Input type="date" value={date} onChange={e => setDate(e.target.value)} required />
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Descrição</label>

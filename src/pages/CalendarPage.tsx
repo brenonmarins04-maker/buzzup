@@ -20,6 +20,7 @@ import FilterChips from "@/components/FilterChips";
 import { getNowBrasilia } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useLongPressDrag, type DragDropResult } from "@/hooks/useLongPressDrag";
+import { AREAS } from "@/lib/areas";
 
 export type CalendarItem = {
   id: string; title: string; type: "task" | "post" | "event";
@@ -46,7 +47,7 @@ const nextPostStatus = (s?: string) => {
 };
 
 export default function CalendarPage() {
-  const { tasks, posts, events, teams, eventTypes, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addPost } = useData();
+  const { tasks, posts, events, teams, eventTypes, parkingItems, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addPost } = useData();
   const { isAdmin } = useAuth();
   const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(getNowBrasilia());
@@ -147,8 +148,14 @@ export default function CalendarPage() {
       const et = eventTypes.find(t => t.name === e.type);
       items.push({ id: e.id, title: e.title, type: "event", date: e.date, color: et?.color || EVENT_FALLBACK_COLOR, eventTypeName: e.type });
     });
+    parkingItems.forEach((p) => {
+      if (!p.date) return;
+      if (filterTypes.length > 0 && !filterTypes.includes("event")) return;
+      const areaMeta = AREAS.find(a => a.key === p.area);
+      items.push({ id: p.id, title: p.title, type: "event", date: p.date, color: areaMeta?.color || EVENT_FALLBACK_COLOR, eventTypeName: areaMeta?.label });
+    });
     return items;
-  }, [tasks, posts, events, filterTypes, filterTeams, eventTypes]);
+  }, [tasks, posts, events, parkingItems, filterTypes, filterTeams, eventTypes]);
 
   const upcomingPendingPosts = useMemo(() => {
     const today = getNowBrasilia();

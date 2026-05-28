@@ -28,7 +28,7 @@ export type Team = { id: string; name: string; memberIds: string[] };
 export type EventType = { id: string; name: string; color: string };
 
 export type AreaNote = { id: string; area: string; name: string; url: string; position: number };
-export type ParkingItem = { id: string; area: string; personId: string | null; title: string; description: string; position: number };
+export type ParkingItem = { id: string; area: string; personId: string | null; title: string; description: string; date: string; position: number };
 
 export type Notification = {
   id: string; title: string; message: string;
@@ -87,7 +87,7 @@ type DataContextType = {
   updateAreaNote: (n: AreaNote) => Promise<void>;
   deleteAreaNote: (id: string) => Promise<void>;
 
-  addParkingItem: (area: string, title: string, description?: string) => Promise<void>;
+  addParkingItem: (area: string, title: string, date: string, description?: string) => Promise<void>;
   updateParkingItem: (p: ParkingItem) => Promise<void>;
   moveParkingItem: (id: string, personId: string | null) => Promise<void>;
   deleteParkingItem: (id: string) => Promise<void>;
@@ -229,7 +229,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setChannels((chRes.data || []).map(c => ({ id: c.id, name: c.name, color: c.color })));
       setEventTypes(((etRes as any)?.data || []).map((e: any) => ({ id: e.id, name: e.name, color: e.color })));
       setAreaNotes(((anRes as any)?.data || []).map((n: any) => ({ id: n.id, area: n.area, name: n.name, url: n.url, position: n.position ?? 0 })));
-      setParkingItems(((piRes as any)?.data || []).map((p: any) => ({ id: p.id, area: p.area, personId: p.person_id ?? null, title: p.title, description: p.description ?? "", position: p.position ?? 0 })));
+      setParkingItems(((piRes as any)?.data || []).map((p: any) => ({ id: p.id, area: p.area, personId: p.person_id ?? null, title: p.title, description: p.description ?? "", date: p.date ?? "", position: p.position ?? 0 })));
       setLoading(false);
     }
     fetchAll();
@@ -589,18 +589,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // === PARKING ITEMS (Quadro CB) ===
-  const addParkingItem = useCallback(async (area: string, title: string, description = "") => {
+  const addParkingItem = useCallback(async (area: string, title: string, date: string, description = "") => {
     if (!workspaceId) return;
     const { data, error } = await (supabase.from("parking_items") as any)
-      .insert({ workspace_id: workspaceId, area, title, description, person_id: null, position: parkingItems.filter(p => p.area === area && p.personId === null).length })
+      .insert({ workspace_id: workspaceId, area, title, description, date, person_id: null, position: parkingItems.filter(p => p.area === area && p.personId === null).length })
       .select().single();
     if (error) { toast.error("Erro ao criar card"); return; }
-    if (data) setParkingItems(prev => [...prev, { id: data.id, area: data.area, personId: data.person_id ?? null, title: data.title, description: data.description ?? "", position: data.position ?? 0 }]);
+    if (data) setParkingItems(prev => [...prev, { id: data.id, area: data.area, personId: data.person_id ?? null, title: data.title, description: data.description ?? "", date: data.date ?? "", position: data.position ?? 0 }]);
   }, [workspaceId, parkingItems]);
 
   const updateParkingItem = useCallback(async (p: ParkingItem) => {
     const { error } = await (supabase.from("parking_items") as any)
-      .update({ title: p.title, description: p.description, person_id: p.personId, position: p.position })
+      .update({ title: p.title, description: p.description, date: p.date, person_id: p.personId, position: p.position })
       .eq("id", p.id);
     if (error) { toast.error("Erro ao atualizar"); return; }
     setParkingItems(prev => prev.map(x => x.id === p.id ? p : x));

@@ -177,6 +177,7 @@ export type Database = {
         Row: {
           area: string
           created_at: string
+          date: string
           description: string
           id: string
           person_id: string | null
@@ -187,6 +188,7 @@ export type Database = {
         Insert: {
           area: string
           created_at?: string
+          date?: string
           description?: string
           id?: string
           person_id?: string | null
@@ -197,6 +199,7 @@ export type Database = {
         Update: {
           area?: string
           created_at?: string
+          date?: string
           description?: string
           id?: string
           person_id?: string | null

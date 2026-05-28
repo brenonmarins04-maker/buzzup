@@ -1,0 +1,1 @@
+ALTER TABLE public.parking_items ADD COLUMN IF NOT EXISTS date text NOT NULL DEFAULT '';
