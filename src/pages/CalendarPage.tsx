@@ -81,7 +81,7 @@ export default function CalendarPage() {
     if (target.kind === "parking") {
       if (item.parkingId) {
         const pk = parkingItems.find(p => p.id === item.parkingId);
-        if (pk) { updateParkingItem({ ...pk, date: "" }); toast.success("Ideia devolvida às Ideias gerais"); }
+        if (pk) { updateParkingItem({ ...pk, date: "" }); toast.success("Ideia devolvida às Papel"); }
         return;
       }
       if (item.type === "post") {
@@ -106,7 +106,7 @@ export default function CalendarPage() {
     if (!pk) return;
     if (pk.area && pk.personId) {
       updateParkingItem({ ...pk, date: dayStr });
-      toast.success("Ideia agendada");
+      toast.success("Demanda agendada");
     } else {
       setIdeaModal({ open: true, item: pk, defaultDate: dayStr, defaultArea: filterArea || pk.area || "", requireFull: true });
     }
@@ -215,7 +215,7 @@ export default function CalendarPage() {
     }
     if (droppedItem.type === "task") {
       const task = tasks.find(t => t.id === droppedItem.id);
-      if (task) { updateTask({ ...task, deadline: "" }); toast.success("Demanda movida para Ideias gerais"); }
+      if (task) { updateTask({ ...task, deadline: "" }); toast.success("Demanda movida para Papel"); }
       setDragItem(null);
       return;
     }
@@ -450,7 +450,7 @@ export default function CalendarPage() {
               ))}
             </div>
             {viewMode === "month" && (
-              <button onClick={() => setParkingOpen(o => !o)} title={parkingOpen ? "Esconder ideias gerais" : "Mostrar ideias gerais"}
+              <button onClick={() => setParkingOpen(o => !o)} title={parkingOpen ? "Esconder papel" : "Mostrar papel"}
                 className="p-2 rounded-lg bg-card/70 border border-border/70 backdrop-blur-sm text-muted-foreground hover:text-foreground transition-colors">
                 {parkingOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
               </button>
@@ -501,7 +501,7 @@ export default function CalendarPage() {
               onDragOver={handleParkingDragOver}
               onDragLeave={handleParkingDragLeave}
               onDrop={handleParkingDrop}
-              title={`Abrir ideias gerais (${parkedIdeas.length})`}
+              title={`Abrir papel (${parkedIdeas.length})`}
               className={`group h-full min-h-0 bg-card border rounded-2xl flex flex-col items-center justify-start gap-2 py-3 transition-colors hover:bg-accent ${parkingDropActive ? "border-primary ring-2 ring-primary/30 bg-primary/5" : "border-border"}`}
             >
               <Inbox className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />
@@ -512,7 +512,7 @@ export default function CalendarPage() {
               )}
               <div className="flex-1 flex items-center">
                 <span className="text-[9px] uppercase tracking-wider text-muted-foreground" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
-                  Ideias gerais
+                  Papel
                 </span>
               </div>
             </button>
@@ -529,13 +529,13 @@ export default function CalendarPage() {
                 <div className="min-w-0">
                   <div className="text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5" style={filterArea ? { color: activeAreaMeta?.color } : undefined}>
                     {filterArea && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: activeAreaMeta?.color }} />}
-                    {filterArea ? `Ideias — ${activeAreaMeta?.label}` : "Ideias gerais"}
+                    {filterArea ? `Ideias — ${activeAreaMeta?.label}` : "Papel"}
                   </div>
                   <div className="text-[10px] text-muted-foreground mt-0.5 truncate">Ideias sem data — arraste para o calendário</div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <span className="text-[10px] text-muted-foreground bg-muted rounded-full px-1.5 py-0.5 font-medium">{parkedIdeas.length}</span>
-                  <button onClick={() => setParkingOpen(false)} title="Recolher ideias gerais"
+                  <button onClick={() => setParkingOpen(false)} title="Recolher papel"
                     className="h-6 w-6 rounded-md hover:bg-accent text-muted-foreground flex items-center justify-center transition-colors">
                     <PanelLeftClose className="h-3.5 w-3.5" />
                   </button>
