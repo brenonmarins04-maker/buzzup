@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   CalendarDays, Megaphone,
-  FolderKanban, Bell, Search, ChevronLeft, Plus, Users, LogOut, Eye, Shield, Briefcase, Crown, Sparkles, Home,
+  FolderKanban, Bell, Search, ChevronLeft, Plus, Users, LogOut, Eye, Shield, Briefcase, Crown, Sparkles, Home, Building2,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useData } from "@/contexts/DataContext";
@@ -32,6 +32,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const isMobile = useIsMobile();
   const { notifications } = useData();
   const { displayName, signOut, isAdmin, role } = useAuth();
+  const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -61,6 +62,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <RoleBadge />
+            <button onClick={() => navigate("/welcome")} title="Trocar workspace" className="p-2 rounded-md hover:bg-accent text-muted-foreground">
+              <Building2 className="h-4 w-4" />
+            </button>
             <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 rounded-md hover:bg-accent text-muted-foreground">
               <Bell className="h-4 w-4" />
               {unreadCount > 0 && <span className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">{unreadCount > 9 ? "9+" : unreadCount}</span>}
@@ -145,9 +149,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </div>
             )}
             {!collapsed && (
-              <button onClick={() => signOut()} className="p-1 rounded hover:bg-accent text-muted-foreground" title="Sair">
-                <LogOut className="h-4 w-4" />
-              </button>
+              <>
+                <button onClick={() => navigate("/welcome")} className="p-1 rounded hover:bg-accent text-muted-foreground" title="Trocar workspace">
+                  <Building2 className="h-4 w-4" />
+                </button>
+                <button onClick={() => signOut()} className="p-1 rounded hover:bg-accent text-muted-foreground" title="Sair">
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </>
             )}
           </div>
         </div>
