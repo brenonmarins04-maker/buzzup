@@ -172,6 +172,35 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
               <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="rounded-full h-11 px-4" />
               {!requireFull && <p className="text-[10px] text-muted-foreground mt-1">Deixe em branco para manter em Papel.</p>}
             </div>
+            <div>
+              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">
+                Pontos <span className="text-destructive">*</span>
+              </label>
+              <div className="flex gap-2">
+                {[1, 2, 3].map(n => {
+                  const selected = points === n;
+                  const areaColor = AREAS.find(a => a.key === area)?.color || "#64748B";
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setPoints(n)}
+                      className="flex-1 h-12 rounded-full text-base font-bold transition-all border"
+                      style={{
+                        backgroundColor: selected ? areaColor : `${areaColor}10`,
+                        color: selected ? "#fff" : areaColor,
+                        borderColor: selected ? areaColor : `${areaColor}30`,
+                        boxShadow: selected ? `0 4px 14px ${areaColor}55` : "none",
+                        transform: selected ? "translateY(-1px)" : "none",
+                      }}
+                    >
+                      {n} {n === 1 ? "ponto" : "pontos"}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">Somados na gamificação quando a demanda for concluída.</p>
+            </div>
             <div className="flex items-center justify-between pt-2">
               {item ? (
                 <Button type="button" variant="ghost" size="sm" className="text-destructive hover:text-destructive rounded-full" onClick={() => setConfirmDel(true)}>
