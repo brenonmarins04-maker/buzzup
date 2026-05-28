@@ -26,6 +26,8 @@ export type CalendarItem = {
   id: string; title: string; type: "task" | "post" | "event";
   date: string; time?: string; color: string; status?: string;
   eventTypeName?: string;
+  /** Subtype for "event"-rendered parking items so drop logic can detect them. */
+  parkingId?: string;
 };
 
 type ViewMode = "month" | "week" | "day";
