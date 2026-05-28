@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          metadata: Json
+          target_id: string | null
+          target_type: string | null
+          user_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          target_id?: string | null
+          target_type?: string | null
+          user_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          metadata?: Json
+          target_id?: string | null
+          target_type?: string | null
+          user_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       area_notes: {
         Row: {
           area: string
@@ -773,48 +814,48 @@ export type Database = {
       }
       workspace_invites: {
         Row: {
-          accepted_at: string | null
-          canceled_at: string | null
+          code_hash: string
           created_at: string
-          email: string
+          created_by: string | null
           expires_at: string
           id: string
-          invited_by: string | null
-          last_sent_at: string | null
-          person_id: string | null
+          max_uses: number
           role: string
           status: string
-          token: string
+          updated_at: string
+          used_at: string | null
+          used_by: string | null
+          used_count: number
           workspace_id: string
         }
         Insert: {
-          accepted_at?: string | null
-          canceled_at?: string | null
+          code_hash: string
           created_at?: string
-          email: string
-          expires_at?: string
+          created_by?: string | null
+          expires_at: string
           id?: string
-          invited_by?: string | null
-          last_sent_at?: string | null
-          person_id?: string | null
-          role?: string
+          max_uses?: number
+          role: string
           status?: string
-          token?: string
+          updated_at?: string
+          used_at?: string | null
+          used_by?: string | null
+          used_count?: number
           workspace_id: string
         }
         Update: {
-          accepted_at?: string | null
-          canceled_at?: string | null
+          code_hash?: string
           created_at?: string
-          email?: string
+          created_by?: string | null
           expires_at?: string
           id?: string
-          invited_by?: string | null
-          last_sent_at?: string | null
-          person_id?: string | null
+          max_uses?: number
           role?: string
           status?: string
-          token?: string
+          updated_at?: string
+          used_at?: string | null
+          used_by?: string | null
+          used_count?: number
           workspace_id?: string
         }
         Relationships: [
@@ -830,22 +871,31 @@ export type Database = {
       workspace_members: {
         Row: {
           created_at: string
+          created_by: string | null
           id: string
           role: string
+          status: string
+          updated_at: string
           user_id: string
           workspace_id: string
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           id?: string
           role?: string
+          status?: string
+          updated_at?: string
           user_id: string
           workspace_id: string
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           id?: string
           role?: string
+          status?: string
+          updated_at?: string
           user_id?: string
           workspace_id?: string
         }
@@ -888,22 +938,47 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      accept_invite: { Args: { _token: string }; Returns: string }
-      demote_self_to_viewer: { Args: never; Returns: undefined }
-      generate_access_code: { Args: never; Returns: string }
-      get_invite_by_token: {
-        Args: { _token: string }
+      accept_workspace_invite: {
+        Args: { _code: string }
         Returns: {
-          email: string
-          expires_at: string
           role: string
-          status: string
-          workspace_name: string
+          workspace_id: string
         }[]
       }
+      create_workspace: { Args: { _name: string }; Returns: string }
+      create_workspace_invite: {
+        Args: {
+          _expires_in_hours?: number
+          _max_uses?: number
+          _role: string
+          _workspace_id: string
+        }
+        Returns: string
+      }
+      current_workspace_role: {
+        Args: { _workspace_id: string }
+        Returns: string
+      }
+      generate_access_code: { Args: never; Returns: string }
+      generate_invite_code: { Args: never; Returns: string }
       get_workspace_id: { Args: { _user_id: string }; Returns: string }
       is_workspace_admin: { Args: { _user_id: string }; Returns: boolean }
-      redeem_access_code: { Args: { _code: string }; Returns: boolean }
+      is_workspace_owner: {
+        Args: { _user_id: string; _workspace_id: string }
+        Returns: boolean
+      }
+      remove_workspace_member: {
+        Args: { _target_user: string; _workspace_id: string }
+        Returns: undefined
+      }
+      revoke_workspace_invite: {
+        Args: { _invite_id: string; _workspace_id: string }
+        Returns: undefined
+      }
+      update_member_role: {
+        Args: { _new_role: string; _target_user: string; _workspace_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
