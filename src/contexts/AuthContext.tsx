@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 
@@ -39,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [displayName, setDisplayName] = useState("");
+  const currentUserIdRef = useRef<string | null>(null);
   const [myWorkspaces, setMyWorkspaces] = useState<MyWorkspace[]>([]);
   const [myJoinRequests, setMyJoinRequests] = useState<MyJoinRequest[]>([]);
   const [activeWorkspaceId, setActiveWorkspaceIdState] = useState<string | null>(() => {
@@ -76,7 +77,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      currentUserIdRef.current = session?.user?.id ?? null;
       if (session?.user) {
+        setDisplayName(session.user.email ? session.user.email.split("@")[0] : "Usuário");
         setTimeout(async () => {
           fetchDisplayName(session.user.id);
           fetchHub();
@@ -93,7 +96,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      currentUserIdRef.current = session?.user?.id ?? null;
       if (session?.user) {
+        setDisplayName(session.user.email ? session.user.email.split("@")[0] : "Usuário");
         (async () => {
           fetchDisplayName(session.user.id);
           fetchHub();
@@ -123,19 +128,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq("user_id", userId)
       .maybeSingle();
     if (data && data.display_name && data.display_name.trim()) {
-      setDisplayName(data.display_name);
+      if (currentUserIdRef.current === userId) setDisplayName(data.display_name.trim());
       return;
     }
-    // No profile row yet — create one from auth metadata (or email fallback)
+    // No profile row yet — create one from the account email prefix only.
+    // Do not trust stale auth metadata here, because it can keep old values like "teste".
     const { data: { user: authUser } } = await supabase.auth.getUser();
-    const metaName = (authUser?.user_metadata as any)?.display_name as string | undefined;
     const email = authUser?.email || "";
-    const finalName = (metaName && metaName.trim()) || (email ? email.split("@")[0] : "Usuário");
+    const finalName = email ? email.split("@")[0] : "Usuário";
     await supabase.from("profiles").upsert(
       { user_id: userId, display_name: finalName, email },
       { onConflict: "user_id" }
     );
-    setDisplayName(finalName);
+    if (currentUserIdRef.current === userId) setDisplayName(finalName);
   }
 
   const signUp = async (email: string, password: string, name: string) => {
