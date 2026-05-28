@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, ArrowUp, ArrowDown, Copy, Check, Shield, Crown, Eye, X } from "lucide-react";
+import { Plus, Trash2, ArrowUp, ArrowDown, Shield, Crown, Eye, X } from "lucide-react";
 import { toast } from "sonner";
 import CreateInviteModal from "@/components/modals/CreateInviteModal";
 import InviteCodeDialog from "@/components/modals/InviteCodeDialog";
@@ -72,8 +72,6 @@ export default function MembersPage() {
   }, [workspaceId, isOwner, isAdmin]);
 
   useEffect(() => { load(); }, [load]);
-
-  const ownerCount = useMemo(() => members.filter(m => m.role === "owner").length, [members]);
 
   const onCreateInvite = async (role: "admin" | "member", expiresInHours: number, maxUses: number) => {
     if (!workspaceId) return;
