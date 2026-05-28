@@ -420,15 +420,12 @@ function LeadThermometerTab() {
   };
 
   const addEmptyRow = async () => {
-    const created = await addLeadThermometer({ name: "", value: "", areaSize: "", type: "" });
-    // We don't get the new id back here; rely on items reactivity + focus on the last row by index.
+    await addLeadThermometer({ name: "", value: "", areaSize: "", type: "" });
+    // Focus the newly created last row after React commits.
     setTimeout(() => {
-      const sorted = [...leadThermometer].sort((a, b) => a.position - b.position);
-      // After state updates, the new row should be last — focus by querying last row from refs after render.
       const last = Object.values(nameRefs.current).filter(Boolean).slice(-1)[0];
       last?.focus();
-    }, 50);
-    return created;
+    }, 60);
   };
 
   const remove = async (id: string, label: string) => {
