@@ -180,13 +180,13 @@ function KanbanTab({ area }: { area: AreaKey }) {
         onDragOver={(e) => onDragOver(e, colKey)}
         onDragLeave={() => setOverCol(null)}
         onDrop={(e) => onDrop(e, personId)}
-        className={`w-64 shrink-0 flex flex-col rounded-lg border ${overCol === colKey ? "border-primary bg-primary/5" : "border-border bg-muted/30"} transition-colors`}
+        className={`w-80 shrink-0 flex flex-col rounded-lg border ${overCol === colKey ? "border-primary bg-primary/5" : "border-border bg-muted/30"} transition-colors`}
       >
-        <div className={`px-3 py-2 border-b ${accent ? "bg-card border-primary/30" : "border-border"} rounded-t-lg flex items-center justify-between`}>
-          <span className="text-xs font-semibold text-foreground truncate">{colTitle}</span>
-          <span className="text-[10px] text-muted-foreground">{colItems.length}</span>
+        <div className={`px-4 py-3 border-b ${accent ? "bg-card border-primary/30" : "border-border"} rounded-t-lg flex items-center justify-between`}>
+          <span className="text-sm font-semibold text-foreground truncate">{colTitle}</span>
+          <span className="text-xs text-muted-foreground">{colItems.length}</span>
         </div>
-        <div className="flex-1 p-2 flex flex-col gap-2 min-h-[120px]">
+        <div className="flex-1 p-3 flex flex-col gap-3 min-h-[160px]">
           {colItems.map(item => (
             <div
               key={item.id}
@@ -194,17 +194,17 @@ function KanbanTab({ area }: { area: AreaKey }) {
               onDragStart={(e) => onDragStart(e, item.id)}
               onDragEnd={() => setDragId(null)}
               onClick={() => isAdmin && openEdit(item)}
-              className={`group bg-card border border-border rounded-md p-2.5 text-xs shadow-sm hover:border-primary/50 transition-colors ${isAdmin ? "cursor-grab active:cursor-grabbing" : ""}`}
+              className={`group bg-card border border-border rounded-lg p-4 text-sm shadow-sm hover:border-primary/50 transition-colors ${isAdmin ? "cursor-grab active:cursor-grabbing" : ""}`}
             >
               <div className="flex items-start justify-between gap-2">
-                <span className="font-medium text-foreground flex-1">{item.title}</span>
+                <span className="font-semibold text-foreground flex-1 leading-snug">{item.title}</span>
                 {isAdmin && (
                   <button onClick={(e) => { e.stopPropagation(); deleteParkingItem(item.id); }} className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive">
-                    <X className="h-3 w-3" />
+                    <X className="h-4 w-4" />
                   </button>
                 )}
               </div>
-              {item.description && <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2">{item.description}</p>}
+              {item.description && <p className="text-xs text-muted-foreground mt-2 line-clamp-3">{item.description}</p>}
             </div>
           ))}
         </div>
@@ -220,7 +220,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
         </div>
       )}
       <div className="flex gap-3 overflow-x-auto pb-3 scrollbar-thin">
-        <Column personId={null} title="Estacionamento" accent />
+        <Column personId={null} title="Demandas" accent />
         {members.map(m => (
           <Column key={m.id} personId={m.id} title={m.name} />
         ))}
