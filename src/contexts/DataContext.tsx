@@ -35,6 +35,10 @@ export type GamificationAward = { id: string; personId: string; actionId: string
 
 export type LeadThermometerItem = { id: string; name: string; value: string; areaSize: string; type: string; position: number };
 
+export type AttendanceStatus = "P" | "F" | "FJ";
+export type AttendanceSetting = { id: string; area: string; intervalDays: number; startDate: string; meetingCount: number };
+export type AttendanceRecord = { id: string; area: string; personId: string; date: string; status: AttendanceStatus; justification: string };
+
 export type Notification = {
   id: string; title: string; message: string;
   type: "warning" | "danger" | "info"; read: boolean; date: string;
@@ -47,6 +51,8 @@ type DataContextType = {
   areaNotes: AreaNote[]; parkingItems: ParkingItem[];
   gamificationActions: GamificationAction[]; gamificationAwards: GamificationAward[];
   leadThermometer: LeadThermometerItem[];
+  attendanceSettings: AttendanceSetting[];
+  attendanceRecords: AttendanceRecord[];
   loading: boolean; workspaceId: string | null;
 
   addPerson: (name: string) => void;
@@ -109,6 +115,10 @@ type DataContextType = {
   addLeadThermometer: (item: Omit<LeadThermometerItem, "id" | "position">) => Promise<void>;
   updateLeadThermometer: (item: LeadThermometerItem) => Promise<void>;
   deleteLeadThermometer: (id: string) => Promise<void>;
+
+  upsertAttendanceSetting: (area: string, data: { intervalDays: number; startDate: string; meetingCount: number }) => Promise<void>;
+  setAttendance: (area: string, personId: string, date: string, status: AttendanceStatus, justification?: string) => Promise<void>;
+  clearAttendance: (area: string, personId: string, date: string) => Promise<void>;
 };
 
 const DataContext = createContext<DataContextType | null>(null);
@@ -133,6 +143,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [gamificationActions, setGamificationActions] = useState<GamificationAction[]>([]);
   const [gamificationAwards, setGamificationAwards] = useState<GamificationAward[]>([]);
   const [leadThermometer, setLeadThermometer] = useState<LeadThermometerItem[]>([]);
+  const [attendanceSettings, setAttendanceSettings] = useState<AttendanceSetting[]>([]);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoriesRaw, setCategoriesRaw] = useState<{ id: string; name: string }[]>([]);
   const [refetchTick, setRefetchTick] = useState(0);
@@ -142,7 +154,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!uid) {
       setWorkspaceId(null); setPeople([]); setProjects([]); setTasks([]); setPosts([]);
       setEvents([]); setCategories([]); setChannels([]); setTeams([]);
-      setCategoriesRaw([]); setEventTypes([]); setAreaNotes([]); setParkingItems([]); setGamificationActions([]); setGamificationAwards([]); setLeadThermometer([]); setLoading(false);
+      setCategoriesRaw([]); setEventTypes([]); setAreaNotes([]); setParkingItems([]); setGamificationActions([]); setGamificationAwards([]); setLeadThermometer([]); setAttendanceSettings([]); setAttendanceRecords([]); setLoading(false);
       return;
     }
     let cancelled = false;
@@ -159,7 +171,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const wsId = ws.id;
       setWorkspaceId(wsId);
 
-      const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes, etRes, anRes, piRes, gaRes, gwRes, ltRes] = await Promise.all([
+      const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes, etRes, anRes, piRes, gaRes, gwRes, ltRes, asRes, arRes] = await Promise.all([
         (supabase.from("people") as any).select("id, name, nickname, area").eq("workspace_id", wsId),
         supabase.from("projects").select("*").eq("workspace_id", wsId),
         supabase.from("tasks").select("*").eq("workspace_id", wsId),
@@ -178,6 +190,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         (supabase.from as any)("gamification_actions").select("*").eq("workspace_id", wsId),
         (supabase.from as any)("gamification_awards").select("*").eq("workspace_id", wsId).order("awarded_at", { ascending: false }),
         (supabase.from as any)("lead_thermometer").select("*").eq("workspace_id", wsId).order("position", { ascending: true }),
+        (supabase.from as any)("attendance_settings").select("*").eq("workspace_id", wsId),
+        (supabase.from as any)("attendance_records").select("*").eq("workspace_id", wsId),
       ]);
       if (cancelled) return;
 
@@ -257,6 +271,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setGamificationActions(((gaRes as any)?.data || []).map((a: any) => ({ id: a.id, name: a.name, points: a.points ?? 0 })));
       setGamificationAwards(((gwRes as any)?.data || []).map((w: any) => ({ id: w.id, personId: w.person_id, actionId: w.action_id ?? null, actionName: w.action_name, points: w.points ?? 0, awardedAt: w.awarded_at })));
       setLeadThermometer(((ltRes as any)?.data || []).map((l: any) => ({ id: l.id, name: l.name, value: l.value ?? "", areaSize: l.area_size ?? "", type: l.type ?? "", position: l.position ?? 0 })));
+      setAttendanceSettings(((asRes as any)?.data || []).map((s: any) => ({ id: s.id, area: s.area, intervalDays: s.interval_days ?? 7, startDate: s.start_date ?? "", meetingCount: s.meeting_count ?? 8 })));
+      setAttendanceRecords(((arRes as any)?.data || []).map((r: any) => ({ id: r.id, area: r.area, personId: r.person_id, date: r.date, status: (r.status ?? "P") as AttendanceStatus, justification: r.justification ?? "" })));
       setLoading(false);
     }
     fetchAll();
@@ -273,6 +289,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       "area_notes", "parking_items",
       "gamification_actions", "gamification_awards",
       "lead_thermometer",
+      "attendance_settings", "attendance_records",
     ];
     let scheduled: ReturnType<typeof setTimeout> | null = null;
     const trigger = () => {
@@ -706,9 +723,48 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setLeadThermometer(prev => prev.filter(x => x.id !== id));
   }, []);
 
+  // === ATTENDANCE (Controle de Presenças) ===
+  const upsertAttendanceSetting = useCallback(async (area: string, data: { intervalDays: number; startDate: string; meetingCount: number }) => {
+    if (!workspaceId) return;
+    const { data: row, error } = await (supabase.from("attendance_settings") as any)
+      .upsert({ workspace_id: workspaceId, area, interval_days: data.intervalDays, start_date: data.startDate, meeting_count: data.meetingCount }, { onConflict: "workspace_id,area" })
+      .select().single();
+    if (error) { toast.error("Erro ao salvar configuração"); return; }
+    if (row) {
+      const mapped: AttendanceSetting = { id: row.id, area: row.area, intervalDays: row.interval_days ?? 7, startDate: row.start_date ?? "", meetingCount: row.meeting_count ?? 8 };
+      setAttendanceSettings(prev => {
+        const others = prev.filter(s => s.area !== area);
+        return [...others, mapped];
+      });
+    }
+  }, [workspaceId]);
+
+  const setAttendance = useCallback(async (area: string, personId: string, date: string, status: AttendanceStatus, justification = "") => {
+    if (!workspaceId) return;
+    const { data, error } = await (supabase.from("attendance_records") as any)
+      .upsert({ workspace_id: workspaceId, area, person_id: personId, date, status, justification }, { onConflict: "workspace_id,area,person_id,date" })
+      .select().single();
+    if (error) { toast.error("Erro ao salvar presença"); return; }
+    if (data) {
+      const mapped: AttendanceRecord = { id: data.id, area: data.area, personId: data.person_id, date: data.date, status: data.status, justification: data.justification ?? "" };
+      setAttendanceRecords(prev => {
+        const others = prev.filter(r => !(r.area === area && r.personId === personId && r.date === date));
+        return [...others, mapped];
+      });
+    }
+  }, [workspaceId]);
+
+  const clearAttendance = useCallback(async (area: string, personId: string, date: string) => {
+    if (!workspaceId) return;
+    const { error } = await (supabase.from("attendance_records") as any).delete()
+      .eq("workspace_id", workspaceId).eq("area", area).eq("person_id", personId).eq("date", date);
+    if (error) { toast.error("Erro ao limpar"); return; }
+    setAttendanceRecords(prev => prev.filter(r => !(r.area === area && r.personId === personId && r.date === date)));
+  }, [workspaceId]);
+
   return (
     <DataContext.Provider value={{
-      people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, gamificationActions, gamificationAwards, leadThermometer, loading, workspaceId,
+      people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, gamificationActions, gamificationAwards, leadThermometer, attendanceSettings, attendanceRecords, loading, workspaceId,
       addPerson, updatePerson, updatePersonNickname, updatePersonArea, deletePerson,
       addTask, updateTask, deleteTask,
       addPost, updatePost, deletePost,
@@ -724,6 +780,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addGamificationAction, updateGamificationAction, deleteGamificationAction,
       awardGamificationPoints, deleteGamificationAward,
       addLeadThermometer, updateLeadThermometer, deleteLeadThermometer,
+      upsertAttendanceSetting, setAttendance, clearAttendance,
     }}>
       {children}
     </DataContext.Provider>
