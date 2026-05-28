@@ -2,7 +2,7 @@ import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
   CalendarDays, Megaphone,
-  FolderKanban, Bell, Search, ChevronLeft, Plus, Users, LogOut, Eye, Shield, Briefcase, Crown, Sparkles, Home, HelpCircle,
+  FolderKanban, Bell, Search, ChevronLeft, Plus, Users, LogOut, Eye, Shield, Briefcase, Crown, Sparkles, Home,
 } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useData } from "@/contexts/DataContext";
@@ -25,7 +25,6 @@ const navItems = [
   { to: "/gg",          icon: Sparkles,     label: "GG" },
   { to: "/presidencia", icon: Crown,        label: "Presidência" },
   { to: "/members",     icon: Shield,       label: "Acessos" },
-  { to: "/guide",       icon: HelpCircle,   label: "Guia" },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
