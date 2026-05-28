@@ -123,7 +123,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {navItems.map((item) => (
             <NavLink key={item.to} to={item.to}
               className={({ isActive }) => `flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-md text-[10px] font-medium transition-colors min-w-0 ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
-              <item.icon className="h-5 w-5 shrink-0" />
+              <div className="relative">
+                <item.icon className="h-5 w-5 shrink-0" />
+                {item.to === "/members" && pendingJoinCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
+                    {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
+                  </span>
+                )}
+              </div>
               <span className="truncate">{item.label}</span>
             </NavLink>
           ))}
@@ -149,8 +156,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {navItems.map((item) => (
             <NavLink key={item.to} to={item.to}
               className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive ? "bg-accent text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"} ${collapsed ? "justify-center" : ""}`}>
-              <item.icon className="h-4 w-4 shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
+              <div className="relative">
+                <item.icon className="h-4 w-4 shrink-0" />
+                {item.to === "/members" && pendingJoinCount > 0 && collapsed && (
+                  <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-3.5 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
+                    {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
+                  </span>
+                )}
+              </div>
+              {!collapsed && (
+                <span className="flex-1 flex items-center justify-between">
+                  <span>{item.label}</span>
+                  {item.to === "/members" && pendingJoinCount > 0 && (
+                    <span className="h-5 min-w-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
+                      {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
+                    </span>
+                  )}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
