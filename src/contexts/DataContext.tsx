@@ -8,7 +8,19 @@ import { toast } from "sonner";
 type Json = Database["public"]["Tables"]["tasks"]["Row"]["checklist"];
 
 export type Person = { id: string; name: string; nickname?: string | null; area?: string | null };
-export type Project = { id: string; name: string; description: string; color: string; status: string; members: Person[] };
+export type Project = {
+  id: string;
+  name: string;
+  description: string;
+  color: string;
+  status: string;
+  members: Person[];
+  managerId: string | null;
+  pipelineStatus: string;
+  startDate: string;
+  endContract: string;
+  endDelivered: string;
+};
 export type Task = {
   id: string; title: string; description: string; team: string;
   teamId: string | null;
@@ -240,6 +252,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setProjects((projRes.data || []).map(r => ({
         id: r.id, name: r.name, description: r.description, color: r.color, status: r.status,
         members: projParticipants.get(r.id) || [],
+        managerId: (r as any).manager_id ?? null,
+        pipelineStatus: (r as any).pipeline_status ?? "",
+        startDate: (r as any).start_date ?? "",
+        endContract: (r as any).end_contract ?? "",
+        endDelivered: (r as any).end_delivered ?? "",
       })));
       setTasks((tkRes.data || []).map(r => {
         const checklist = Array.isArray(r.checklist) ? (r.checklist as { text: string; checked: boolean }[]) : [];
@@ -462,9 +479,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // === PROJECTS ===
   const addProject = useCallback(async (p: Omit<Project, "id" | "members"> & { memberIds: string[] }) => {
     if (!workspaceId) return;
-    const { data, error } = await supabase.from("projects").insert({
+    const { data, error } = await (supabase.from("projects") as any).insert({
       workspace_id: workspaceId, name: p.name, description: p.description,
       color: p.color, status: p.status,
+      manager_id: p.managerId, pipeline_status: p.pipelineStatus,
+      start_date: p.startDate, end_contract: p.endContract, end_delivered: p.endDelivered,
     }).select().single();
     if (error) { toast.error("Erro ao criar projeto"); return; }
     if (data) {
@@ -473,13 +492,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setProjects(prev => [...prev, {
         id: data.id, name: data.name, description: data.description,
         color: data.color, status: data.status, members,
+        managerId: (data as any).manager_id ?? null,
+        pipelineStatus: (data as any).pipeline_status ?? "",
+        startDate: (data as any).start_date ?? "",
+        endContract: (data as any).end_contract ?? "",
+        endDelivered: (data as any).end_delivered ?? "",
       }]);
     }
   }, [workspaceId, people, syncJunction]);
 
   const updateProject = useCallback(async (p: Project) => {
-    const { error } = await supabase.from("projects").update({
+    const { error } = await (supabase.from("projects") as any).update({
       name: p.name, description: p.description, color: p.color, status: p.status,
+      manager_id: p.managerId, pipeline_status: p.pipelineStatus,
+      start_date: p.startDate, end_contract: p.endContract, end_delivered: p.endDelivered,
     }).eq("id", p.id);
     if (error) { toast.error("Erro ao atualizar projeto"); return; }
     await syncJunction("project_participants", "project_id", p.id, p.members.map(m => m.id));
