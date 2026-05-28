@@ -33,6 +33,8 @@ export type ParkingItem = { id: string; area: string; personId: string | null; t
 export type GamificationAction = { id: string; name: string; points: number };
 export type GamificationAward = { id: string; personId: string; actionId: string | null; actionName: string; points: number; awardedAt: string };
 
+export type LeadThermometerItem = { id: string; name: string; value: string; areaSize: string; type: string; position: number };
+
 export type Notification = {
   id: string; title: string; message: string;
   type: "warning" | "danger" | "info"; read: boolean; date: string;
@@ -44,6 +46,7 @@ type DataContextType = {
   categories: string[]; channels: Channel[]; eventTypes: EventType[]; notifications: Notification[];
   areaNotes: AreaNote[]; parkingItems: ParkingItem[];
   gamificationActions: GamificationAction[]; gamificationAwards: GamificationAward[];
+  leadThermometer: LeadThermometerItem[];
   loading: boolean; workspaceId: string | null;
 
   addPerson: (name: string) => void;
@@ -102,6 +105,10 @@ type DataContextType = {
 
   awardGamificationPoints: (personId: string, action: GamificationAction) => Promise<void>;
   deleteGamificationAward: (id: string) => Promise<void>;
+
+  addLeadThermometer: (item: Omit<LeadThermometerItem, "id" | "position">) => Promise<void>;
+  updateLeadThermometer: (item: LeadThermometerItem) => Promise<void>;
+  deleteLeadThermometer: (id: string) => Promise<void>;
 };
 
 const DataContext = createContext<DataContextType | null>(null);
@@ -125,6 +132,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [parkingItems, setParkingItems] = useState<ParkingItem[]>([]);
   const [gamificationActions, setGamificationActions] = useState<GamificationAction[]>([]);
   const [gamificationAwards, setGamificationAwards] = useState<GamificationAward[]>([]);
+  const [leadThermometer, setLeadThermometer] = useState<LeadThermometerItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoriesRaw, setCategoriesRaw] = useState<{ id: string; name: string }[]>([]);
   const [refetchTick, setRefetchTick] = useState(0);
@@ -134,7 +142,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!uid) {
       setWorkspaceId(null); setPeople([]); setProjects([]); setTasks([]); setPosts([]);
       setEvents([]); setCategories([]); setChannels([]); setTeams([]);
-      setCategoriesRaw([]); setEventTypes([]); setAreaNotes([]); setParkingItems([]); setGamificationActions([]); setGamificationAwards([]); setLoading(false);
+      setCategoriesRaw([]); setEventTypes([]); setAreaNotes([]); setParkingItems([]); setGamificationActions([]); setGamificationAwards([]); setLeadThermometer([]); setLoading(false);
       return;
     }
     let cancelled = false;
@@ -151,7 +159,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const wsId = ws.id;
       setWorkspaceId(wsId);
 
-      const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes, etRes, anRes, piRes, gaRes, gwRes] = await Promise.all([
+      const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes, etRes, anRes, piRes, gaRes, gwRes, ltRes] = await Promise.all([
         (supabase.from("people") as any).select("id, name, nickname, area").eq("workspace_id", wsId),
         supabase.from("projects").select("*").eq("workspace_id", wsId),
         supabase.from("tasks").select("*").eq("workspace_id", wsId),
@@ -169,6 +177,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         (supabase.from as any)("parking_items").select("*").eq("workspace_id", wsId),
         (supabase.from as any)("gamification_actions").select("*").eq("workspace_id", wsId),
         (supabase.from as any)("gamification_awards").select("*").eq("workspace_id", wsId).order("awarded_at", { ascending: false }),
+        (supabase.from as any)("lead_thermometer").select("*").eq("workspace_id", wsId).order("position", { ascending: true }),
       ]);
       if (cancelled) return;
 
@@ -247,6 +256,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setParkingItems(((piRes as any)?.data || []).map((p: any) => ({ id: p.id, area: p.area, personId: p.person_id ?? null, title: p.title, description: p.description ?? "", date: p.date ?? "", position: p.position ?? 0 })));
       setGamificationActions(((gaRes as any)?.data || []).map((a: any) => ({ id: a.id, name: a.name, points: a.points ?? 0 })));
       setGamificationAwards(((gwRes as any)?.data || []).map((w: any) => ({ id: w.id, personId: w.person_id, actionId: w.action_id ?? null, actionName: w.action_name, points: w.points ?? 0, awardedAt: w.awarded_at })));
+      setLeadThermometer(((ltRes as any)?.data || []).map((l: any) => ({ id: l.id, name: l.name, value: l.value ?? "", areaSize: l.area_size ?? "", type: l.type ?? "", position: l.position ?? 0 })));
       setLoading(false);
     }
     fetchAll();
@@ -262,6 +272,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       "task_assignees", "post_assignees", "project_participants", "event_types",
       "area_notes", "parking_items",
       "gamification_actions", "gamification_awards",
+      "lead_thermometer",
     ];
     let scheduled: ReturnType<typeof setTimeout> | null = null;
     const trigger = () => {
@@ -672,9 +683,32 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setGamificationAwards(prev => prev.filter(x => x.id !== id));
   }, []);
 
+  // === LEAD THERMOMETER (Mercado) ===
+  const addLeadThermometer = useCallback(async (item: Omit<LeadThermometerItem, "id" | "position">) => {
+    if (!workspaceId) return;
+    const { data, error } = await (supabase.from("lead_thermometer") as any)
+      .insert({ workspace_id: workspaceId, name: item.name, value: item.value, area_size: item.areaSize, type: item.type, position: leadThermometer.length })
+      .select().single();
+    if (error) { toast.error("Erro ao adicionar lead"); return; }
+    if (data) setLeadThermometer(prev => [...prev, { id: data.id, name: data.name, value: data.value ?? "", areaSize: data.area_size ?? "", type: data.type ?? "", position: data.position ?? 0 }]);
+  }, [workspaceId, leadThermometer]);
+
+  const updateLeadThermometer = useCallback(async (item: LeadThermometerItem) => {
+    const { error } = await (supabase.from("lead_thermometer") as any)
+      .update({ name: item.name, value: item.value, area_size: item.areaSize, type: item.type, position: item.position }).eq("id", item.id);
+    if (error) { toast.error("Erro ao atualizar lead"); return; }
+    setLeadThermometer(prev => prev.map(x => x.id === item.id ? item : x));
+  }, []);
+
+  const deleteLeadThermometer = useCallback(async (id: string) => {
+    const { error } = await (supabase.from("lead_thermometer") as any).delete().eq("id", id);
+    if (error) { toast.error("Erro ao remover lead"); return; }
+    setLeadThermometer(prev => prev.filter(x => x.id !== id));
+  }, []);
+
   return (
     <DataContext.Provider value={{
-      people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, gamificationActions, gamificationAwards, loading, workspaceId,
+      people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, gamificationActions, gamificationAwards, leadThermometer, loading, workspaceId,
       addPerson, updatePerson, updatePersonNickname, updatePersonArea, deletePerson,
       addTask, updateTask, deleteTask,
       addPost, updatePost, deletePost,
@@ -689,6 +723,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addParkingItem, updateParkingItem, moveParkingItem, deleteParkingItem,
       addGamificationAction, updateGamificationAction, deleteGamificationAction,
       awardGamificationPoints, deleteGamificationAward,
+      addLeadThermometer, updateLeadThermometer, deleteLeadThermometer,
     }}>
       {children}
     </DataContext.Provider>
