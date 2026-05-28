@@ -667,12 +667,16 @@ function KanbanTab({ area }: { area: AreaKey }) {
       });
       setTimeout(() => {
         updateParkingItem({ ...item, status: "done" });
-        setCompleting(prev => {
-          const n = new Set(prev);
-          n.delete(item.id);
-          return n;
-        });
         setDoneOpen(true);
+        // Clear AFTER the card has unmounted from the in-progress column,
+        // so removing the .demand-walking class doesn't cause a snap-back.
+        setTimeout(() => {
+          setCompleting(prev => {
+            const n = new Set(prev);
+            n.delete(item.id);
+            return n;
+          });
+        }, 200);
       }, 2000);
       return;
     }
@@ -681,7 +685,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
 
   const renderCard = (item: ParkingItem) => {
     const isDone = item.status === "done";
-    const isCompleting = completing.has(item.id);
+    const isCompleting = completing.has(item.id) && !isDone;
     const tint = isDone || isCompleting ? "#10B981" : "#F59E0B"; // green / orange
     return (
       <div
