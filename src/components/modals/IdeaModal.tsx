@@ -84,7 +84,10 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
           className="max-w-md overflow-hidden shadow-2xl bg-background"
           style={{
             background: area
-              ? `linear-gradient(160deg, ${AREAS.find(a => a.key === area)?.color}55 0%, ${AREAS.find(a => a.key === area)?.color}22 35%, hsl(var(--background)) 80%)`
+              ? (() => {
+                  const c = AREAS.find(a => a.key === area)!.color;
+                  return `linear-gradient(160deg, color-mix(in srgb, ${c} 35%, white) 0%, color-mix(in srgb, ${c} 15%, white) 45%, white 100%)`;
+                })()
               : undefined,
           }}
         >
