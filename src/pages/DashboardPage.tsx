@@ -83,7 +83,7 @@ function KpiCard({ title, value, icon, color, delta, spark }: KpiProps) {
 }
 
 export default function DashboardPage() {
-  const { people, tasks, projects, events, posts, broadcasts, loading } = useData();
+  const { people, tasks, projects, events, posts, broadcasts, gamificationAwards, loading } = useData();
   const { displayName } = useAuth();
   const today = getNowBrasilia();
   const weekStart = startOfWeek(today, { weekStartsOn: 0 });
@@ -122,11 +122,10 @@ export default function DashboardPage() {
     return arr;
   };
 
-  // Ranking
-  const doneTasksAll = tasks.filter(t => t.status === "done");
+  // Ranking — soma TODOS os pontos da gamificação (demandas concluídas + ações manuais)
   const pointsByPerson: Record<string, number> = {};
-  doneTasksAll.forEach(t => {
-    t.responsible.forEach(r => { pointsByPerson[r.id] = (pointsByPerson[r.id] || 0) + (t.points || 0); });
+  gamificationAwards.forEach(a => {
+    pointsByPerson[a.personId] = (pointsByPerson[a.personId] || 0) + (a.points || 0);
   });
   const ranking = people
     .map(p => ({
