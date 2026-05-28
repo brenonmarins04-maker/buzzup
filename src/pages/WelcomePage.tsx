@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Sparkles, KeyRound, ArrowRight, ArrowLeft, LogOut } from "lucide-react";
 
 export default function WelcomePage() {
-  const { user, loading, workspaceId, role, createWorkspace, acceptInvite, signOut } = useAuth();
+  const { user, loading, workspaceId, role, createWorkspace, requestJoinWorkspace, signOut } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState<"choose" | "create" | "join">("choose");
   const [name, setName] = useState("");
@@ -37,10 +37,10 @@ export default function WelcomePage() {
     e.preventDefault();
     if (!code.trim() || busy) return;
     setBusy(true);
-    const { ok, error } = await acceptInvite(code.trim().toUpperCase());
+    const { ok, error } = await requestJoinWorkspace(code.trim().toUpperCase());
     setBusy(false);
-    if (ok) { toast.success("Você entrou no workspace com sucesso."); navigate("/", { replace: true }); }
-    else toast.error(error || "Convite inválido");
+    if (ok) { toast.success("Pedido enviado! Aguarde aprovação do owner."); navigate("/hub", { replace: true }); }
+    else toast.error(error || "Código inválido");
   };
 
   return (
