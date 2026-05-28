@@ -39,6 +39,8 @@ export type AttendanceStatus = "P" | "F" | "FJ";
 export type AttendanceSetting = { id: string; area: string; intervalDays: number; startDate: string; meetingCount: number };
 export type AttendanceRecord = { id: string; area: string; personId: string; date: string; status: AttendanceStatus; justification: string };
 
+export type Broadcast = { id: string; message: string; durationDays: number; createdAt: string; expiresAt: string; createdBy: string | null };
+
 export type Notification = {
   id: string; title: string; message: string;
   type: "warning" | "danger" | "info"; read: boolean; date: string;
@@ -53,6 +55,7 @@ type DataContextType = {
   leadThermometer: LeadThermometerItem[];
   attendanceSettings: AttendanceSetting[];
   attendanceRecords: AttendanceRecord[];
+  broadcasts: Broadcast[];
   loading: boolean; workspaceId: string | null;
 
   addPerson: (name: string) => void;
@@ -119,6 +122,9 @@ type DataContextType = {
   upsertAttendanceSetting: (area: string, data: { intervalDays: number; startDate: string; meetingCount: number }) => Promise<void>;
   setAttendance: (area: string, personId: string, date: string, status: AttendanceStatus, justification?: string) => Promise<void>;
   clearAttendance: (area: string, personId: string, date: string) => Promise<void>;
+
+  addBroadcast: (message: string, durationDays: number) => Promise<void>;
+  deleteBroadcast: (id: string) => Promise<void>;
 };
 
 const DataContext = createContext<DataContextType | null>(null);
@@ -145,6 +151,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [leadThermometer, setLeadThermometer] = useState<LeadThermometerItem[]>([]);
   const [attendanceSettings, setAttendanceSettings] = useState<AttendanceSetting[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoriesRaw, setCategoriesRaw] = useState<{ id: string; name: string }[]>([]);
   const [refetchTick, setRefetchTick] = useState(0);
@@ -154,7 +161,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!uid) {
       setWorkspaceId(null); setPeople([]); setProjects([]); setTasks([]); setPosts([]);
       setEvents([]); setCategories([]); setChannels([]); setTeams([]);
-      setCategoriesRaw([]); setEventTypes([]); setAreaNotes([]); setParkingItems([]); setGamificationActions([]); setGamificationAwards([]); setLeadThermometer([]); setAttendanceSettings([]); setAttendanceRecords([]); setLoading(false);
+      setCategoriesRaw([]); setEventTypes([]); setAreaNotes([]); setParkingItems([]); setGamificationActions([]); setGamificationAwards([]); setLeadThermometer([]); setAttendanceSettings([]); setAttendanceRecords([]); setBroadcasts([]); setLoading(false);
       return;
     }
     let cancelled = false;
@@ -171,7 +178,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const wsId = ws.id;
       setWorkspaceId(wsId);
 
-      const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes, etRes, anRes, piRes, gaRes, gwRes, ltRes, asRes, arRes] = await Promise.all([
+      const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes, etRes, anRes, piRes, gaRes, gwRes, ltRes, asRes, arRes, bcRes] = await Promise.all([
         (supabase.from("people") as any).select("id, name, nickname, area").eq("workspace_id", wsId),
         supabase.from("projects").select("*").eq("workspace_id", wsId),
         supabase.from("tasks").select("*").eq("workspace_id", wsId),
@@ -192,6 +199,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         (supabase.from as any)("lead_thermometer").select("*").eq("workspace_id", wsId).order("position", { ascending: true }),
         (supabase.from as any)("attendance_settings").select("*").eq("workspace_id", wsId),
         (supabase.from as any)("attendance_records").select("*").eq("workspace_id", wsId),
+        (supabase.from as any)("broadcasts").select("*").eq("workspace_id", wsId).gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }),
       ]);
       if (cancelled) return;
 
@@ -273,6 +281,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setLeadThermometer(((ltRes as any)?.data || []).map((l: any) => ({ id: l.id, name: l.name, value: l.value ?? "", areaSize: l.area_size ?? "", type: l.type ?? "", position: l.position ?? 0 })));
       setAttendanceSettings(((asRes as any)?.data || []).map((s: any) => ({ id: s.id, area: s.area, intervalDays: s.interval_days ?? 7, startDate: s.start_date ?? "", meetingCount: s.meeting_count ?? 8 })));
       setAttendanceRecords(((arRes as any)?.data || []).map((r: any) => ({ id: r.id, area: r.area, personId: r.person_id, date: r.date, status: (r.status ?? "P") as AttendanceStatus, justification: r.justification ?? "" })));
+      setBroadcasts(((bcRes as any)?.data || []).map((b: any) => ({ id: b.id, message: b.message, durationDays: b.duration_days ?? 7, createdAt: b.created_at, expiresAt: b.expires_at, createdBy: b.created_by ?? null })));
       setLoading(false);
     }
     fetchAll();
@@ -290,6 +299,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       "gamification_actions", "gamification_awards",
       "lead_thermometer",
       "attendance_settings", "attendance_records",
+      "broadcasts",
     ];
     let scheduled: ReturnType<typeof setTimeout> | null = null;
     const trigger = () => {
@@ -762,9 +772,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setAttendanceRecords(prev => prev.filter(r => !(r.area === area && r.personId === personId && r.date === date)));
   }, [workspaceId]);
 
+  // === BROADCASTS (Mensagens gerais) ===
+  const addBroadcast = useCallback(async (message: string, durationDays: number) => {
+    if (!workspaceId) return;
+    const days = Math.max(1, Math.min(365, Math.floor(durationDays || 1)));
+    const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await (supabase.from("broadcasts") as any)
+      .insert({ workspace_id: workspaceId, message, duration_days: days, expires_at: expiresAt, created_by: uid })
+      .select().single();
+    if (error) { toast.error("Erro ao publicar mensagem"); return; }
+    if (data) setBroadcasts(prev => [{ id: data.id, message: data.message, durationDays: data.duration_days, createdAt: data.created_at, expiresAt: data.expires_at, createdBy: data.created_by ?? null }, ...prev]);
+  }, [workspaceId, uid]);
+
+  const deleteBroadcast = useCallback(async (id: string) => {
+    const { error } = await (supabase.from("broadcasts") as any).delete().eq("id", id);
+    if (error) { toast.error("Erro ao remover mensagem"); return; }
+    setBroadcasts(prev => prev.filter(b => b.id !== id));
+  }, []);
+
   return (
     <DataContext.Provider value={{
-      people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, gamificationActions, gamificationAwards, leadThermometer, attendanceSettings, attendanceRecords, loading, workspaceId,
+      people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, gamificationActions, gamificationAwards, leadThermometer, attendanceSettings, attendanceRecords, broadcasts, loading, workspaceId,
       addPerson, updatePerson, updatePersonNickname, updatePersonArea, deletePerson,
       addTask, updateTask, deleteTask,
       addPost, updatePost, deletePost,
@@ -781,6 +809,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       awardGamificationPoints, deleteGamificationAward,
       addLeadThermometer, updateLeadThermometer, deleteLeadThermometer,
       upsertAttendanceSetting, setAttendance, clearAttendance,
+      addBroadcast, deleteBroadcast,
     }}>
       {children}
     </DataContext.Provider>

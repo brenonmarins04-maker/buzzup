@@ -107,6 +107,36 @@ export type Database = {
         }
         Relationships: []
       }
+      broadcasts: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          duration_days: number
+          expires_at: string
+          id: string
+          message: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          duration_days?: number
+          expires_at?: string
+          id?: string
+          message: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          duration_days?: number
+          expires_at?: string
+          id?: string
+          message?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       calendar_items: {
         Row: {
           area: string | null
