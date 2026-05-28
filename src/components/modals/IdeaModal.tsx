@@ -27,6 +27,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
   const [area, setArea] = useState("");
   const [personId, setPersonId] = useState<string>("");
   const [date, setDate] = useState("");
+  const [points, setPoints] = useState<number>(1);
   const [savedOk, setSavedOk] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
 
@@ -37,6 +38,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
     setArea(item?.area || defaultArea || "");
     setPersonId(item?.personId || "");
     setDate(item?.date || defaultDate || "");
+    setPoints(item?.points ?? 1);
   }, [open, item, defaultArea, defaultDate]);
 
   const peopleForArea = useMemo(() => {
@@ -53,17 +55,16 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
     const t = title.trim();
     if (!t) { toast.error("Título é obrigatório"); return; }
     if (!area) { toast.error("Selecione a área primeiro"); return; }
+    if (![1, 2, 3].includes(points)) { toast.error("Selecione os pontos (1, 2 ou 3)"); return; }
     if (requireFull) {
       if (!personId) { toast.error("Selecione o responsável"); return; }
       if (!date) { toast.error("Selecione uma data"); return; }
     }
     if (item) {
-      await updateParkingItem({ ...item, title: t, area, personId: personId || null, date });
+      await updateParkingItem({ ...item, title: t, area, personId: personId || null, date, points });
       toast.success("Ideia atualizada");
     } else {
-      // addParkingItem only persists area/title/date/description; use updateParkingItem afterwards if person is set.
-      await addParkingItem(area, t, date, "");
-      // Note: new items go through addParkingItem which doesn't accept personId — we accept that for now.
+      await addParkingItem(area, t, date, "", points);
     }
     setSavedOk(true);
     onOpenChange(false);
@@ -170,6 +171,35 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
               <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Data {requireFull && <span className="text-destructive">*</span>}</label>
               <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="rounded-full h-11 px-4" />
               {!requireFull && <p className="text-[10px] text-muted-foreground mt-1">Deixe em branco para manter em Papel.</p>}
+            </div>
+            <div>
+              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">
+                Pontos <span className="text-destructive">*</span>
+              </label>
+              <div className="flex gap-2">
+                {[1, 2, 3].map(n => {
+                  const selected = points === n;
+                  const areaColor = AREAS.find(a => a.key === area)?.color || "#64748B";
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => setPoints(n)}
+                      className="flex-1 h-12 rounded-full text-base font-bold transition-all border"
+                      style={{
+                        backgroundColor: selected ? areaColor : `${areaColor}10`,
+                        color: selected ? "#fff" : areaColor,
+                        borderColor: selected ? areaColor : `${areaColor}30`,
+                        boxShadow: selected ? `0 4px 14px ${areaColor}55` : "none",
+                        transform: selected ? "translateY(-1px)" : "none",
+                      }}
+                    >
+                      {n} {n === 1 ? "ponto" : "pontos"}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">Somados na gamificação quando a demanda for concluída.</p>
             </div>
             <div className="flex items-center justify-between pt-2">
               {item ? (

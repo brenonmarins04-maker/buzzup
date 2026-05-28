@@ -428,6 +428,7 @@ export type Database = {
           description: string
           id: string
           person_id: string | null
+          points: number
           position: number
           status: string
           title: string
@@ -440,6 +441,7 @@ export type Database = {
           description?: string
           id?: string
           person_id?: string | null
+          points?: number
           position?: number
           status?: string
           title: string
@@ -452,6 +454,7 @@ export type Database = {
           description?: string
           id?: string
           person_id?: string | null
+          points?: number
           position?: number
           status?: string
           title?: string

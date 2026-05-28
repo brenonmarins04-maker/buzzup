@@ -41,7 +41,7 @@ export type EventType = { id: string; name: string; color: string };
 
 export type AreaNote = { id: string; area: string; name: string; url: string; position: number };
 export type ParkingItemStatus = "in-progress" | "done";
-export type ParkingItem = { id: string; area: string; personId: string | null; title: string; description: string; date: string; position: number; status: ParkingItemStatus };
+export type ParkingItem = { id: string; area: string; personId: string | null; title: string; description: string; date: string; position: number; status: ParkingItemStatus; points: number };
 
 export type GamificationAction = { id: string; name: string; points: number };
 export type GamificationAward = { id: string; personId: string; actionId: string | null; actionName: string; points: number; awardedAt: string };
@@ -116,7 +116,7 @@ type DataContextType = {
   updateAreaNote: (n: AreaNote) => Promise<void>;
   deleteAreaNote: (id: string) => Promise<void>;
 
-  addParkingItem: (area: string, title: string, date: string, description?: string) => Promise<void>;
+  addParkingItem: (area: string, title: string, date: string, description?: string, points?: number) => Promise<void>;
   updateParkingItem: (p: ParkingItem) => Promise<void>;
   moveParkingItem: (id: string, personId: string | null) => Promise<void>;
   deleteParkingItem: (id: string) => Promise<void>;
@@ -283,7 +283,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setChannels((chRes.data || []).map(c => ({ id: c.id, name: c.name, color: c.color })));
       setEventTypes(((etRes as any)?.data || []).map((e: any) => ({ id: e.id, name: e.name, color: e.color })));
       setAreaNotes(((anRes as any)?.data || []).map((n: any) => ({ id: n.id, area: n.area, name: n.name, url: n.url, position: n.position ?? 0 })));
-      setParkingItems(((piRes as any)?.data || []).map((p: any) => ({ id: p.id, area: p.area, personId: p.person_id ?? null, title: p.title, description: p.description ?? "", date: p.date ?? "", position: p.position ?? 0, status: (p.status as ParkingItemStatus) ?? "in-progress" })));
+      setParkingItems(((piRes as any)?.data || []).map((p: any) => ({ id: p.id, area: p.area, personId: p.person_id ?? null, title: p.title, description: p.description ?? "", date: p.date ?? "", position: p.position ?? 0, status: (p.status as ParkingItemStatus) ?? "in-progress", points: p.points ?? 1 })));
       setGamificationActions(((gaRes as any)?.data || []).map((a: any) => ({ id: a.id, name: a.name, points: a.points ?? 0 })));
       setGamificationAwards(((gwRes as any)?.data || []).map((w: any) => ({ id: w.id, personId: w.person_id, actionId: w.action_id ?? null, actionName: w.action_name, points: w.points ?? 0, awardedAt: w.awarded_at })));
       setLeadThermometer(((ltRes as any)?.data || []).map((l: any) => ({ id: l.id, name: l.name, value: l.value ?? "", areaSize: l.area_size ?? "", type: l.type ?? "", position: l.position ?? 0 })));
@@ -662,22 +662,35 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // === PARKING ITEMS (Quadro CB) ===
-  const addParkingItem = useCallback(async (area: string, title: string, date: string, description = "") => {
+  const addParkingItem = useCallback(async (area: string, title: string, date: string, description = "", points: number = 1) => {
     if (!workspaceId) return;
+    const pts = Math.max(1, Math.min(3, Math.round(points || 1)));
     const { data, error } = await (supabase.from("parking_items") as any)
-      .insert({ workspace_id: workspaceId, area, title, description, date, person_id: null, position: parkingItems.filter(p => p.area === area && p.personId === null).length })
+      .insert({ workspace_id: workspaceId, area, title, description, date, points: pts, person_id: null, position: parkingItems.filter(p => p.area === area && p.personId === null).length })
       .select().single();
     if (error) { toast.error("Erro ao criar card"); return; }
-    if (data) setParkingItems(prev => [...prev, { id: data.id, area: data.area, personId: data.person_id ?? null, title: data.title, description: data.description ?? "", date: data.date ?? "", position: data.position ?? 0, status: (data.status as ParkingItemStatus) ?? "in-progress" }]);
+    if (data) setParkingItems(prev => [...prev, { id: data.id, area: data.area, personId: data.person_id ?? null, title: data.title, description: data.description ?? "", date: data.date ?? "", position: data.position ?? 0, status: (data.status as ParkingItemStatus) ?? "in-progress", points: data.points ?? pts }]);
   }, [workspaceId, parkingItems]);
 
   const updateParkingItem = useCallback(async (p: ParkingItem) => {
+    const prev = parkingItems.find(x => x.id === p.id);
     const { error } = await (supabase.from("parking_items") as any)
-      .update({ title: p.title, description: p.description, date: p.date, person_id: p.personId, position: p.position, status: p.status })
+      .update({ title: p.title, description: p.description, date: p.date, person_id: p.personId, position: p.position, status: p.status, points: p.points })
       .eq("id", p.id);
     if (error) { toast.error("Erro ao atualizar"); return; }
     setParkingItems(prev => prev.map(x => x.id === p.id ? p : x));
-  }, []);
+    // Award gamification points when transitioning to "done"
+    if (workspaceId && prev && prev.status !== "done" && p.status === "done" && p.personId) {
+      const pts = Math.max(1, Math.min(3, p.points || 1));
+      const { data: aw } = await (supabase.from("gamification_awards") as any)
+        .insert({ workspace_id: workspaceId, person_id: p.personId, action_id: null, action_name: `Demanda: ${p.title}`, points: pts, awarded_by: uid })
+        .select().single();
+      if (aw) {
+        setGamificationAwards(curr => [{ id: aw.id, personId: aw.person_id, actionId: aw.action_id ?? null, actionName: aw.action_name, points: aw.points ?? 0, awardedAt: aw.awarded_at }, ...curr]);
+        toast.success(`+${pts} ponto${pts > 1 ? "s" : ""} para a gamificação`);
+      }
+    }
+  }, [parkingItems, workspaceId, uid]);
 
   const moveParkingItem = useCallback(async (id: string, personId: string | null) => {
     const { error } = await (supabase.from("parking_items") as any).update({ person_id: personId }).eq("id", id);
