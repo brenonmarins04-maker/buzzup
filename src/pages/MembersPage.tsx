@@ -43,6 +43,16 @@ export default function MembersPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  useEffect(() => {
+    if (!workspaceId) return;
+    const ch = supabase
+      .channel(`members-${workspaceId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "workspace_join_requests", filter: `workspace_id=eq.${workspaceId}` }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "workspace_members", filter: `workspace_id=eq.${workspaceId}` }, () => load())
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [workspaceId, load]);
+
   const copyCode = async () => {
     if (!wsCode) return;
     try { await navigator.clipboard.writeText(wsCode); toast.success("Código copiado!"); }
