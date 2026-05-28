@@ -102,7 +102,7 @@ export default function CalendarPage() {
 
   // Drop a parking item onto a date. If it has area + responsável, update directly.
   // Otherwise open the IdeaModal in "requireFull" mode so the user completes it before scheduling.
-  const handleParkingDrop = (parkingId: string, dayStr: string) => {
+  const dropParkingOnDate = (parkingId: string, dayStr: string) => {
     const pk = parkingItems.find(p => p.id === parkingId);
     if (!pk) return;
     if (pk.area && pk.personId) {
