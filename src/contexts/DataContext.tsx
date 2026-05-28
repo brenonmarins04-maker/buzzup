@@ -772,9 +772,27 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setAttendanceRecords(prev => prev.filter(r => !(r.area === area && r.personId === personId && r.date === date)));
   }, [workspaceId]);
 
+  // === BROADCASTS (Mensagens gerais) ===
+  const addBroadcast = useCallback(async (message: string, durationDays: number) => {
+    if (!workspaceId) return;
+    const days = Math.max(1, Math.min(365, Math.floor(durationDays || 1)));
+    const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await (supabase.from("broadcasts") as any)
+      .insert({ workspace_id: workspaceId, message, duration_days: days, expires_at: expiresAt, created_by: uid })
+      .select().single();
+    if (error) { toast.error("Erro ao publicar mensagem"); return; }
+    if (data) setBroadcasts(prev => [{ id: data.id, message: data.message, durationDays: data.duration_days, createdAt: data.created_at, expiresAt: data.expires_at, createdBy: data.created_by ?? null }, ...prev]);
+  }, [workspaceId, uid]);
+
+  const deleteBroadcast = useCallback(async (id: string) => {
+    const { error } = await (supabase.from("broadcasts") as any).delete().eq("id", id);
+    if (error) { toast.error("Erro ao remover mensagem"); return; }
+    setBroadcasts(prev => prev.filter(b => b.id !== id));
+  }, []);
+
   return (
     <DataContext.Provider value={{
-      people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, gamificationActions, gamificationAwards, leadThermometer, attendanceSettings, attendanceRecords, loading, workspaceId,
+      people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, gamificationActions, gamificationAwards, leadThermometer, attendanceSettings, attendanceRecords, broadcasts, loading, workspaceId,
       addPerson, updatePerson, updatePersonNickname, updatePersonArea, deletePerson,
       addTask, updateTask, deleteTask,
       addPost, updatePost, deletePost,
@@ -791,6 +809,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       awardGamificationPoints, deleteGamificationAward,
       addLeadThermometer, updateLeadThermometer, deleteLeadThermometer,
       upsertAttendanceSetting, setAttendance, clearAttendance,
+      addBroadcast, deleteBroadcast,
     }}>
       {children}
     </DataContext.Provider>
