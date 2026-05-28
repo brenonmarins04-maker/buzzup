@@ -84,7 +84,7 @@ function KpiCard({ title, value, icon, color, delta, spark }: KpiProps) {
 
 export default function DashboardPage() {
   const { people, tasks, projects, events, posts, broadcasts, gamificationAwards, loading } = useData();
-  const { displayName } = useAuth();
+  const { displayName, user } = useAuth();
   const today = getNowBrasilia();
   const weekStart = startOfWeek(today, { weekStartsOn: 0 });
   const weekEnd = endOfWeek(today, { weekStartsOn: 0 });
@@ -190,7 +190,12 @@ export default function DashboardPage() {
     );
   }
 
-  const firstName = (displayName || "Usuário").split(" ")[0];
+  const fullName =
+    (displayName && displayName.trim()) ||
+    (user?.user_metadata?.display_name as string | undefined) ||
+    (user?.email ? user.email.split("@")[0] : "") ||
+    "Usuário";
+  const firstName = fullName.split(" ")[0];
 
   return (
     <div className="animate-fade-in space-y-5">
