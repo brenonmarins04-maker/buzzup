@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   CalendarDays, Megaphone,
@@ -7,6 +7,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import QuickCreateMenu from "@/components/modals/QuickCreateMenu";
 import TaskModal from "@/components/modals/TaskModal";
@@ -31,10 +32,33 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const isMobile = useIsMobile();
   const { notifications } = useData();
-  const { displayName, signOut, isAdmin, role } = useAuth();
+  const { displayName, signOut, isAdmin, role, user, myWorkspaces } = useAuth();
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const unreadCount = notifications.filter(n => !n.read).length;
+  const [pendingJoinCount, setPendingJoinCount] = useState(0);
+
+  const ownedWorkspaceIds = myWorkspaces.filter(w => w.role === "owner").map(w => w.workspace_id);
+
+  useEffect(() => {
+    if (!user || ownedWorkspaceIds.length === 0) { setPendingJoinCount(0); return; }
+    let cancelled = false;
+    const load = async () => {
+      const { count } = await supabase
+        .from("workspace_join_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending")
+        .in("workspace_id", ownedWorkspaceIds)
+        .neq("user_id", user.id);
+      if (!cancelled) setPendingJoinCount(count || 0);
+    };
+    load();
+    const ch = supabase
+      .channel(`pending-joins-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "workspace_join_requests" }, () => load())
+      .subscribe();
+    return () => { cancelled = true; supabase.removeChannel(ch); };
+  }, [user?.id, ownedWorkspaceIds.join(",")]);
 
   const [taskModal, setTaskModal] = useState(false);
   const [postModal, setPostModal] = useState(false);
@@ -99,7 +123,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {navItems.map((item) => (
             <NavLink key={item.to} to={item.to}
               className={({ isActive }) => `flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-md text-[10px] font-medium transition-colors min-w-0 ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
-              <item.icon className="h-5 w-5 shrink-0" />
+              <div className="relative">
+                <item.icon className="h-5 w-5 shrink-0" />
+                {item.to === "/members" && pendingJoinCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
+                    {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
+                  </span>
+                )}
+              </div>
               <span className="truncate">{item.label}</span>
             </NavLink>
           ))}
@@ -125,8 +156,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {navItems.map((item) => (
             <NavLink key={item.to} to={item.to}
               className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive ? "bg-accent text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"} ${collapsed ? "justify-center" : ""}`}>
-              <item.icon className="h-4 w-4 shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
+              <div className="relative">
+                <item.icon className="h-4 w-4 shrink-0" />
+                {item.to === "/members" && pendingJoinCount > 0 && collapsed && (
+                  <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-3.5 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
+                    {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
+                  </span>
+                )}
+              </div>
+              {!collapsed && (
+                <span className="flex-1 flex items-center justify-between">
+                  <span>{item.label}</span>
+                  {item.to === "/members" && pendingJoinCount > 0 && (
+                    <span className="h-5 min-w-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
+                      {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
+                    </span>
+                  )}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>
