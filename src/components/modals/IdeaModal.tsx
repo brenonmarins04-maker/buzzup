@@ -40,9 +40,8 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
   }, [open, item, defaultArea, defaultDate]);
 
   const peopleForArea = useMemo(() => {
-    if (!area) return people;
-    const inArea = people.filter(p => p.area === area);
-    return inArea.length > 0 ? inArea : people;
+    if (!area) return [];
+    return people.filter(p => p.area === area);
   }, [people, area]);
 
   const handleClose = (next: boolean) => {
@@ -53,8 +52,8 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
   const handleSave = async () => {
     const t = title.trim();
     if (!t) { toast.error("Título é obrigatório"); return; }
+    if (!area) { toast.error("Selecione a área primeiro"); return; }
     if (requireFull) {
-      if (!area) { toast.error("Selecione a área"); return; }
       if (!personId) { toast.error("Selecione o responsável"); return; }
       if (!date) { toast.error("Selecione uma data"); return; }
     }
@@ -97,18 +96,19 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1 block">Área {requireFull && <span className="text-destructive">*</span>}</label>
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1 block">Área <span className="text-destructive">*</span></label>
                 <select value={area} onChange={e => { setArea(e.target.value); setPersonId(""); }}
                   className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-                  <option value="">— Sem área —</option>
+                  <option value="">— Selecione —</option>
                   {AREAS.map(a => <option key={a.key} value={a.key}>{a.label}</option>)}
                 </select>
               </div>
               <div>
                 <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1 block">Responsável {requireFull && <span className="text-destructive">*</span>}</label>
                 <select value={personId} onChange={e => setPersonId(e.target.value)}
-                  className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm">
-                  <option value="">— Selecionar —</option>
+                  disabled={!area}
+                  className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                  <option value="">{!area ? "— Selecione a área antes —" : peopleForArea.length === 0 ? "— Nenhuma pessoa nesta área —" : "— Selecionar —"}</option>
                   {peopleForArea.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
               </div>
