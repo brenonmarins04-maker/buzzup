@@ -19,7 +19,7 @@ export default function AreaPage({ area }: Props) {
   const meta = AREAS.find(a => a.key === area)!;
   const tabs: { v: Tab; label: string }[] = [
     { v: "quadro", label: "Quadro CB" },
-    { v: "notas", label: "Notas" },
+    { v: "notas", label: "Links úteis" },
     { v: "presencas", label: "Controle de Presenças" },
     ...(area === "mercado" ? [{ v: "termometro" as Tab, label: "Termômetro de Lead" }] : []),
   ];
