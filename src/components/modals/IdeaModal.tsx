@@ -116,7 +116,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
             <div>
               <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1 block">Data {requireFull && <span className="text-destructive">*</span>}</label>
               <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
-              {!requireFull && <p className="text-[10px] text-muted-foreground mt-1">Deixe em branco para manter em Ideias gerais.</p>}
+              {!requireFull && <p className="text-[10px] text-muted-foreground mt-1">Deixe em branco para manter em Papel.</p>}
             </div>
             <div className="flex items-center justify-between pt-2">
               {item ? (
