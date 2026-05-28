@@ -674,13 +674,15 @@ function KanbanTab({ area }: { area: AreaKey }) {
       >
         {/* Status toggle row */}
         {isAdmin && (
-          <div className="flex items-center gap-1 mb-2">
+          <div className="flex items-center gap-1.5 mb-2.5">
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); setStatus(item, "in-progress"); }}
               title="Em andamento"
-              className={`flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded transition-all ${item.status === "in-progress" ? "ring-1" : "opacity-50 hover:opacity-100"}`}
-              style={item.status === "in-progress" ? { backgroundColor: "#F59E0B22", color: "#B45309" } : { color: "#9CA3AF" }}
+              className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-md transition-all border"
+              style={item.status === "in-progress"
+                ? { backgroundColor: "#F59E0B", color: "#fff", borderColor: "#F59E0B", boxShadow: "0 2px 6px #F59E0B66" }
+                : { backgroundColor: "#fff", color: "#9CA3AF", borderColor: "#E5E7EB" }}
             >
               <Circle className="h-3 w-3" /> Andamento
             </button>
@@ -688,14 +690,16 @@ function KanbanTab({ area }: { area: AreaKey }) {
               type="button"
               onClick={(e) => { e.stopPropagation(); setStatus(item, "done"); }}
               title="Concluída"
-              className={`flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded transition-all ${item.status === "done" ? "ring-1" : "opacity-50 hover:opacity-100"}`}
-              style={item.status === "done" ? { backgroundColor: "#10B98122", color: "#047857" } : { color: "#9CA3AF" }}
+              className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-md transition-all border"
+              style={item.status === "done"
+                ? { backgroundColor: "#10B981", color: "#fff", borderColor: "#10B981", boxShadow: "0 2px 6px #10B98166" }
+                : { backgroundColor: "#fff", color: "#9CA3AF", borderColor: "#E5E7EB" }}
             >
               <CheckCircle2 className="h-3 w-3" /> Concluída
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); deleteParkingItem(item.id); }}
-              className="ml-auto text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100"
+              className="ml-auto text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
               title="Excluir"
             >
               <X className="h-3.5 w-3.5" />
@@ -703,11 +707,24 @@ function KanbanTab({ area }: { area: AreaKey }) {
           </div>
         )}
         <div onClick={() => isAdmin && openEdit(item)} className={isAdmin ? "cursor-pointer" : ""}>
-          <span className={`font-semibold leading-snug ${isDone ? "text-muted-foreground line-through" : "text-foreground"}`}>{item.title}</span>
+          <div className="flex items-start justify-between gap-2">
+            <span className={`font-semibold leading-snug flex-1 ${isDone ? "text-muted-foreground line-through" : "text-foreground"}`}>{item.title}</span>
+            {item.points ? (
+              <span
+                className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md text-white"
+                style={{ backgroundColor: tint }}
+                title={`${item.points} ${item.points === 1 ? "ponto" : "pontos"}`}
+              >
+                {item.points}p
+              </span>
+            ) : null}
+          </div>
           {item.description && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-3">{item.description}</p>}
           {item.date && (
-            <div className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded"
-              style={{ backgroundColor: `${tint}22`, color: tint }}>
+            <div
+              className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md text-white"
+              style={{ backgroundColor: tint }}
+            >
               {new Date(item.date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
             </div>
           )}
