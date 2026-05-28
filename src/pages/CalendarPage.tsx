@@ -781,7 +781,7 @@ export default function CalendarPage() {
             onDragOver={handleTrashDragOver}
             onDragLeave={handleTrashDragLeave}
             onDrop={handleTrashDrop}
-            className={`fixed bottom-6 right-6 z-50 w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center transition-all duration-200 ${
+            className={`fixed bottom-6 right-6 z-50 w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all duration-200 ${
               trashActive
                 ? "bg-destructive/20 ring-4 ring-destructive/40 shadow-2xl"
                 : dragItem
@@ -798,8 +798,8 @@ export default function CalendarPage() {
               className="w-full h-full object-contain pointer-events-none select-none"
               style={{
                 animation: trashActive
-                  ? "trashShake 0.45s ease-in-out infinite"
-                  : "trashFloat 3s ease-in-out infinite",
+                  ? "trashShake 1.1s ease-in-out infinite"
+                  : "trashFloat 6s ease-in-out infinite",
                 transformOrigin: "center bottom",
               }}
             />
