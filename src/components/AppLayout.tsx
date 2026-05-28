@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import QuickCreateMenu from "@/components/modals/QuickCreateMenu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import TaskModal from "@/components/modals/TaskModal";
 import PostModal from "@/components/modals/PostModal";
 import EventModal from "@/components/modals/EventModal";
@@ -26,6 +27,21 @@ const navItems = [
   { to: "/gg",          icon: Sparkles,     label: "GG" },
   { to: "/presidencia", icon: Crown,        label: "Presidência" },
   { to: "/members",     icon: Shield,       label: "Acessos" },
+];
+
+const areaItems = [
+  { to: "/projetos",    icon: FolderKanban, label: "Projetos" },
+  { to: "/mercado",     icon: Briefcase,    label: "Mercado" },
+  { to: "/gg",          icon: Sparkles,     label: "GG" },
+  { to: "/presidencia", icon: Crown,        label: "Presidência" },
+];
+
+const mobileNavItems = [
+  { to: "/people",   icon: Users,        label: "Pessoas" },
+  { to: "/calendar", icon: CalendarDays, label: "Calendário" },
+  { to: "/",         icon: Home,         label: "Início" },
+  { to: "areas",     icon: FolderKanban, label: "Áreas" },
+  { to: "/members",  icon: Shield,       label: "Acessos" },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
