@@ -173,6 +173,63 @@ export type Database = {
         }
         Relationships: []
       }
+      gamification_actions: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          points: number
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          points?: number
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          points?: number
+          workspace_id?: string
+        }
+        Relationships: []
+      }
+      gamification_awards: {
+        Row: {
+          action_id: string | null
+          action_name: string
+          awarded_at: string
+          awarded_by: string | null
+          id: string
+          person_id: string
+          points: number
+          workspace_id: string
+        }
+        Insert: {
+          action_id?: string | null
+          action_name: string
+          awarded_at?: string
+          awarded_by?: string | null
+          id?: string
+          person_id: string
+          points?: number
+          workspace_id: string
+        }
+        Update: {
+          action_id?: string | null
+          action_name?: string
+          awarded_at?: string
+          awarded_by?: string | null
+          id?: string
+          person_id?: string
+          points?: number
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       parking_items: {
         Row: {
           area: string
