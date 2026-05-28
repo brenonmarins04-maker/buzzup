@@ -122,7 +122,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <BroadcastBar />
           <div className="p-4">{children}</div>
         </main>
-        {isAdmin && (
+        {isOwner && (
           <button
             onClick={() => setBroadcastModal(true)}
             title="Nova mensagem geral"
@@ -221,7 +221,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           ))}
         </nav>
         <div className="p-3 border-t border-border">
-          {isAdmin && (
+          {isOwner && (
             <button
               onClick={() => setBroadcastModal(true)}
               title="Nova mensagem geral"
