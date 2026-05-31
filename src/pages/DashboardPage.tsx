@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   Trophy, Medal, FolderKanban, CalendarDays, ListChecks, Megaphone,
   CheckCircle2, FolderPlus, CalendarPlus, TrendingUp, TrendingDown, Minus,
-  Sparkles, Users,
+  Sparkles, Users, Star,
 } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import { getNowBrasilia } from "@/lib/utils";
@@ -177,11 +177,16 @@ export default function DashboardPage() {
     broadcasts.forEach(b => {
       items.push({ id: `b-${b.id}`, type: "broadcast", label: `Comunicado publicado: "${b.message.slice(0, 60)}${b.message.length > 60 ? "…" : ""}"`, ts: b.createdAt, icon: <Megaphone className="h-3.5 w-3.5" />, color: "#8B5CF6" });
     });
+    gamificationAwards.forEach(a => {
+      const person = people.find(p => p.id === a.personId);
+      const name = person?.name ?? "Alguém";
+      items.push({ id: `g-${a.id}`, type: "gamification", label: `+${a.points} pt${a.points > 1 ? "s" : ""} para ${name} — "${a.actionName}"`, ts: a.awardedAt, icon: <Star className="h-3.5 w-3.5" />, color: "#F59E0B" });
+    });
     return items
       .filter(i => i.ts)
       .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
       .slice(0, 10);
-  }, [tasks, projects, events, broadcasts]);
+  }, [tasks, projects, events, broadcasts, gamificationAwards, people]);
 
   if (loading) {
     return (
