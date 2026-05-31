@@ -116,7 +116,7 @@ type DataContextType = {
   updateAreaNote: (n: AreaNote) => Promise<void>;
   deleteAreaNote: (id: string) => Promise<void>;
 
-  addParkingItem: (area: string, title: string, date: string, description?: string, points?: number) => Promise<void>;
+  addParkingItem: (area: string, title: string, date: string, description?: string, points?: number, personId?: string | null) => Promise<void>;
   updateParkingItem: (p: ParkingItem) => Promise<void>;
   moveParkingItem: (id: string, personId: string | null) => Promise<void>;
   deleteParkingItem: (id: string) => Promise<void>;
@@ -679,11 +679,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // === PARKING ITEMS (Quadro CB) ===
-  const addParkingItem = useCallback(async (area: string, title: string, date: string, description = "", points: number = 1) => {
+  const addParkingItem = useCallback(async (area: string, title: string, date: string, description = "", points: number = 1, personId: string | null = null) => {
     if (!workspaceId) return;
     const pts = Math.max(1, Math.min(3, Math.round(points || 1)));
+    const pid = personId || null;
     const { data, error } = await (supabase.from("parking_items") as any)
-      .insert({ workspace_id: workspaceId, area, title, description, date, points: pts, person_id: null, position: parkingItems.filter(p => p.area === area && p.personId === null).length })
+      .insert({ workspace_id: workspaceId, area, title, description, date, points: pts, person_id: pid, position: parkingItems.filter(p => p.area === area && p.personId === pid).length })
       .select().single();
     if (error) { toast.error("Erro ao criar card"); return; }
     if (data) setParkingItems(prev => [...prev, { id: data.id, area: data.area, personId: data.person_id ?? null, title: data.title, description: data.description ?? "", date: data.date ?? "", position: data.position ?? 0, status: (data.status as ParkingItemStatus) ?? "in-progress", points: data.points ?? pts }]);

@@ -612,11 +612,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
       await updateParkingItem({ ...modal.item, title: title.trim(), date, personId: personId || null, points });
       toast.success("Atualizado");
     } else {
-      await addParkingItem(area, title.trim(), date, "", points);
-      if (personId) {
-        // assign responsible right away (also moves into the column)
-        // Note: addParkingItem creates in "Demandas" column; reassignment handled by realtime refresh.
-      }
+      await addParkingItem(area, title.trim(), date, "", points, personId || null);
       toast.success("Card criado");
     }
     setModal({ open: false });
