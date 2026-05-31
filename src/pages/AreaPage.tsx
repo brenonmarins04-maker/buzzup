@@ -764,7 +764,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
         onDragOver={(e) => onDragOver(e, colKey)}
         onDragLeave={() => setOverCol(null)}
         onDrop={(e) => onDrop(e, personId)}
-        className={`w-52 shrink-0 flex flex-col rounded-lg border ${overCol === colKey ? "border-primary bg-primary/5" : "border-border bg-muted/30"} transition-colors`}
+        className={`w-full flex flex-col rounded-lg border ${overCol === colKey ? "border-primary bg-primary/5" : "border-border bg-muted/30"} transition-colors`}
       >
         <div className={`px-4 py-3 border-b ${accent ? "bg-card border-primary/30" : "border-border"} rounded-t-lg flex items-center justify-between`}>
           <span className="text-sm font-semibold text-foreground truncate">{colTitle}</span>
@@ -812,7 +812,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
 
   return (
     <div>
-      <div className="flex gap-3 overflow-x-auto pb-3 scrollbar-thin">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 pb-3">
         <Column personId={null} title="Demandas" accent />
         {members.map(m => (
           <Column key={m.id} personId={m.id} title={m.name} />
