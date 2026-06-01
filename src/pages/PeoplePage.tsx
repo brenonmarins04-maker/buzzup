@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo } from "react";
 import { useData, type Person } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Trash2, X } from "lucide-react";
+import { Plus, Trash2, Link2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -141,8 +141,18 @@ function MembersTab() {
                 {person.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="text-sm font-medium text-foreground truncate">{person.name}</span>
-                {person.area && <span className="text-[11px] text-muted-foreground truncate">{getAreaLabel(person.area)}</span>}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm font-medium text-foreground truncate">{person.name}</span>
+                  {person.userId && (
+                    <span title="Conta vinculada">
+                      <Link2 className="h-3 w-3 text-primary shrink-0" />
+                    </span>
+                  )}
+                </div>
+                {person.area
+                  ? <span className="text-[11px] text-muted-foreground truncate">{getAreaLabel(person.area)}</span>
+                  : <span className="text-[11px] text-muted-foreground/50 truncate italic">Sem área</span>
+                }
               </div>
             </button>
             {isAdmin && (

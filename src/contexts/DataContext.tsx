@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 type Json = Database["public"]["Tables"]["tasks"]["Row"]["checklist"];
 
-export type Person = { id: string; name: string; nickname?: string | null; area?: string | null };
+export type Person = { id: string; name: string; nickname?: string | null; area?: string | null; userId?: string | null };
 export type Project = {
   id: string;
   name: string;
@@ -182,7 +182,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const wsId = workspaceId!;
 
       const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes, etRes, anRes, piRes, gaRes, gwRes, ltRes, asRes, arRes, bcRes] = await Promise.all([
-        (supabase.from("people") as any).select("id, name, nickname, area").eq("workspace_id", wsId),
+        (supabase.from("people") as any).select("id, name, nickname, area, user_id").eq("workspace_id", wsId),
         supabase.from("projects").select("*").eq("workspace_id", wsId),
         supabase.from("tasks").select("*").eq("workspace_id", wsId),
         supabase.from("posts").select("*").eq("workspace_id", wsId),
@@ -206,7 +206,33 @@ export function DataProvider({ children }: { children: ReactNode }) {
       ]);
       if (cancelled) return;
 
-      const pplList: Person[] = (pplRes.data || []).map((p: any) => ({ id: p.id, name: p.name, nickname: p.nickname ?? null, area: p.area ?? null }));
+      let pplList: Person[] = (pplRes.data || []).map((p: any) => ({ id: p.id, name: p.name, nickname: p.nickname ?? null, area: p.area ?? null, userId: p.user_id ?? null }));
+
+      // Sync: auto-create people entries for workspace members who don't have one yet
+      try {
+        const { data: wsMembers } = await (supabase.rpc as any)("list_workspace_members", { _ws_id: wsId });
+        if (wsMembers && !cancelled) {
+          const existingUserIds = new Set(pplList.filter(p => p.userId).map(p => p.userId));
+          const toCreate = (wsMembers as any[]).filter(m => m.user_id && !existingUserIds.has(m.user_id));
+          if (toCreate.length > 0) {
+            const inserts = toCreate.map((m: any) => ({
+              workspace_id: wsId,
+              name: m.display_name || "Usuário",
+              user_id: m.user_id,
+            }));
+            const { data: created } = await (supabase.from("people") as any)
+              .insert(inserts)
+              .select("id, name, nickname, area, user_id");
+            if (created && !cancelled) {
+              const newPeople: Person[] = (created as any[]).map((p: any) => ({
+                id: p.id, name: p.name, nickname: p.nickname ?? null, area: p.area ?? null, userId: p.user_id ?? null,
+              }));
+              pplList = [...pplList, ...newPeople];
+            }
+          }
+        }
+      } catch (_) { /* sync failure is non-fatal */ }
+
       const pplMap = new Map(pplList.map(p => [p.id, p]));
       setPeople(pplList);
 
@@ -356,9 +382,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // === PEOPLE ===
   const addPerson = useCallback(async (name: string) => {
     if (!workspaceId) return;
-    const { data, error } = await supabase.from("people").insert({ workspace_id: workspaceId, name }).select("id, name").single();
+    const { data, error } = await (supabase.from("people") as any).insert({ workspace_id: workspaceId, name }).select("id, name, nickname, area, user_id").single();
     if (error) { toast.error("Erro ao adicionar pessoa"); return; }
-    if (data) setPeople(prev => [...prev, { id: data.id, name: data.name }]);
+    if (data) setPeople(prev => [...prev, { id: data.id, name: data.name, nickname: data.nickname ?? null, area: data.area ?? null, userId: data.user_id ?? null }]);
   }, [workspaceId]);
 
   const updatePerson = useCallback(async (id: string, name: string) => {
