@@ -157,6 +157,23 @@ function AttendanceTab({ area }: { area: AreaKey }) {
   const { people, attendanceSettings, attendanceRecords, upsertAttendanceSetting, setAttendance, clearAttendance } = useData();
   const { isAdmin } = useAuth();
 
+  // Apenas Admin pode acessar a aba de presenças
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 px-4">
+        <div className="text-center max-w-sm">
+          <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
+            🔒
+          </div>
+          <h3 className="font-semibold text-foreground mb-1">Acesso Restrito</h3>
+          <p className="text-sm text-muted-foreground">
+            Apenas administradores podem gerenciar presenças. Contate um admin para marcar sua presença.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const members = useMemo(() => people.filter(p => p.area === area), [people, area]);
   const setting = useMemo(() => attendanceSettings.find(s => s.area === area), [attendanceSettings, area]);
 
