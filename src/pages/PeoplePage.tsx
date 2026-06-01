@@ -1,13 +1,14 @@
 import { useState, useRef, useMemo } from "react";
 import { useData, type Person } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Trash2, Link2 } from "lucide-react";
+import { Plus, Trash2, Link2, HelpCircle, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { AREAS, getAreaLabel } from "@/lib/areas";
 import MemberEditModal from "@/components/modals/MemberEditModal";
+import RolesInfoModal from "@/components/modals/RolesInfoModal";
 import TeamsPage from "@/pages/TeamsPage";
 import GamificationAdminPage from "@/pages/GamificationAdminPage";
 
@@ -16,6 +17,7 @@ type Tab = "gamificacao" | "historico" | "equipes" | "membros";
 export default function PeoplePage() {
   const { isAdmin } = useAuth();
   const [tab, setTab] = useState<Tab>(isAdmin ? "gamificacao" : "membros");
+  const [rolesInfoOpen, setRolesInfoOpen] = useState(false);
 
   const tabs: { v: Tab; label: string; show: boolean }[] = [
     { v: "gamificacao", label: "Gameficação", show: isAdmin },
@@ -30,19 +32,30 @@ export default function PeoplePage() {
         <h1 className="text-2xl font-semibold text-foreground tracking-tight">Pessoas</h1>
       </div>
 
-      <div className="flex items-center gap-1 border-b border-border">
-        {tabs.filter(t => t.show).map(t => (
-          <button key={t.v} onClick={() => setTab(t.v)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${tab === t.v ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-            {t.label}
-          </button>
-        ))}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-1 border-b border-border flex-1">
+          {tabs.filter(t => t.show).map(t => (
+            <button key={t.v} onClick={() => setTab(t.v)}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${tab === t.v ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <button
+          onClick={() => setRolesInfoOpen(true)}
+          title="Ver estrutura de cargos"
+          className="p-2 text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <HelpCircle className="h-4 w-4" />
+        </button>
       </div>
 
       {tab === "gamificacao" && isAdmin && <GamificationAdminPage />}
       {tab === "historico" && isAdmin && <HistoricoTab />}
       {tab === "equipes" && <TeamsPage />}
       {tab === "membros" && <MembersTab />}
+
+      <RolesInfoModal open={rolesInfoOpen} onOpenChange={setRolesInfoOpen} />
     </div>
   );
 }

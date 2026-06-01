@@ -2,7 +2,8 @@ import { createContext, useContext, useState, useEffect, useRef, type ReactNode 
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 
-export type MyWorkspace = { workspace_id: string; name: string; code: string; role: "owner"|"admin"|"member"; created_at: string };
+export type WorkspaceRole = "owner" | "admin" | "leader" | "member";
+export type MyWorkspace = { workspace_id: string; name: string; code: string; role: WorkspaceRole; created_at: string };
 export type MyJoinRequest = { id: string; workspace_id: string; workspace_name: string; workspace_code: string; status: "pending"|"approved"|"rejected"|"canceled"; requested_at: string; decided_at: string | null; decided_role: string | null };
 
 type AuthContextType = {
@@ -10,7 +11,7 @@ type AuthContextType = {
   session: Session | null;
   loading: boolean;
   displayName: string;
-  role: "owner" | "admin" | "member" | null;
+  role: WorkspaceRole | null;
   workspaceId: string | null;
   activeWorkspaceId: string | null;
   setActiveWorkspaceId: (id: string | null) => void;
@@ -19,6 +20,7 @@ type AuthContextType = {
   refreshHub: () => Promise<void>;
   isAdmin: boolean;
   isOwner: boolean;
+  isLeader: boolean;
   refreshMembership: () => Promise<void>;
   requestJoinWorkspace: (code: string) => Promise<{ ok: boolean; error?: string }>;
   cancelJoinRequest: (reqId: string) => Promise<{ ok: boolean; error?: string }>;
@@ -223,6 +225,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       myWorkspaces, myJoinRequests, refreshHub,
       isAdmin: role === "admin" || role === "owner",
       isOwner: role === "owner",
+      isLeader: role === "leader",
       refreshMembership, requestJoinWorkspace, cancelJoinRequest, createWorkspace,
       signUp, signIn, signOut, resetPassword, updatePassword,
     }}>

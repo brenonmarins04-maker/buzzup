@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 type Json = Database["public"]["Tables"]["tasks"]["Row"]["checklist"];
 
-export type Person = { id: string; name: string; nickname?: string | null; area?: string | null; userId?: string | null };
+export type Person = { id: string; name: string; nickname?: string | null; area?: string | null; userId?: string | null; leaderArea?: string | null };
 export type Project = {
   id: string;
   name: string;
@@ -75,6 +75,7 @@ type DataContextType = {
   updatePerson: (id: string, name: string) => void;
   updatePersonNickname: (id: string, nickname: string | null) => void;
   updatePersonArea: (id: string, area: string | null) => void;
+  updatePersonLeaderArea: (id: string, leaderArea: string | null) => void;
   deletePerson: (id: string) => void;
 
   addTask: (task: Omit<Task, "id" | "responsible"> & { responsibleIds: string[] }) => void;
@@ -407,6 +408,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const { error } = await (supabase.from("people") as any).update({ area }).eq("id", id);
     if (error) { toast.error("Erro ao atualizar área"); return; }
     setPeople(prev => prev.map(p => p.id === id ? { ...p, area } : p));
+  }, []);
+
+  const updatePersonLeaderArea = useCallback(async (id: string, leaderArea: string | null) => {
+    const { error } = await (supabase.from("people") as any).update({ leader_area: leaderArea }).eq("id", id);
+    if (error) { toast.error("Erro ao atualizar área de líder"); return; }
+    setPeople(prev => prev.map(p => p.id === id ? { ...p, leaderArea } : p));
   }, []);
 
   const deletePerson = useCallback(async (id: string) => {
@@ -885,7 +892,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   return (
     <DataContext.Provider value={{
       people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, gamificationActions, gamificationAwards, leadThermometer, attendanceSettings, attendanceRecords, broadcasts, loading, workspaceId,
-      addPerson, updatePerson, updatePersonNickname, updatePersonArea, deletePerson,
+      addPerson, updatePerson, updatePersonNickname, updatePersonArea, updatePersonLeaderArea, deletePerson,
       addTask, updateTask, deleteTask,
       addPost, updatePost, deletePost,
       addProject, updateProject, deleteProject,

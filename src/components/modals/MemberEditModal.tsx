@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useData, type Person } from "@/contexts/DataContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,15 +10,18 @@ import { toast } from "sonner";
 type Props = { open: boolean; onOpenChange: (o: boolean) => void; person: Person | null };
 
 export default function MemberEditModal({ open, onOpenChange, person }: Props) {
-  const { teams, updatePerson, updatePersonArea, updateTeam } = useData();
+  const { teams, updatePerson, updatePersonArea, updatePersonLeaderArea, updateTeam } = useData();
+  const { isAdmin } = useAuth();
   const [name, setName] = useState("");
   const [area, setArea] = useState<string>("");
   const [teamId, setTeamId] = useState<string>("");
+  const [leaderArea, setLeaderArea] = useState<string>("");
 
   useEffect(() => {
     if (!person) return;
     setName(person.name);
     setArea(person.area || "");
+    setLeaderArea(person.leaderArea || "");
     const t = teams.find(t => t.memberIds.includes(person.id));
     setTeamId(t?.id || "");
   }, [person, teams, open]);
@@ -28,6 +32,7 @@ export default function MemberEditModal({ open, onOpenChange, person }: Props) {
     if (!name.trim()) { toast.error("Nome obrigatório"); return; }
     if (name.trim() !== person.name) await updatePerson(person.id, name.trim());
     if ((area || null) !== (person.area || null)) await updatePersonArea(person.id, area || null);
+    if ((leaderArea || null) !== (person.leaderArea || null)) await updatePersonLeaderArea(person.id, leaderArea || null);
 
     const currentTeam = teams.find(t => t.memberIds.includes(person.id));
     const currentTeamId = currentTeam?.id || "";
@@ -69,6 +74,20 @@ export default function MemberEditModal({ open, onOpenChange, person }: Props) {
               {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
           </div>
+          {isAdmin && (
+            <div className="border-t pt-3">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase mb-2">Configurações de Administrador</p>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Cargo de Líder (selecione uma área)</label>
+                <select value={leaderArea} onChange={e => setLeaderArea(e.target.value)}
+                  className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm">
+                  <option value="">Não é líder</option>
+                  {AREAS.map(a => <option key={a.key} value={a.key}>{a.label}</option>)}
+                </select>
+                <p className="text-[10px] text-muted-foreground mt-1">Se definir uma área, este membro se tornará líder dessa área e poderá gerenciar demandas lá.</p>
+              </div>
+            </div>
+          )}
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
             <Button type="submit">Salvar</Button>

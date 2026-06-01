@@ -557,11 +557,20 @@ function LeadRow({
 // ===== Quadro CB (kanban: estacionamento + uma coluna por membro) =====
 function KanbanTab({ area }: { area: AreaKey }) {
   const { people, parkingItems, addParkingItem, moveParkingItem, deleteParkingItem, updateParkingItem } = useData();
-  const { isAdmin } = useAuth();
+  const { isAdmin, isLeader, user } = useAuth();
   const meta = AREAS.find(a => a.key === area)!;
 
   const members = useMemo(() => people.filter(p => p.area === area), [people, area]);
   const items = useMemo(() => parkingItems.filter(p => p.area === area), [parkingItems, area]);
+
+  // Verificar se o usuário atual é líder desta área
+  const currentPersonAsLeader = useMemo(() => {
+    if (!isLeader || !user) return null;
+    return people.find(p => p.userId === user.id && p.leaderArea === area);
+  }, [isLeader, user, people, area]);
+
+  // Verificar se pode mover (admin ou líder da área)
+  const canManage = isAdmin || !!currentPersonAsLeader;
 
   const [modal, setModal] = useState<{ open: boolean; item?: ParkingItem | null }>({ open: false });
   const [title, setTitle] = useState("");
@@ -592,16 +601,16 @@ function KanbanTab({ area }: { area: AreaKey }) {
   const [completing, setCompleting] = useState<Set<string>>(new Set());
 
   const onDragStart = (e: DragEvent, id: string) => {
-    if (!isAdmin) { e.preventDefault(); return; }
+    if (!canManage) { e.preventDefault(); return; }
     setDragId(id);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", id);
   };
-  const onDragOver = (e: DragEvent, col: string) => { if (!isAdmin) return; e.preventDefault(); setOverCol(col); };
+  const onDragOver = (e: DragEvent, col: string) => { if (!canManage) return; e.preventDefault(); setOverCol(col); };
   const onDrop = (e: DragEvent, personId: string | null) => {
     e.preventDefault();
     setOverCol(null);
-    if (!isAdmin) return;
+    if (!canManage) return;
     const id = dragId || e.dataTransfer.getData("text/plain");
     if (!id) return;
     const item = items.find(i => i.id === id);
@@ -654,14 +663,14 @@ function KanbanTab({ area }: { area: AreaKey }) {
     return (
       <div
         key={item.id}
-        draggable={isAdmin}
+        draggable={canManage}
         onDragStart={(e) => onDragStart(e, item.id)}
         onDragEnd={() => setDragId(null)}
-        className={`group bg-card border rounded-lg p-3 text-sm shadow-sm transition-colors ${isAdmin ? "cursor-grab active:cursor-grabbing" : ""} ${isCompleting ? "demand-walking" : ""}`}
+        className={`group bg-card border rounded-lg p-3 text-sm shadow-sm transition-colors ${canManage ? "cursor-grab active:cursor-grabbing" : ""} ${isCompleting ? "demand-walking" : ""}`}
         style={{ borderColor: `${tint}66`, backgroundColor: `${tint}10` }}
       >
         {/* Status toggle row */}
-        {isAdmin && (
+        {canManage && (
           <div className="flex items-center gap-1.5 mb-2.5">
             <button
               type="button"
@@ -693,7 +702,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
             </button>
           </div>
         )}
-        <div onClick={() => isAdmin && openEdit(item)} className={isAdmin ? "cursor-pointer" : ""}>
+        <div onClick={() => canManage && openEdit(item)} className={canManage ? "cursor-pointer" : ""}>
           <div className="flex items-start justify-between gap-2">
             <span className={`font-semibold leading-snug flex-1 ${isDone ? "text-muted-foreground line-through" : "text-foreground"}`}>{item.title}</span>
             {item.points ? (
@@ -736,7 +745,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
           <span className="text-xs text-muted-foreground">{colItems.length}</span>
         </div>
         <div className="flex-1 p-3 flex flex-col gap-3 min-h-[160px]">
-          {accent && (
+          {accent && canManage && (
             <button
               onClick={openCreate}
               className="w-full flex items-center justify-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-primary/50 rounded-lg py-2 transition-colors"
