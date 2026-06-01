@@ -10,17 +10,17 @@ import { toast } from "sonner";
 type Props = { open: boolean; onOpenChange: (o: boolean) => void; person: Person | null };
 
 export default function MemberEditModal({ open, onOpenChange, person }: Props) {
-  const { teams, updatePerson, updatePersonArea, updatePersonLeaderArea, updateTeam } = useData();
+  const { teams, updatePerson, updatePersonAreas, updatePersonLeaderArea, updateTeam } = useData();
   const { isAdmin } = useAuth();
   const [name, setName] = useState("");
-  const [area, setArea] = useState<string>("");
+  const [areas, setAreas] = useState<string[]>([]);
   const [teamIds, setTeamIds] = useState<string[]>([]);
   const [leaderArea, setLeaderArea] = useState<string>("");
 
   useEffect(() => {
     if (!person) return;
     setName(person.name);
-    setArea(person.area || "");
+    setAreas(person.areas || (person.area ? [person.area] : []));
     setLeaderArea(person.leaderArea || "");
     const personTeams = teams.filter(t => t.memberIds.includes(person.id));
     setTeamIds(personTeams.map(t => t.id));
@@ -31,7 +31,9 @@ export default function MemberEditModal({ open, onOpenChange, person }: Props) {
   const save = async () => {
     if (!name.trim()) { toast.error("Nome obrigatório"); return; }
     if (name.trim() !== person.name) await updatePerson(person.id, name.trim());
-    if ((area || null) !== (person.area || null)) await updatePersonArea(person.id, area || null);
+    if (JSON.stringify(areas) !== JSON.stringify(person.areas || (person.area ? [person.area] : []))) {
+      await updatePersonAreas(person.id, areas);
+    }
     if ((leaderArea || null) !== (person.leaderArea || null)) await updatePersonLeaderArea(person.id, leaderArea || null);
 
     // Update teams
@@ -58,7 +60,7 @@ export default function MemberEditModal({ open, onOpenChange, person }: Props) {
   };
 
   const toggleArea = (areaKey: string) => {
-    setArea(areaKey === area ? "" : areaKey);
+    setAreas(prev => prev.includes(areaKey) ? prev.filter(a => a !== areaKey) : [...prev, areaKey]);
   };
 
   return (
@@ -84,25 +86,12 @@ export default function MemberEditModal({ open, onOpenChange, person }: Props) {
             />
           </div>
 
-          {/* Área */}
+          {/* Áreas (Multiseleção) */}
           <div>
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 block">
-              Área de Trabalho
+              Áreas de Trabalho
             </label>
             <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setArea("")}
-                className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all text-left font-medium text-sm ${
-                  area === ""
-                    ? "border-gray-400 bg-gray-50 text-gray-900"
-                    : "border-border bg-muted/30 hover:bg-muted/50 text-foreground"
-                }`}
-              >
-                Sem área
-                {area === "" && <span className="text-gray-600">✓</span>}
-              </button>
-
               {AREAS.map(areaInfo => (
                 <button
                   key={areaInfo.key}
@@ -110,7 +99,7 @@ export default function MemberEditModal({ open, onOpenChange, person }: Props) {
                   onClick={() => toggleArea(areaInfo.key)}
                   className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all text-left font-medium text-sm`}
                   style={
-                    area === areaInfo.key
+                    areas.includes(areaInfo.key)
                       ? {
                           borderColor: areaInfo.color,
                           backgroundColor: `${areaInfo.color}20`,
@@ -123,10 +112,13 @@ export default function MemberEditModal({ open, onOpenChange, person }: Props) {
                   }
                 >
                   {areaInfo.label}
-                  {area === areaInfo.key && <span>✓</span>}
+                  {areas.includes(areaInfo.key) && <span>✓</span>}
                 </button>
               ))}
             </div>
+            {areas.length === 0 && (
+              <p className="text-xs text-muted-foreground mt-2 italic">Nenhuma área selecionada</p>
+            )}
           </div>
 
           {/* Equipes */}
