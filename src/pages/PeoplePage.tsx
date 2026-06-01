@@ -118,7 +118,17 @@ function MembersTab() {
   const [addModal, setAddModal] = useState(false);
   const [newName, setNewName] = useState("");
   const [editing, setEditing] = useState<Person | null>(null);
+  const [searchText, setSearchText] = useState("");
+  const [filterArea, setFilterArea] = useState<string>("");
   const addRef = useRef<HTMLInputElement>(null);
+
+  const filteredPeople = useMemo(() => {
+    return people.filter(person => {
+      const matchesSearch = person.name.toLowerCase().includes(searchText.toLowerCase());
+      const matchesArea = !filterArea || person.areas?.includes(filterArea) || person.area === filterArea;
+      return matchesSearch && matchesArea;
+    });
+  }, [people, searchText, filterArea]);
 
   const handleAdd = () => {
     if (newName.trim()) {
@@ -134,7 +144,7 @@ function MembersTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{people.length} membros no workspace</p>
+        <p className="text-sm text-muted-foreground">{filteredPeople.length} de {people.length} membros</p>
         {isAdmin && (
           <Button size="sm" onClick={() => { setAddModal(true); setNewName(""); }}>
             <Plus className="h-4 w-4 mr-1" /> Novo membro
@@ -142,8 +152,27 @@ function MembersTab() {
         )}
       </div>
 
+      <div className="flex flex-col sm:flex-row gap-3">
+        <Input
+          placeholder="Pesquisar membros..."
+          value={searchText}
+          onChange={e => setSearchText(e.target.value)}
+          className="flex-1"
+        />
+        <select
+          value={filterArea}
+          onChange={e => setFilterArea(e.target.value)}
+          className="w-full sm:w-48 h-9 px-3 rounded-md border border-input bg-background text-sm"
+        >
+          <option value="">Todas as áreas</option>
+          {AREAS.map(a => (
+            <option key={a.key} value={a.key}>{a.label}</option>
+          ))}
+        </select>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-        {people.map((person) => (
+        {filteredPeople.map((person) => (
           <div key={person.id} className="group flex items-center justify-between bg-card border border-border rounded-lg px-4 py-3">
             <button
               onClick={() => isAdmin && setEditing(person)}
@@ -187,8 +216,10 @@ function MembersTab() {
         ))}
       </div>
 
-      {people.length === 0 && (
-        <p className="text-sm text-muted-foreground text-center py-8">Nenhum membro cadastrado.</p>
+      {filteredPeople.length === 0 && (
+        <p className="text-sm text-muted-foreground text-center py-8">
+          {people.length === 0 ? "Nenhum membro cadastrado." : "Nenhum membro encontrado com esses filtros."}
+        </p>
       )}
 
       <Dialog open={addModal} onOpenChange={setAddModal}>
