@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   Trophy, Medal, FolderKanban, ListChecks, Megaphone,
   CheckCircle2, FolderPlus, CalendarPlus, TrendingUp, TrendingDown, Minus,
-  Sparkles, BarChart2, Star, ClipboardList,
+  Sparkles, BarChart2, Star, ClipboardList, Circle, CheckCircle,
 } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Cell } from "recharts";
 import { getNowBrasilia } from "@/lib/utils";
@@ -84,9 +84,29 @@ function KpiCard({ title, value, icon, color, delta, spark }: KpiProps) {
 }
 
 export default function DashboardPage() {
-  const { people, tasks, projects, events, posts, broadcasts, gamificationAwards, parkingItems, loading } = useData();
+  const { people, tasks, projects, events, posts, broadcasts, gamificationAwards, parkingItems, updateParkingItem, loading } = useData();
   const { displayName, user } = useAuth();
   const today = getNowBrasilia();
+
+  // Buscar a pessoa correspondente ao usuário atual
+  const currentPerson = useMemo(() => {
+    if (!user) return null;
+    return people.find(p => p.userId === user.id);
+  }, [user, people]);
+
+  // Minhas demandas (atribuídas a mim)
+  const myDemands = useMemo(() => {
+    if (!currentPerson) return [];
+    return parkingItems
+      .filter(p => p.personId === currentPerson.id && p.status !== "done")
+      .sort((a, b) => {
+        // Ordenar por data (mais próximas primeiro)
+        if (a.date && b.date) return a.date.localeCompare(b.date);
+        if (a.date) return -1;
+        if (b.date) return 1;
+        return 0;
+      });
+  }, [currentPerson, parkingItems]);
   const weekStart = startOfWeek(today, { weekStartsOn: 0 });
   const weekEnd = endOfWeek(today, { weekStartsOn: 0 });
   const sevenDaysAgo = subDays(today, 7);
@@ -244,6 +264,84 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Minhas Demandas */}
+      {currentPerson && (
+        <div className="bg-card border border-border rounded-xl p-5">
+          <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+            <ListChecks className="h-4 w-4 text-[#2563EB]" /> Minhas Demandas
+          </h2>
+          {myDemands.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Nenhuma demanda atribuída. Parabéns! 🎉</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {myDemands.map(demand => {
+                const area = AREAS.find(a => a.key === demand.area);
+                return (
+                  <div
+                    key={demand.id}
+                    className="flex flex-col gap-3 p-4 rounded-lg border border-border bg-muted/20"
+                    style={{
+                      borderColor: `${area?.color}33`,
+                      backgroundColor: `${area?.color}08`,
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: area?.color }}>
+                          {area?.label || demand.area}
+                        </p>
+                        <p className="text-sm font-semibold text-foreground mt-1.5">{demand.title}</p>
+                        {demand.description && (
+                          <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{demand.description}</p>
+                        )}
+                      </div>
+                      {demand.points && (
+                        <span
+                          className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-md text-white"
+                          style={{ backgroundColor: area?.color }}
+                        >
+                          +{demand.points}p
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1">
+                      {demand.date && (
+                        <span
+                          className="text-[11px] font-medium px-2 py-0.5 rounded-md text-white"
+                          style={{ backgroundColor: area?.color }}
+                        >
+                          {new Date(demand.date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 pt-2 border-t border-border/30">
+                      <button
+                        onClick={() => updateParkingItem({ ...demand, status: "in-progress" })}
+                        className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-md transition-all ${
+                          demand.status === "in-progress"
+                            ? "bg-orange-500/20 text-orange-600 border border-orange-300"
+                            : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                        }`}
+                      >
+                        <Circle className="h-3 w-3" /> Em andamento
+                      </button>
+                      <button
+                        onClick={() => updateParkingItem({ ...demand, status: "done" })}
+                        className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-md transition-all bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30 border border-emerald-300"
+                      >
+                        <CheckCircle className="h-3 w-3" /> Concluído
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Ranking — primeiro lugar */}
       <div className="bg-card border border-border rounded-xl p-5">
