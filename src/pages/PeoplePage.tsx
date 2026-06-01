@@ -206,9 +206,10 @@ function MembersTab() {
                 )}
               </div>
             </button>
-            {isAdmin && (
+            {isAdmin && !person.userId && (
               <button onClick={() => { deletePerson(person.id); toast.success("Removido"); }}
-                className="p-1 ml-2 hover:bg-accent rounded text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity">
+                className="p-1 ml-2 hover:bg-accent rounded text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                title="Excluir membro">
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
             )}
