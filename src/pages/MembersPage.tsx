@@ -7,7 +7,7 @@ import { Trash2, ArrowUp, ArrowDown, Shield, Crown, Eye, Check, X, Copy, Lock, G
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
-const WS_PUBLIC_FLAG = "__WORKSPACE_IS_PUBLIC__";
+const WS_PUBLIC_FLAG = "Bem-vindos, o Workspace está público!";
 
 type Role = "owner" | "admin" | "member";
 type Member = { user_id: string; role: Role; created_at: string; display_name: string };
