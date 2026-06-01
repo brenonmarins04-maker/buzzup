@@ -44,13 +44,17 @@ export default function WelcomePage() {
     e.preventDefault();
     if (!code.trim() || busy) return;
     setBusy(true);
-    const { ok, error } = await requestJoinWorkspace(code.trim().toUpperCase());
+    const result = await requestJoinWorkspace(code.trim().toUpperCase());
     setBusy(false);
-    if (ok) {
-      toast.success("Pedido enviado! Aguarde aprovação do owner.");
+    if (result.ok) {
+      if ((result as any).autoJoined) {
+        toast.success("Entrou no workspace automaticamente!");
+      } else {
+        toast.success("Pedido enviado! Aguarde aprovação do owner.");
+      }
       setCode("");
       setMode("hub");
-    } else toast.error(error || "Código inválido");
+    } else toast.error(result.error || "Código inválido");
   };
 
   const pendingRequests = myJoinRequests.filter(r => r.status === "pending");

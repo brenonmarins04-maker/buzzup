@@ -185,7 +185,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshHub = async () => { await fetchHub(); };
 
   const requestJoinWorkspace = async (code: string) => {
-    const { error } = await (supabase.rpc as any)("request_join_workspace", { _code: code.trim().toUpperCase() });
+    const trimmedCode = code.trim().toUpperCase();
+
+    // Check if workspace is public — if so, try auto-join
+    const { data: wsData } = await (supabase.from("workspaces") as any)
+      .select("id, is_public")
+      .eq("code", trimmedCode)
+      .maybeSingle();
+
+    if (wsData?.is_public) {
+      // Public workspace: auto-approve via RPC or direct insert
+      const { error: joinErr } = await (supabase.rpc as any)("auto_join_public_workspace", { _code: trimmedCode });
+      if (joinErr) {
+        const msg = String(joinErr.message || "").toLowerCase();
+        if (msg.includes("already_member")) return { ok: false, error: "Você já pertence a este workspace." };
+        // Fallback to normal request if RPC doesn't exist yet
+        const { error } = await (supabase.rpc as any)("request_join_workspace", { _code: trimmedCode });
+        if (error) return { ok: false, error: "Não foi possível entrar." };
+      }
+      await fetchHub();
+      return { ok: true, autoJoined: true };
+    }
+
+    // Private workspace: normal request flow
+    const { error } = await (supabase.rpc as any)("request_join_workspace", { _code: trimmedCode });
     if (error) {
       const msg = String(error.message || "").toLowerCase();
       if (msg.includes("already_member")) return { ok: false, error: "Você já pertence a este workspace." };

@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Trash2, ArrowUp, ArrowDown, Shield, Crown, Eye, Check, X, Copy } from "lucide-react";
+import { Trash2, ArrowUp, ArrowDown, Shield, Crown, Eye, Check, X, Copy, Lock, Globe } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
@@ -19,10 +19,32 @@ export default function MembersPage() {
   const [approveFor, setApproveFor] = useState<JoinReq | null>(null);
   const [approveRole, setApproveRole] = useState<"admin" | "member">("member");
   const [confirm, setConfirm] = useState<null | { title: string; description: string; onConfirm: () => void | Promise<void> }>(null);
+  const [isPublic, setIsPublic] = useState(false);
+  const [togglingVisibility, setTogglingVisibility] = useState(false);
 
   const isOwner = myRole === "owner";
   const isAdmin = myRole === "admin";
   const wsCode = myWorkspaces.find(w => w.workspace_id === workspaceId)?.code || "";
+
+  // Load workspace visibility
+  useEffect(() => {
+    if (!workspaceId) return;
+    (async () => {
+      const { data } = await (supabase.from("workspaces") as any).select("is_public").eq("id", workspaceId).single();
+      if (data) setIsPublic(!!data.is_public);
+    })();
+  }, [workspaceId]);
+
+  const toggleVisibility = async () => {
+    if (!workspaceId || !isOwner) return;
+    setTogglingVisibility(true);
+    const newVal = !isPublic;
+    const { error } = await (supabase.from("workspaces") as any).update({ is_public: newVal }).eq("id", workspaceId);
+    if (error) { toast.error("Erro ao alterar visibilidade"); setTogglingVisibility(false); return; }
+    setIsPublic(newVal);
+    toast.success(newVal ? "Workspace agora é Público" : "Workspace agora é Privado");
+    setTogglingVisibility(false);
+  };
 
   const load = useCallback(async () => {
     if (!workspaceId) return;
@@ -123,6 +145,52 @@ export default function MembersPage() {
             <Copy className="h-4 w-4 mr-1" /> {wsCode}
           </Button>
         )}
+      </div>
+
+      {/* Toggle Público / Privado */}
+      <div className="flex items-center justify-between bg-card border border-border rounded-xl p-4">
+        <div className="flex items-center gap-3">
+          {isPublic
+            ? <Globe className="h-5 w-5 text-emerald-500" />
+            : <Lock className="h-5 w-5 text-red-500" />
+          }
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              Workspace {isPublic ? "Público" : "Privado"}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {isPublic
+                ? "Qualquer pessoa com o código entra automaticamente."
+                : "Pedidos de entrada precisam ser aprovados pelo owner."}
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={isOwner ? toggleVisibility : undefined}
+          disabled={!isOwner || togglingVisibility}
+          className={`relative inline-flex h-8 w-16 shrink-0 rounded-full border-2 transition-colors duration-300 focus-visible:outline-none ${
+            isOwner ? "cursor-pointer" : "cursor-default opacity-80"
+          } ${
+            isPublic
+              ? "bg-emerald-500 border-emerald-500"
+              : "bg-red-500 border-red-500"
+          }`}
+          title={isOwner ? "Clique para alternar" : "Apenas o owner pode alterar"}
+        >
+          <span className="sr-only">{isPublic ? "Público" : "Privado"}</span>
+          <span
+            className={`pointer-events-none inline-block h-6 w-6 rounded-full bg-white shadow-lg ring-0 transition-transform duration-300 mt-[2px] ${
+              isPublic ? "translate-x-[34px]" : "translate-x-[2px]"
+            }`}
+          />
+          <span className={`absolute top-1/2 -translate-y-1/2 text-[10px] font-bold text-white select-none ${
+            isPublic ? "left-2" : "right-1.5"
+          }`}>
+            {isPublic ? "ON" : "OFF"}
+          </span>
+        </button>
       </div>
 
       <div className="flex items-center gap-1 border-b border-border">
