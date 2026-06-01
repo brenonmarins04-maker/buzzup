@@ -162,10 +162,19 @@ function MembersTab() {
                     </span>
                   )}
                 </div>
-                {person.area
-                  ? <span className="text-[11px] text-muted-foreground truncate">{getAreaLabel(person.area)}</span>
-                  : <span className="text-[11px] text-muted-foreground/50 truncate italic">Sem área</span>
-                }
+                {person.areas && person.areas.length > 0 ? (
+                  <div className="flex flex-wrap gap-1 mt-0.5">
+                    {person.areas.map(areaKey => (
+                      <span key={areaKey} className="text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded truncate">
+                        {getAreaLabel(areaKey)}
+                      </span>
+                    ))}
+                  </div>
+                ) : person.area ? (
+                  <span className="text-[11px] text-muted-foreground truncate">{getAreaLabel(person.area)}</span>
+                ) : (
+                  <span className="text-[11px] text-muted-foreground/50 truncate italic">Sem área</span>
+                )}
               </div>
             </button>
             {isAdmin && (

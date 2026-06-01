@@ -174,7 +174,7 @@ function AttendanceTab({ area }: { area: AreaKey }) {
     );
   }
 
-  const members = useMemo(() => people.filter(p => p.area === area), [people, area]);
+  const members = useMemo(() => people.filter(p => (p.areas && p.areas.includes(area)) || p.area === area), [people, area]);
   const setting = useMemo(() => attendanceSettings.find(s => s.area === area), [attendanceSettings, area]);
 
   const intervalDays = setting?.intervalDays ?? 7;
@@ -577,7 +577,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
   const { isAdmin, isLeader, user } = useAuth();
   const meta = AREAS.find(a => a.key === area)!;
 
-  const members = useMemo(() => people.filter(p => p.area === area), [people, area]);
+  const members = useMemo(() => people.filter(p => (p.areas && p.areas.includes(area)) || p.area === area), [people, area]);
   const items = useMemo(() => parkingItems.filter(p => p.area === area), [parkingItems, area]);
 
   // Verificar se o usuário atual é líder desta área
