@@ -6,22 +6,21 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AREAS } from "@/lib/areas";
 import { toast } from "sonner";
-import { Checkbox } from "@/components/ui/checkbox";
 
 type Props = { open: boolean; onOpenChange: (o: boolean) => void; person: Person | null };
 
 export default function MemberEditModal({ open, onOpenChange, person }: Props) {
-  const { teams, updatePerson, updatePersonAreas, updatePersonLeaderArea, updateTeam } = useData();
+  const { teams, updatePerson, updatePersonArea, updatePersonLeaderArea, updateTeam } = useData();
   const { isAdmin } = useAuth();
   const [name, setName] = useState("");
-  const [areas, setAreas] = useState<string[]>([]);
+  const [area, setArea] = useState<string>("");
   const [teamIds, setTeamIds] = useState<string[]>([]);
   const [leaderArea, setLeaderArea] = useState<string>("");
 
   useEffect(() => {
     if (!person) return;
     setName(person.name);
-    setAreas(person.areas || (person.area ? [person.area] : []));
+    setArea(person.area || "");
     setLeaderArea(person.leaderArea || "");
     const personTeams = teams.filter(t => t.memberIds.includes(person.id));
     setTeamIds(personTeams.map(t => t.id));
@@ -32,9 +31,7 @@ export default function MemberEditModal({ open, onOpenChange, person }: Props) {
   const save = async () => {
     if (!name.trim()) { toast.error("Nome obrigatório"); return; }
     if (name.trim() !== person.name) await updatePerson(person.id, name.trim());
-    if (JSON.stringify(areas) !== JSON.stringify(person.areas || (person.area ? [person.area] : []))) {
-      await updatePersonAreas(person.id, areas.length > 0 ? areas : null);
-    }
+    if ((area || null) !== (person.area || null)) await updatePersonArea(person.id, area || null);
     if ((leaderArea || null) !== (person.leaderArea || null)) await updatePersonLeaderArea(person.id, leaderArea || null);
 
     // Update teams
@@ -56,19 +53,23 @@ export default function MemberEditModal({ open, onOpenChange, person }: Props) {
     onOpenChange(false);
   };
 
-  const toggleArea = (areaKey: string) => {
-    setAreas(prev => prev.includes(areaKey) ? prev.filter(a => a !== areaKey) : [...prev, areaKey]);
-  };
-
   const toggleTeam = (teamId: string) => {
     setTeamIds(prev => prev.includes(teamId) ? prev.filter(id => id !== teamId) : [...prev, teamId]);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="max-w-2xl max-h-[90vh] overflow-y-auto"
+        style={{
+          background: "linear-gradient(160deg, rgba(59, 130, 246, 0.08) 0%, rgba(59, 130, 246, 0.03) 45%, white 100%)",
+        }}
+      >
+        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-cyan-500" />
+
         <DialogHeader>
-          <DialogTitle className="text-lg">Editar Membro: {person.name}</DialogTitle>
+          <DialogTitle className="text-lg font-bold text-foreground">Editar Membro</DialogTitle>
+          <p className="text-sm text-muted-foreground">{person.name}</p>
         </DialogHeader>
 
         <form onSubmit={(e) => { e.preventDefault(); save(); }} className="flex flex-col gap-5">
@@ -85,43 +86,24 @@ export default function MemberEditModal({ open, onOpenChange, person }: Props) {
             />
           </div>
 
-          {/* Áreas (Multiseleção) */}
+          {/* Área */}
           <div>
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 block">
-              Áreas de Trabalho
+              Área de Trabalho
             </label>
-            <div className="grid grid-cols-2 gap-2">
-              {AREAS.map(area => (
-                <button
-                  key={area.key}
-                  type="button"
-                  onClick={() => toggleArea(area.key)}
-                  className={`flex items-center gap-2.5 p-3 rounded-lg border-2 transition-all text-left ${
-                    areas.includes(area.key)
-                      ? "border-current bg-opacity-10"
-                      : "border-border bg-muted/30 hover:bg-muted/50"
-                  }`}
-                  style={
-                    areas.includes(area.key)
-                      ? {
-                          borderColor: area.color,
-                          backgroundColor: `${area.color}15`,
-                        }
-                      : undefined
-                  }
-                >
-                  <Checkbox
-                    checked={areas.includes(area.key)}
-                    onChange={() => {}}
-                    className="rounded"
-                  />
-                  <span className="text-sm font-medium text-foreground">{area.label}</span>
-                </button>
+            <select
+              value={area}
+              onChange={e => setArea(e.target.value)}
+              className="w-full h-10 px-3 rounded-lg border border-input bg-background text-sm"
+            >
+              <option value="">Sem área</option>
+              {AREAS.map(a => (
+                <option key={a.key} value={a.key}>{a.label}</option>
               ))}
-            </div>
+            </select>
           </div>
 
-          {/* Equipes (Multiseleção) */}
+          {/* Equipes */}
           <div>
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 block">
               Equipes
@@ -135,18 +117,14 @@ export default function MemberEditModal({ open, onOpenChange, person }: Props) {
                     key={team.id}
                     type="button"
                     onClick={() => toggleTeam(team.id)}
-                    className={`flex items-center gap-2.5 p-3 rounded-lg border-2 transition-all text-left ${
+                    className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all text-left font-medium text-sm ${
                       teamIds.includes(team.id)
-                        ? "border-primary bg-primary/10"
-                        : "border-border bg-muted/30 hover:bg-muted/50"
+                        ? "border-blue-500 bg-blue-50 text-blue-900"
+                        : "border-border bg-muted/30 hover:bg-muted/50 text-foreground"
                     }`}
                   >
-                    <Checkbox
-                      checked={teamIds.includes(team.id)}
-                      onChange={() => {}}
-                      className="rounded"
-                    />
-                    <span className="text-sm font-medium text-foreground">{team.name}</span>
+                    {team.name}
+                    {teamIds.includes(team.id) && <span className="text-blue-500">✓</span>}
                   </button>
                 ))}
               </div>
@@ -161,60 +139,50 @@ export default function MemberEditModal({ open, onOpenChange, person }: Props) {
               </h3>
 
               {/* Cargo de Líder */}
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-3 block">
-                  Designar como Líder de Área
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setLeaderArea("")}
-                    className={`flex items-center gap-2.5 p-3 rounded-lg border-2 transition-all text-left ${
-                      leaderArea === ""
-                        ? "border-border bg-muted/50"
-                        : "border-border bg-muted/30 hover:bg-muted/50"
-                    }`}
-                  >
-                    <Checkbox
-                      checked={leaderArea === ""}
-                      onChange={() => {}}
-                      className="rounded"
-                    />
-                    <span className="text-sm font-medium text-foreground">Não é Líder</span>
-                  </button>
+              <label className="text-xs font-medium text-muted-foreground mb-3 block">
+                Designar como Líder de Área
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setLeaderArea("")}
+                  className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all text-left font-medium text-sm ${
+                    leaderArea === ""
+                      ? "border-gray-400 bg-gray-50 text-gray-900"
+                      : "border-border bg-muted/30 hover:bg-muted/50 text-foreground"
+                  }`}
+                >
+                  Não é Líder
+                  {leaderArea === "" && <span className="text-gray-600">✓</span>}
+                </button>
 
-                  {AREAS.map(area => (
-                    <button
-                      key={area.key}
-                      type="button"
-                      onClick={() => setLeaderArea(area.key)}
-                      className={`flex items-center gap-2.5 p-3 rounded-lg border-2 transition-all text-left ${
-                        leaderArea === area.key
-                          ? "border-current bg-opacity-10"
-                          : "border-border bg-muted/30 hover:bg-muted/50"
-                      }`}
-                      style={
-                        leaderArea === area.key
-                          ? {
-                              borderColor: area.color,
-                              backgroundColor: `${area.color}15`,
-                            }
-                          : undefined
-                      }
-                    >
-                      <Checkbox
-                        checked={leaderArea === area.key}
-                        onChange={() => {}}
-                        className="rounded"
-                      />
-                      <span className="text-sm font-medium text-foreground">{area.label}</span>
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[11px] text-muted-foreground mt-2.5 p-2 bg-muted/30 rounded">
-                  💡 Líder gerencia demandas apenas de sua área. Cada área pode ter apenas um líder.
-                </p>
+                {AREAS.map(area => (
+                  <button
+                    key={area.key}
+                    type="button"
+                    onClick={() => setLeaderArea(area.key)}
+                    className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all text-left font-medium text-sm`}
+                    style={
+                      leaderArea === area.key
+                        ? {
+                            borderColor: area.color,
+                            backgroundColor: `${area.color}20`,
+                            color: area.color,
+                          }
+                        : {
+                            borderColor: "var(--border)",
+                            backgroundColor: "var(--muted) / 0.3",
+                          }
+                    }
+                  >
+                    {area.label}
+                    {leaderArea === area.key && <span>✓</span>}
+                  </button>
+                ))}
               </div>
+              <p className="text-[11px] text-muted-foreground mt-2.5 p-2 bg-muted/30 rounded">
+                💡 Líder gerencia demandas apenas de sua área.
+              </p>
             </div>
           )}
 
@@ -223,8 +191,8 @@ export default function MemberEditModal({ open, onOpenChange, person }: Props) {
             <Button type="button" variant="outline" className="rounded-lg" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" className="rounded-lg">
-              Salvar Alterações
+            <Button type="submit" className="rounded-lg bg-blue-600 hover:bg-blue-700">
+              Salvar
             </Button>
           </div>
         </form>

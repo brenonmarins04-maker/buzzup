@@ -75,7 +75,6 @@ type DataContextType = {
   updatePerson: (id: string, name: string) => void;
   updatePersonNickname: (id: string, nickname: string | null) => void;
   updatePersonArea: (id: string, area: string | null) => void;
-  updatePersonAreas: (id: string, areas: string[] | null) => void;
   updatePersonLeaderArea: (id: string, leaderArea: string | null) => void;
   deletePerson: (id: string) => void;
 
@@ -409,13 +408,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const { error } = await (supabase.from("people") as any).update({ area }).eq("id", id);
     if (error) { toast.error("Erro ao atualizar área"); return; }
     setPeople(prev => prev.map(p => p.id === id ? { ...p, area } : p));
-  }, []);
-
-  const updatePersonAreas = useCallback(async (id: string, areas: string[] | null) => {
-    const areasStr = areas && areas.length > 0 ? areas.join(",") : null;
-    const { error } = await (supabase.from("people") as any).update({ areas: areasStr }).eq("id", id);
-    if (error) { toast.error("Erro ao atualizar áreas"); return; }
-    setPeople(prev => prev.map(p => p.id === id ? { ...p, areas } : p));
   }, []);
 
   const updatePersonLeaderArea = useCallback(async (id: string, leaderArea: string | null) => {
@@ -900,7 +892,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   return (
     <DataContext.Provider value={{
       people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, gamificationActions, gamificationAwards, leadThermometer, attendanceSettings, attendanceRecords, broadcasts, loading, workspaceId,
-      addPerson, updatePerson, updatePersonNickname, updatePersonArea, updatePersonAreas, updatePersonLeaderArea, deletePerson,
+      addPerson, updatePerson, updatePersonNickname, updatePersonArea, updatePersonLeaderArea, deletePerson,
       addTask, updateTask, deleteTask,
       addPost, updatePost, deletePost,
       addProject, updateProject, deleteProject,
