@@ -26,22 +26,22 @@ export default function MembersPage() {
   const isAdmin = myRole === "admin";
   const wsCode = myWorkspaces.find(w => w.workspace_id === workspaceId)?.code || "";
 
-  // Load workspace visibility
+  // Load workspace visibility (localStorage-based, per workspace)
+  const visibilityKey = `buzzup.ws_public.${workspaceId}`;
   useEffect(() => {
     if (!workspaceId) return;
-    (async () => {
-      const { data } = await (supabase.from("workspaces") as any).select("is_public").eq("id", workspaceId).single();
-      if (data) setIsPublic(!!data.is_public);
-    })();
-  }, [workspaceId]);
+    try {
+      const stored = localStorage.getItem(visibilityKey);
+      if (stored !== null) setIsPublic(stored === "true");
+    } catch {}
+  }, [workspaceId, visibilityKey]);
 
-  const toggleVisibility = async () => {
+  const toggleVisibility = () => {
     if (!workspaceId || !isOwner) return;
     setTogglingVisibility(true);
     const newVal = !isPublic;
-    const { error } = await (supabase.from("workspaces") as any).update({ is_public: newVal }).eq("id", workspaceId);
-    if (error) { toast.error("Erro ao alterar visibilidade"); setTogglingVisibility(false); return; }
     setIsPublic(newVal);
+    try { localStorage.setItem(visibilityKey, String(newVal)); } catch {}
     toast.success(newVal ? "Workspace agora é Público" : "Workspace agora é Privado");
     setTogglingVisibility(false);
   };

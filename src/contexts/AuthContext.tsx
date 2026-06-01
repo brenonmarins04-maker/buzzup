@@ -187,27 +187,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const requestJoinWorkspace = async (code: string) => {
     const trimmedCode = code.trim().toUpperCase();
 
-    // Check if workspace is public — if so, try auto-join
+    // Check if workspace is public via localStorage
+    // First, find workspace id by code
     const { data: wsData } = await (supabase.from("workspaces") as any)
-      .select("id, is_public")
+      .select("id")
       .eq("code", trimmedCode)
       .maybeSingle();
 
-    if (wsData?.is_public) {
-      // Public workspace: auto-approve via RPC or direct insert
-      const { error: joinErr } = await (supabase.rpc as any)("auto_join_public_workspace", { _code: trimmedCode });
-      if (joinErr) {
-        const msg = String(joinErr.message || "").toLowerCase();
-        if (msg.includes("already_member")) return { ok: false, error: "Você já pertence a este workspace." };
-        // Fallback to normal request if RPC doesn't exist yet
-        const { error } = await (supabase.rpc as any)("request_join_workspace", { _code: trimmedCode });
-        if (error) return { ok: false, error: "Não foi possível entrar." };
-      }
-      await fetchHub();
-      return { ok: true, autoJoined: true };
+    let wsIsPublic = false;
+    if (wsData?.id) {
+      try {
+        wsIsPublic = localStorage.getItem(`buzzup.ws_public.${wsData.id}`) === "true";
+      } catch {}
     }
 
-    // Private workspace: normal request flow
+    // Send join request normally
     const { error } = await (supabase.rpc as any)("request_join_workspace", { _code: trimmedCode });
     if (error) {
       const msg = String(error.message || "").toLowerCase();
@@ -217,6 +211,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (msg.includes("not_authenticated")) return { ok: false, error: "Faça login para pedir entrada." };
       return { ok: false, error: "Não foi possível pedir entrada." };
     }
+
+    // If workspace is public, auto-approve the request
+    if (wsIsPublic && wsData?.id) {
+      // Find the pending request and approve it
+      const { data: pendingReqs } = await (supabase.from("workspace_join_requests") as any)
+        .select("id")
+        .eq("workspace_id", wsData.id)
+        .eq("user_id", user?.id)
+        .eq("status", "pending")
+        .limit(1);
+
+      if (pendingReqs && pendingReqs.length > 0) {
+        await (supabase.rpc as any)("approve_join_request", { _req_id: pendingReqs[0].id, _role: "member" });
+        await fetchHub();
+        return { ok: true, autoJoined: true };
+      }
+    }
+
     await fetchHub();
     return { ok: true };
   };
