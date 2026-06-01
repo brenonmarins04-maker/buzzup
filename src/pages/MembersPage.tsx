@@ -1,10 +1,13 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useData } from "@/contexts/DataContext";
 import { Button } from "@/components/ui/button";
 import { Trash2, ArrowUp, ArrowDown, Shield, Crown, Eye, Check, X, Copy, Lock, Globe } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+
+const WS_PUBLIC_FLAG = "__WORKSPACE_IS_PUBLIC__";
 
 type Role = "owner" | "admin" | "member";
 type Member = { user_id: string; role: Role; created_at: string; display_name: string };
@@ -12,6 +15,7 @@ type JoinReq = { id: string; user_id: string; display_name: string; email: strin
 
 export default function MembersPage() {
   const { user, workspaceId, role: myRole, myWorkspaces } = useAuth();
+  const { broadcasts, addBroadcast, deleteBroadcast } = useData() as any;
   const [tab, setTab] = useState<"members" | "requests">("members");
   const [members, setMembers] = useState<Member[]>([]);
   const [requests, setRequests] = useState<JoinReq[]>([]);
@@ -19,32 +23,32 @@ export default function MembersPage() {
   const [approveFor, setApproveFor] = useState<JoinReq | null>(null);
   const [approveRole, setApproveRole] = useState<"admin" | "member">("member");
   const [confirm, setConfirm] = useState<null | { title: string; description: string; onConfirm: () => void | Promise<void> }>(null);
-  const [isPublic, setIsPublic] = useState(false);
   const [togglingVisibility, setTogglingVisibility] = useState(false);
 
   const isOwner = myRole === "owner";
   const isAdmin = myRole === "admin";
   const wsCode = myWorkspaces.find(w => w.workspace_id === workspaceId)?.code || "";
 
-  // Load workspace visibility (localStorage-based, per workspace)
-  const visibilityKey = `buzzup.ws_public.${workspaceId}`;
-  useEffect(() => {
-    if (!workspaceId) return;
-    try {
-      const stored = localStorage.getItem(visibilityKey);
-      if (stored !== null) setIsPublic(stored === "true");
-    } catch {}
-  }, [workspaceId, visibilityKey]);
+  // Workspace visibility — stored as a special broadcast flag visible to all
+  const publicFlag = (broadcasts || []).find((b: any) => b.message === WS_PUBLIC_FLAG);
+  const isPublic = !!publicFlag;
 
-  const toggleVisibility = () => {
+  const toggleVisibility = async () => {
     if (!workspaceId || !isOwner) return;
     setTogglingVisibility(true);
-    const newVal = !isPublic;
-    setIsPublic(newVal);
-    try { localStorage.setItem(visibilityKey, String(newVal)); } catch {}
-    toast.success(newVal ? "Workspace agora é Público" : "Workspace agora é Privado");
+    if (isPublic && publicFlag) {
+      await deleteBroadcast(publicFlag.id);
+      toast.success("Workspace agora é Privado");
+    } else {
+      await addBroadcast(WS_PUBLIC_FLAG, 36500);
+      toast.success("Workspace agora é Público");
+    }
     setTogglingVisibility(false);
   };
+
+  // AUTO-APPROVE: when workspace is public and owner/admin is online, auto-approve pending requests
+  const isPublicRef = useRef(isPublic);
+  isPublicRef.current = isPublic;
 
   const load = useCallback(async () => {
     if (!workspaceId) return;
@@ -69,11 +73,24 @@ export default function MembersPage() {
     if (!workspaceId) return;
     const ch = supabase
       .channel(`members-${workspaceId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "workspace_join_requests", filter: `workspace_id=eq.${workspaceId}` }, () => load())
+      .on("postgres_changes", { event: "*", schema: "public", table: "workspace_join_requests", filter: `workspace_id=eq.${workspaceId}` }, async (payload: any) => {
+        await load();
+        // Auto-approve new pending requests when workspace is public
+        if (
+          isPublicRef.current &&
+          (isOwner || isAdmin) &&
+          payload.eventType === "INSERT" &&
+          payload.new?.status === "pending"
+        ) {
+          const reqId = payload.new.id;
+          await (supabase.rpc as any)("approve_join_request", { _req_id: reqId, _role: "member" });
+          await load();
+        }
+      })
       .on("postgres_changes", { event: "*", schema: "public", table: "workspace_members", filter: `workspace_id=eq.${workspaceId}` }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [workspaceId, load]);
+  }, [workspaceId, load, isOwner, isAdmin]);
 
   const copyCode = async () => {
     if (!wsCode) return;
