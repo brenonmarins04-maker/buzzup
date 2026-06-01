@@ -128,6 +128,7 @@ type DataContextType = {
   deleteGamificationAction: (id: string) => Promise<void>;
 
   awardGamificationPoints: (personId: string, action: GamificationAction) => Promise<void>;
+  awardPointsForDemandCompletion: (personId: string, points: number, demandTitle: string) => Promise<void>;
   deleteGamificationAward: (id: string) => Promise<void>;
 
   addLeadThermometer: (item: Omit<LeadThermometerItem, "id" | "position">) => Promise<void>;
@@ -793,6 +794,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (data) setGamificationAwards(prev => [{ id: data.id, personId: data.person_id, actionId: data.action_id ?? null, actionName: data.action_name, points: data.points ?? 0, awardedAt: data.awarded_at }, ...prev]);
   }, [workspaceId, uid]);
 
+  const awardPointsForDemandCompletion = useCallback(async (personId: string, points: number, demandTitle: string) => {
+    if (!workspaceId || points <= 0) return;
+    const { data, error } = await (supabase.from("gamification_awards") as any)
+      .insert({
+        workspace_id: workspaceId,
+        person_id: personId,
+        action_id: null,
+        action_name: `Demanda concluída: "${demandTitle}"`,
+        points: points,
+        awarded_by: uid
+      }).select().single();
+    if (error) { return; }
+    if (data) setGamificationAwards(prev => [{ id: data.id, personId: data.person_id, actionId: null, actionName: data.action_name, points: data.points ?? 0, awardedAt: data.awarded_at }, ...prev]);
+  }, [workspaceId, uid]);
+
   const deleteGamificationAward = useCallback(async (id: string) => {
     const { error } = await (supabase.from("gamification_awards") as any).delete().eq("id", id);
     if (error) { toast.error("Erro ao excluir registro"); return; }
@@ -913,7 +929,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addAreaNote, updateAreaNote, deleteAreaNote,
       addParkingItem, updateParkingItem, moveParkingItem, deleteParkingItem,
       addGamificationAction, updateGamificationAction, deleteGamificationAction,
-      awardGamificationPoints, deleteGamificationAward,
+      awardGamificationPoints, awardPointsForDemandCompletion, deleteGamificationAward,
       addLeadThermometer, updateLeadThermometer, deleteLeadThermometer,
       upsertAttendanceSetting, setAttendance, clearAttendance,
       addBroadcast, deleteBroadcast,

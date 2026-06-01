@@ -84,7 +84,7 @@ function KpiCard({ title, value, icon, color, delta, spark }: KpiProps) {
 }
 
 export default function DashboardPage() {
-  const { people, tasks, projects, events, posts, broadcasts, gamificationAwards, parkingItems, updateParkingItem, loading } = useData();
+  const { people, tasks, projects, events, posts, broadcasts, gamificationAwards, parkingItems, updateParkingItem, awardPointsForDemandCompletion, loading } = useData();
   const { displayName, user } = useAuth();
   const today = getNowBrasilia();
 
@@ -329,7 +329,12 @@ export default function DashboardPage() {
                         <Circle className="h-3 w-3" /> Em andamento
                       </button>
                       <button
-                        onClick={() => updateParkingItem({ ...demand, status: "done" })}
+                        onClick={async () => {
+                          await updateParkingItem({ ...demand, status: "done" });
+                          if (demand.points && demand.points > 0) {
+                            await awardPointsForDemandCompletion(currentPerson.id, demand.points, demand.title);
+                          }
+                        }}
                         className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-md transition-all bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30 border border-emerald-300"
                       >
                         <CheckCircle className="h-3 w-3" /> Concluído
