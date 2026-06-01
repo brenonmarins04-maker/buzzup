@@ -57,15 +57,13 @@ export default function MemberEditModal({ open, onOpenChange, person }: Props) {
     setTeamIds(prev => prev.includes(teamId) ? prev.filter(id => id !== teamId) : [...prev, teamId]);
   };
 
+  const toggleArea = (areaKey: string) => {
+    setArea(areaKey === area ? "" : areaKey);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="max-w-2xl max-h-[90vh] overflow-y-auto"
-        style={{
-          background: "linear-gradient(160deg, rgba(59, 130, 246, 0.08) 0%, rgba(59, 130, 246, 0.03) 45%, white 100%)",
-        }}
-      >
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-cyan-500" />
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
 
         <DialogHeader>
           <DialogTitle className="text-lg font-bold text-foreground">Editar Membro</DialogTitle>
@@ -91,16 +89,44 @@ export default function MemberEditModal({ open, onOpenChange, person }: Props) {
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 block">
               Área de Trabalho
             </label>
-            <select
-              value={area}
-              onChange={e => setArea(e.target.value)}
-              className="w-full h-10 px-3 rounded-lg border border-input bg-background text-sm"
-            >
-              <option value="">Sem área</option>
-              {AREAS.map(a => (
-                <option key={a.key} value={a.key}>{a.label}</option>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setArea("")}
+                className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all text-left font-medium text-sm ${
+                  area === ""
+                    ? "border-gray-400 bg-gray-50 text-gray-900"
+                    : "border-border bg-muted/30 hover:bg-muted/50 text-foreground"
+                }`}
+              >
+                Sem área
+                {area === "" && <span className="text-gray-600">✓</span>}
+              </button>
+
+              {AREAS.map(areaInfo => (
+                <button
+                  key={areaInfo.key}
+                  type="button"
+                  onClick={() => toggleArea(areaInfo.key)}
+                  className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all text-left font-medium text-sm`}
+                  style={
+                    area === areaInfo.key
+                      ? {
+                          borderColor: areaInfo.color,
+                          backgroundColor: `${areaInfo.color}20`,
+                          color: areaInfo.color,
+                        }
+                      : {
+                          borderColor: "var(--border)",
+                          backgroundColor: "var(--muted) / 0.3",
+                        }
+                  }
+                >
+                  {areaInfo.label}
+                  {area === areaInfo.key && <span>✓</span>}
+                </button>
               ))}
-            </select>
+            </div>
           </div>
 
           {/* Equipes */}
