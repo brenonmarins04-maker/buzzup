@@ -5,7 +5,6 @@ import { AREAS, type AreaKey, getAreaLabel } from "@/lib/areas";
 import { Plus, ExternalLink, Pencil, Trash2, X, Settings, ChevronDown, ChevronUp, Circle, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
@@ -201,29 +200,14 @@ function AttendanceTab({ area }: { area: AreaKey }) {
     setSettingsOpen(false);
   };
 
-  // justification dialog
-  const [justifyModal, setJustifyModal] = useState<{ open: boolean; personId: string; date: string; text: string }>({ open: false, personId: "", date: "", text: "" });
-
   const handleCellClick = async (personId: string, date: string) => {
     if (!isAdmin) return;
     const current = recordMap.get(`${personId}|${date}`);
     // Cycle: empty -> P -> F -> FJ -> empty
     if (!current) { await setAttendance(area, personId, date, "P"); return; }
     if (current.status === "P") { await setAttendance(area, personId, date, "F"); return; }
-    if (current.status === "F") {
-      setJustifyModal({ open: true, personId, date, text: "" });
-      return;
-    }
-    // FJ -> clear
+    if (current.status === "F") { await setAttendance(area, personId, date, "FJ"); return; }
     await clearAttendance(area, personId, date);
-  };
-
-  const saveJustification = async () => {
-    const { personId, date, text } = justifyModal;
-    if (!text.trim()) { toast.error("Justificativa obrigatória"); return; }
-    await setAttendance(area, personId, date, "FJ", text.trim());
-    setJustifyModal({ open: false, personId: "", date: "", text: "" });
-    toast.success("Falta justificada registrada");
   };
 
   const fmtDate = (iso: string) => {
@@ -357,24 +341,8 @@ function AttendanceTab({ area }: { area: AreaKey }) {
       </div>
 
       <p className="text-[11px] text-muted-foreground">
-        Clique na bolinha para alternar: vazio → P → F → FJ (com justificativa) → vazio.
+        Clique na bolinha para alternar: vazio → P → F → FJ → vazio.
       </p>
-
-      <Dialog open={justifyModal.open} onOpenChange={(o) => setJustifyModal(s => ({ ...s, open: o }))}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Falta Justificada</DialogTitle></DialogHeader>
-          <form onSubmit={(e) => { e.preventDefault(); saveJustification(); }} className="flex flex-col gap-3">
-            <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Justificativa</label>
-              <Textarea value={justifyModal.text} onChange={e => setJustifyModal(s => ({ ...s, text: e.target.value }))} rows={4} autoFocus placeholder="Motivo da falta..." />
-            </div>
-            <div className="flex justify-end gap-2 pt-1">
-              <Button type="button" variant="outline" onClick={() => setJustifyModal({ open: false, personId: "", date: "", text: "" })}>Cancelar</Button>
-              <Button type="submit">Salvar</Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

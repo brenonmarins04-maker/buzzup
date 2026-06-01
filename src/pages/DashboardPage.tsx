@@ -1,15 +1,15 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  Trophy, Medal, FolderKanban, CalendarDays, ListChecks, Megaphone,
+  Trophy, Medal, FolderKanban, ListChecks, Megaphone,
   CheckCircle2, FolderPlus, CalendarPlus, TrendingUp, TrendingDown, Minus,
-  Sparkles, Users, Star,
+  Sparkles, BarChart2, Star, ClipboardList,
 } from "lucide-react";
-import { Area, AreaChart, ResponsiveContainer } from "recharts";
+import { Area, AreaChart, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Cell } from "recharts";
 import { getNowBrasilia } from "@/lib/utils";
-import { format, endOfWeek, isSameDay, differenceInHours, differenceInDays, subDays, startOfWeek } from "date-fns";
+import { format, endOfWeek, differenceInHours, differenceInDays, subDays, startOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AREAS } from "@/lib/areas";
 import buzzupLogo from "@/assets/buzzup-logo.png";
@@ -84,7 +84,7 @@ function KpiCard({ title, value, icon, color, delta, spark }: KpiProps) {
 }
 
 export default function DashboardPage() {
-  const { people, tasks, projects, events, posts, broadcasts, gamificationAwards, loading } = useData();
+  const { people, tasks, projects, events, posts, broadcasts, gamificationAwards, parkingItems, loading } = useData();
   const { displayName, user } = useAuth();
   const today = getNowBrasilia();
   const weekStart = startOfWeek(today, { weekStartsOn: 0 });
@@ -155,11 +155,34 @@ export default function DashboardPage() {
     return { id: p.id, name: p.name, total, done, pct: total === 0 ? 0 : Math.round((done / total) * 100) };
   }).filter(p => p.total > 0).sort((a, b) => b.total - a.total).slice(0, 6);
 
-  // Events this week
-  const weekEvents = events
-    .filter(e => e.date && e.date >= todayStr && e.date <= weekEndStr)
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(0, 6);
+  // Demandas por área (bar chart)
+  const demandasByArea = AREAS.map(a => ({
+    label: a.label,
+    color: a.color,
+    total: parkingItems.filter(p => p.area === a.key && p.status !== "done").length,
+  }));
+
+  // Demandas da semana (rotating cards)
+  const weekDemands = useMemo(() => parkingItems
+    .filter(p => p.date && p.date >= todayStr && p.date <= weekEndStr && p.status !== "done")
+    .map(p => {
+      const areaInfo = AREAS.find(a => a.key === p.area);
+      const person = people.find(pe => pe.id === p.personId);
+      return {
+        id: p.id,
+        title: p.title,
+        areaLabel: areaInfo?.label ?? p.area,
+        areaColor: areaInfo?.color ?? "#888",
+        responsible: person?.name ?? "Sem responsável",
+      };
+    }), [parkingItems, people, todayStr, weekEndStr]);
+
+  const [demandIdx, setDemandIdx] = useState(0);
+  useEffect(() => {
+    if (weekDemands.length <= 1) return;
+    const timer = setInterval(() => setDemandIdx(i => (i + 1) % weekDemands.length), 2000);
+    return () => clearInterval(timer);
+  }, [weekDemands.length]);
 
   // Activity feed
   const activity = useMemo(() => {
@@ -222,6 +245,31 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Ranking — primeiro lugar */}
+      <div className="bg-card border border-border rounded-xl p-5">
+        <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <Trophy className="h-4 w-4 text-[#F97316]" /> Gameficação — Ranking
+        </h2>
+        {ranking.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Nenhum ponto ainda. Conclua demandas com pontos atribuídos para entrar no ranking.</p>
+        ) : (
+          <ol className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+            {ranking.map((r, i) => {
+              const medalColor = i === 0 ? "text-yellow-500" : i === 1 ? "text-gray-400" : i === 2 ? "text-amber-700" : "text-muted-foreground";
+              return (
+                <li key={r.id} className="flex items-center gap-3 p-2.5 rounded-md bg-muted/40">
+                  <div className="flex items-center justify-center w-7 h-7 shrink-0">
+                    {i < 3 ? <Medal className={`h-5 w-5 ${medalColor}`} /> : <span className="text-xs font-bold text-muted-foreground">{i + 1}</span>}
+                  </div>
+                  <span className="flex-1 text-sm font-medium text-foreground truncate">{r.label}</span>
+                  <span className="text-sm font-bold text-primary">{r.points} pts</span>
+                </li>
+              );
+            })}
+          </ol>
+        )}
+      </div>
+
       {/* 3 columns */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Active projects */}
@@ -252,125 +300,86 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Tasks per person */}
+        {/* Demandas por área */}
         <div className="bg-card border border-border rounded-xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <Users className="h-4 w-4 text-[#F97316]" /> Demandas por pessoa
-            </h2>
-            <Link to="/people" className="text-xs text-primary hover:underline">Ver todas</Link>
-          </div>
-          {tasksPerPerson.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Sem demandas atribuídas.</p>
+          <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+            <BarChart2 className="h-4 w-4 text-[#F97316]" /> Demandas por área
+          </h2>
+          {demandasByArea.every(a => a.total === 0) ? (
+            <p className="text-xs text-muted-foreground">Sem demandas ativas.</p>
           ) : (
-            <ul className="flex flex-col gap-3">
-              {tasksPerPerson.map(p => (
-                <li key={p.id} className="flex items-center gap-3">
-                  <div className="h-7 w-7 rounded-full bg-primary/15 text-primary flex items-center justify-center text-[11px] font-bold shrink-0">
-                    {p.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-medium text-foreground truncate">{p.name}</span>
-                      <span className="text-[11px] text-muted-foreground shrink-0">{p.done}/{p.total}</span>
-                    </div>
-                    <div className="h-1.5 mt-1 rounded-full bg-muted overflow-hidden">
-                      <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${p.pct}%` }} />
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <ResponsiveContainer width="100%" height={140}>
+              <BarChart data={demandasByArea} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                <Bar dataKey="total" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                  {demandasByArea.map((entry, i) => (
+                    <Cell key={i} fill={entry.color} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           )}
         </div>
 
-        {/* Events this week */}
+        {/* Demandas da semana — carrossel */}
         <div className="bg-card border border-border rounded-xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-[#10B981]" /> Eventos da semana
-            </h2>
-            <Link to="/calendar" className="text-xs text-primary hover:underline">Ver calendário</Link>
-          </div>
-          {weekEvents.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Nenhum evento até o fim da semana.</p>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {weekEvents.map(e => {
-                const d = new Date(`${e.date}T00:00:00`);
-                const isToday = isSameDay(d, today);
-                return (
-                  <li key={e.id} className="flex items-center gap-3 p-2 rounded-md bg-muted/40">
-                    <div className="flex flex-col items-center justify-center w-10 shrink-0">
-                      <span className="text-[9px] text-muted-foreground uppercase font-semibold">{format(d, "EEE", { locale: ptBR })}</span>
-                      <span className="text-xs font-bold text-foreground">{format(d, "dd/MM")}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-foreground truncate">{e.title}</p>
-                      {e.type && <p className="text-[10px] text-muted-foreground truncate">{e.type}</p>}
-                    </div>
-                    {isToday && <span className="text-[9px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full shrink-0">Hoje</span>}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+          <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+            <ClipboardList className="h-4 w-4 text-[#10B981]" /> Demandas da semana
+          </h2>
+          {weekDemands.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Nenhuma demanda com prazo esta semana.</p>
+          ) : (() => {
+            const d = weekDemands[demandIdx % weekDemands.length];
+            return (
+              <div className="flex flex-col gap-3">
+                <div className="rounded-lg border border-border bg-muted/30 p-4 flex flex-col gap-2 transition-all">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: d.areaColor }} />
+                    <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: d.areaColor }}>{d.areaLabel}</span>
+                  </div>
+                  <p className="text-sm font-semibold text-foreground leading-snug">{d.title}</p>
+                  <p className="text-xs text-muted-foreground">Responsável: <span className="font-medium text-foreground">{d.responsible}</span></p>
+                </div>
+                {weekDemands.length > 1 && (
+                  <div className="flex items-center justify-center gap-1">
+                    {weekDemands.map((_, i) => (
+                      <button key={i} onClick={() => setDemandIdx(i)}
+                        className={`h-1.5 rounded-full transition-all ${i === demandIdx % weekDemands.length ? "w-4 bg-primary" : "w-1.5 bg-muted-foreground/30"}`} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </div>
 
-      {/* Ranking + Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Ranking */}
-        <div className="bg-card border border-border rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-            <Trophy className="h-4 w-4 text-[#F97316]" /> Gameficação — Ranking
-          </h2>
-          {ranking.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Nenhum ponto ainda. Conclua demandas com pontos atribuídos para entrar no ranking.</p>
-          ) : (
-            <ol className="flex flex-col gap-2">
-              {ranking.map((r, i) => {
-                const medalColor = i === 0 ? "text-yellow-500" : i === 1 ? "text-gray-400" : i === 2 ? "text-amber-700" : "text-muted-foreground";
-                return (
-                  <li key={r.id} className="flex items-center gap-3 p-2.5 rounded-md bg-muted/40">
-                    <div className="flex items-center justify-center w-7 h-7 shrink-0">
-                      {i < 3 ? <Medal className={`h-5 w-5 ${medalColor}`} /> : <span className="text-xs font-bold text-muted-foreground">{i + 1}</span>}
-                    </div>
-                    <span className="flex-1 text-sm font-medium text-foreground truncate">{r.label}</span>
-                    <span className="text-sm font-bold text-primary">{r.points} pts</span>
-                  </li>
-                );
-              })}
-            </ol>
-          )}
-        </div>
-
-        {/* Activity */}
-        <div className="bg-card border border-border rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-[#8B5CF6]" /> Atividade recente
-          </h2>
-          {activity.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Nenhuma atividade ainda.</p>
-          ) : (
-            <ul className="flex flex-col gap-2.5">
-              {activity.map(a => (
-                <li key={a.id} className="flex items-start gap-3">
-                  <div
-                    className="h-6 w-6 rounded-full flex items-center justify-center shrink-0 mt-0.5"
-                    style={{ backgroundColor: `${a.color}1F`, color: a.color }}
-                  >
-                    {a.icon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-foreground leading-snug">{a.label}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{timeAgo(a.ts)}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+      {/* Atividade recente */}
+      <div className="bg-card border border-border rounded-xl p-5">
+        <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-[#8B5CF6]" /> Atividade recente
+        </h2>
+        {activity.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Nenhuma atividade ainda.</p>
+        ) : (
+          <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {activity.map(a => (
+              <li key={a.id} className="flex items-start gap-3">
+                <div
+                  className="h-6 w-6 rounded-full flex items-center justify-center shrink-0 mt-0.5"
+                  style={{ backgroundColor: `${a.color}1F`, color: a.color }}
+                >
+                  {a.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-foreground leading-snug">{a.label}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{timeAgo(a.ts)}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
