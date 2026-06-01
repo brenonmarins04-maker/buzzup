@@ -684,9 +684,10 @@ function KanbanTab({ area }: { area: AreaKey }) {
                 : { backgroundColor: "transparent", borderColor: "#10B981" }}
             />
             <button
-              onClick={(e) => { e.stopPropagation(); deleteParkingItem(item.id); }}
+              onClick={(e) => { e.stopPropagation(); e.preventDefault(); deleteParkingItem(item.id).then(() => toast.success("Excluído")); }}
               className="ml-auto text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
               title="Excluir"
+              type="button"
             >
               <X className="h-3.5 w-3.5" />
             </button>
