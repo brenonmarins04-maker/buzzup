@@ -339,6 +339,44 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setAttendanceSettings(((asRes as any)?.data || []).map((s: any) => ({ id: s.id, area: s.area, intervalDays: s.interval_days ?? 7, startDate: s.start_date ?? "", meetingCount: s.meeting_count ?? 8 })));
       setAttendanceRecords(((arRes as any)?.data || []).map((r: any) => ({ id: r.id, area: r.area, personId: r.person_id, date: r.date, status: (r.status ?? "P") as AttendanceStatus, justification: r.justification ?? "" })));
       setBroadcasts(((bcRes as any)?.data || []).map((b: any) => ({ id: b.id, message: b.message, durationDays: b.duration_days ?? 7, createdAt: b.created_at, expiresAt: b.expires_at, createdBy: b.created_by ?? null })));
+
+      // Sync: migrate tasks with deadlines into parkingItems so they appear in Quadro CB
+      try {
+        const existingParkingIds = new Set(((piRes as any)?.data || []).map((p: any) => p.id));
+        const taskList: any[] = tkRes.data || [];
+        const parkingList: any[] = (piRes as any)?.data || [];
+        // Track which tasks already have a matching parking item (by title+date)
+        const parkingKeys = new Set(parkingList.map((p: any) => `${p.title}|||${p.date}`));
+        const toMigrate = taskList.filter(t => {
+          if (!t.deadline) return false;
+          if (t.status === "done") return false;
+          // Skip if a parking item with same title+date already exists
+          return !parkingKeys.has(`${t.title}|||${t.deadline}`);
+        });
+        if (toMigrate.length > 0 && !cancelled) {
+          const inserts = toMigrate.map(t => ({
+            workspace_id: wsId,
+            area: t.area || "projetos",
+            title: t.title,
+            description: t.description || "",
+            date: t.deadline,
+            person_id: (taskAssignees.get(t.id) || [])[0]?.id || null,
+            status: t.status === "in-progress" ? "in-progress" : "in-progress",
+            points: t.points || 1,
+            position: 0,
+          }));
+          const { data: created } = await (supabase.from("parking_items") as any).insert(inserts).select("*");
+          if (created && !cancelled) {
+            const newItems: ParkingItem[] = created.map((p: any) => ({
+              id: p.id, area: p.area, personId: p.person_id ?? null, title: p.title,
+              description: p.description ?? "", date: p.date ?? "", position: p.position ?? 0,
+              status: (p.status as ParkingItemStatus) ?? "in-progress", points: p.points ?? 1,
+            }));
+            setParkingItems(prev => [...prev, ...newItems]);
+          }
+        }
+      } catch (_) { /* migration failure is non-fatal */ }
+
       setLoading(false);
     }
     fetchAll();
