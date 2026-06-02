@@ -50,7 +50,7 @@ const nextPostStatus = (s?: string) => {
 };
 
 export default function CalendarPage() {
-  const { tasks, posts, events, eventTypes, parkingItems, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addParkingItem, updateParkingItem, deleteParkingItem } = useData();
+  const { tasks, posts, events, eventTypes, parkingItems, teams, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addParkingItem, updateParkingItem, deleteParkingItem } = useData();
   const { isAdmin } = useAuth();
   const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(getNowBrasilia());
@@ -107,7 +107,11 @@ export default function CalendarPage() {
     performTrashDelete(droppedItem);
   };
 
-  const activeAreaMeta = filterArea ? AREAS.find(a => a.key === filterArea) : null;
+  const activeAreaMeta = filterArea
+    ? (filterArea.startsWith("team_")
+      ? { key: filterArea, label: teams.find(t => `team_${t.id}` === filterArea)?.name || "Time", color: "#6366F1" }
+      : AREAS.find(a => a.key === filterArea))
+    : null;
   // All ideas without a date — always shown in sidebar regardless of area filter.
   const parkedIdeas = useMemo(() => parkingItems.filter(p => !p.date), [parkingItems]);
 
@@ -160,8 +164,12 @@ export default function CalendarPage() {
     e.preventDefault();
     const title = newIdea.trim();
     if (!title) return;
-    addParkingItem(filterArea || "", title, "");
-    toast.success(filterArea ? `Ideia adicionada em ${activeAreaMeta?.label}` : "Ideia adicionada");
+    if (!filterArea) {
+      toast.error("Selecione uma área ou time no filtro antes de criar uma ideia");
+      return;
+    }
+    addParkingItem(filterArea, title, "");
+    toast.success(`Ideia adicionada em ${activeAreaMeta?.label}`);
     setNewIdea("");
     setTimeout(() => newIdeaRef.current?.focus(), 0);
   };
@@ -201,12 +209,17 @@ export default function CalendarPage() {
     });
     parkingItems.forEach((p) => {
       if (!p.date) return;
+      if (p.status === "done") return;
       if (filterArea && p.area !== filterArea) return;
+      const isTeam = p.area.startsWith("team_");
       const areaMeta = AREAS.find(a => a.key === p.area);
-      items.push({ id: p.id, parkingId: p.id, title: p.title, type: "event", date: p.date, color: areaMeta?.color || "#CBD5E1", eventTypeName: areaMeta?.label || "Sem área" });
+      const teamObj = isTeam ? teams.find(t => `team_${t.id}` === p.area) : null;
+      const color = isTeam ? "#6366F1" : (areaMeta?.color || "#CBD5E1");
+      const label = isTeam ? (teamObj?.name || "Time") : (areaMeta?.label || "Sem área");
+      items.push({ id: p.id, parkingId: p.id, title: p.title, type: "event", date: p.date, color, eventTypeName: label });
     });
     return items;
-  }, [tasks, posts, events, parkingItems, filterArea, eventTypes]);
+  }, [tasks, posts, events, parkingItems, teams, filterArea, eventTypes]);
 
   const upcomingPendingPosts = useMemo(() => {
     const today = getNowBrasilia();
@@ -524,6 +537,20 @@ export default function CalendarPage() {
                 className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${active ? "" : "bg-background text-muted-foreground border-border hover:border-foreground/30 hover:text-foreground"}`}
               >
                 {a.label}
+              </button>
+            );
+          })}
+          {teams.map(t => {
+            const teamKey = `team_${t.id}`;
+            const active = filterArea === teamKey;
+            return (
+              <button
+                key={teamKey}
+                onClick={() => setFilterArea(active ? null : teamKey)}
+                style={active ? { backgroundColor: "#6366F1", borderColor: "#6366F1", color: "#fff" } : undefined}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${active ? "" : "bg-background text-muted-foreground border-border hover:border-foreground/30 hover:text-foreground"}`}
+              >
+                {t.name}
               </button>
             );
           })}

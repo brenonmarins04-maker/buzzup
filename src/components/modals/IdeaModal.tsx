@@ -22,7 +22,7 @@ type Props = {
 };
 
 export default function IdeaModal({ open, onOpenChange, item, defaultArea, defaultDate, requireFull, onCancel }: Props) {
-  const { people, addParkingItem, updateParkingItem, deleteParkingItem } = useData();
+  const { people, teams, addParkingItem, updateParkingItem, deleteParkingItem } = useData();
   const [title, setTitle] = useState("");
   const [area, setArea] = useState("");
   const [personId, setPersonId] = useState<string>("");
@@ -41,10 +41,17 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
     setPoints(item?.points ?? 1);
   }, [open, item, defaultArea, defaultDate]);
 
+  // Check if selected area is a team
+  const isTeamArea = area.startsWith("team_");
+  const selectedTeam = isTeamArea ? teams.find(t => `team_${t.id}` === area) : null;
+
   const peopleForArea = useMemo(() => {
     if (!area) return [];
+    if (isTeamArea && selectedTeam) {
+      return people.filter(p => selectedTeam.memberIds.includes(p.id));
+    }
     return people.filter(p => (p.areas && p.areas.includes(area)) || (p.area && p.area.includes(area)));
-  }, [people, area]);
+  }, [people, area, isTeamArea, selectedTeam]);
 
   const handleClose = (next: boolean) => {
     if (!next && !savedOk && onCancel) onCancel();
@@ -85,7 +92,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
           style={{
             background: area
               ? (() => {
-                  const c = AREAS.find(a => a.key === area)!.color;
+                  const c = area.startsWith("team_") ? "#6366F1" : (AREAS.find(a => a.key === area)?.color || "#64748B");
                   return `linear-gradient(160deg, color-mix(in srgb, ${c} 35%, white) 0%, color-mix(in srgb, ${c} 15%, white) 45%, white 100%)`;
                 })()
               : undefined,
@@ -93,7 +100,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
         >
           <div
             className="absolute top-0 left-0 right-0 h-1.5 transition-colors"
-            style={{ background: area ? AREAS.find(a => a.key === area)?.color : "hsl(var(--muted))" }}
+            style={{ background: area ? (area.startsWith("team_") ? "#6366F1" : (AREAS.find(a => a.key === area)?.color || "#64748B")) : "hsl(var(--muted))" }}
           />
           <DialogHeader>
             <DialogTitle className="text-lg">{item ? "Editar ideia" : "Nova ideia"}</DialogTitle>
@@ -128,6 +135,27 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
                       }}
                     >
                       {a.label}
+                    </button>
+                  );
+                })}
+                {teams.map(t => {
+                  const teamKey = `team_${t.id}`;
+                  const selected = area === teamKey;
+                  return (
+                    <button
+                      key={teamKey}
+                      type="button"
+                      onClick={() => { setArea(teamKey); setPersonId(""); }}
+                      className="px-4 h-9 rounded-full text-sm font-medium transition-all border"
+                      style={{
+                        backgroundColor: selected ? "#6366F1" : "#6366F114",
+                        color: selected ? "#fff" : "#6366F1",
+                        borderColor: selected ? "#6366F1" : "#6366F140",
+                        boxShadow: selected ? "0 4px 14px #6366F155" : "none",
+                        transform: selected ? "translateY(-1px)" : "none",
+                      }}
+                    >
+                      {t.name}
                     </button>
                   );
                 })}
