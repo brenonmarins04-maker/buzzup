@@ -963,11 +963,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // === BROADCASTS (Mensagens gerais) ===
   const addBroadcast = useCallback(async (message: string, durationDays: number) => {
     if (!workspaceId) return;
-    const days = Math.max(1, Math.min(36500, Math.floor(durationDays || 1)));
-    const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+    // Accept fractional days (e.g. 0.5 = 12 hours, 1/60 = 1 minute)
+    const exactDays = Math.max(1 / (24 * 60), Math.min(36500, durationDays || 1));
+    const daysInt = Math.max(1, Math.round(exactDays)); // for the integer column
+    const expiresAt = new Date(Date.now() + exactDays * 24 * 60 * 60 * 1000).toISOString();
     const isInternal = message.startsWith("__") || message.startsWith("Bem-vindos, o Workspace");
     const { data, error } = await (supabase.from("broadcasts") as any)
-      .insert({ workspace_id: workspaceId, message, duration_days: days, expires_at: expiresAt, created_by: uid })
+      .insert({ workspace_id: workspaceId, message, duration_days: daysInt, expires_at: expiresAt, created_by: uid })
       .select().single();
     if (error) {
       if (!isInternal) toast.error("Erro ao publicar mensagem");
