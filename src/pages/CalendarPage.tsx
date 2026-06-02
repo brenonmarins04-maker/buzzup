@@ -417,11 +417,13 @@ export default function CalendarPage() {
             {format(day, "d")}
           </div>
           {isAdmin && (
-            <QuickCreateMenu onCreateTask={() => setTaskModal({ open: true, date: dayStr })} onCreatePost={() => setPostModal({ open: true, date: dayStr })} onCreateItem={() => setEventModal({ open: true, date: dayStr })}>
-              <button className="h-4 w-4 rounded hover:bg-accent flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground">
-                <Plus className="h-3 w-3" />
-              </button>
-            </QuickCreateMenu>
+            <button
+              onClick={(e) => { e.stopPropagation(); setEventModal({ open: true, date: dayStr }); }}
+              className="h-4 w-4 rounded hover:bg-accent flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground"
+              title="Novo evento"
+            >
+              <Plus className="h-3 w-3" />
+            </button>
           )}
         </div>
         <div className="flex flex-col gap-0.5 min-h-0 overflow-y-auto scrollbar-thin">{dayItems.map((item) => renderItemPill(item))}</div>
