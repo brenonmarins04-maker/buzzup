@@ -2,16 +2,18 @@ import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   CalendarDays, Megaphone,
-  FolderKanban, Bell, Search, ChevronLeft, Plus, Users, LogOut, Eye, Shield, Briefcase, Crown, Sparkles, Home, Building2, UsersRound,
+  FolderKanban, Bell, Search, ChevronLeft, Plus, Users, LogOut, Eye, Shield, Briefcase, Crown, Sparkles, Home, Building2, UsersRound, Pencil,
 } from "lucide-react";
 import { useMemo } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { AREAS } from "@/lib/areas";
+import { AREAS, getAreaLabel } from "@/lib/areas";
 import { toast } from "sonner";
 import QuickCreateMenu from "@/components/modals/QuickCreateMenu";
+import EditAreaNamesModal from "@/components/modals/EditAreaNamesModal";
+import { useAreaNames } from "@/hooks/useAreaNames";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import TaskModal from "@/components/modals/TaskModal";
 import PostModal from "@/components/modals/PostModal";
@@ -22,23 +24,26 @@ import BroadcastModal from "@/components/modals/BroadcastModal";
 
 const areaColor = (path: string) => AREAS.find(a => a.path === path)?.color;
 
-const navItems = [
-  { to: "/",            icon: Home,         label: "Início" },
-  { to: "/calendar",    icon: CalendarDays, label: "Calendário" },
-  { to: "/people",      icon: Users,        label: "Pessoas" },
-  { to: "/projetos",    icon: FolderKanban, label: "Projetos",    color: areaColor("/projetos") },
-  { to: "/mercado",     icon: Briefcase,    label: "Mercado",     color: areaColor("/mercado") },
-  { to: "/gg",          icon: Sparkles,     label: "GG",          color: areaColor("/gg") },
-  { to: "/presidencia", icon: Crown,        label: "Presidência", color: areaColor("/presidencia") },
-  { to: "/members",     icon: Shield,       label: "Acessos" },
-];
+const areaIcons: Record<string, any> = {
+  projetos: FolderKanban,
+  mercado: Briefcase,
+  gg: Sparkles,
+  presidencia: Crown,
+};
 
-const areaItems = [
-  { to: "/projetos",    icon: FolderKanban, label: "Projetos",    color: areaColor("/projetos") },
-  { to: "/mercado",     icon: Briefcase,    label: "Mercado",     color: areaColor("/mercado") },
-  { to: "/gg",          icon: Sparkles,     label: "GG",          color: areaColor("/gg") },
-  { to: "/presidencia", icon: Crown,        label: "Presidência", color: areaColor("/presidencia") },
-];
+function getNavItems() {
+  return [
+    { to: "/",            icon: Home,         label: "Início" },
+    { to: "/calendar",    icon: CalendarDays, label: "Calendário" },
+    { to: "/people",      icon: Users,        label: "Pessoas" },
+    ...AREAS.map(a => ({ to: a.path, icon: areaIcons[a.key] || FolderKanban, label: getAreaLabel(a.key), color: a.color })),
+    { to: "/members",     icon: Shield,       label: "Acessos" },
+  ];
+}
+
+function getAreaItems() {
+  return AREAS.map(a => ({ to: a.path, icon: areaIcons[a.key] || FolderKanban, label: getAreaLabel(a.key), color: a.color }));
+}
 
 const mobileNavItems = [
   { to: "/people",   icon: Users,        label: "Pessoas" },
@@ -93,6 +98,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [postModal, setPostModal] = useState(false);
   const [eventModal, setEventModal] = useState(false);
   const [broadcastModal, setBroadcastModal] = useState(false);
+  const [editAreasModal, setEditAreasModal] = useState(false);
+
+  // Load custom area names from broadcasts
+  useAreaNames();
 
   const fullName =
     (displayName && displayName.trim()) ||
@@ -157,7 +166,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     </button>
                   </PopoverTrigger>
                   <PopoverContent side="top" align="center" className="w-48 p-1">
-                    {areaItems.map((a) => (
+                    {getAreaItems().map((a) => (
                       <NavLink key={a.to} to={a.to}
                         style={({ isActive }) => isActive
                           ? { backgroundColor: `${a.color}1F`, color: a.color }
@@ -205,7 +214,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
         <nav className="flex-1 py-4 px-2 flex flex-col gap-1 overflow-y-auto">
-          {navItems.map((item) => (
+          {getNavItems().map((item) => (
             <NavLink key={item.to} to={item.to}
               style={({ isActive }) => (isActive && (item as any).color
                 ? { backgroundColor: `${(item as any).color}1F`, color: (item as any).color, boxShadow: `inset 3px 0 0 ${(item as any).color}` }
@@ -254,6 +263,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           )}
         </nav>
         <div className="p-3 border-t border-border">
+          {isAdmin && (
+            <button
+              onClick={() => setEditAreasModal(true)}
+              title="Editar nomes das áreas"
+              className={`w-full mb-2 flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors ${collapsed ? "justify-center" : ""}`}
+            >
+              <Pencil className="h-4 w-4 shrink-0" />
+              {!collapsed && <span>Editar áreas</span>}
+            </button>
+          )}
           {isOwner && (
             <button
               onClick={() => setBroadcastModal(true)}
@@ -308,6 +327,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </main>
       <BroadcastModal open={broadcastModal} onOpenChange={setBroadcastModal} />
+      <EditAreaNamesModal open={editAreasModal} onOpenChange={setEditAreasModal} />
     </div>
   );
 }
