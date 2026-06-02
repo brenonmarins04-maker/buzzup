@@ -143,31 +143,81 @@ export default function TeamsPage() {
                       ref={memberSearchRef}
                       value={memberSearch}
                       onChange={e => setMemberSearch(e.target.value)}
-                      placeholder="Pesquisar pessoa..."
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          const filtered = people.filter(p => p.name.toLowerCase().includes(memberSearch.toLowerCase()));
+                          if (filtered.length > 0) {
+                            const first = filtered[0];
+                            // Toggle add (don't remove if already selected — keep flow additive)
+                            if (!selectedMembers.includes(first.id)) {
+                              toggleMember(first.id);
+                            }
+                            setMemberSearch("");
+                            setTimeout(() => memberSearchRef.current?.focus(), 0);
+                          }
+                        }
+                      }}
+                      placeholder="Pesquisar e Enter para adicionar..."
                       className="w-full bg-transparent pl-8 pr-2 py-2 text-sm outline-none placeholder:text-muted-foreground"
                     />
                   </div>
+
+                  {/* Selected members chips */}
+                  {selectedMembers.length > 0 && (
+                    <div className="border-b border-border p-2 flex flex-wrap gap-1.5 bg-muted/30">
+                      {selectedMembers.map(id => {
+                        const person = people.find(p => p.id === id);
+                        if (!person) return null;
+                        return (
+                          <span key={id} className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary rounded-full pl-2.5 pr-1 py-0.5 font-medium">
+                            {person.name}
+                            <button
+                              type="button"
+                              onClick={() => toggleMember(id)}
+                              className="hover:bg-primary/20 rounded-full p-0.5"
+                              title="Remover"
+                            >
+                              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 1L9 9M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                            </button>
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   <div className="max-h-48 overflow-y-auto space-y-2 p-3">
                     {people
                       .filter(p => p.name.toLowerCase().includes(memberSearch.toLowerCase()))
-                      .map(person => (
-                        <label
-                          key={person.id}
-                          className="flex items-center gap-2 cursor-pointer"
-                          onClick={() => {
-                            setTimeout(() => memberSearchRef.current?.select(), 0);
-                          }}
-                        >
-                          <Checkbox
-                            checked={selectedMembers.includes(person.id)}
-                            onCheckedChange={() => toggleMember(person.id)}
-                          />
-                          <span className="text-sm text-foreground">{person.name}</span>
-                        </label>
-                      ))}
+                      .map((person, idx) => {
+                        const isFirst = idx === 0 && memberSearch.trim().length > 0;
+                        return (
+                          <label
+                            key={person.id}
+                            className={`flex items-center gap-2 cursor-pointer rounded px-1.5 py-1 ${isFirst ? "bg-primary/5 ring-1 ring-primary/20" : ""}`}
+                            onClick={() => {
+                              setTimeout(() => memberSearchRef.current?.focus(), 0);
+                            }}
+                          >
+                            <Checkbox
+                              checked={selectedMembers.includes(person.id)}
+                              onCheckedChange={() => toggleMember(person.id)}
+                            />
+                            <span className="text-sm text-foreground flex-1">{person.name}</span>
+                            {isFirst && (
+                              <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">
+                                ↵ Enter
+                              </span>
+                            )}
+                          </label>
+                        );
+                      })}
                   </div>
                 </div>
               )}
+              <p className="text-[11px] text-muted-foreground mt-1.5">
+                Pesquise → Enter para adicionar a primeira pessoa, e continue digitando o próximo nome.
+              </p>
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
