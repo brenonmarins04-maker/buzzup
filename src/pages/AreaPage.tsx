@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, type DragEvent, type KeyboardEvent } from "react";
-import { useData, type ParkingItem, type ParkingItemStatus, type LeadThermometerItem, type AttendanceStatus } from "@/contexts/DataContext";
+import { useData, type ParkingItem, type ParkingItemStatus, type AttendanceStatus } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { AREAS, type AreaKey, getAreaLabel } from "@/lib/areas";
 import { Plus, ExternalLink, Pencil, Trash2, X, Settings, ChevronDown, ChevronUp, Circle, CheckCircle2 } from "lucide-react";
@@ -12,7 +12,7 @@ import { toast } from "sonner";
 type Props = { area: AreaKey };
 
 export default function AreaPage({ area }: Props) {
-  type Tab = "quadro" | "notas" | "presencas" | "termometro";
+  type Tab = "quadro" | "notas" | "presencas";
   const [tab, setTab] = useState<Tab>("quadro");
   const label = getAreaLabel(area);
   const meta = AREAS.find(a => a.key === area)!;
@@ -20,7 +20,6 @@ export default function AreaPage({ area }: Props) {
     { v: "quadro", label: "Quadro CB" },
     { v: "notas", label: "Links úteis" },
     { v: "presencas", label: "Controle de Presenças" },
-    ...(area === "mercado" ? [{ v: "termometro" as Tab, label: "Termômetro de Lead" }] : []),
   ];
 
   return (
@@ -49,7 +48,6 @@ export default function AreaPage({ area }: Props) {
       {tab === "notas" && <NotesTab area={area} />}
       {tab === "quadro" && <KanbanTab area={area} />}
       {tab === "presencas" && <AttendanceTab area={area} />}
-      {tab === "termometro" && area === "mercado" && <LeadThermometerTab />}
     </div>
   );
 }
@@ -361,213 +359,6 @@ function AttendanceTab({ area }: { area: AreaKey }) {
         Clique na bolinha para alternar: vazio → P → F → FJ → vazio.
       </p>
     </div>
-  );
-}
-
-// ===== Termômetro de Lead (Mercado) =====
-function LeadThermometerTab() {
-  const { leadThermometer, addLeadThermometer, updateLeadThermometer, deleteLeadThermometer, workspaceId } = useData();
-  const { isAdmin } = useAuth();
-  const items = useMemo(() => [...leadThermometer].sort((a, b) => a.position - b.position), [leadThermometer]);
-
-  // Editable column headers — persisted per workspace in localStorage.
-  const COLS: { key: "name" | "value" | "areaSize" | "type"; defaultLabel: string; width?: string }[] = [
-    { key: "name", defaultLabel: "Nome", width: "w-[28%]" },
-    { key: "value", defaultLabel: "Valor +-", width: "w-[18%]" },
-    { key: "areaSize", defaultLabel: "m²", width: "w-[14%]" },
-    { key: "type", defaultLabel: "Tipo" },
-  ];
-  const storageKey = `lead-thermometer-headers:${workspaceId || "anon"}`;
-  const [headers, setHeaders] = useState<Record<string, string>>(() => {
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (raw) return { ...Object.fromEntries(COLS.map(c => [c.key, c.defaultLabel])), ...JSON.parse(raw) };
-    } catch {}
-    return Object.fromEntries(COLS.map(c => [c.key, c.defaultLabel]));
-  });
-  useEffect(() => {
-    try { localStorage.setItem(storageKey, JSON.stringify(headers)); } catch {}
-  }, [headers, storageKey]);
-
-  // Focus management: when we create a new row, we focus its name cell.
-  const [focusRowId, setFocusRowId] = useState<string | null>(null);
-  const nameRefs = useRef<Record<string, HTMLInputElement | null>>({});
-  useEffect(() => {
-    if (focusRowId && nameRefs.current[focusRowId]) {
-      nameRefs.current[focusRowId]?.focus();
-      setFocusRowId(null);
-    }
-  }, [focusRowId, items.length]);
-
-  const commitCell = async (item: LeadThermometerItem, field: "name" | "value" | "areaSize" | "type", val: string) => {
-    if (item[field] === val) return;
-    await updateLeadThermometer({ ...item, [field]: val });
-  };
-
-  const addEmptyRow = async () => {
-    await addLeadThermometer({ name: "", value: "", areaSize: "", type: "" });
-    // Focus the newly created last row after React commits.
-    setTimeout(() => {
-      const last = Object.values(nameRefs.current).filter(Boolean).slice(-1)[0];
-      last?.focus();
-    }, 60);
-  };
-
-  const remove = async (id: string, label: string) => {
-    if (!confirm(`Remover a linha "${label || "(sem nome)"}"?`)) return;
-    await deleteLeadThermometer(id);
-    toast.success("Removido");
-  };
-
-  return (
-    <div>
-      {isAdmin && (
-        <div className="flex justify-end mb-3">
-          <Button size="sm" onClick={addEmptyRow}><Plus className="h-4 w-4 mr-1" /> Nova linha</Button>
-        </div>
-      )}
-      <div className="rounded-lg border border-border overflow-hidden bg-card">
-        <div className="bg-primary/10 px-4 py-2.5 text-center text-sm font-semibold text-foreground border-b border-border">
-          Termômetro de Lead
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted/60 text-foreground border-b border-border">
-                {COLS.map(c => (
-                  <th key={c.key} className={`text-left font-semibold px-1 py-1 ${c.width || ""}`}>
-                    <input
-                      value={headers[c.key]}
-                      onChange={e => setHeaders(h => ({ ...h, [c.key]: e.target.value }))}
-                      disabled={!isAdmin}
-                      className="w-full bg-transparent px-2 py-1 rounded text-sm font-semibold outline-none hover:bg-background/60 focus:bg-background focus:ring-1 focus:ring-primary/40 disabled:cursor-default"
-                    />
-                  </th>
-                ))}
-                {isAdmin && <th className="w-16 px-2 py-2"></th>}
-              </tr>
-            </thead>
-            <tbody>
-              {items.length === 0 && (
-                <tr>
-                  <td colSpan={isAdmin ? 5 : 4} className="text-center text-muted-foreground px-3 py-8">
-                    {isAdmin ? "Clique em \"Nova linha\" para começar." : "Nenhuma linha ainda."}
-                  </td>
-                </tr>
-              )}
-              {items.map((item, idx) => (
-                <LeadRow
-                  key={item.id}
-                  item={item}
-                  isAdmin={isAdmin}
-                  isLast={idx === items.length - 1}
-                  registerNameRef={(el) => { nameRefs.current[item.id] = el; }}
-                  onCommit={commitCell}
-                  onEnterFromName={async () => {
-                    if (idx < items.length - 1) {
-                      const nextId = items[idx + 1].id;
-                      nameRefs.current[nextId]?.focus();
-                    } else {
-                      await addEmptyRow();
-                    }
-                  }}
-                  onRemove={() => remove(item.id, item.name)}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function LeadRow({
-  item, isAdmin, registerNameRef, onCommit, onEnterFromName, onRemove,
-}: {
-  item: LeadThermometerItem;
-  isAdmin: boolean;
-  isLast: boolean;
-  registerNameRef: (el: HTMLInputElement | null) => void;
-  onCommit: (item: LeadThermometerItem, field: "name" | "value" | "areaSize" | "type", val: string) => Promise<void>;
-  onEnterFromName: () => void | Promise<void>;
-  onRemove: () => void;
-}) {
-  const [name, setName] = useState(item.name);
-  const [value, setValue] = useState(item.value);
-  const [areaSize, setAreaSize] = useState(item.areaSize);
-  const [type, setType] = useState(item.type);
-
-  useEffect(() => { setName(item.name); }, [item.name]);
-  useEffect(() => { setValue(item.value); }, [item.value]);
-  useEffect(() => { setAreaSize(item.areaSize); }, [item.areaSize]);
-  useEffect(() => { setType(item.type); }, [item.type]);
-
-  const cellCls = "w-full bg-transparent px-2 py-1.5 rounded outline-none text-sm hover:bg-accent/40 focus:bg-background focus:ring-1 focus:ring-primary/40 disabled:cursor-default";
-
-  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>, fromName: boolean) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      (e.currentTarget as HTMLInputElement).blur();
-      if (fromName) onEnterFromName();
-    }
-  };
-
-  return (
-    <tr className="border-b border-border last:border-b-0 hover:bg-accent/20 transition-colors">
-      <td className="px-1 py-0.5">
-        <input
-          ref={registerNameRef}
-          value={name}
-          onChange={e => setName(e.target.value)}
-          onBlur={() => onCommit(item, "name", name)}
-          onKeyDown={(e) => onKeyDown(e, true)}
-          disabled={!isAdmin}
-          placeholder="Nome"
-          className={`${cellCls} font-medium text-foreground`}
-        />
-      </td>
-      <td className="px-1 py-0.5">
-        <input
-          value={value}
-          onChange={e => setValue(e.target.value)}
-          onBlur={() => onCommit(item, "value", value)}
-          onKeyDown={(e) => onKeyDown(e, false)}
-          disabled={!isAdmin}
-          placeholder="—"
-          className={`${cellCls} text-foreground`}
-        />
-      </td>
-      <td className="px-1 py-0.5">
-        <input
-          value={areaSize}
-          onChange={e => setAreaSize(e.target.value)}
-          onBlur={() => onCommit(item, "areaSize", areaSize)}
-          onKeyDown={(e) => onKeyDown(e, false)}
-          disabled={!isAdmin}
-          placeholder="—"
-          className={`${cellCls} text-foreground`}
-        />
-      </td>
-      <td className="px-1 py-0.5">
-        <input
-          value={type}
-          onChange={e => setType(e.target.value)}
-          onBlur={() => onCommit(item, "type", type)}
-          onKeyDown={(e) => onKeyDown(e, false)}
-          disabled={!isAdmin}
-          placeholder="—"
-          className={`${cellCls} text-muted-foreground`}
-        />
-      </td>
-      {isAdmin && (
-        <td className="px-2 py-1">
-          <div className="flex items-center gap-1 justify-end">
-            <button onClick={onRemove} className="p-1.5 hover:bg-accent rounded text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
-          </div>
-        </td>
-      )}
-    </tr>
   );
 }
 
