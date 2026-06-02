@@ -7,7 +7,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 export default function BroadcastBar() {
   const { broadcasts, deleteBroadcast } = useData();
   const { isAdmin, isOwner } = useAuth();
-  const [dismissed, setDismissed] = useState<Record<string, boolean>>({});
+  const [dismissed, setDismissed] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem("buzzup.dismissed_broadcasts");
+      return raw ? JSON.parse(raw) : {};
+    } catch { return {}; }
+  });
   const [, setTick] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setTick(t => t + 1), 60_000);
@@ -95,7 +100,11 @@ export default function BroadcastBar() {
             </button>
           ) : (
             <button
-              onClick={() => setDismissed(d => ({ ...d, [b.id]: true }))}
+              onClick={() => {
+                const next = { ...dismissed, [b.id]: true };
+                setDismissed(next);
+                try { localStorage.setItem("buzzup.dismissed_broadcasts", JSON.stringify(next)); } catch {}
+              }}
               title="Ocultar"
               className="shrink-0 p-1 rounded-md text-red-600/70 hover:bg-red-500/10 transition-colors"
             >
