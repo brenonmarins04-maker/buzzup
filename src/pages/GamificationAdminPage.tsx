@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { useData, type GamificationAction } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
@@ -203,46 +203,158 @@ function AcoesTab() {
 
 function ApelidosTab() {
   const { people, updatePersonNickname } = useData();
-  const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const save = async (id: string) => {
-    const val = drafts[id];
-    await updatePersonNickname(id, val ?? null);
-    toast.success("Apelido atualizado");
-    setDrafts(prev => { const c = { ...prev }; delete c[id]; return c; });
+  const [search, setSearch] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [nickname, setNickname] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+  const nicknameRef = useRef<HTMLInputElement>(null);
+
+  const filtered = useMemo(() => {
+    if (!search.trim()) return people;
+    const q = search.toLowerCase();
+    return people.filter(p => p.name.toLowerCase().includes(q) || (p.nickname || "").toLowerCase().includes(q));
+  }, [people, search]);
+
+  const selectedPerson = selectedId ? people.find(p => p.id === selectedId) : null;
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (filtered.length === 1) {
+        // Auto-select the only result
+        selectPerson(filtered[0].id);
+      } else if (filtered.length > 0) {
+        // Select first result
+        selectPerson(filtered[0].id);
+      }
+    }
   };
+
+  const selectPerson = (id: string) => {
+    const person = people.find(p => p.id === id);
+    if (!person) return;
+    setSelectedId(id);
+    setNickname(person.nickname || "");
+    setTimeout(() => {
+      nicknameRef.current?.focus();
+      nicknameRef.current?.select();
+    }, 50);
+  };
+
+  const handleNicknameKeyDown = async (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (!selectedId) return;
+      await updatePersonNickname(selectedId, nickname.trim() || null);
+      toast.success(`Apelido de ${selectedPerson?.name} atualizado`);
+      // Reset: go back to search, clear and focus
+      setSelectedId(null);
+      setNickname("");
+      setSearch("");
+      setTimeout(() => {
+        searchRef.current?.focus();
+      }, 50);
+    }
+    if (e.key === "Escape") {
+      setSelectedId(null);
+      setNickname("");
+      setTimeout(() => searchRef.current?.focus(), 50);
+    }
+  };
+
   return (
-    <div className="bg-card border border-border rounded-lg overflow-hidden">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/40">
-          <tr>
-            <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Pessoa</th>
-            <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Apelido (ranking)</th>
-            <th className="px-4 py-2 w-24"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {people.map(p => {
-            const draft = drafts[p.id];
-            const current = draft !== undefined ? draft : (p.nickname || "");
-            const dirty = draft !== undefined && draft !== (p.nickname || "");
-            return (
-              <tr key={p.id} className="border-t border-border">
-                <td className="px-4 py-2 text-foreground">{p.name}</td>
-                <td className="px-4 py-2">
-                  <Input value={current}
-                    onChange={e => setDrafts(prev => ({ ...prev, [p.id]: e.target.value }))}
-                    onKeyDown={e => { if (e.key === "Enter") save(p.id); }}
-                    placeholder="Anônimo / apelido…" className="h-8" />
-                </td>
-                <td className="px-4 py-2 text-right">
-                  <Button size="sm" variant={dirty ? "default" : "outline"} disabled={!dirty} onClick={() => save(p.id)}>Salvar</Button>
-                </td>
+    <div className="space-y-4">
+      {/* Search + Edit flow */}
+      <div className="bg-card border border-border rounded-lg p-4">
+        {!selectedId ? (
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">
+              Pesquisar pessoa
+            </label>
+            <Input
+              ref={searchRef}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Digite o nome e aperte Enter..."
+              className="h-10"
+              autoFocus
+            />
+            <p className="text-[11px] text-muted-foreground mt-1.5">
+              Pesquise → Enter para selecionar → Digite o apelido → Enter para salvar
+            </p>
+          </div>
+        ) : (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-semibold shrink-0">
+                {selectedPerson?.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">{selectedPerson?.name}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Atual: {selectedPerson?.nickname || <span className="italic">sem apelido</span>}
+                </p>
+              </div>
+              <button
+                onClick={() => { setSelectedId(null); setTimeout(() => searchRef.current?.focus(), 50); }}
+                className="ml-auto text-xs text-muted-foreground hover:text-foreground"
+              >
+                ← Voltar
+              </button>
+            </div>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">
+              Novo apelido
+            </label>
+            <Input
+              ref={nicknameRef}
+              value={nickname}
+              onChange={e => setNickname(e.target.value)}
+              onKeyDown={handleNicknameKeyDown}
+              placeholder="Digite o apelido e aperte Enter..."
+              className="h-10"
+            />
+            <p className="text-[11px] text-muted-foreground mt-1.5">
+              Enter = salvar e pesquisar outra pessoa · Esc = cancelar
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Results list (when searching) */}
+      {!selectedId && (
+        <div className="bg-card border border-border rounded-lg overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/40">
+              <tr>
+                <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Pessoa</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Apelido</th>
               </tr>
-            );
-          })}
-          {people.length === 0 && <tr><td colSpan={3} className="px-4 py-8 text-center text-xs text-muted-foreground">Nenhuma pessoa cadastrada.</td></tr>}
-        </tbody>
-      </table>
+            </thead>
+            <tbody>
+              {filtered.map(p => (
+                <tr
+                  key={p.id}
+                  onClick={() => selectPerson(p.id)}
+                  className="border-t border-border cursor-pointer hover:bg-accent/50 transition-colors"
+                >
+                  <td className="px-4 py-2.5 text-foreground font-medium">{p.name}</td>
+                  <td className="px-4 py-2.5 text-muted-foreground">
+                    {p.nickname || <span className="italic text-muted-foreground/50">sem apelido</span>}
+                  </td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr>
+                  <td colSpan={2} className="px-4 py-8 text-center text-xs text-muted-foreground">
+                    {people.length === 0 ? "Nenhuma pessoa cadastrada." : "Nenhum resultado encontrado."}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
