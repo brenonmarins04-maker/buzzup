@@ -217,10 +217,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
         return { id: p.id, name: p.name, nickname: p.nickname ?? null, area: rawArea, areas, userId: p.user_id ?? null, leaderArea };
       });
 
-      // Sync: auto-create people entries for workspace members who don't have one yet
+      // Sync: keep people list in sync with workspace_members
       try {
         const { data: wsMembers } = await (supabase.rpc as any)("list_workspace_members", { _ws_id: wsId });
         if (wsMembers && !cancelled) {
+          const memberUserIds = new Set((wsMembers as any[]).map(m => m.user_id));
+
+          // 1. Auto-create people entries for workspace members who don't have one yet
           const existingUserIds = new Set(pplList.filter(p => p.userId).map(p => p.userId));
           const toCreate = (wsMembers as any[]).filter(m => m.user_id && !existingUserIds.has(m.user_id));
           if (toCreate.length > 0) {
@@ -235,10 +238,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
             if (created && !cancelled) {
               const newPeople: Person[] = (created as any[]).map((p: any) => {
                 const rawArea: string | null = p.area ?? null;
-                return { id: p.id, name: p.name, nickname: p.nickname ?? null, area: rawArea, areas: rawArea ? rawArea.split(",").filter(Boolean) : [], userId: p.user_id ?? null, leaderArea: p.leader_area ?? null };
+                return { id: p.id, name: p.name, nickname: p.nickname ?? null, area: rawArea, areas: rawArea ? rawArea.split(",").filter(Boolean) : [], userId: p.user_id ?? null, leaderArea: null };
               });
               pplList = [...pplList, ...newPeople];
             }
+          }
+
+          // 2. Remove people whose linked account was removed from workspace
+          const orphaned = pplList.filter(p => p.userId && !memberUserIds.has(p.userId));
+          for (const orphan of orphaned) {
+            await (supabase.from("people") as any).delete().eq("id", orphan.id);
+          }
+          if (orphaned.length > 0) {
+            const orphanIds = new Set(orphaned.map(o => o.id));
+            pplList = pplList.filter(p => !orphanIds.has(p.id));
           }
         }
       } catch (_) { /* sync failure is non-fatal */ }
