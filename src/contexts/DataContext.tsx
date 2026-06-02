@@ -963,12 +963,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // === BROADCASTS (Mensagens gerais) ===
   const addBroadcast = useCallback(async (message: string, durationDays: number) => {
     if (!workspaceId) return;
-    const days = Math.max(1, Math.min(365, Math.floor(durationDays || 1)));
+    const days = Math.max(1, Math.min(36500, Math.floor(durationDays || 1)));
     const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+    const isInternal = message.startsWith("__") || message.startsWith("Bem-vindos, o Workspace");
     const { data, error } = await (supabase.from("broadcasts") as any)
       .insert({ workspace_id: workspaceId, message, duration_days: days, expires_at: expiresAt, created_by: uid })
       .select().single();
-    if (error) { toast.error("Erro ao publicar mensagem"); return; }
+    if (error) {
+      if (!isInternal) toast.error("Erro ao publicar mensagem");
+      return;
+    }
     if (data) setBroadcasts(prev => [{ id: data.id, message: data.message, durationDays: data.duration_days, createdAt: data.created_at, expiresAt: data.expires_at, createdBy: data.created_by ?? null }, ...prev]);
   }, [workspaceId, uid]);
 

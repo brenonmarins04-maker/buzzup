@@ -2,41 +2,59 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { AREAS_DEFAULT } from "@/lib/areas";
+import { AREAS_DEFAULT, setCustomAreaNames, getCustomAreaNames } from "@/lib/areas";
 import { useAreaNames } from "@/hooks/useAreaNames";
 import { toast } from "sonner";
 
 type Props = { open: boolean; onOpenChange: (o: boolean) => void };
 
 export default function EditAreaNamesModal({ open, onOpenChange }: Props) {
-  const { areaNames, saveAreaNames, currentNames } = useAreaNames();
+  const { saveAreaNames } = useAreaNames();
   const [names, setNames] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
+    const current = getCustomAreaNames();
     const init: Record<string, string> = {};
     AREAS_DEFAULT.forEach(a => {
-      init[a.key] = currentNames[a.key] || a.label;
+      init[a.key] = current[a.key] || a.label;
     });
     setNames(init);
-  }, [open, currentNames]);
+  }, [open]);
 
   const save = async () => {
-    // Only store names that differ from default
-    const custom: Record<string, string> = {};
-    AREAS_DEFAULT.forEach(a => {
-      const val = (names[a.key] || "").trim();
-      if (val && val !== a.label) custom[a.key] = val;
-    });
-    await saveAreaNames(custom);
-    toast.success("Nomes das áreas atualizados!");
-    onOpenChange(false);
-    // Force reload to apply everywhere
-    setTimeout(() => window.location.reload(), 500);
+    setSaving(true);
+    try {
+      // Only store names that differ from default
+      const custom: Record<string, string> = {};
+      AREAS_DEFAULT.forEach(a => {
+        const val = (names[a.key] || "").trim();
+        if (val && val !== a.label) custom[a.key] = val;
+      });
+
+      // Apply locally FIRST (guaranteed to work)
+      setCustomAreaNames(custom);
+
+      // Try to sync via broadcast (may fail but local already works)
+      try {
+        await saveAreaNames(custom);
+      } catch (e) {
+        console.warn("Failed to broadcast area names", e);
+      }
+
+      toast.success("Nomes das áreas atualizados!");
+      onOpenChange(false);
+      // Force reload to apply everywhere
+      setTimeout(() => window.location.reload(), 500);
+    } catch (e) {
+      toast.error("Erro ao salvar");
+      setSaving(false);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(o) => { if (!saving) onOpenChange(o); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Editar Nomes das Áreas</DialogTitle>
@@ -58,6 +76,7 @@ export default function EditAreaNamesModal({ open, onOpenChange }: Props) {
                   onChange={e => setNames(prev => ({ ...prev, [area.key]: e.target.value }))}
                   placeholder={area.label}
                   className="h-9"
+                  disabled={saving}
                 />
               </div>
             </div>
@@ -68,11 +87,11 @@ export default function EditAreaNamesModal({ open, onOpenChange }: Props) {
           </p>
 
           <div className="flex justify-end gap-2 pt-2 border-t">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
               Cancelar
             </Button>
-            <Button onClick={save}>
-              Salvar
+            <Button onClick={save} disabled={saving}>
+              {saving ? "Salvando..." : "Salvar"}
             </Button>
           </div>
         </div>
