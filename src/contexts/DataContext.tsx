@@ -209,7 +209,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
       ]);
       if (cancelled) return;
 
-      let pplList: Person[] = (pplRes.data || []).map((p: any) => ({ id: p.id, name: p.name, nickname: p.nickname ?? null, area: p.area ?? null, userId: p.user_id ?? null }));
+      let pplList: Person[] = (pplRes.data || []).map((p: any) => {
+        const rawArea: string | null = p.area ?? null;
+        const areas = rawArea ? rawArea.split(",").filter(Boolean) : [];
+        let leaderArea: string | null = null;
+        try { leaderArea = localStorage.getItem(`buzzup.leader.${p.id}`) || null; } catch {}
+        return { id: p.id, name: p.name, nickname: p.nickname ?? null, area: rawArea, areas, userId: p.user_id ?? null, leaderArea };
+      });
 
       // Sync: auto-create people entries for workspace members who don't have one yet
       try {
@@ -227,9 +233,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
               .insert(inserts)
               .select("id, name, nickname, area, user_id");
             if (created && !cancelled) {
-              const newPeople: Person[] = (created as any[]).map((p: any) => ({
-                id: p.id, name: p.name, nickname: p.nickname ?? null, area: p.area ?? null, userId: p.user_id ?? null,
-              }));
+              const newPeople: Person[] = (created as any[]).map((p: any) => {
+                const rawArea: string | null = p.area ?? null;
+                return { id: p.id, name: p.name, nickname: p.nickname ?? null, area: rawArea, areas: rawArea ? rawArea.split(",").filter(Boolean) : [], userId: p.user_id ?? null, leaderArea: p.leader_area ?? null };
+              });
               pplList = [...pplList, ...newPeople];
             }
           }
@@ -387,7 +394,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!workspaceId) return;
     const { data, error } = await (supabase.from("people") as any).insert({ workspace_id: workspaceId, name }).select("id, name, nickname, area, user_id").single();
     if (error) { toast.error("Erro ao adicionar pessoa"); return; }
-    if (data) setPeople(prev => [...prev, { id: data.id, name: data.name, nickname: data.nickname ?? null, area: data.area ?? null, userId: data.user_id ?? null }]);
+    if (data) {
+      const rawArea: string | null = data.area ?? null;
+      setPeople(prev => [...prev, { id: data.id, name: data.name, nickname: data.nickname ?? null, area: rawArea, areas: rawArea ? rawArea.split(",").filter(Boolean) : [], userId: data.user_id ?? null, leaderArea: null }]);
+    }
   }, [workspaceId]);
 
   const updatePerson = useCallback(async (id: string, name: string) => {
@@ -413,15 +423,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updatePersonAreas = useCallback(async (id: string, areas: string[]) => {
-    const areasStr = areas.length > 0 ? areas.join(",") : null;
-    const { error } = await (supabase.from("people") as any).update({ areas: areasStr }).eq("id", id);
+    // Store multiple areas in the existing "area" column as comma-separated
+    const areaStr = areas.length > 0 ? areas.join(",") : null;
+    const { error } = await (supabase.from("people") as any).update({ area: areaStr }).eq("id", id);
     if (error) { toast.error("Erro ao atualizar áreas"); return; }
-    setPeople(prev => prev.map(p => p.id === id ? { ...p, areas } : p));
+    setPeople(prev => prev.map(p => p.id === id ? { ...p, area: areaStr, areas } : p));
   }, []);
 
   const updatePersonLeaderArea = useCallback(async (id: string, leaderArea: string | null) => {
-    const { error } = await (supabase.from("people") as any).update({ leader_area: leaderArea }).eq("id", id);
-    if (error) { toast.error("Erro ao atualizar área de líder"); return; }
+    // Store leader_area in localStorage since column may not exist in DB
+    try {
+      if (leaderArea) localStorage.setItem(`buzzup.leader.${id}`, leaderArea);
+      else localStorage.removeItem(`buzzup.leader.${id}`);
+    } catch {}
     setPeople(prev => prev.map(p => p.id === id ? { ...p, leaderArea } : p));
   }, []);
 

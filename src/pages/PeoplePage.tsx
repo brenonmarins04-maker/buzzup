@@ -125,7 +125,12 @@ function MembersTab() {
   const filteredPeople = useMemo(() => {
     return people.filter(person => {
       const matchesSearch = person.name.toLowerCase().includes(searchText.toLowerCase());
-      const matchesArea = !filterArea || person.areas?.includes(filterArea) || person.area === filterArea;
+      let matchesArea = true;
+      if (filterArea === "__none__") {
+        matchesArea = (!person.areas || person.areas.length === 0) && !person.area;
+      } else if (filterArea) {
+        matchesArea = person.areas?.includes(filterArea) || (person.area?.includes(filterArea) ?? false);
+      }
       return matchesSearch && matchesArea;
     });
   }, [people, searchText, filterArea]);
@@ -168,6 +173,7 @@ function MembersTab() {
           {AREAS.map(a => (
             <option key={a.key} value={a.key}>{a.label}</option>
           ))}
+          <option value="__none__">Sem área</option>
         </select>
       </div>
 
