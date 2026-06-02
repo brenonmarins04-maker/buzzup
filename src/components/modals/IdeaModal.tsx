@@ -43,7 +43,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
 
   const peopleForArea = useMemo(() => {
     if (!area) return [];
-    return people.filter(p => p.area === area);
+    return people.filter(p => (p.areas && p.areas.includes(area)) || (p.area && p.area.includes(area)));
   }, [people, area]);
 
   const handleClose = (next: boolean) => {
@@ -57,7 +57,6 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
     if (!area) { toast.error("Selecione a área primeiro"); return; }
     if (![1, 2, 3].includes(points)) { toast.error("Selecione os pontos (1, 2 ou 3)"); return; }
     if (requireFull) {
-      if (!personId) { toast.error("Selecione o responsável"); return; }
       if (!date) { toast.error("Selecione uma data"); return; }
     }
     if (item) {

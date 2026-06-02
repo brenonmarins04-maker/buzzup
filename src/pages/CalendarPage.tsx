@@ -140,10 +140,12 @@ export default function CalendarPage() {
   const dropParkingOnDate = (parkingId: string, dayStr: string) => {
     const pk = parkingItems.find(p => p.id === parkingId);
     if (!pk) return;
-    if (pk.area && pk.personId) {
+    if (pk.area) {
+      // Has area — schedule directly (with or without responsible)
       updateParkingItem({ ...pk, date: dayStr });
       toast.success("Demanda agendada");
     } else {
+      // No area — open modal to complete
       setIdeaModal({ open: true, item: pk, defaultDate: dayStr, defaultArea: filterArea || pk.area || "", requireFull: true });
     }
   };
