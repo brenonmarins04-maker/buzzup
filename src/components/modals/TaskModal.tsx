@@ -123,14 +123,14 @@ export default function TaskModal({ open, onOpenChange, task, defaultDate, locke
             </div>
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Equipe</label>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Time</label>
             {task ? (
               <div className="text-xs px-2.5 py-1 rounded-full border border-primary bg-primary/10 text-primary inline-block">
-                {form.teamId === null ? "Sem equipe" : (teams.find(t => t.id === form.teamId)?.name ?? "Equipe")}
+                {form.teamId === null ? "Sem time" : (teams.find(t => t.id === form.teamId)?.name ?? "Time")}
               </div>
             ) : lockedTeamId !== undefined ? (
               <div className="text-xs px-2.5 py-1 rounded-full border border-primary bg-primary/10 text-primary inline-block">
-                {lockedTeamId === null ? "Sem equipe" : (teams.find(t => t.id === lockedTeamId)?.name ?? "Equipe")}
+                {lockedTeamId === null ? "Sem time" : (teams.find(t => t.id === lockedTeamId)?.name ?? "Time")}
               </div>
             ) : (
               <TeamSelector selectedId={form.teamId} onChange={(id) => setForm(p => ({ ...p, teamId: id }))} />

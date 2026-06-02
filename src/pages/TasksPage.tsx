@@ -112,7 +112,7 @@ export default function TasksPage() {
               className={`text-left bg-card border rounded-lg p-3 transition-all hover:shadow-sm ${teamFilter === "__none" ? "border-primary ring-1 ring-primary" : "border-border"}`}>
               <div className="flex items-center gap-1.5 mb-1.5">
                 <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-xs font-semibold text-muted-foreground">Sem equipe</span>
+                <span className="text-xs font-semibold text-muted-foreground">Sem time</span>
               </div>
               <div className="flex items-baseline gap-2 text-xs">
                 <span className="text-status-done font-semibold">{teamStats.noTeam.done} feitas</span>
@@ -156,7 +156,7 @@ export default function TasksPage() {
                         <X className="h-3 w-3" />
                       </button>
                       <div className="flex items-start justify-between mb-2 pr-5">
-                        <span className="text-[11px] font-medium tracking-wide uppercase text-muted-foreground bg-muted px-2 py-0.5 rounded-sm">{task.team || "Sem equipe"}</span>
+                        <span className="text-[11px] font-medium tracking-wide uppercase text-muted-foreground bg-muted px-2 py-0.5 rounded-sm">{task.team || "Sem time"}</span>
                         {task.points > 0 && (
                           <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-sm shrink-0">{task.points} pts</span>
                         )}
@@ -192,7 +192,7 @@ export default function TasksPage() {
                 <span className="h-2 w-2 rounded-full bg-status-done" />
                 <div>
                   <p className="text-sm font-medium text-foreground">{task.title}</p>
-                  <p className="text-xs text-muted-foreground">{task.team || "Sem equipe"} • {task.deadline}</p>
+                  <p className="text-xs text-muted-foreground">{task.team || "Sem time"} • {task.deadline}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">

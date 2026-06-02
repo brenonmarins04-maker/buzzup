@@ -216,7 +216,7 @@ export default function WelcomePage() {
               <div className="space-y-2 mb-6">
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">Crie seu workspace</h1>
                 <p className="text-sm text-muted-foreground">
-                  Esse será o espaço principal da sua empresa ou equipe.
+                  Esse será o espaço principal da sua empresa ou time.
                 </p>
               </div>
               <form onSubmit={onCreate} className="space-y-5">
@@ -252,7 +252,7 @@ export default function WelcomePage() {
               <div className="space-y-2 mb-6">
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">Entrar com código</h1>
                 <p className="text-sm text-muted-foreground">
-                  Digite o código de convite enviado por alguém da sua equipe.
+                  Digite o código de convite enviado por alguém da sua time.
                 </p>
               </div>
               <form onSubmit={onJoin} className="space-y-5">

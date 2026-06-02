@@ -39,7 +39,7 @@ export default function TeamPersonSelector({ selectedIds, onToggle, restrictTeam
             {p.name}
           </button>
         ))}
-        {restrictedPeople.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma pessoa nesta equipe.</p>}
+        {restrictedPeople.length === 0 && <p className="text-xs text-muted-foreground">Nenhuma pessoa nesta time.</p>}
       </div>
     );
   }
@@ -89,7 +89,7 @@ export default function TeamPersonSelector({ selectedIds, onToggle, restrictTeam
                     {p.name}
                   </button>
                 ))}
-                {members.length === 0 && <p className="text-xs text-muted-foreground">Nenhum membro nesta equipe.</p>}
+                {members.length === 0 && <p className="text-xs text-muted-foreground">Nenhum membro nesta time.</p>}
               </div>
             )}
           </div>
@@ -104,7 +104,7 @@ export default function TeamPersonSelector({ selectedIds, onToggle, restrictTeam
             className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium hover:bg-accent/50 transition-colors"
           >
             {expandedTeam === "__unassigned" ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
-            <span className="flex-1 text-left text-muted-foreground">Sem equipe</span>
+            <span className="flex-1 text-left text-muted-foreground">Sem time</span>
             {unassigned.filter(p => selectedIds.includes(p.id)).length > 0 && (
               <span className="text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">
                 {unassigned.filter(p => selectedIds.includes(p.id)).length}

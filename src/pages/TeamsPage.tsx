@@ -64,12 +64,12 @@ export default function TeamsPage() {
     <div className="animate-fade-in space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground tracking-tight">Equipes</h1>
-          <p className="text-sm text-muted-foreground mt-1">Gerencie suas equipes e membros</p>
+          <h1 className="text-2xl font-semibold text-foreground tracking-tight">Times</h1>
+          <p className="text-sm text-muted-foreground mt-1">Gerencie seus times e membros</p>
         </div>
         {isAdmin && (
           <Button onClick={openCreate} size="sm">
-            <Plus className="h-4 w-4 mr-1" /> Nova Equipe
+            <Plus className="h-4 w-4 mr-1" /> Novo Time
           </Button>
         )}
       </div>
@@ -77,10 +77,10 @@ export default function TeamsPage() {
       {teams.length === 0 ? (
         <div className="bg-card border border-border rounded-lg p-10 text-center">
           <UsersRound className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground">Nenhuma equipe criada ainda.</p>
+          <p className="text-sm text-muted-foreground">Nenhum time criado ainda.</p>
           {isAdmin && (
             <Button onClick={openCreate} variant="outline" size="sm" className="mt-4">
-              <Plus className="h-4 w-4 mr-1" /> Criar equipe
+              <Plus className="h-4 w-4 mr-1" /> Criar time
             </Button>
           )}
         </div>
@@ -124,11 +124,11 @@ export default function TeamsPage() {
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingTeam ? "Editar Equipe" : "Nova Equipe"}</DialogTitle>
+            <DialogTitle>{editingTeam ? "Editar Time" : "Novo Time"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-foreground">Nome da equipe</label>
+              <label className="text-sm font-medium text-foreground">Nome do time</label>
               <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Marketing" className="mt-1" />
             </div>
             <div>
@@ -184,7 +184,7 @@ export default function TeamsPage() {
         open={!!deleteId}
         onOpenChange={(open) => { if (!open) setDeleteId(null); }}
         onConfirm={() => { if (deleteId) { deleteTeam(deleteId); setDeleteId(null); } }}
-        title="equipe"
+        title="time"
       />
     </div>
   );

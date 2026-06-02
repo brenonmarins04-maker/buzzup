@@ -679,7 +679,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const addTeam = useCallback(async (name: string, memberIds: string[]) => {
     if (!workspaceId) return;
     const { data, error } = await supabase.from("teams").insert({ workspace_id: workspaceId, name }).select("id, name").single();
-    if (error) { toast.error("Erro ao criar equipe"); return; }
+    if (error) { toast.error("Erro ao criar time"); return; }
     if (data) {
       if (memberIds.length > 0) {
         await syncJunction("team_members", "team_id", data.id, memberIds);
@@ -690,14 +690,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const updateTeam = useCallback(async (team: Team) => {
     const { error } = await supabase.from("teams").update({ name: team.name }).eq("id", team.id);
-    if (error) { toast.error("Erro ao atualizar equipe"); return; }
+    if (error) { toast.error("Erro ao atualizar time"); return; }
     await syncJunction("team_members", "team_id", team.id, team.memberIds);
     setTeams(prev => prev.map(t => t.id === team.id ? team : t));
   }, [syncJunction]);
 
   const deleteTeam = useCallback(async (id: string) => {
     const { error } = await supabase.from("teams").delete().eq("id", id);
-    if (error) { toast.error("Erro ao excluir equipe"); return; }
+    if (error) { toast.error("Erro ao excluir time"); return; }
     setTeams(prev => prev.filter(t => t.id !== id));
   }, []);
 

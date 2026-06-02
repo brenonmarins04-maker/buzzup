@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   CalendarDays, Megaphone,
-  FolderKanban, Bell, Search, ChevronLeft, Plus, Users, LogOut, Eye, Shield, Briefcase, Crown, Sparkles, Home, Building2,
+  FolderKanban, Bell, Search, ChevronLeft, Plus, Users, LogOut, Eye, Shield, Briefcase, Crown, Sparkles, Home, Building2, UsersRound,
 } from "lucide-react";
+import { useMemo } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,8 +51,16 @@ const mobileNavItems = [
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const isMobile = useIsMobile();
-  const { notifications } = useData();
+  const { notifications, teams, people } = useData();
   const { displayName, signOut, isAdmin, isOwner, role, user, myWorkspaces, activeWorkspaceId } = useAuth();
+
+  // Find teams the current user belongs to
+  const myTeams = useMemo(() => {
+    if (!user) return [];
+    const currentPerson = people.find(p => p.userId === user.id);
+    if (!currentPerson) return [];
+    return teams.filter(t => t.memberIds.includes(currentPerson.id));
+  }, [user, people, teams]);
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -195,7 +204,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <ChevronLeft className={`h-4 w-4 transition-transform ${collapsed ? "rotate-180" : ""}`} />
           </button>
         </div>
-        <nav className="flex-1 py-4 px-2 flex flex-col gap-1">
+        <nav className="flex-1 py-4 px-2 flex flex-col gap-1 overflow-y-auto">
           {navItems.map((item) => (
             <NavLink key={item.to} to={item.to}
               style={({ isActive }) => (isActive && (item as any).color
@@ -224,6 +233,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               )}
             </NavLink>
           ))}
+
+          {/* Dynamic team links */}
+          {myTeams.length > 0 && (
+            <>
+              {!collapsed && (
+                <div className="px-3 pt-3 pb-1">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Times</span>
+                </div>
+              )}
+              {collapsed && <div className="border-t border-border my-2" />}
+              {myTeams.map(team => (
+                <NavLink key={team.id} to={`/time/${team.id}`}
+                  className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-colors ${isActive ? "bg-accent text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"} ${collapsed ? "justify-center" : ""}`}>
+                  <UsersRound className="h-4 w-4 shrink-0" />
+                  {!collapsed && <span className="truncate">{team.name}</span>}
+                </NavLink>
+              ))}
+            </>
+          )}
         </nav>
         <div className="p-3 border-t border-border">
           {isOwner && (

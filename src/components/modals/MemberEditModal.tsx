@@ -121,13 +121,13 @@ export default function MemberEditModal({ open, onOpenChange, person }: Props) {
             )}
           </div>
 
-          {/* Equipes */}
+          {/* Times */}
           <div>
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 block">
-              Equipes
+              Times
             </label>
             {teams.length === 0 ? (
-              <p className="text-xs text-muted-foreground">Nenhuma equipe disponível.</p>
+              <p className="text-xs text-muted-foreground">Nenhum time disponível.</p>
             ) : (
               <div className="grid grid-cols-2 gap-2">
                 {teams.map(team => (

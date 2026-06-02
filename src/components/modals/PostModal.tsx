@@ -141,7 +141,7 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
           </div>
 
           <div className="px-6 py-4 border-t border-border/60">
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2">Equipe</p>
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2">Time</p>
             <TeamSelector selectedId={form.teamId} onChange={(id) => setForm(p => ({ ...p, teamId: id }))} />
           </div>
 

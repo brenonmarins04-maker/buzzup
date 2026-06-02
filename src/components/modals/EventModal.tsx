@@ -158,7 +158,7 @@ export default function EventModal({ open, onOpenChange, event, defaultDate }: P
             </div>
           )}
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">Equipe</label>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Time</label>
             <TeamSelector selectedId={form.teamId} onChange={(id) => setForm(p => ({ ...p, teamId: id }))} />
           </div>
           <div className="flex justify-end gap-2 pt-2">

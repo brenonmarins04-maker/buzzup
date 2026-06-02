@@ -42,8 +42,8 @@ const ROLES = [
     permissions: [
       "Criar e gerenciar demandas APENAS da sua área",
       "Mover demandas APENAS da sua área",
-      "Ver informações de sua equipe",
-      "Gerenciar presença de sua equipe",
+      "Ver informações de seu time",
+      "Gerenciar presença de seu time",
       "Não pode criar usuários ou alterar cargos",
     ],
     note: "Cada líder gerencia apenas uma área específica",
