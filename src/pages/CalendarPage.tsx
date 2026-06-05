@@ -531,42 +531,56 @@ export default function CalendarPage() {
       </div>
 
       <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-3 flex-wrap">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mr-1">Área</span>
-          {AREAS.map(a => {
-            const active = filterArea === a.key;
-            return (
-              <button
-                key={a.key}
-                onClick={() => setFilterArea(active ? null : a.key)}
-                style={active ? { backgroundColor: a.color, borderColor: a.color, color: "#fff" } : undefined}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${active ? "" : "bg-background text-muted-foreground border-border hover:border-foreground/30 hover:text-foreground"}`}
-              >
-                {a.label}
-              </button>
-            );
-          })}
-          {teams.map(t => {
-            const teamKey = `team_${t.id}`;
-            const active = filterArea === teamKey;
-            return (
-              <button
-                key={teamKey}
-                onClick={() => setFilterArea(active ? null : teamKey)}
-                style={active ? { backgroundColor: "#6366F1", borderColor: "#6366F1", color: "#fff" } : undefined}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${active ? "" : "bg-background text-muted-foreground border-border hover:border-foreground/30 hover:text-foreground"}`}
-              >
-                {t.name}
-              </button>
-            );
-          })}
-          {filterArea && (
-            <span className="ml-1 text-[10px] uppercase tracking-wider font-semibold" style={{ color: activeAreaMeta?.color }}>
-              Modo {activeAreaMeta?.label}
+        <div className="flex items-center gap-4 flex-wrap">
+          {/* Áreas */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mr-1">Áreas:</span>
+            {AREAS.map(a => {
+              const active = filterArea === a.key;
+              return (
+                <button
+                  key={a.key}
+                  onClick={() => setFilterArea(active ? null : a.key)}
+                  style={active ? { backgroundColor: a.color, borderColor: a.color, color: "#fff" } : undefined}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${active ? "" : "bg-background text-muted-foreground border-border hover:border-foreground/30 hover:text-foreground"}`}
+                >
+                  {a.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Separator */}
+          {teams.length > 0 && (
+            <div className="h-5 w-px bg-border" />
+          )}
+
+          {/* Times */}
+          {teams.length > 0 && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mr-1">Times:</span>
+              {teams.map(t => {
+                const teamKey = `team_${t.id}`;
+                const active = filterArea === teamKey;
+                return (
+                  <button
+                    key={teamKey}
+                    onClick={() => setFilterArea(active ? null : teamKey)}
+                    style={active ? { backgroundColor: "#6366F1", borderColor: "#6366F1", color: "#fff" } : undefined}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${active ? "" : "bg-background text-muted-foreground border-border hover:border-foreground/30 hover:text-foreground"}`}
+                  >
+                    {t.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {filterArea && activeAreaMeta && (
+            <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: activeAreaMeta.color }}>
+              Filtrando por {activeAreaMeta.label}
             </span>
           )}
-        </div>
         </div>
       </div>
 
