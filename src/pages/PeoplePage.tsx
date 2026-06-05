@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo } from "react";
 import { useData, type Person } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Trash2, Link2, HelpCircle, X } from "lucide-react";
+import { Plus, Trash2, Link2, HelpCircle, X, Zap } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -198,17 +198,48 @@ function MembersTab() {
                   )}
                 </div>
                 {person.areas && person.areas.length > 0 ? (
-                  <div className="flex flex-wrap gap-1 mt-0.5">
+                  <div className="flex flex-wrap items-center gap-1 mt-0.5">
                     {person.areas.map(areaKey => (
                       <span key={areaKey} className="text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded truncate">
                         {getAreaLabel(areaKey)}
                       </span>
                     ))}
+                    {person.leaderArea && (
+                      <span
+                        title={`Líder de ${getAreaLabel(person.leaderArea)}`}
+                        className="inline-flex items-center gap-0.5 text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-300 px-1.5 py-0.5 rounded truncate"
+                      >
+                        <Zap className="h-2.5 w-2.5" />
+                        Líder
+                      </span>
+                    )}
                   </div>
                 ) : person.area ? (
-                  <span className="text-[11px] text-muted-foreground truncate">{getAreaLabel(person.area)}</span>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className="text-[11px] text-muted-foreground truncate">{getAreaLabel(person.area)}</span>
+                    {person.leaderArea && (
+                      <span
+                        title={`Líder de ${getAreaLabel(person.leaderArea)}`}
+                        className="inline-flex items-center gap-0.5 text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-300 px-1.5 py-0.5 rounded"
+                      >
+                        <Zap className="h-2.5 w-2.5" />
+                        Líder
+                      </span>
+                    )}
+                  </div>
                 ) : (
-                  <span className="text-[11px] text-muted-foreground/50 truncate italic">Sem área</span>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className="text-[11px] text-muted-foreground/50 truncate italic">Sem área</span>
+                    {person.leaderArea && (
+                      <span
+                        title={`Líder de ${getAreaLabel(person.leaderArea)}`}
+                        className="inline-flex items-center gap-0.5 text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-300 px-1.5 py-0.5 rounded"
+                      >
+                        <Zap className="h-2.5 w-2.5" />
+                        Líder
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
             </button>
