@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Outlet, useParams } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { DataProvider } from "@/contexts/DataContext";
@@ -19,6 +20,15 @@ import WelcomePage from "./pages/WelcomePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+// Sonner toaster: mobile shows at top, desktop at bottom-left
+function ResponsiveSonner() {
+  const isMobile = useIsMobile();
+  if (isMobile) {
+    return <Sonner position="top-center" offset={{ top: 12 }} mobileOffset={{ top: 12 }} />;
+  }
+  return <Sonner position="bottom-left" offset={{ left: 96, bottom: 24 }} mobileOffset={{ left: 80, bottom: 16 }} />;
+}
 
 // Layout route: keeps DataProvider + AppLayout mounted across page navigations,
 // so switching between areas doesn't trigger a full data re-fetch.
@@ -46,7 +56,7 @@ const App = () => (
     <TooltipProvider>
       <AuthProvider>
         <Toaster />
-        <Sonner position="bottom-left" offset={{ left: 96, bottom: 24 }} mobileOffset={{ left: 80, bottom: 16 }} />
+        <ResponsiveSonner />
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />

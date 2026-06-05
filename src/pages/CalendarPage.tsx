@@ -521,14 +521,6 @@ export default function CalendarPage() {
               <span className="text-sm font-semibold text-foreground min-w-[140px] sm:min-w-[180px] text-center capitalize">{headerLabel()}</span>
               <button onClick={navigateNext} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground"><ChevronRight className="h-4 w-4" /></button>
             </div>
-            <div className="flex bg-card/70 border border-border/70 backdrop-blur-sm rounded-lg p-0.5">
-              {(["month", "week", "day"] as ViewMode[]).map(v => (
-                <button key={v} onClick={() => setViewMode(v)}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${viewMode === v ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-                  {v === "month" ? "Mês" : v === "week" ? "Semana" : "Dia"}
-                </button>
-              ))}
-            </div>
             {viewMode === "month" && (
               <button onClick={() => setParkingOpen(o => !o)} title={parkingOpen ? "Esconder papel" : "Mostrar papel"}
                 className="p-2 rounded-lg bg-card/70 border border-border/70 backdrop-blur-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -827,7 +819,7 @@ export default function CalendarPage() {
       <DeleteConfirmDialog open={deleting.open} onOpenChange={o => setDeleting(p => ({ ...p, open: o }))}
         title={deleting.title} onConfirm={handleDelete} />
 
-      {isAdmin && (
+      {isAdmin && !isMobile && (
         <>
           <style>{`
             @keyframes trashShake {
