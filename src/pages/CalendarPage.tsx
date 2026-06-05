@@ -113,7 +113,16 @@ export default function CalendarPage() {
       : AREAS.find(a => a.key === filterArea))
     : null;
   // All ideas without a date — always shown in sidebar regardless of area filter.
-  const parkedIdeas = useMemo(() => parkingItems.filter(p => !p.date), [parkingItems]);
+  const parkedIdeas = useMemo(() => {
+    const ideas = parkingItems.filter(p => !p.date);
+    // When a filter is active, sort: matching area/team first, others below
+    if (filterArea) {
+      const matching = ideas.filter(p => p.area === filterArea);
+      const others = ideas.filter(p => p.area !== filterArea);
+      return [...matching, ...others];
+    }
+    return ideas;
+  }, [parkingItems, filterArea]);
 
   const applyDrop = (item: CalendarItem, target: DragDropResult) => {
     if (!isAdmin) { toast.error("Apenas administradores podem alterar datas"); return; }
