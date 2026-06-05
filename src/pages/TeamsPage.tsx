@@ -103,7 +103,7 @@ export default function TeamsPage() {
                     </div>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground mb-2">{members.length} membro(s)</p>
+                <p className="text-xs text-muted-foreground mb-2">{members.length} assessor(es)</p>
                 <div className="flex flex-wrap gap-1.5">
                   {members.map(m => (
                     <span key={m.id} className="text-xs bg-accent text-foreground px-2 py-0.5 rounded-full">
@@ -111,7 +111,7 @@ export default function TeamsPage() {
                     </span>
                   ))}
                   {members.length === 0 && (
-                    <span className="text-xs text-muted-foreground italic">Sem membros</span>
+                    <span className="text-xs text-muted-foreground italic">Sem assessores</span>
                   )}
                 </div>
               </div>
@@ -132,7 +132,7 @@ export default function TeamsPage() {
               <Input value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Marketing" className="mt-1" />
             </div>
             <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">Membros</label>
+              <label className="text-sm font-medium text-foreground mb-2 block">Assessores</label>
               {people.length === 0 ? (
                 <p className="text-xs text-muted-foreground">Nenhuma pessoa cadastrada.</p>
               ) : (

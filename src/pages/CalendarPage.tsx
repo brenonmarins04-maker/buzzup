@@ -125,7 +125,7 @@ export default function CalendarPage() {
   }, [parkingItems, filterArea]);
 
   const applyDrop = (item: CalendarItem, target: DragDropResult) => {
-    if (!isAdmin) { toast.error("Apenas administradores podem alterar datas"); return; }
+    if (!isAdmin) { toast.error("Apenas diretores podem alterar datas"); return; }
     if (target.kind === "none") return;
     if (target.kind === "parking") {
       if (item.parkingId) {

@@ -89,7 +89,7 @@ export default function TeamPersonSelector({ selectedIds, onToggle, restrictTeam
                     {p.name}
                   </button>
                 ))}
-                {members.length === 0 && <p className="text-xs text-muted-foreground">Nenhum membro nesta time.</p>}
+                {members.length === 0 && <p className="text-xs text-muted-foreground">Nenhum assessor neste time.</p>}
               </div>
             )}
           </div>

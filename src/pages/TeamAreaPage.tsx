@@ -37,7 +37,7 @@ export default function TeamAreaPage() {
         <UsersRound className="h-5 w-5" style={{ color: teamColor }} />
         <div>
           <h1 className="text-2xl font-bold tracking-tight" style={{ color: teamColor }}>{team.name}</h1>
-          <p className="text-xs text-muted-foreground">{members.length} membro(s)</p>
+          <p className="text-xs text-muted-foreground">{members.length} assessor(es)</p>
         </div>
       </div>
 
@@ -330,7 +330,7 @@ function TeamAttendanceTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKe
         <div className="text-center max-w-sm">
           <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">🔒</div>
           <h3 className="font-semibold text-foreground mb-1">Acesso Restrito</h3>
-          <p className="text-sm text-muted-foreground">Apenas administradores podem gerenciar presenças.</p>
+          <p className="text-sm text-muted-foreground">Apenas diretores podem gerenciar presenças.</p>
         </div>
       </div>
     );
@@ -382,7 +382,7 @@ function TeamAttendanceTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKe
   };
 
   if (members.length === 0) {
-    return <div className="text-sm text-muted-foreground py-8 text-center">Nenhum membro neste time.</div>;
+    return <div className="text-sm text-muted-foreground py-8 text-center">Nenhum assessor neste time.</div>;
   }
 
   return (
@@ -396,7 +396,7 @@ function TeamAttendanceTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKe
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr className="bg-muted/60 border-b border-border">
-              <th className="text-left font-semibold px-3 py-2 sticky left-0 bg-muted/60 z-10 min-w-[160px]">Membro</th>
+              <th className="text-left font-semibold px-3 py-2 sticky left-0 bg-muted/60 z-10 min-w-[160px]">Assessor</th>
               {dates.map(d => <th key={d} className="text-center font-semibold px-2 py-2 text-xs whitespace-nowrap">{fmtDate(d)}</th>)}
             </tr>
           </thead>

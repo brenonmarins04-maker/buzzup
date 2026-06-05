@@ -29,7 +29,7 @@ export default function InviteCodeDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Convite de {role === "admin" ? "Admin" : "Member"} gerado</DialogTitle>
+          <DialogTitle>Convite de {role === "admin" ? "Diretor" : "Assessor"} gerado</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <div className="flex items-center gap-2 p-3 rounded-md bg-muted border border-border">

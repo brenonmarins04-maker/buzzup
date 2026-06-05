@@ -140,7 +140,7 @@ function ProjectsSpreadsheet() {
     <div className="space-y-6">
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <StatCard label="Membros em projetos" value={`${peopleInProjectsCount}/${totalPeople}`} sub={`${pct}% da empresa`} />
+        <StatCard label="Assessores em projetos" value={`${peopleInProjectsCount}/${totalPeople}`} sub={`${pct}% da empresa`} />
         <StatCard label="Em 2+ projetos" value={`${peopleInTwoPlus}`} sub="pessoas alocadas em vários projetos" />
         <StatCard label="Projetos cadastrados" value={`${projects.length}`} sub="total na planilha" />
       </div>

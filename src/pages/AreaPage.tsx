@@ -165,7 +165,7 @@ function AttendanceTab({ area }: { area: AreaKey }) {
           </div>
           <h3 className="font-semibold text-foreground mb-1">Acesso Restrito</h3>
           <p className="text-sm text-muted-foreground">
-            Apenas administradores podem gerenciar presenças. Contate um admin para marcar sua presença.
+            Apenas diretores podem gerenciar presenças. Contate um diretor para marcar sua presença.
           </p>
         </div>
       </div>
@@ -233,7 +233,7 @@ function AttendanceTab({ area }: { area: AreaKey }) {
   if (members.length === 0) {
     return (
       <div className="text-sm text-muted-foreground py-8 text-center">
-        Nenhum membro vinculado a essa área. Atribua membros em Pessoas → Membros.
+        Nenhum assessor vinculado a essa área. Atribua assessores em Pessoas → Assessores.
       </div>
     );
   }
@@ -292,7 +292,7 @@ function AttendanceTab({ area }: { area: AreaKey }) {
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr className="bg-muted/60 border-b border-border">
-              <th className="text-left font-semibold px-3 py-2 sticky left-0 bg-muted/60 z-10 min-w-[160px]">Membro</th>
+              <th className="text-left font-semibold px-3 py-2 sticky left-0 bg-muted/60 z-10 min-w-[160px]">Assessor</th>
               {dates.map(d => (
                 <th key={d} className="text-center font-semibold px-2 py-2 text-xs whitespace-nowrap">{fmtDate(d)}</th>
               ))}
@@ -601,7 +601,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
         ))}
         {members.length === 0 && (
           <div className="text-xs text-muted-foreground px-3 py-6">
-            Nenhum membro vinculado a essa área. Atribua membros em Pessoas → Membros.
+            Nenhum assessor vinculado a essa área. Atribua assessores em Pessoas → Assessores.
           </div>
         )}
       </div>

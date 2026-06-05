@@ -43,12 +43,12 @@ export default function CreateInviteModal({
               {canInviteAdmin && (
                 <button type="button" onClick={() => setRole("admin")}
                   className={`px-3 py-2 rounded-md border text-sm font-medium ${role === "admin" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>
-                  Admin
+                  Diretor
                 </button>
               )}
               <button type="button" onClick={() => setRole("member")}
                 className={`px-3 py-2 rounded-md border text-sm font-medium ${role === "member" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"} ${!canInviteAdmin ? "col-span-2" : ""}`}>
-                Member
+                Assessor
               </button>
             </div>
           </div>

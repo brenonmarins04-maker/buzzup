@@ -23,7 +23,7 @@ export default function PeoplePage() {
     { v: "gamificacao", label: "Gameficação", show: isAdmin },
     { v: "historico",   label: "Histórico",   show: isAdmin },
     { v: "equipes",     label: "Times",     show: true },
-    { v: "membros",     label: "Membros",     show: true },
+    { v: "membros",     label: "Assessores",     show: true },
   ];
 
   return (
@@ -138,7 +138,7 @@ function MembersTab() {
   const handleAdd = () => {
     if (newName.trim()) {
       addPerson(newName.trim());
-      toast.success("Membro adicionado");
+      toast.success("Assessor adicionado");
       setNewName("");
       setTimeout(() => addRef.current?.focus(), 50);
     } else {
@@ -149,17 +149,17 @@ function MembersTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{filteredPeople.length} de {people.length} membros</p>
+        <p className="text-sm text-muted-foreground">{filteredPeople.length} de {people.length} assessores</p>
         {isAdmin && (
           <Button size="sm" onClick={() => { setAddModal(true); setNewName(""); }}>
-            <Plus className="h-4 w-4 mr-1" /> Novo membro
+            <Plus className="h-4 w-4 mr-1" /> Novo assessor
           </Button>
         )}
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
         <Input
-          placeholder="Pesquisar membros..."
+          placeholder="Pesquisar assessores..."
           value={searchText}
           onChange={e => setSearchText(e.target.value)}
           className="flex-1"
@@ -215,7 +215,7 @@ function MembersTab() {
             {isAdmin && !person.userId && (
               <button onClick={() => { deletePerson(person.id); toast.success("Removido"); }}
                 className="p-1 ml-2 hover:bg-accent rounded text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                title="Excluir membro">
+                title="Excluir assessor">
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
             )}
@@ -225,17 +225,17 @@ function MembersTab() {
 
       {filteredPeople.length === 0 && (
         <p className="text-sm text-muted-foreground text-center py-8">
-          {people.length === 0 ? "Nenhum membro cadastrado." : "Nenhum membro encontrado com esses filtros."}
+          {people.length === 0 ? "Nenhum assessor cadastrado." : "Nenhum assessor encontrado com esses filtros."}
         </p>
       )}
 
       <Dialog open={addModal} onOpenChange={setAddModal}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Adicionar membro</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Adicionar assessor</DialogTitle></DialogHeader>
           <form onSubmit={e => { e.preventDefault(); handleAdd(); }} className="flex flex-col gap-4">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Nome</label>
-              <Input ref={addRef} value={newName} onChange={e => setNewName(e.target.value)} placeholder="Nome do membro" />
+              <Input ref={addRef} value={newName} onChange={e => setNewName(e.target.value)} placeholder="Nome do assessor" />
             </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setAddModal(false)}>Fechar</Button>

@@ -111,7 +111,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     ? fullName.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
     : "U";
 
-  const roleLabel = role === "owner" ? "Owner" : role === "admin" ? "Admin" : role === "member" ? "Member" : "—";
+  const roleLabel = role === "owner" ? "Owner" : role === "admin" ? "Diretor" : role === "member" ? "Assessor" : role === "leader" ? "Líder" : "—";
   const RoleBadge = () => (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${isAdmin ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
       {isAdmin ? <Shield className="h-3 w-3" /> : <Eye className="h-3 w-3" />}

@@ -81,7 +81,7 @@ export default function MembersPage() {
       _ws_id: workspaceId, _target: m.user_id, _new_role: newRole,
     });
     if (error) { toast.error("Falha ao alterar cargo."); return; }
-    toast.success(newRole === "admin" ? "Promovido a admin." : "Rebaixado para member.");
+    toast.success(newRole === "admin" ? "Promovido a Diretor." : "Rebaixado para Assessor.");
     await load();
   };
 
@@ -91,13 +91,13 @@ export default function MembersPage() {
       _ws_id: workspaceId, _target: m.user_id,
     });
     if (error) { toast.error("Falha ao remover."); return; }
-    toast.success("Membro removido.");
+    toast.success("Assessor removido.");
     await load();
   };
 
   const roleBadge = (r: Role) => {
     const Icon = r === "owner" ? Crown : r === "admin" ? Shield : Eye;
-    const label = r === "owner" ? "Owner" : r === "admin" ? "Admin" : "Member";
+    const label = r === "owner" ? "Owner" : r === "admin" ? "Diretor" : "Assessor";
     const cls = r === "owner"
       ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
       : r === "admin" ? "bg-primary/10 text-primary border-primary/20"
@@ -115,7 +115,7 @@ export default function MembersPage() {
     <div className="animate-fade-in space-y-5">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground tracking-tight">Membros e Convites</h1>
+          <h1 className="text-2xl font-semibold text-foreground tracking-tight">Assessores e Convites</h1>
           <p className="text-sm text-muted-foreground">Gerencie quem tem acesso ao workspace.</p>
         </div>
         {wsCode && (
@@ -127,7 +127,7 @@ export default function MembersPage() {
 
       <div className="flex items-center gap-1 border-b border-border">
         {[
-          { v: "members" as const, label: `Membros (${members.length})` },
+          { v: "members" as const, label: `Assessores (${members.length})` },
           ...(isOwner ? [{ v: "requests" as const, label: `Pedidos (${requests.length})` }] : []),
         ].map(t => (
           <button key={t.v} onClick={() => setTab(t.v)}
@@ -165,7 +165,7 @@ export default function MembersPage() {
                 <div className="flex items-center gap-1.5">
                   {canPromote && (
                     <Button size="sm" variant="outline" onClick={() => setConfirm({
-                      title: "Promover a admin?",
+                      title: "Promover a Diretor?",
                       description: `${m.display_name} terá acesso administrativo.`,
                       onConfirm: () => updateRole(m, "admin"),
                     })}>
@@ -174,7 +174,7 @@ export default function MembersPage() {
                   )}
                   {canDemote && (
                     <Button size="sm" variant="outline" onClick={() => setConfirm({
-                      title: "Rebaixar para member?",
+                      title: "Rebaixar para Assessor?",
                       description: `${m.display_name} perderá acesso administrativo.`,
                       onConfirm: () => updateRole(m, "member"),
                     })}>
@@ -195,7 +195,7 @@ export default function MembersPage() {
               </div>
             );
           })}
-          {members.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">Nenhum membro.</p>}
+          {members.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">Nenhum assessor.</p>}
         </div>
       ) : (
         <div className="bg-card border border-border rounded-lg divide-y divide-border">
@@ -227,8 +227,8 @@ export default function MembersPage() {
           <DialogHeader><DialogTitle>Aprovar {approveFor?.display_name}</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground">Escolha o cargo no workspace:</p>
           <div className="flex gap-2">
-            <Button variant={approveRole === "member" ? "default" : "outline"} className="flex-1" onClick={() => setApproveRole("member")}>Member</Button>
-            <Button variant={approveRole === "admin" ? "default" : "outline"} className="flex-1" onClick={() => setApproveRole("admin")}>Admin</Button>
+            <Button variant={approveRole === "member" ? "default" : "outline"} className="flex-1" onClick={() => setApproveRole("member")}>Assessor</Button>
+            <Button variant={approveRole === "admin" ? "default" : "outline"} className="flex-1" onClick={() => setApproveRole("admin")}>Diretor</Button>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setApproveFor(null)}>Cancelar</Button>

@@ -20,7 +20,7 @@ const ROLES = [
     ],
   },
   {
-    role: "Admin",
+    role: "Diretor",
     icon: Shield,
     color: "text-blue-600",
     bgColor: "bg-blue-50 border-blue-200",
@@ -49,7 +49,7 @@ const ROLES = [
     note: "Cada líder gerencia apenas uma área específica",
   },
   {
-    role: "Membro",
+    role: "Assessor",
     icon: Users,
     color: "text-green-600",
     bgColor: "bg-green-50 border-green-200",
@@ -103,9 +103,9 @@ export default function RolesInfoModal({ open, onOpenChange }: Props) {
         <div className="mt-6 p-4 bg-accent rounded-lg">
           <h4 className="font-semibold mb-2 text-sm">Como designar um Líder?</h4>
           <ol className="text-sm space-y-1 text-muted-foreground">
-            <li>1. Vá em <strong>Pessoas → Membros</strong></li>
-            <li>2. Clique para editar um membro</li>
-            <li>3. Na seção "Configurações de Administrador", selecione a área</li>
+            <li>1. Vá em <strong>Pessoas → Assessores</strong></li>
+            <li>2. Clique para editar um assessor</li>
+            <li>3. Na seção "Configurações de Diretor", selecione a área</li>
             <li>4. Salve as alterações</li>
           </ol>
         </div>

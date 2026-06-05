@@ -68,7 +68,7 @@ export default function MemberEditModal({ open, onOpenChange, person }: Props) {
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
 
         <DialogHeader>
-          <DialogTitle className="text-lg font-bold text-foreground">Editar Membro</DialogTitle>
+          <DialogTitle className="text-lg font-bold text-foreground">Editar Assessor</DialogTitle>
           <p className="text-sm text-muted-foreground">{person.name}</p>
         </DialogHeader>
 
@@ -81,7 +81,7 @@ export default function MemberEditModal({ open, onOpenChange, person }: Props) {
             <Input
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="Nome do membro"
+              placeholder="Nome do assessor"
               className="h-10 rounded-lg"
             />
           </div>
@@ -153,7 +153,7 @@ export default function MemberEditModal({ open, onOpenChange, person }: Props) {
           {isAdmin && (
             <div className="border-t pt-4">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3 block">
-                ⚙️ Configurações de Administrador
+                ⚙️ Configurações de Diretor
               </h3>
 
               {/* Cargo de Líder */}
