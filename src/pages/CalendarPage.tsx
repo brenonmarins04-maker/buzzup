@@ -121,7 +121,7 @@ export default function CalendarPage() {
     if (target.kind === "parking") {
       if (item.parkingId) {
         const pk = parkingItems.find(p => p.id === item.parkingId);
-        if (pk) { updateParkingItem({ ...pk, date: "" }); toast.success("Ideia devolvida às Papel"); }
+        if (pk) { updateParkingItem({ ...pk, date: "", personId: null }); toast.success("Demanda devolvida ao Papel"); }
         return;
       }
       if (item.type === "post") {
@@ -267,7 +267,12 @@ export default function CalendarPage() {
     })();
     if (!droppedItem) return;
     if (droppedItem.parkingId) {
-      // already parked — no-op
+      // Dragging a parking item from calendar back to Papel — clear date & responsible
+      const pk = parkingItems.find(p => p.id === droppedItem.parkingId);
+      if (pk && (pk.date || pk.personId)) {
+        updateParkingItem({ ...pk, date: "", personId: null });
+        toast.success("Demanda devolvida ao Papel");
+      }
       setDragItem(null);
       return;
     }
