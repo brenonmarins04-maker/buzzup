@@ -7,6 +7,7 @@ import { Navigate } from "react-router-dom";
 import { Trophy, Search, Plus, Pencil, Trash2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AREAS_DEFAULT, getAreaLabel } from "@/lib/areas";
 
 type Sub = "pontuar" | "acoes" | "apelidos";
 
@@ -44,7 +45,7 @@ export default function GamificationAdminPage() {
 }
 
 function PontuarTab() {
-  const { people, gamificationActions, awardGamificationPoints, gamificationAwards } = useData();
+  const { people, gamificationActions, awardGamificationPoints, gamificationAwards, deleteGamificationAward } = useData();
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const filtered = useMemo(() => {
@@ -119,9 +120,19 @@ function PontuarTab() {
                 <p className="text-xs font-medium text-muted-foreground mb-2">Últimas pontuações</p>
                 <div className="flex flex-col gap-1">
                   {recent.map(r => (
-                    <div key={r.id} className="flex items-center justify-between text-xs text-foreground border-b border-border last:border-0 py-1">
-                      <span>{r.actionName}</span>
-                      <span className="text-muted-foreground">+{r.points} · {new Date(r.awardedAt).toLocaleString("pt-BR")}</span>
+                    <div key={r.id} className="group flex items-center justify-between gap-2 text-xs text-foreground border-b border-border last:border-0 py-1">
+                      <span className="flex-1 truncate">{r.actionName}</span>
+                      <span className="text-muted-foreground shrink-0">+{r.points} · {new Date(r.awardedAt).toLocaleString("pt-BR")}</span>
+                      <button
+                        onClick={async () => {
+                          await deleteGamificationAward(r.id);
+                          toast.success(`-${r.points} ponto${r.points > 1 ? "s" : ""} removido${r.points > 1 ? "s" : ""}`);
+                        }}
+                        title="Remover pontuação"
+                        className="shrink-0 p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -283,6 +294,9 @@ function ApelidosTab() {
             <p className="text-[11px] text-muted-foreground mt-1.5">
               Pesquise → Enter para selecionar → Digite o apelido → Enter para salvar
             </p>
+
+            {/* Counter per area */}
+            <NicknameProgressBar people={people} />
           </div>
         ) : (
           <div>
@@ -355,6 +369,71 @@ function ApelidosTab() {
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+function NicknameProgressBar({ people }: { people: { id: string; name: string; nickname?: string | null; area?: string | null; areas?: string[] | null }[] }) {
+  const groups = useMemo(() => {
+    const out: { key: string; label: string; color: string; people: typeof people }[] = [];
+
+    AREAS_DEFAULT.forEach(area => {
+      const inArea = people.filter(p => {
+        if (p.areas && p.areas.length > 0) return p.areas.includes(area.key);
+        if (p.area) return p.area.split(",").includes(area.key);
+        return false;
+      });
+      if (inArea.length > 0) {
+        out.push({ key: area.key, label: getAreaLabel(area.key), color: area.color, people: inArea });
+      }
+    });
+
+    const noArea = people.filter(p => {
+      if (p.areas && p.areas.length > 0) return false;
+      if (p.area && p.area.trim()) return false;
+      return true;
+    });
+    if (noArea.length > 0) {
+      out.push({ key: "__none__", label: "Sem área", color: "#94A3B8", people: noArea });
+    }
+
+    return out;
+  }, [people]);
+
+  if (groups.length === 0) return null;
+
+  return (
+    <div className="mt-4 space-y-1.5">
+      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Progresso de apelidos por área</p>
+      {groups.map(g => {
+        const withNickname = g.people.filter(p => p.nickname && p.nickname.trim());
+        const without = g.people.filter(p => !p.nickname || !p.nickname.trim());
+        const total = g.people.length;
+        const filled = withNickname.length;
+        const pct = total === 0 ? 0 : (filled / total) * 100;
+        const missingNames = without.map(p => p.name).join(", ");
+        const tooltip = without.length > 0
+          ? `Faltam: ${missingNames}`
+          : "Todos têm apelido ✓";
+
+        return (
+          <div key={g.key} title={tooltip}>
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: g.color }} />
+              <span className="text-[11px] font-medium text-foreground flex-1 truncate">{g.label}</span>
+              <span className="text-[10px] font-mono text-muted-foreground tabular-nums">
+                {filled}/{total}
+              </span>
+            </div>
+            <div className="h-1 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full transition-all"
+                style={{ width: `${pct}%`, backgroundColor: g.color }}
+              />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
