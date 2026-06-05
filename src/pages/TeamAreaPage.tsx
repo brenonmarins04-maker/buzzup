@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useData } from "@/contexts/DataContext";
 import { UsersRound } from "lucide-react";
+import { getTeamColor } from "@/lib/areas";
 
 // Reuse the existing tabs from AreaPage but scoped to a team
 import AreaPage from "@/pages/AreaPage";
@@ -22,13 +23,20 @@ export default function TeamAreaPage() {
   }
 
   const members = people.filter(p => team.memberIds.includes(p.id));
+  const teamColor = getTeamColor(team.id);
 
   return (
     <div className="animate-fade-in space-y-5">
-      <div className="rounded-xl border-2 border-primary/30 px-5 py-4 flex items-center gap-3 bg-primary/5">
-        <UsersRound className="h-5 w-5 text-primary" />
+      <div
+        className="rounded-xl border-2 px-5 py-4 flex items-center gap-3"
+        style={{
+          backgroundColor: `${teamColor}1A`,
+          borderColor: teamColor,
+        }}
+      >
+        <UsersRound className="h-5 w-5" style={{ color: teamColor }} />
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-primary">{team.name}</h1>
+          <h1 className="text-2xl font-bold tracking-tight" style={{ color: teamColor }}>{team.name}</h1>
           <p className="text-xs text-muted-foreground">{members.length} membro(s)</p>
         </div>
       </div>

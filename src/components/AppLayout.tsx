@@ -9,7 +9,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { AREAS, getAreaLabel } from "@/lib/areas";
+import { AREAS, getAreaLabel, getTeamColor } from "@/lib/areas";
 import { toast } from "sonner";
 import QuickCreateMenu from "@/components/modals/QuickCreateMenu";
 import EditAreaNamesModal from "@/components/modals/EditAreaNamesModal";
@@ -252,13 +252,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </div>
               )}
               {collapsed && <div className="border-t border-border my-2" />}
-              {myTeams.map(team => (
-                <NavLink key={team.id} to={`/time/${team.id}`}
-                  className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-colors ${isActive ? "bg-accent text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"} ${collapsed ? "justify-center" : ""}`}>
-                  <UsersRound className="h-4 w-4 shrink-0" />
-                  {!collapsed && <span className="truncate">{team.name}</span>}
-                </NavLink>
-              ))}
+              {myTeams.map(team => {
+                const tc = getTeamColor(team.id);
+                return (
+                  <NavLink key={team.id} to={`/time/${team.id}`}
+                    style={({ isActive }) => isActive
+                      ? { backgroundColor: `${tc}1F`, color: tc, boxShadow: `inset 3px 0 0 ${tc}` }
+                      : { color: tc }}
+                    className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-colors ${!isActive ? "hover:bg-accent/50" : ""} ${collapsed ? "justify-center" : ""}`}>
+                    <UsersRound className="h-4 w-4 shrink-0" />
+                    {!collapsed && <span className="truncate">{team.name}</span>}
+                  </NavLink>
+                );
+              })}
             </>
           )}
         </nav>

@@ -40,3 +40,44 @@ export const getAreaLabel = (key?: string | null) => {
   if (customNames[key]) return customNames[key];
   return AREAS_DEFAULT.find(a => a.key === key)?.label ?? "";
 };
+
+// Distinct team color palette — avoids similar colors to the 4 areas
+// (which use #2563EB blue, #F97316 orange, #10B981 emerald, #8B5CF6 purple)
+const TEAM_PALETTE = [
+  "#DB2777", // pink
+  "#0891B2", // cyan
+  "#CA8A04", // amber/yellow
+  "#DC2626", // red
+  "#65A30D", // lime
+  "#0D9488", // teal
+  "#BE185D", // rose
+  "#B45309", // amber-dark
+  "#075985", // sky-dark
+  "#7C2D12", // brown
+  "#166534", // green-dark
+  "#1E3A8A", // navy
+  "#6B21A8", // purple-dark
+  "#9D174D", // pink-dark
+  "#4D7C0F", // olive
+  "#831843", // magenta-dark
+];
+
+// Get a distinct color for a team based on its id (stable hash → palette index)
+export function getTeamColor(teamId: string): string {
+  let hash = 0;
+  for (let i = 0; i < teamId.length; i++) {
+    hash = ((hash << 5) - hash) + teamId.charCodeAt(i);
+    hash |= 0;
+  }
+  const idx = Math.abs(hash) % TEAM_PALETTE.length;
+  return TEAM_PALETTE[idx];
+}
+
+// Resolve color from any area key (real area or team_<id>)
+export function getAreaColor(areaKey?: string | null): string {
+  if (!areaKey) return "#CBD5E1";
+  if (areaKey.startsWith("team_")) {
+    return getTeamColor(areaKey.slice(5));
+  }
+  return AREAS_DEFAULT.find(a => a.key === areaKey)?.color ?? "#CBD5E1";
+}

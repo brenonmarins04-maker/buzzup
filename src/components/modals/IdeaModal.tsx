@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useData } from "@/contexts/DataContext";
 import type { ParkingItem } from "@/contexts/DataContext";
-import { AREAS } from "@/lib/areas";
+import { AREAS, getTeamColor } from "@/lib/areas";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
@@ -92,7 +92,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
           style={{
             background: area
               ? (() => {
-                  const c = area.startsWith("team_") ? "#6366F1" : (AREAS.find(a => a.key === area)?.color || "#64748B");
+                  const c = area.startsWith("team_") ? getTeamColor(area.slice(5)) : (AREAS.find(a => a.key === area)?.color || "#64748B");
                   return `linear-gradient(160deg, color-mix(in srgb, ${c} 35%, white) 0%, color-mix(in srgb, ${c} 15%, white) 45%, white 100%)`;
                 })()
               : undefined,
@@ -100,7 +100,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
         >
           <div
             className="absolute top-0 left-0 right-0 h-1.5 transition-colors"
-            style={{ background: area ? (area.startsWith("team_") ? "#6366F1" : (AREAS.find(a => a.key === area)?.color || "#64748B")) : "hsl(var(--muted))" }}
+            style={{ background: area ? (area.startsWith("team_") ? getTeamColor(area.slice(5)) : (AREAS.find(a => a.key === area)?.color || "#64748B")) : "hsl(var(--muted))" }}
           />
           <DialogHeader>
             <DialogTitle className="text-lg">{item ? "Editar ideia" : "Nova ideia"}</DialogTitle>
@@ -141,6 +141,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
                 {teams.map(t => {
                   const teamKey = `team_${t.id}`;
                   const selected = area === teamKey;
+                  const tc = getTeamColor(t.id);
                   return (
                     <button
                       key={teamKey}
@@ -148,10 +149,10 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
                       onClick={() => { setArea(teamKey); setPersonId(""); }}
                       className="px-4 h-9 rounded-full text-sm font-medium transition-all border"
                       style={{
-                        backgroundColor: selected ? "#6366F1" : "#6366F114",
-                        color: selected ? "#fff" : "#6366F1",
-                        borderColor: selected ? "#6366F1" : "#6366F140",
-                        boxShadow: selected ? "0 4px 14px #6366F155" : "none",
+                        backgroundColor: selected ? tc : `${tc}14`,
+                        color: selected ? "#fff" : tc,
+                        borderColor: selected ? tc : `${tc}40`,
+                        boxShadow: selected ? `0 4px 14px ${tc}55` : "none",
                         transform: selected ? "translateY(-1px)" : "none",
                       }}
                     >

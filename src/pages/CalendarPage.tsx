@@ -20,7 +20,7 @@ import { toast } from "sonner";
 import { getNowBrasilia } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useLongPressDrag, type DragDropResult } from "@/hooks/useLongPressDrag";
-import { AREAS } from "@/lib/areas";
+import { AREAS, getTeamColor, getAreaColor } from "@/lib/areas";
 import trashBinImg from "@/assets/trash-bin.png";
 
 export type CalendarItem = {
@@ -109,7 +109,7 @@ export default function CalendarPage() {
 
   const activeAreaMeta = filterArea
     ? (filterArea.startsWith("team_")
-      ? { key: filterArea, label: teams.find(t => `team_${t.id}` === filterArea)?.name || "Time", color: "#6366F1" }
+      ? { key: filterArea, label: teams.find(t => `team_${t.id}` === filterArea)?.name || "Time", color: getTeamColor(filterArea.slice(5)) }
       : AREAS.find(a => a.key === filterArea))
     : null;
   // All ideas without a date — always shown in sidebar regardless of area filter.
@@ -214,7 +214,7 @@ export default function CalendarPage() {
       const isTeam = p.area.startsWith("team_");
       const areaMeta = AREAS.find(a => a.key === p.area);
       const teamObj = isTeam ? teams.find(t => `team_${t.id}` === p.area) : null;
-      const color = isTeam ? "#6366F1" : (areaMeta?.color || "#CBD5E1");
+      const color = isTeam ? getTeamColor(p.area.slice(5)) : (areaMeta?.color || "#CBD5E1");
       const label = isTeam ? (teamObj?.name || "Time") : (areaMeta?.label || "Sem área");
       items.push({ id: p.id, parkingId: p.id, title: p.title, type: "event", date: p.date, color, eventTypeName: label });
     });
@@ -562,12 +562,15 @@ export default function CalendarPage() {
               {teams.map(t => {
                 const teamKey = `team_${t.id}`;
                 const active = filterArea === teamKey;
+                const teamColor = getTeamColor(t.id);
                 return (
                   <button
                     key={teamKey}
                     onClick={() => setFilterArea(active ? null : teamKey)}
-                    style={active ? { backgroundColor: "#6366F1", borderColor: "#6366F1", color: "#fff" } : undefined}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${active ? "" : "bg-background text-muted-foreground border-border hover:border-foreground/30 hover:text-foreground"}`}
+                    style={active
+                      ? { backgroundColor: teamColor, borderColor: teamColor, color: "#fff" }
+                      : { borderColor: `${teamColor}40`, color: teamColor }}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${active ? "" : "bg-background hover:bg-accent"}`}
                   >
                     {t.name}
                   </button>
@@ -643,13 +646,16 @@ export default function CalendarPage() {
                 {parkedIdeas.length === 0 ? (
                   <div className="text-[11px] text-muted-foreground/70 text-center py-6 px-2">Nenhuma ideia estacionada</div>
                 ) : parkedIdeas.map(p => {
+                  const isTeam = p.area?.startsWith("team_");
                   const areaMeta = AREAS.find(a => a.key === p.area);
-                  // Without an area: light grey. With area: area color (or muted area color if a different area filter is active).
+                  const teamObj = isTeam ? teams.find(t => `team_${t.id}` === p.area) : null;
+                  const color = getAreaColor(p.area);
+                  const label = isTeam ? (teamObj?.name || "Time") : (areaMeta?.label || "Sem área");
+                  // Dim if a different area/team filter is active
                   const dim = filterArea && p.area && p.area !== filterArea;
-                  const color = areaMeta?.color || "#CBD5E1"; // slate-300 fallback for area-less ideas
                   return (
                     <div key={p.id} className={dim ? "opacity-40" : ""}>
-                      {renderItemPill({ id: p.id, parkingId: p.id, title: p.title, type: "event", date: "", color, eventTypeName: areaMeta?.label || "Sem área" })}
+                      {renderItemPill({ id: p.id, parkingId: p.id, title: p.title, type: "event", date: "", color, eventTypeName: label })}
                     </div>
                   );
                 })}
