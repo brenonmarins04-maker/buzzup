@@ -113,7 +113,7 @@ function HistoricoTab() {
 }
 
 function MembersTab() {
-  const { people, addPerson, deletePerson } = useData();
+  const { people, teams, addPerson, deletePerson } = useData();
   const { isAdmin } = useAuth();
   const [addModal, setAddModal] = useState(false);
   const [newName, setNewName] = useState("");
@@ -197,50 +197,42 @@ function MembersTab() {
                     </span>
                   )}
                 </div>
-                {person.areas && person.areas.length > 0 ? (
-                  <div className="flex flex-wrap items-center gap-1 mt-0.5">
-                    {person.areas.map(areaKey => (
-                      <span key={areaKey} className="text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded truncate">
-                        {getAreaLabel(areaKey)}
-                      </span>
-                    ))}
-                    {person.leaderArea && (
-                      <span
-                        title={`Líder de ${getAreaLabel(person.leaderArea)}`}
-                        className="inline-flex items-center gap-0.5 text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-300 px-1.5 py-0.5 rounded truncate"
-                      >
-                        <Zap className="h-2.5 w-2.5" />
-                        Líder
-                      </span>
-                    )}
-                  </div>
-                ) : person.area ? (
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <span className="text-[11px] text-muted-foreground truncate">{getAreaLabel(person.area)}</span>
-                    {person.leaderArea && (
-                      <span
-                        title={`Líder de ${getAreaLabel(person.leaderArea)}`}
-                        className="inline-flex items-center gap-0.5 text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-300 px-1.5 py-0.5 rounded"
-                      >
-                        <Zap className="h-2.5 w-2.5" />
-                        Líder
-                      </span>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <span className="text-[11px] text-muted-foreground/50 truncate italic">Sem área</span>
-                    {person.leaderArea && (
-                      <span
-                        title={`Líder de ${getAreaLabel(person.leaderArea)}`}
-                        className="inline-flex items-center gap-0.5 text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-300 px-1.5 py-0.5 rounded"
-                      >
-                        <Zap className="h-2.5 w-2.5" />
-                        Líder
-                      </span>
-                    )}
-                  </div>
-                )}
+                {(() => {
+                  const leaderList = person.leaderAreas || (person.leaderArea ? [person.leaderArea] : []);
+                  const leaderLabels = leaderList.map(k => {
+                    if (k.startsWith("team_")) {
+                      const t = teams.find((tm: any) => tm.id === k.slice(5));
+                      return t?.name || "Time";
+                    }
+                    return getAreaLabel(k);
+                  }).filter(Boolean);
+                  const leaderTitle = leaderLabels.length > 0 ? `Líder de: ${leaderLabels.join(", ")}` : "";
+                  const showLeader = leaderList.length > 0;
+                  return (
+                    <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                      {person.areas && person.areas.length > 0 ? (
+                        person.areas.map(areaKey => (
+                          <span key={areaKey} className="text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded truncate">
+                            {getAreaLabel(areaKey)}
+                          </span>
+                        ))
+                      ) : person.area ? (
+                        <span className="text-[11px] text-muted-foreground truncate">{getAreaLabel(person.area)}</span>
+                      ) : (
+                        <span className="text-[11px] text-muted-foreground/50 truncate italic">Sem área</span>
+                      )}
+                      {showLeader && (
+                        <span
+                          title={leaderTitle}
+                          className="inline-flex items-center gap-0.5 text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-300 px-1.5 py-0.5 rounded"
+                        >
+                          <Zap className="h-2.5 w-2.5" />
+                          Líder{leaderList.length > 1 ? ` (${leaderList.length})` : ""}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </button>
             {isAdmin && !person.userId && (

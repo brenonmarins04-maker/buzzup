@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 type Json = Database["public"]["Tables"]["tasks"]["Row"]["checklist"];
 
-export type Person = { id: string; name: string; nickname?: string | null; area?: string | null; areas?: string[] | null; userId?: string | null; leaderArea?: string | null };
+export type Person = { id: string; name: string; nickname?: string | null; area?: string | null; areas?: string[] | null; userId?: string | null; leaderArea?: string | null; leaderAreas?: string[] | null };
 export type Project = {
   id: string;
   name: string;
@@ -77,6 +77,7 @@ type DataContextType = {
   updatePersonArea: (id: string, area: string | null) => void;
   updatePersonAreas: (id: string, areas: string[]) => void;
   updatePersonLeaderArea: (id: string, leaderArea: string | null) => void;
+  updatePersonLeaderAreas: (id: string, leaderAreas: string[]) => void;
   deletePerson: (id: string) => void;
 
   addTask: (task: Omit<Task, "id" | "responsible"> & { responsibleIds: string[] }) => void;
@@ -212,9 +213,17 @@ export function DataProvider({ children }: { children: ReactNode }) {
       let pplList: Person[] = (pplRes.data || []).map((p: any) => {
         const rawArea: string | null = p.area ?? null;
         const areas = rawArea ? rawArea.split(",").filter(Boolean) : [];
+        let leaderAreas: string[] = [];
         let leaderArea: string | null = null;
-        try { leaderArea = localStorage.getItem(`buzzup.leader.${p.id}`) || null; } catch {}
-        return { id: p.id, name: p.name, nickname: p.nickname ?? null, area: rawArea, areas, userId: p.user_id ?? null, leaderArea };
+        try {
+          // New format: comma-separated array (areas + team_<id>)
+          const stored = localStorage.getItem(`buzzup.leader.${p.id}`);
+          if (stored) {
+            leaderAreas = stored.split(",").filter(Boolean);
+            leaderArea = leaderAreas[0] || null; // backward-compat single field
+          }
+        } catch {}
+        return { id: p.id, name: p.name, nickname: p.nickname ?? null, area: rawArea, areas, userId: p.user_id ?? null, leaderArea, leaderAreas };
       });
 
       // Sync: keep people list in sync with workspace_members
@@ -479,6 +488,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const { error } = await (supabase.from("people") as any).update({ area: areaStr }).eq("id", id);
     if (error) { toast.error("Erro ao atualizar áreas"); return; }
     setPeople(prev => prev.map(p => p.id === id ? { ...p, area: areaStr, areas } : p));
+  }, []);
+
+  const updatePersonLeaderAreas = useCallback(async (id: string, leaderAreas: string[]) => {
+    try {
+      if (leaderAreas.length > 0) localStorage.setItem(`buzzup.leader.${id}`, leaderAreas.join(","));
+      else localStorage.removeItem(`buzzup.leader.${id}`);
+    } catch {}
+    setPeople(prev => prev.map(p => p.id === id ? { ...p, leaderAreas, leaderArea: leaderAreas[0] || null } : p));
   }, []);
 
   const updatePersonLeaderArea = useCallback(async (id: string, leaderArea: string | null) => {
@@ -987,7 +1004,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   return (
     <DataContext.Provider value={{
       people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, gamificationActions, gamificationAwards, leadThermometer, attendanceSettings, attendanceRecords, broadcasts, loading, workspaceId,
-      addPerson, updatePerson, updatePersonNickname, updatePersonArea, updatePersonAreas, updatePersonLeaderArea, deletePerson,
+      addPerson, updatePerson, updatePersonNickname, updatePersonArea, updatePersonAreas, updatePersonLeaderArea, updatePersonLeaderAreas, deletePerson,
       addTask, updateTask, deleteTask,
       addPost, updatePost, deletePost,
       addProject, updateProject, deleteProject,

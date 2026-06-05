@@ -374,7 +374,11 @@ function KanbanTab({ area }: { area: AreaKey }) {
   // Verificar se o usuário atual é líder desta área
   const currentPersonAsLeader = useMemo(() => {
     if (!isLeader || !user) return null;
-    return people.find(p => p.userId === user.id && p.leaderArea === area);
+    return people.find(p => {
+      if (p.userId !== user.id) return false;
+      const leaderList = p.leaderAreas || (p.leaderArea ? [p.leaderArea] : []);
+      return leaderList.includes(area);
+    });
   }, [isLeader, user, people, area]);
 
   // Verificar se pode mover (admin ou líder da área)
