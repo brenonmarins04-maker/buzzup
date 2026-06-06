@@ -2,18 +2,15 @@
  * migrate-data.mjs — Migração segura do Supabase ANTIGO → NOVO
  *
  * Uso:
- *   node migrate-data.mjs <NEW_URL> <NEW_SERVICE_ROLE_KEY> [OLD_SERVICE_ROLE_KEY]
- *
- * Onde pegar:
- *   NEW_URL              = Supabase novo → Settings → API → Project URL
- *   NEW_SERVICE_ROLE_KEY = Supabase novo → Settings → API → service_role (secret)
- *   OLD_SERVICE_ROLE_KEY = Supabase antigo (Lovable) → se conseguir, opcional
+ *   node migrate-data.mjs <EMAIL> <SENHA> <NEW_SERVICE_ROLE_KEY>
  *
  * Exemplo:
- *   node migrate-data.mjs https://abc.supabase.co eyJservice... eyJservice_old...
+ *   node migrate-data.mjs meu@email.com minhasenha123 eyJservice...
  *
- * IMPORTANTE: Node.js 18+. Instale dependência antes:
- *   npm install @supabase/supabase-js
+ * EMAIL / SENHA = seu login do BuzzUp (conta que é owner do workspace)
+ * NEW_SERVICE_ROLE_KEY = Supabase NOVO → Settings → API → service_role
+ *
+ * IMPORTANTE: Node.js 18+
  */
 
 import { createClient } from "@supabase/supabase-js";
@@ -22,195 +19,181 @@ import { createClient } from "@supabase/supabase-js";
 const OLD_URL  = "https://ehuqbfbwgckusheiawsz.supabase.co";
 const OLD_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVodXFiZmJ3Z2NrdXNoZWlhd3N6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYwOTU5NzcsImV4cCI6MjA5MTY3MTk3N30.MUr3EPeKyJf1BT6_E2PpXcxWXZC8CalhK9FpCTeQXUs";
 
-// ── Parâmetros ─────────────────────────────────────────────────────
-const NEW_URL         = process.argv[2];
-const NEW_SERVICE_KEY = process.argv[3];
-const OLD_SERVICE_KEY = process.argv[4]; // opcional
+// ── Banco NOVO (seu) — passado via args, nunca hardcoded ───────────
+const NEW_URL         = process.argv[2]; // https://twwcnudhfvzbkdrtfmtu.supabase.co
+const NEW_SERVICE_KEY = process.argv[3]; // service_role key do banco novo
+const EMAIL           = process.argv[4]; // seu email do BuzzUp
+const SENHA           = process.argv[5]; // sua senha do BuzzUp
 
-if (!NEW_URL || !NEW_SERVICE_KEY) {
-  console.error("❌  Uso: node migrate-data.mjs <NEW_URL> <NEW_SERVICE_ROLE_KEY> [OLD_SERVICE_ROLE_KEY]");
-  console.error("\nOnde pegar NEW_SERVICE_ROLE_KEY:");
-  console.error("  Supabase novo → Settings → API → service_role (secret) ← NÃO é a anon key!");
+if (!NEW_URL || !NEW_SERVICE_KEY || !EMAIL || !SENHA) {
+  console.error("\n❌  Uso: node migrate-data.mjs <NEW_URL> <NEW_SERVICE_KEY> <EMAIL> <SENHA>");
+  console.error("\n   NEW_URL        = https://twwcnudhfvzbkdrtfmtu.supabase.co");
+  console.error("   NEW_SERVICE_KEY = Settings → API → service_role (banco novo)");
+  console.error("   EMAIL/SENHA     = seu login do BuzzUp\n");
   process.exit(1);
 }
 
-// service_role bypassa RLS completamente — essencial para leitura/escrita sem auth
-const OLD = createClient(OLD_URL, OLD_SERVICE_KEY || OLD_ANON, {
+// Cliente antigo — começa anon, vira autenticado após login
+const OLD = createClient(OLD_URL, OLD_ANON, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
+
+// Cliente novo — usa service_role, bypassa RLS completamente
 const NEW = createClient(NEW_URL, NEW_SERVICE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-// ── Configuração de cada tabela ────────────────────────────────────
-// conflictCol: coluna usada para upsert (evita duplicatas ao re-rodar)
-// skip: tabelas que o Supabase gerencia automaticamente (auth.users não é copiável assim)
+// ── Ordem de cópia (respeita chaves estrangeiras) ──────────────────
 const TABLES = [
-  // Tabelas raiz
-  { name: "workspaces",                conflictCol: "id" },
-  { name: "profiles",                  conflictCol: "user_id" },  // PK é user_id, não id!
-  { name: "workspace_members",         conflictCol: "id" },
-  { name: "workspace_join_requests",   conflictCol: "id" },
-  // Dados operacionais
-  { name: "people",                    conflictCol: "id" },
-  { name: "teams",                     conflictCol: "id" },
-  { name: "team_members",              conflictCol: "id" },
-  { name: "projects",                  conflictCol: "id" },
-  { name: "project_participants",      conflictCol: "id" },
-  { name: "tasks",                     conflictCol: "id" },
-  { name: "task_assignees",            conflictCol: "id" },
-  { name: "posts",                     conflictCol: "id" },
-  { name: "post_assignees",            conflictCol: "id" },
-  { name: "calendar_items",            conflictCol: "id" },
-  { name: "categories",               conflictCol: "id" },
-  { name: "channels",                  conflictCol: "id" },
-  { name: "event_types",               conflictCol: "id" },
-  { name: "area_notes",               conflictCol: "id" },
-  { name: "parking_items",             conflictCol: "id" },
-  { name: "gamification_actions",      conflictCol: "id" },
-  { name: "gamification_awards",       conflictCol: "id" },
-  { name: "lead_thermometer",          conflictCol: "id" },
-  { name: "attendance_settings",       conflictCol: "id" },
-  { name: "attendance_records",        conflictCol: "id" },
-  { name: "broadcasts",               conflictCol: "id" },
+  { name: "workspaces",              pk: "id" },
+  { name: "profiles",                pk: "user_id" },
+  { name: "workspace_members",       pk: "id" },
+  { name: "workspace_join_requests", pk: "id" },
+  { name: "people",                  pk: "id" },
+  { name: "teams",                   pk: "id" },
+  { name: "team_members",            pk: "id" },
+  { name: "projects",               pk: "id" },
+  { name: "project_participants",    pk: "id" },
+  { name: "tasks",                   pk: "id" },
+  { name: "task_assignees",          pk: "id" },
+  { name: "posts",                   pk: "id" },
+  { name: "post_assignees",          pk: "id" },
+  { name: "calendar_items",          pk: "id" },
+  { name: "categories",             pk: "id" },
+  { name: "channels",               pk: "id" },
+  { name: "event_types",            pk: "id" },
+  { name: "area_notes",             pk: "id" },
+  { name: "parking_items",          pk: "id" },
+  { name: "gamification_actions",   pk: "id" },
+  { name: "gamification_awards",    pk: "id" },
+  { name: "lead_thermometer",       pk: "id" },
+  { name: "attendance_settings",    pk: "id" },
+  { name: "attendance_records",     pk: "id" },
+  { name: "broadcasts",             pk: "id" },
 ];
-
-const PAGE_SIZE = 500;
-const BATCH_SIZE = 100;
 
 // ── Helpers ────────────────────────────────────────────────────────
 async function fetchAllRows(client, tableName) {
   const rows = [];
   let from = 0;
+  const PAGE = 500;
   while (true) {
-    const { data, error } = await client
-      .from(tableName)
-      .select("*")
-      .range(from, from + PAGE_SIZE - 1)
-      .order("created_at", { ascending: true })
-      .limit(PAGE_SIZE);
-
-    if (error) {
-      // Tenta sem order se a tabela não tem created_at
-      const { data: data2, error: e2 } = await client
-        .from(tableName)
-        .select("*")
-        .range(from, from + PAGE_SIZE - 1)
-        .limit(PAGE_SIZE);
-      if (e2) throw new Error(e2.message);
-      if (!data2 || data2.length === 0) break;
-      rows.push(...data2);
-      from += data2.length;
-      if (data2.length < PAGE_SIZE) break;
-      continue;
+    // Tenta com order por created_at (maioria tem)
+    let res = await client.from(tableName).select("*").range(from, from + PAGE - 1);
+    if (res.error) {
+      // Tenta sem ordering
+      res = await client.from(tableName).select("*").range(from, from + PAGE - 1);
+      if (res.error) throw new Error(res.error.message);
     }
-
-    if (!data || data.length === 0) break;
+    const data = res.data || [];
     rows.push(...data);
-    from += data.length;
-    if (data.length < PAGE_SIZE) break;
+    if (data.length < PAGE) break;
+    from += PAGE;
   }
   return rows;
 }
 
-async function upsertRows(client, tableName, conflictCol, rows) {
-  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
-    const chunk = rows.slice(i, i + BATCH_SIZE);
+async function upsertRows(client, tableName, pk, rows) {
+  const BATCH = 100;
+  for (let i = 0; i < rows.length; i += BATCH) {
+    const chunk = rows.slice(i, i + BATCH);
     const { error } = await client
       .from(tableName)
-      .upsert(chunk, { onConflict: conflictCol, ignoreDuplicates: false });
-    if (error) {
-      throw new Error(`lote ${i}–${i + chunk.length}: ${error.message}`);
-    }
+      .upsert(chunk, { onConflict: pk, ignoreDuplicates: false });
+    if (error) throw new Error(`lote ${i}: ${error.message}`);
   }
 }
 
-function fmt(n) { return String(n).padStart(5); }
-
-// ── Verificação pós-migração ───────────────────────────────────────
-async function verify(tableName) {
-  const [{ count: oldCount }, { count: newCount }] = await Promise.all([
-    OLD.from(tableName).select("*", { count: "exact", head: true }),
-    NEW.from(tableName).select("*", { count: "exact", head: true }),
-  ]);
-  return { old: oldCount ?? 0, new: newCount ?? 0 };
+async function countRows(client, tableName) {
+  const { count, error } = await client
+    .from(tableName)
+    .select("*", { count: "exact", head: true });
+  if (error) return "?";
+  return count ?? 0;
 }
+
+function pad(s, n = 32) { return String(s).padEnd(n); }
+function padL(s, n = 6) { return String(s).padStart(n); }
 
 // ── Main ───────────────────────────────────────────────────────────
 async function main() {
-  console.log("╔══════════════════════════════════════════════════╗");
+  console.log("\n╔══════════════════════════════════════════════════╗");
   console.log("║       BuzzUp — Migração de dados Supabase        ║");
   console.log("╚══════════════════════════════════════════════════╝\n");
 
-  if (!OLD_SERVICE_KEY) {
-    console.warn("⚠️  Sem service_role do banco ANTIGO — usando anon key.");
-    console.warn("   Tabelas protegidas por RLS podem retornar 0 linhas.\n");
+  // 1. Autenticar no banco ANTIGO
+  console.log(`🔐  Fazendo login no banco antigo como ${EMAIL}...`);
+  const { data: authData, error: authErr } = await OLD.auth.signInWithPassword({
+    email: EMAIL,
+    password: SENHA,
+  });
+  if (authErr) {
+    console.error(`\n❌  Login falhou: ${authErr.message}`);
+    console.error("   Verifique email e senha. São os mesmos que você usa no BuzzUp.");
+    process.exit(1);
   }
+  console.log(`✅  Logado como ${authData.user?.email}\n`);
 
+  // 2. Copiar tabelas
   console.log("FASE 1 — Copiando dados...\n");
-
   const results = [];
 
-  for (const { name, conflictCol } of TABLES) {
-    process.stdout.write(`  ${name.padEnd(32)}`);
-    let status = "ok";
-    let count = 0;
-
+  for (const { name, pk } of TABLES) {
+    process.stdout.write(`  ${pad(name)}`);
     try {
       const rows = await fetchAllRows(OLD, name);
-      count = rows.length;
-
       if (rows.length === 0) {
         process.stdout.write("(vazio)\n");
         results.push({ name, count: 0, status: "empty" });
         continue;
       }
-
-      await upsertRows(NEW, name, conflictCol, rows);
-      process.stdout.write(`✅  ${fmt(rows.length)} registros\n`);
-      status = "ok";
+      await upsertRows(NEW, name, pk, rows);
+      process.stdout.write(`✅  ${padL(rows.length)} registros\n`);
+      results.push({ name, count: rows.length, status: "ok" });
     } catch (err) {
-      process.stdout.write(`❌  ${err.message.slice(0, 80)}\n`);
-      status = "error";
+      process.stdout.write(`❌  ${err.message.slice(0, 90)}\n`);
+      results.push({ name, count: 0, status: "error", err: err.message });
     }
-
-    results.push({ name, count, status });
   }
 
-  // ── Fase 2: verificação ──────────────────────────────────────────
+  // 3. Verificação de contagens
   console.log("\nFASE 2 — Verificando contagens (antigo vs novo)...\n");
+  let allOk = true;
+  const erros = [];
 
-  let allMatch = true;
   for (const { name, status } of results) {
-    if (status === "error") continue;
-    try {
-      const { old: o, new: n } = await verify(name);
-      const match = o === n;
-      if (!match) allMatch = false;
-      const icon = match ? "✅" : "⚠️ ";
-      const diff = match ? "" : `  ← DIFERENÇA: antigo=${o} novo=${n}`;
-      console.log(`  ${icon} ${name.padEnd(32)} ${fmt(o)} → ${fmt(n)}${diff}`);
-    } catch {
-      console.log(`  ⚠️  ${name.padEnd(32)} não foi possível verificar`);
+    if (status === "error") { erros.push(name); continue; }
+    const [oldCount, newCount] = await Promise.all([
+      countRows(OLD, name),
+      countRows(NEW, name),
+    ]);
+    const match = oldCount === newCount;
+    if (!match) allOk = false;
+    const icon = match ? "✅" : "⚠️ ";
+    const diff = match ? "" : `  ← DIFERENÇA antigo=${oldCount} novo=${newCount}`;
+    console.log(`  ${icon} ${pad(name)} ${padL(oldCount)} → ${padL(newCount)}${diff}`);
+  }
+
+  // 4. Resumo
+  console.log("\n══════════════════════════════════════════════════");
+  if (allOk && erros.length === 0) {
+    console.log("✅  MIGRAÇÃO 100% COMPLETA — todos os dados foram copiados!");
+  } else {
+    if (erros.length > 0) {
+      console.log(`⚠️  Tabelas com erro: ${erros.join(", ")}`);
+    }
+    if (!allOk) {
+      console.log("⚠️  Algumas tabelas têm diferença de contagem.");
+      console.log("   Rode o script novamente — ele é seguro para re-executar.");
     }
   }
 
-  // ── Resumo ───────────────────────────────────────────────────────
-  console.log("\n══════════════════════════════════════════════════");
-  if (allMatch) {
-    console.log("✅  MIGRAÇÃO COMPLETA — todos os dados batem!");
-  } else {
-    console.log("⚠️  Algumas tabelas têm diferença de contagem.");
-    console.log("   Verifique acima quais tabelas precisam atenção.");
-    console.log("   Possível causa: RLS bloqueou leitura do banco antigo.");
-    console.log("   Solução: obtenha a service_role key do banco antigo e re-rode.");
-  }
-  console.log("\n📋  PRÓXIMO PASSO:");
-  console.log("   1. Abra o arquivo .env e substitua as credenciais pelo banco NOVO");
-  console.log("   2. Faça git add .env && git commit && git push");
-  console.log("   3. No Vercel: Settings → Environment Variables → atualize as 3 vars");
-  console.log("   4. Redeploy no Vercel");
-  console.log("══════════════════════════════════════════════════\n");
+  console.log(`
+📋  PRÓXIMO PASSO:
+   Agora atualize o arquivo .env com o banco NOVO e faça push.
+   Vou fazer isso automaticamente — me diga "atualiza o .env".
+══════════════════════════════════════════════════
+`);
 }
 
 main().catch(err => {
