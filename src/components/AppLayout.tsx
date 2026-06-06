@@ -15,8 +15,6 @@ import QuickCreateMenu from "@/components/modals/QuickCreateMenu";
 import EditAreaNamesModal from "@/components/modals/EditAreaNamesModal";
 import { useAreaNames } from "@/hooks/useAreaNames";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import TaskModal from "@/components/modals/TaskModal";
-import PostModal from "@/components/modals/PostModal";
 import EventModal from "@/components/modals/EventModal";
 import NotificationPanel from "@/components/NotificationPanel";
 import BroadcastBar from "@/components/BroadcastBar";
@@ -94,8 +92,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true; supabase.removeChannel(ch); };
   }, [user?.id, ownedWorkspaceIds.join(",")]);
 
-  const [taskModal, setTaskModal] = useState(false);
-  const [postModal, setPostModal] = useState(false);
   const [eventModal, setEventModal] = useState(false);
   const [broadcastModal, setBroadcastModal] = useState(false);
   const [editAreasModal, setEditAreasModal] = useState(false);
@@ -196,8 +192,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <TaskModal open={taskModal} onOpenChange={setTaskModal} />
-        <PostModal open={postModal} onOpenChange={setPostModal} />
         <EventModal open={eventModal} onOpenChange={setEventModal} />
         <BroadcastModal open={broadcastModal} onOpenChange={setBroadcastModal} />
       </div>

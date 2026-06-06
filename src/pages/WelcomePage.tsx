@@ -47,7 +47,7 @@ export default function WelcomePage() {
     const result = await requestJoinWorkspace(code.trim().toUpperCase());
     setBusy(false);
     if (result.ok) {
-      toast.success("Pedido enviado! Se o workspace for público, você entrará automaticamente.");
+      toast.success("Pedido enviado! Aguarde aprovação do owner.");
       setCode("");
       setMode("hub");
     } else toast.error(result.error || "Código inválido");

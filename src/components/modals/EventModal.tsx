@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import TeamSelector from "@/components/TeamSelector";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Pencil, Trash2, Check, X, Settings2 } from "lucide-react";
 

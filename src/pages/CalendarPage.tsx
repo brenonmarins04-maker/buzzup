@@ -5,15 +5,13 @@ import { useData } from "@/contexts/DataContext";
 import type { Task, Post, CalendarEvent } from "@/contexts/DataContext";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth,
-  addMonths, subMonths, addWeeks, subWeeks, addDays, subDays,
-  startOfWeek, endOfWeek, isToday, isSameDay, isTomorrow,
+  addMonths, subMonths, isToday, isSameDay,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import TaskModal from "@/components/modals/TaskModal";
 import PostModal from "@/components/modals/PostModal";
 import EventModal from "@/components/modals/EventModal";
 import IdeaModal from "@/components/modals/IdeaModal";
-import QuickCreateMenu from "@/components/modals/QuickCreateMenu";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
@@ -31,7 +29,6 @@ export type CalendarItem = {
   parkingId?: string;
 };
 
-type ViewMode = "month" | "week" | "day";
 
 const TASK_COLOR = "#E8804A"; // laranja
 const POST_COLOR = "#3B7DD8"; // azul (Marketing)
@@ -54,7 +51,6 @@ export default function CalendarPage() {
   const { isAdmin } = useAuth();
   const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(getNowBrasilia());
-  const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [filterArea, setFilterArea] = useState<string | null>(null);
   const [parkingOpen, setParkingOpen] = useState(true);
   const [newIdea, setNewIdea] = useState("");
@@ -306,7 +302,7 @@ export default function CalendarPage() {
 
   const handleDrop = (e: DragEvent, dayStr: string) => {
     e.preventDefault(); setDropTarget(null);
-    if (!isAdmin) { toast.error("Apenas administradores podem alterar datas"); setDragItem(null); return; }
+    if (!isAdmin) { toast.error("Apenas diretores podem alterar datas"); setDragItem(null); return; }
     const droppedItem = dragItem ?? (() => {
       try { return JSON.parse(e.dataTransfer.getData("text/plain")) as CalendarItem; } catch { return null; }
     })();
@@ -329,26 +325,9 @@ export default function CalendarPage() {
     else if (item.type === "event") setEventModal({ open: true, event: events.find(e => e.id === item.id) });
   };
 
-  const navigatePrev = () => {
-    if (viewMode === "month") setCurrentDate(subMonths(currentDate, 1));
-    else if (viewMode === "week") setCurrentDate(subWeeks(currentDate, 1));
-    else setCurrentDate(subDays(currentDate, 1));
-  };
-  const navigateNext = () => {
-    if (viewMode === "month") setCurrentDate(addMonths(currentDate, 1));
-    else if (viewMode === "week") setCurrentDate(addWeeks(currentDate, 1));
-    else setCurrentDate(addDays(currentDate, 1));
-  };
-
-  const headerLabel = () => {
-    if (viewMode === "month") return format(currentDate, "MMMM yyyy", { locale: ptBR });
-    if (viewMode === "week") {
-      const ws = startOfWeek(currentDate, { weekStartsOn: 0 });
-      const we = endOfWeek(currentDate, { weekStartsOn: 0 });
-      return `${format(ws, "d MMM", { locale: ptBR })} — ${format(we, "d MMM yyyy", { locale: ptBR })}`;
-    }
-    return format(currentDate, "EEEE, d 'de' MMMM yyyy", { locale: ptBR });
-  };
+  const navigatePrev = () => setCurrentDate(subMonths(currentDate, 1));
+  const navigateNext = () => setCurrentDate(addMonths(currentDate, 1));
+  const headerLabel = () => format(currentDate, "MMMM yyyy", { locale: ptBR });
 
   const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
   const hours = Array.from({ length: 14 }, (_, i) => i + 7);
@@ -357,8 +336,6 @@ export default function CalendarPage() {
   const calStart = startOfWeek(monthStart, { weekStartsOn: 0 });
   const calEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
   const monthDays = eachDayOfInterval({ start: calStart, end: calEnd });
-  const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 });
-  const weekDaysList = eachDayOfInterval({ start: weekStart, end: endOfWeek(currentDate, { weekStartsOn: 0 }) });
 
   const typeLabels: Record<string, string> = { task: "Demanda", post: "Post", event: "Evento" };
 
@@ -742,66 +719,6 @@ export default function CalendarPage() {
               ))}
             </div>
           )}
-        </div>
-      )}
-
-      {viewMode === "week" && (
-        <div className="bg-card border border-border rounded-2xl overflow-hidden">
-          <div className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-border">
-            <div className="py-2 text-center text-xs text-muted-foreground" />
-            {weekDaysList.map(day => (
-              <div key={format(day, "yyyy-MM-dd")} className="py-2 text-center">
-                <div className="text-xs font-medium text-muted-foreground uppercase">{format(day, "EEE", { locale: ptBR })}</div>
-                <div className={`text-sm font-semibold mt-0.5 ${isToday(day) ? "bg-primary text-primary-foreground h-6 w-6 rounded-full flex items-center justify-center mx-auto" : "text-foreground"}`}>{format(day, "d")}</div>
-              </div>
-            ))}
-          </div>
-          <div className="max-h-[500px] overflow-y-auto scrollbar-thin">
-            {hours.map(h => (
-              <div key={h} className="grid grid-cols-[60px_repeat(7,1fr)] border-b border-border">
-                <div className="py-3 text-center text-[10px] text-muted-foreground">{`${h}:00`}</div>
-                {weekDaysList.map(day => {
-                  const dayStr = format(day, "yyyy-MM-dd");
-                  const hourItems = allItems.filter(item => item.date === dayStr && item.time && parseInt(item.time.split(":")[0]) === h);
-                  const dropKey = `${dayStr}-${h}`;
-                  const isDropping = dropTarget === dropKey;
-                  return (
-                    <div key={dropKey} onDragOver={(e) => { if (!isAdmin) return; e.preventDefault(); setDropTarget(dropKey); }} onDragLeave={() => setDropTarget(null)}
-                      onDrop={(e) => isAdmin && handleDrop(e, dayStr)}
-                      className={`border-r border-border p-0.5 min-h-[48px] transition-colors ${isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""}`}>
-                      {hourItems.map(item => renderItemPill(item))}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {viewMode === "day" && (
-        <div className="bg-card border border-border rounded-2xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-border">
-            <div className={`text-lg font-semibold capitalize ${isToday(currentDate) ? "text-primary" : "text-foreground"}`}>
-              {format(currentDate, "EEEE, d 'de' MMMM", { locale: ptBR })}
-            </div>
-          </div>
-          <div className="max-h-[500px] overflow-y-auto scrollbar-thin">
-            {hours.map(h => {
-              const dayStr = format(currentDate, "yyyy-MM-dd");
-              const hourItems = allItems.filter(item => item.date === dayStr && item.time && parseInt(item.time.split(":")[0]) === h);
-              const dropKey = `${dayStr}-${h}`;
-              const isDropping = dropTarget === dropKey;
-              return (
-                <div key={h} onDragOver={(e) => { if (!isAdmin) return; e.preventDefault(); setDropTarget(dropKey); }} onDragLeave={() => setDropTarget(null)}
-                  onDrop={(e) => isAdmin && handleDrop(e, dayStr)}
-                  className={`flex border-b border-border min-h-[56px] transition-colors ${isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""}`}>
-                  <div className="w-16 shrink-0 py-2 text-center text-xs text-muted-foreground border-r border-border">{`${h}:00`}</div>
-                  <div className="flex-1 p-1 flex flex-col gap-0.5">{hourItems.map(item => renderItemPill(item))}</div>
-                </div>
-              );
-            })}
-          </div>
         </div>
       )}
 

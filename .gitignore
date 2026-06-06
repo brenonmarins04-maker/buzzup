@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Migration scripts (not for production)
+migrate-data.mjs
+importar-backup.mjs
+exportar-no-browser.js
+schema.sql
+MIGRAR-DO-LOVABLE.md
+buzzup-backup.json
