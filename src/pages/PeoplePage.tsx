@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { AREAS, getAreaLabel } from "@/lib/areas";
+import { AREAS, getAreaLabel, getTeamColor } from "@/lib/areas";
 import MemberEditModal from "@/components/modals/MemberEditModal";
 import RolesInfoModal from "@/components/modals/RolesInfoModal";
 import TeamsPage from "@/pages/TeamsPage";
@@ -199,37 +199,66 @@ function MembersTab() {
                 </div>
                 {(() => {
                   const leaderList = person.leaderAreas || (person.leaderArea ? [person.leaderArea] : []);
-                  const leaderLabels = leaderList.map(k => {
-                    if (k.startsWith("team_")) {
-                      const t = teams.find((tm: any) => tm.id === k.slice(5));
-                      return t?.name || "Time";
-                    }
-                    return getAreaLabel(k);
-                  }).filter(Boolean);
-                  const leaderTitle = leaderLabels.length > 0 ? `Líder de: ${leaderLabels.join(", ")}` : "";
-                  const showLeader = leaderList.length > 0;
+                  const personTeams = teams.filter(t => t.memberIds.includes(person.id));
+                  const personAreas = person.areas && person.areas.length > 0 ? person.areas : (person.area ? [person.area] : []);
+
+                  // Split leader list into areas and teams
+                  const leaderAreas = leaderList.filter(k => !k.startsWith("team_"));
+                  const leaderTeams = leaderList.filter(k => k.startsWith("team_")).map(k => k.slice(5));
+                  const leaderAreaLabels = leaderAreas.map(getAreaLabel).filter(Boolean);
+                  const leaderTeamLabels = leaderTeams.map(id => teams.find(t => t.id === id)?.name || "").filter(Boolean);
+
                   return (
                     <div className="flex flex-wrap items-center gap-1 mt-0.5">
-                      {person.areas && person.areas.length > 0 ? (
-                        person.areas.map(areaKey => (
-                          <span key={areaKey} className="text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded truncate">
-                            {getAreaLabel(areaKey)}
+                      {/* Áreas */}
+                      {personAreas.length > 0 ? (
+                        personAreas.map(areaKey => (
+                          <span key={areaKey} className="text-[10px] font-medium bg-blue-100 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded truncate">
+                            [{getAreaLabel(areaKey)}]
                           </span>
                         ))
-                      ) : person.area ? (
-                        <span className="text-[11px] text-muted-foreground truncate">{getAreaLabel(person.area)}</span>
                       ) : (
-                        <span className="text-[11px] text-muted-foreground/50 truncate italic">Sem área</span>
+                        <span className="text-[10px] text-muted-foreground/50 truncate italic">Sem área</span>
                       )}
-                      {showLeader && (
+
+                      {/* Times */}
+                      {personTeams.map(t => (
                         <span
-                          title={leaderTitle}
+                          key={t.id}
+                          className="text-[10px] font-medium px-1.5 py-0.5 rounded truncate border"
+                          style={{
+                            color: getTeamColor(t.id),
+                            borderColor: `${getTeamColor(t.id)}40`,
+                            backgroundColor: `${getTeamColor(t.id)}15`,
+                          }}
+                        >
+                          [{t.name}]
+                        </span>
+                      ))}
+
+                      {/* Líderes de áreas */}
+                      {leaderAreaLabels.map(lbl => (
+                        <span
+                          key={`la-${lbl}`}
+                          title={`Líder da área ${lbl}`}
                           className="inline-flex items-center gap-0.5 text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-300 px-1.5 py-0.5 rounded"
                         >
                           <Zap className="h-2.5 w-2.5" />
-                          Líder{leaderList.length > 1 ? ` (${leaderList.length})` : ""}
+                          [{lbl} Líder]
                         </span>
-                      )}
+                      ))}
+
+                      {/* Líderes de times */}
+                      {leaderTeamLabels.map(lbl => (
+                        <span
+                          key={`lt-${lbl}`}
+                          title={`Líder do time ${lbl}`}
+                          className="inline-flex items-center gap-0.5 text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-300 px-1.5 py-0.5 rounded"
+                        >
+                          <Zap className="h-2.5 w-2.5" />
+                          [{lbl} Líder]
+                        </span>
+                      ))}
                     </div>
                   );
                 })()}
