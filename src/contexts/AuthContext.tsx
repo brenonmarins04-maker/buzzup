@@ -148,15 +148,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signUp = async (email: string, password: string, name: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { display_name: name },
-        emailRedirectTo: window.location.origin,
-      },
-    });
-    return { error: error as Error | null };
+    try {
+      const r = await fetch("/api/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, name }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        const msg = data?.error === "already_exists"
+          ? "Este e-mail já está cadastrado. Tente fazer login."
+          : (data?.error || "Erro ao criar conta");
+        return { error: new Error(msg) };
+      }
+      return { error: null };
+    } catch (e: any) {
+      return { error: new Error(e.message || "Erro de conexão") };
+    }
   };
 
   const signIn = async (email: string, password: string) => {

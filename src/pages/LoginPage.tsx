@@ -61,7 +61,7 @@ export default function LoginPage() {
       const { error } = await signUp(email, password, name.trim());
       if (error) {
         const msg = error.message.toLowerCase();
-        if (msg.includes("already registered") || msg.includes("already exists")) {
+        if (msg.includes("já está cadastrado") || msg.includes("already")) {
           toast.error("Este e-mail já está cadastrado. Tente fazer login.");
           setMode("login");
         } else {
@@ -71,15 +71,13 @@ export default function LoginPage() {
         return;
       }
 
-      // Tenta logar direto (funciona quando email confirm está desativado)
+      // Conta criada com email já confirmado — loga direto
       const { error: loginErr } = await signIn(email, password);
       if (!loginErr) {
         setJustSignedUp(true);
-        // Navegação acontece automaticamente pelo user state
       } else {
-        // Email confirm está ativado no Supabase — precisa confirmar
-        setEmailConfirmNeeded(true);
-        toast.success("Conta criada! Verifique seu e-mail para confirmar o cadastro.");
+        toast.error("Conta criada! Faça login com seu e-mail e senha.");
+        setMode("login");
       }
       setSubmitting(false);
       return;
