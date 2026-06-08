@@ -7,77 +7,80 @@ export const AREAS_DEFAULT: { key: AreaKey; label: string; path: string; color: 
   { key: "presidencia", label: "Eventos / Projetos", path: "/presidencia", color: "#8B5CF6" },
 ];
 
-// Custom area names stored in localStorage, synced via broadcasts
-const AREA_NAMES_KEY = "buzzup.area_names";
+// ─── Per-workspace area names ────────────────────────────────────────────────
+// In-memory cache: workspaceId → custom name map
+const wsNamesCache = new Map<string, Record<string, string>>();
+let _activeWsId: string | null = null;
 
-let customNames: Record<string, string> = {};
-try {
-  const raw = localStorage.getItem(AREA_NAMES_KEY);
-  if (raw) customNames = JSON.parse(raw);
-} catch {}
+function lsKey(wsId: string) { return `buzzup.area_names.${wsId}`; }
 
-export function setCustomAreaNames(names: Record<string, string>) {
-  customNames = names;
-  try { localStorage.setItem(AREA_NAMES_KEY, JSON.stringify(names)); } catch {}
+/** Called whenever the active workspace changes (by AuthContext / AppLayout). */
+export function loadAreaNamesForWorkspace(wsId: string | null): void {
+  _activeWsId = wsId;
+  if (!wsId) return;
+  if (wsNamesCache.has(wsId)) return; // already loaded
+  try {
+    const raw = localStorage.getItem(lsKey(wsId));
+    wsNamesCache.set(wsId, raw ? JSON.parse(raw) : {});
+  } catch {
+    wsNamesCache.set(wsId, {});
+  }
 }
 
-export function getCustomAreaNames(): Record<string, string> {
-  return { ...customNames };
+/** Persist custom names for a specific workspace (and update in-memory cache). */
+export function setCustomAreaNames(names: Record<string, string>, wsId?: string): void {
+  const id = wsId || _activeWsId;
+  if (!id) return;
+  wsNamesCache.set(id, names);
+  try { localStorage.setItem(lsKey(id), JSON.stringify(names)); } catch {}
 }
 
-export const AREAS: { key: AreaKey; label: string; path: string; color: string }[] = AREAS_DEFAULT.map(a => ({
-  ...a,
-  get label() { return customNames[a.key] || a.label; },
-}));
+/** Read custom names for a workspace (defaults to active workspace). */
+export function getCustomAreaNames(wsId?: string): Record<string, string> {
+  const id = wsId || _activeWsId;
+  if (!id) return {};
+  return wsNamesCache.get(id) ?? {};
+}
 
-export const AREA_OPTIONS = AREAS_DEFAULT.map(a => ({
-  value: a.key,
-  get label() { return customNames[a.key] || a.label; },
-}));
-
-export const getAreaLabel = (key?: string | null) => {
+/** Resolve the display label for an area key in the active workspace. */
+export const getAreaLabel = (key?: string | null): string => {
   if (!key) return "";
-  if (customNames[key]) return customNames[key];
+  const custom = getCustomAreaNames();
+  if (custom[key]) return custom[key];
   return AREAS_DEFAULT.find(a => a.key === key)?.label ?? "";
 };
 
-// Distinct team color palette — avoids similar colors to the 4 areas
-// (which use #2563EB blue, #F97316 orange, #10B981 emerald, #8B5CF6 purple)
+// AREAS uses getter so label is always resolved from the active workspace at render time
+export const AREAS: { key: AreaKey; label: string; path: string; color: string }[] =
+  AREAS_DEFAULT.map(a => ({
+    ...a,
+    get label() { return getAreaLabel(a.key); },
+  }));
+
+export const AREA_OPTIONS = AREAS_DEFAULT.map(a => ({
+  value: a.key,
+  get label() { return getAreaLabel(a.key); },
+}));
+
+// ─── Team color palette ──────────────────────────────────────────────────────
 const TEAM_PALETTE = [
-  "#DB2777", // pink
-  "#0891B2", // cyan
-  "#CA8A04", // amber/yellow
-  "#DC2626", // red
-  "#65A30D", // lime
-  "#0D9488", // teal
-  "#BE185D", // rose
-  "#B45309", // amber-dark
-  "#075985", // sky-dark
-  "#7C2D12", // brown
-  "#166534", // green-dark
-  "#1E3A8A", // navy
-  "#6B21A8", // purple-dark
-  "#9D174D", // pink-dark
-  "#4D7C0F", // olive
-  "#831843", // magenta-dark
+  "#DB2777", "#0891B2", "#CA8A04", "#DC2626", "#65A30D",
+  "#0D9488", "#BE185D", "#B45309", "#075985", "#7C2D12",
+  "#166534", "#1E3A8A", "#6B21A8", "#9D174D", "#4D7C0F",
+  "#831843",
 ];
 
-// Get a distinct color for a team based on its id (stable hash → palette index)
 export function getTeamColor(teamId: string): string {
   let hash = 0;
   for (let i = 0; i < teamId.length; i++) {
     hash = ((hash << 5) - hash) + teamId.charCodeAt(i);
     hash |= 0;
   }
-  const idx = Math.abs(hash) % TEAM_PALETTE.length;
-  return TEAM_PALETTE[idx];
+  return TEAM_PALETTE[Math.abs(hash) % TEAM_PALETTE.length];
 }
 
-// Resolve color from any area key (real area or team_<id>)
 export function getAreaColor(areaKey?: string | null): string {
   if (!areaKey) return "#CBD5E1";
-  if (areaKey.startsWith("team_")) {
-    return getTeamColor(areaKey.slice(5));
-  }
+  if (areaKey.startsWith("team_")) return getTeamColor(areaKey.slice(5));
   return AREAS_DEFAULT.find(a => a.key === areaKey)?.color ?? "#CBD5E1";
 }

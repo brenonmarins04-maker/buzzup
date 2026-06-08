@@ -102,8 +102,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [editAreasModal, setEditAreasModal] = useState(false);
   const [createTeamModal, setCreateTeamModal] = useState(false);
 
-  // Load custom area names from broadcasts
-  useAreaNames();
+  // Load custom area names per workspace — version triggers re-render of nav items
+  const { version: areaNamesVersion } = useAreaNames();
 
   const fullName =
     (displayName && displayName.trim()) ||
@@ -215,7 +215,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
         <nav className="flex-1 py-4 px-2 flex flex-col gap-1 overflow-y-auto">
           {/* Main nav items (sem Acessos) */}
-          {getNavItems().map((item) => (
+          {/* areaNamesVersion in dep ensures re-render when workspace names load */}
+          {/* eslint-disable-next-line react-hooks/exhaustive-deps */}
+          {useMemo(() => getNavItems(), [areaNamesVersion]).map((item) => (
             <NavLink key={item.to} to={item.to}
               style={({ isActive }) => (isActive && (item as any).color
                 ? { backgroundColor: `${(item as any).color}1F`, color: (item as any).color, boxShadow: `inset 3px 0 0 ${(item as any).color}` }
