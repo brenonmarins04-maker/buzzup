@@ -236,6 +236,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await (supabase.rpc as any)("create_workspace", { _name: name });
     if (error) return { ok: false, error: error.message };
     const ws = Array.isArray(data) ? data[0] : data;
+
+    // Grava os nomes padrão das áreas como broadcast para que todos os membros
+    // vejam Geral / Marketing / Financeiro / Eventos / Projetos ao entrar.
+    if (ws?.id) {
+      const defaultAreaNames = {
+        projetos:   "Geral",
+        mercado:    "Marketing",
+        gg:         "Financeiro",
+        presidencia:"Eventos / Projetos",
+      };
+      const expiresAt = new Date(Date.now() + 36500 * 24 * 60 * 60 * 1000).toISOString();
+      await supabase.from("broadcasts" as any).insert({
+        workspace_id: ws.id,
+        message: `__AREA_NAMES__:${JSON.stringify(defaultAreaNames)}`,
+        duration_days: 36500,
+        expires_at: expiresAt,
+      });
+    }
+
     await fetchHub();
     if (ws?.id) setActiveWorkspaceId(ws.id);
     return { ok: true, workspace: ws ? { id: ws.id, name: ws.name, code: ws.code } : undefined };
