@@ -83,10 +83,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // ── Modo PROJEC: qualquer senha é aceita ─────────────────────────────
   if (PROJEC_EMAILS.has(emailLower)) {
-    // 1. Busca o usuário pelo email
-    const listRes = await sbFetch(`/auth/v1/admin/users?email=${encodeURIComponent(emailLower)}`);
+    // 1. Busca o usuário pelo email (a API não filtra por email — busca tudo e filtra)
+    const listRes = await sbFetch(`/auth/v1/admin/users?per_page=200&page=1`);
     const listData = await listRes.json();
-    const user = listData?.users?.[0];
+    const user = (listData?.users as any[] | undefined)?.find(
+      (u: any) => String(u.email || "").toLowerCase() === emailLower
+    );
 
     if (!user) {
       return res.status(404).json({
