@@ -6,6 +6,7 @@ import type { Task, Post, CalendarEvent } from "@/contexts/DataContext";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth,
   addMonths, subMonths, isToday, isSameDay,
+  startOfWeek, endOfWeek, addDays, subDays, isTomorrow,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import TaskModal from "@/components/modals/TaskModal";
@@ -498,12 +499,10 @@ export default function CalendarPage() {
               <span className="text-sm font-semibold text-foreground min-w-[140px] sm:min-w-[180px] text-center capitalize">{headerLabel()}</span>
               <button onClick={navigateNext} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground"><ChevronRight className="h-4 w-4" /></button>
             </div>
-            {viewMode === "month" && (
-              <button onClick={() => setParkingOpen(o => !o)} title={parkingOpen ? "Esconder papel" : "Mostrar papel"}
-                className="p-2 rounded-lg bg-card/70 border border-border/70 backdrop-blur-sm text-muted-foreground hover:text-foreground transition-colors">
-                {parkingOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
-              </button>
-            )}
+            <button onClick={() => setParkingOpen(o => !o)} title={parkingOpen ? "Esconder papel" : "Mostrar papel"}
+              className="p-2 rounded-lg bg-card/70 border border-border/70 backdrop-blur-sm text-muted-foreground hover:text-foreground transition-colors">
+              {parkingOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+            </button>
           </div>
         </div>
       </div>
@@ -565,8 +564,7 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {viewMode === "month" && (
-        <div className={`grid gap-2 sm:gap-4 flex-1 min-h-0 w-full ${parkingOpen ? "grid-cols-[1fr] lg:grid-cols-[260px_1fr]" : "grid-cols-[28px_1fr] lg:grid-cols-[32px_1fr]"}`}>
+      <div className={`grid gap-2 sm:gap-4 flex-1 min-h-0 w-full ${parkingOpen ? "grid-cols-[1fr] lg:grid-cols-[260px_1fr]" : "grid-cols-[28px_1fr] lg:grid-cols-[32px_1fr]"}`}>
           {!parkingOpen && (
             <button
               data-drop-parking="1"
@@ -649,9 +647,8 @@ export default function CalendarPage() {
             </div>
           </div>
         </div>
-      )}
 
-      {viewMode === "month" && isMobile && (
+      {isMobile && (
         <div className="bg-card border border-border rounded-2xl overflow-hidden">
           {/* Past toggle / list */}
           <button
