@@ -1,17 +1,22 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 const SUPABASE_URL = "https://twwcnudhfvzbkdrtfmtu.supabase.co";
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY || "";
+
+// JWT tokens only contain alphanumeric, dot, underscore, hyphen — strip everything else
+function cleanJwt(raw: string): string {
+  return raw.replace(/[^A-Za-z0-9._\-]/g, "").trim();
+}
+
+const SERVICE_KEY = cleanJwt(process.env.SUPABASE_SERVICE_KEY || "");
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   const { email, password, name } = req.body || {};
-  if (!email || !password) return res.status(400).json({ error: "email e password obrigatórios" });
-  if (!SERVICE_KEY) return res.status(500).json({ error: "Configuração do servidor incompleta" });
+  if (!email || !password) return res.status(400).json({ error: "email e password obrigatorios" });
+  if (!SERVICE_KEY) return res.status(500).json({ error: "Configuracao do servidor incompleta" });
 
   try {
-    // Use admin API to create user with email auto-confirmed
     const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
       method: "POST",
       headers: {
@@ -31,7 +36,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!r.ok) {
       const msg = data?.msg || data?.message || "Erro ao criar conta";
-      // If user already exists, return a specific code so frontend can try login
       if (msg.toLowerCase().includes("already") || r.status === 422) {
         return res.status(409).json({ error: "already_exists" });
       }
