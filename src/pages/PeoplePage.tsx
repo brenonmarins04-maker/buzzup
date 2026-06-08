@@ -1,4 +1,5 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useData, type Person } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Plus, Trash2, Link2, HelpCircle, X, Zap } from "lucide-react";
@@ -16,8 +17,23 @@ type Tab = "gamificacao" | "historico" | "equipes" | "membros";
 
 export default function PeoplePage() {
   const { isAdmin } = useAuth();
-  const [tab, setTab] = useState<Tab>(isAdmin ? "gamificacao" : "membros");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [tab, setTab] = useState<Tab>(() => {
+    const p = searchParams.get("tab");
+    if (p === "equipes") return "equipes";
+    return isAdmin ? "gamificacao" : "membros";
+  });
   const [rolesInfoOpen, setRolesInfoOpen] = useState(false);
+
+  // Sync tab with URL param on first load
+  useEffect(() => {
+    const p = searchParams.get("tab");
+    if (p === "equipes") {
+      setTab("equipes");
+      // Remove param from URL so browser Back still works cleanly
+      setSearchParams({}, { replace: true });
+    }
+  }, []);
 
   const tabs: { v: Tab; label: string; show: boolean }[] = [
     { v: "gamificacao", label: "Gameficação", show: isAdmin },

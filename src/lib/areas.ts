@@ -1,10 +1,10 @@
 export type AreaKey = "projetos" | "mercado" | "gg" | "presidencia";
 
 export const AREAS_DEFAULT: { key: AreaKey; label: string; path: string; color: string }[] = [
-  { key: "projetos",    label: "Projetos",    path: "/projetos",    color: "#2563EB" },
-  { key: "mercado",     label: "Mercado",     path: "/mercado",     color: "#F97316" },
-  { key: "gg",          label: "GG",          path: "/gg",          color: "#10B981" },
-  { key: "presidencia", label: "Presidência", path: "/presidencia", color: "#8B5CF6" },
+  { key: "projetos",    label: "Geral",             path: "/projetos",    color: "#2563EB" },
+  { key: "mercado",     label: "Marketing",          path: "/mercado",     color: "#F97316" },
+  { key: "gg",          label: "Financeiro",         path: "/gg",          color: "#10B981" },
+  { key: "presidencia", label: "Eventos / Projetos", path: "/presidencia", color: "#8B5CF6" },
 ];
 
 // Custom area names stored in localStorage, synced via broadcasts

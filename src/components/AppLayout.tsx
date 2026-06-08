@@ -31,12 +31,15 @@ const areaIcons: Record<string, any> = {
 
 function getNavItems() {
   return [
-    { to: "/",            icon: Home,         label: "Início" },
-    { to: "/calendar",    icon: CalendarDays, label: "Calendário" },
-    { to: "/people",      icon: Users,        label: "Pessoas" },
+    { to: "/",         icon: Home,         label: "Início" },
+    { to: "/calendar", icon: CalendarDays, label: "Calendário" },
+    { to: "/people",   icon: Users,        label: "Pessoas" },
     ...AREAS.map(a => ({ to: a.path, icon: areaIcons[a.key] || FolderKanban, label: getAreaLabel(a.key), color: a.color })),
-    { to: "/members",     icon: Shield,       label: "Acessos" },
   ];
+}
+
+function getAccessItem() {
+  return { to: "/members", icon: Shield, label: "Acessos" };
 }
 
 function getAreaItems() {
@@ -55,6 +58,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const isMobile = useIsMobile();
   const { notifications, teams, people } = useData();
+  // `teams` = todos os times do workspace (para detectar workspace sem times)
   const { displayName, signOut, isAdmin, isOwner, role, user, myWorkspaces, activeWorkspaceId } = useAuth();
 
   // Find teams the current user belongs to
@@ -208,6 +212,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
         <nav className="flex-1 py-4 px-2 flex flex-col gap-1 overflow-y-auto">
+          {/* Main nav items (sem Acessos) */}
           {getNavItems().map((item) => (
             <NavLink key={item.to} to={item.to}
               style={({ isActive }) => (isActive && (item as any).color
@@ -216,33 +221,27 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   ? { color: (item as any).color }
                   : undefined)}
               className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-colors ${isActive && !(item as any).color ? "bg-accent text-foreground shadow-sm" : !isActive ? "text-muted-foreground hover:text-foreground hover:bg-accent/50" : ""} ${collapsed ? "justify-center" : ""}`}>
-              <div className="relative">
-                <item.icon className="h-4 w-4 shrink-0" />
-                {item.to === "/members" && pendingJoinCount > 0 && collapsed && (
-                  <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-3.5 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
-                    {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
-                  </span>
-                )}
-              </div>
-              {!collapsed && (
-                <span className="flex-1 flex items-center justify-between">
-                  <span>{item.label}</span>
-                  {item.to === "/members" && pendingJoinCount > 0 && (
-                    <span className="h-5 min-w-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
-                      {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
-                    </span>
-                  )}
-                </span>
-              )}
+              <item.icon className="h-4 w-4 shrink-0" />
+              {!collapsed && <span>{item.label}</span>}
             </NavLink>
           ))}
 
-          {/* Dynamic team links */}
-          {myTeams.length > 0 && (
+          {/* ── Times (sempre visível para admin/owner; visível para members que têm time) ── */}
+          {(isAdmin || myTeams.length > 0) && (
             <>
               {!collapsed && (
-                <div className="px-3 pt-3 pb-1">
+                <div className="px-3 pt-3 pb-1 flex items-center justify-between">
                   <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Times</span>
+                  {/* "+" aparece quando não há nenhum time no workspace e o user é admin/owner */}
+                  {isAdmin && teams.length === 0 && (
+                    <button
+                      onClick={() => navigate("/people?tab=equipes")}
+                      title="Criar time"
+                      className="h-5 w-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
               )}
               {collapsed && <div className="border-t border-border my-2" />}
@@ -259,8 +258,46 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   </NavLink>
                 );
               })}
+              {/* Se não há times e é admin, mostra hint clicável */}
+              {!collapsed && isAdmin && teams.length === 0 && (
+                <button
+                  onClick={() => navigate("/people?tab=equipes")}
+                  className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+                >
+                  <Plus className="h-4 w-4 shrink-0" />
+                  <span>Criar time</span>
+                </button>
+              )}
             </>
           )}
+
+          {/* ── Acessos (sempre por último) ── */}
+          {(() => {
+            const item = getAccessItem();
+            return (
+              <NavLink to={item.to}
+                className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-colors ${isActive ? "bg-accent text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"} ${collapsed ? "justify-center" : ""}`}>
+                <div className="relative">
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  {pendingJoinCount > 0 && collapsed && (
+                    <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-3.5 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
+                      {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
+                    </span>
+                  )}
+                </div>
+                {!collapsed && (
+                  <span className="flex-1 flex items-center justify-between">
+                    <span>{item.label}</span>
+                    {pendingJoinCount > 0 && (
+                      <span className="h-5 min-w-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
+                        {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
+                      </span>
+                    )}
+                  </span>
+                )}
+              </NavLink>
+            );
+          })()}
         </nav>
         <div className="p-3 border-t border-border">
           {isAdmin && (
