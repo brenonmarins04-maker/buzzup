@@ -7,10 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
+import CreateTeamModal from "@/components/modals/CreateTeamModal";
 
 export default function TeamsPage() {
   const { teams, people, addTeam, updateTeam, deleteTeam, loading } = useData();
   const { isAdmin } = useAuth();
+  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState<Team | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -19,14 +21,6 @@ export default function TeamsPage() {
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [memberSearch, setMemberSearch] = useState("");
   const memberSearchRef = useRef<HTMLInputElement>(null);
-
-  const openCreate = () => {
-    setEditingTeam(null);
-    setName("");
-    setSelectedMembers([]);
-    setMemberSearch("");
-    setModalOpen(true);
-  };
 
   const openEdit = (team: Team) => {
     setEditingTeam(team);
@@ -68,7 +62,7 @@ export default function TeamsPage() {
           <p className="text-sm text-muted-foreground mt-1">Gerencie seus times e membros</p>
         </div>
         {isAdmin && (
-          <Button onClick={openCreate} size="sm">
+          <Button onClick={() => setCreateModalOpen(true)} size="sm">
             <Plus className="h-4 w-4 mr-1" /> Novo Time
           </Button>
         )}
@@ -79,7 +73,7 @@ export default function TeamsPage() {
           <UsersRound className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">Nenhum time criado ainda.</p>
           {isAdmin && (
-            <Button onClick={openCreate} variant="outline" size="sm" className="mt-4">
+            <Button onClick={() => setCreateModalOpen(true)} variant="outline" size="sm" className="mt-4">
               <Plus className="h-4 w-4 mr-1" /> Criar time
             </Button>
           )}
@@ -120,11 +114,14 @@ export default function TeamsPage() {
         </div>
       )}
 
-      {/* Create/Edit Modal */}
+      {/* Create Modal (shared component) */}
+      <CreateTeamModal open={createModalOpen} onOpenChange={setCreateModalOpen} />
+
+      {/* Edit Modal */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingTeam ? "Editar Time" : "Novo Time"}</DialogTitle>
+            <DialogTitle>Editar Time</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -222,7 +219,7 @@ export default function TeamsPage() {
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setModalOpen(false)}>Cancelar</Button>
               <Button onClick={handleSave} disabled={!name.trim()}>
-                {editingTeam ? "Salvar" : "Criar"}
+                Salvar
               </Button>
             </div>
           </div>

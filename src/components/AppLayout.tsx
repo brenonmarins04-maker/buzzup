@@ -19,6 +19,7 @@ import EventModal from "@/components/modals/EventModal";
 import NotificationPanel from "@/components/NotificationPanel";
 import BroadcastBar from "@/components/BroadcastBar";
 import BroadcastModal from "@/components/modals/BroadcastModal";
+import CreateTeamModal from "@/components/modals/CreateTeamModal";
 
 const areaColor = (path: string) => AREAS.find(a => a.path === path)?.color;
 
@@ -99,6 +100,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [eventModal, setEventModal] = useState(false);
   const [broadcastModal, setBroadcastModal] = useState(false);
   const [editAreasModal, setEditAreasModal] = useState(false);
+  const [createTeamModal, setCreateTeamModal] = useState(false);
 
   // Load custom area names from broadcasts
   useAreaNames();
@@ -235,7 +237,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   {/* "+" aparece quando não há nenhum time no workspace e o user é admin/owner */}
                   {isAdmin && teams.length === 0 && (
                     <button
-                      onClick={() => navigate("/people?tab=equipes")}
+                      onClick={() => setCreateTeamModal(true)}
                       title="Criar time"
                       className="h-5 w-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors"
                     >
@@ -258,16 +260,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   </NavLink>
                 );
               })}
-              {/* Se não há times e é admin, mostra hint clicável */}
-              {!collapsed && isAdmin && teams.length === 0 && (
-                <button
-                  onClick={() => navigate("/people?tab=equipes")}
-                  className="flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-                >
-                  <Plus className="h-4 w-4 shrink-0" />
-                  <span>Criar time</span>
-                </button>
-              )}
             </>
           )}
 
@@ -365,6 +357,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </main>
       <BroadcastModal open={broadcastModal} onOpenChange={setBroadcastModal} />
       <EditAreaNamesModal open={editAreasModal} onOpenChange={setEditAreasModal} />
+      <CreateTeamModal open={createTeamModal} onOpenChange={setCreateTeamModal} />
     </div>
   );
 }
