@@ -42,6 +42,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(r.status).json({ error: msg });
     }
 
+    // Cria profile manualmente (trigger on_auth_user_created não existe no projeto atual)
+    const displayName = name || email.split("@")[0];
+    await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
+      method: "POST",
+      headers: {
+        "apikey": SERVICE_KEY,
+        "Authorization": `Bearer ${SERVICE_KEY}`,
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates,return=minimal",
+      },
+      body: JSON.stringify({ user_id: data.id, display_name: displayName, email }),
+    });
+
     return res.status(200).json({ user: data });
   } catch (e: any) {
     return res.status(500).json({ error: e.message });
