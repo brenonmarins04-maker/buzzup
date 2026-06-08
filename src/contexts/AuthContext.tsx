@@ -168,8 +168,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error as Error | null };
+    try {
+      const r = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await r.json();
+      if (!r.ok) {
+        return { error: new Error(data?.message || "Email ou senha incorretos.") };
+      }
+      // Injeta a sessão retornada pelo servidor no cliente Supabase
+      const { error } = await supabase.auth.setSession({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+      });
+      return { error: error as Error | null };
+    } catch (e: any) {
+      return { error: new Error(e.message || "Erro de conexão") };
+    }
   };
 
   const signOut = async () => {
