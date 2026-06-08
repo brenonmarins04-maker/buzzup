@@ -1,7 +1,8 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useData } from "@/contexts/DataContext";
-import { Search } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { Search, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -14,18 +15,31 @@ interface CreateTeamModalProps {
 
 export default function CreateTeamModal({ open, onOpenChange }: CreateTeamModalProps) {
   const { people, addTeam } = useData();
+  const { myWorkspaces, activeWorkspaceId } = useAuth();
   const navigate = useNavigate();
+
+  const workspaceCode = myWorkspaces.find(w => w.workspace_id === activeWorkspaceId)?.code ?? "";
 
   const [name, setName] = useState("");
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
   const [memberSearch, setMemberSearch] = useState("");
+  const [copied, setCopied] = useState(false);
   const memberSearchRef = useRef<HTMLInputElement>(null);
+
+  const copyCode = () => {
+    if (!workspaceCode) return;
+    navigator.clipboard.writeText(workspaceCode).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   const handleOpenChange = (v: boolean) => {
     if (!v) {
       setName("");
       setSelectedMembers([]);
       setMemberSearch("");
+      setCopied(false);
     }
     onOpenChange(v);
   };
@@ -75,20 +89,7 @@ export default function CreateTeamModal({ open, onOpenChange }: CreateTeamModalP
                     ref={memberSearchRef}
                     value={memberSearch}
                     onChange={e => setMemberSearch(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        const filtered = people.filter(p =>
-                          p.name.toLowerCase().includes(memberSearch.toLowerCase())
-                        );
-                        if (filtered.length > 0 && !selectedMembers.includes(filtered[0].id)) {
-                          toggleMember(filtered[0].id);
-                        }
-                        setMemberSearch("");
-                        setTimeout(() => memberSearchRef.current?.focus(), 0);
-                      }
-                    }}
-                    placeholder="Pesquisar e Enter para adicionar..."
+                    placeholder="Pesquisar..."
                     className="w-full bg-transparent pl-8 pr-2 py-2 text-sm outline-none placeholder:text-muted-foreground"
                   />
                 </div>
@@ -113,43 +114,34 @@ export default function CreateTeamModal({ open, onOpenChange }: CreateTeamModalP
                 <div className="max-h-48 overflow-y-auto space-y-2 p-3">
                   {people
                     .filter(p => p.name.toLowerCase().includes(memberSearch.toLowerCase()))
-                    .map((person, idx) => {
-                      const isFirst = idx === 0 && memberSearch.trim().length > 0;
-                      return (
-                        <label
-                          key={person.id}
-                          className={`flex items-center gap-2 cursor-pointer rounded px-1.5 py-1 ${isFirst ? "bg-primary/5 ring-1 ring-primary/20" : ""}`}
-                          onClick={() => setTimeout(() => memberSearchRef.current?.focus(), 0)}
-                        >
-                          <Checkbox
-                            checked={selectedMembers.includes(person.id)}
-                            onCheckedChange={() => toggleMember(person.id)}
-                          />
-                          <span className="text-sm text-foreground flex-1">{person.name}</span>
-                          {isFirst && (
-                            <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">↵ Enter</span>
-                          )}
-                        </label>
-                      );
-                    })}
+                    .map(person => (
+                      <label key={person.id} className="flex items-center gap-2 cursor-pointer rounded px-1.5 py-1">
+                        <Checkbox
+                          checked={selectedMembers.includes(person.id)}
+                          onCheckedChange={() => toggleMember(person.id)}
+                        />
+                        <span className="text-sm text-foreground flex-1">{person.name}</span>
+                      </label>
+                    ))}
                 </div>
               </div>
             )}
-            <p className="text-[11px] text-muted-foreground mt-1.5">
-              Pesquise → Enter para adicionar a primeira pessoa, e continue digitando o próximo nome.
-            </p>
           </div>
 
           {/* Mensagem de convite — só aparece quando há apenas 1 pessoa no workspace */}
-          {onlyOnePersonInWorkspace && (
+          {onlyOnePersonInWorkspace && workspaceCode && (
             <p className="text-[12px] text-muted-foreground bg-muted/40 rounded-md px-3 py-2.5 leading-relaxed">
-              Só tem você aqui? Convide pessoas com seu código do BuzzUp em{" "}
+              Só tem você aqui? Convide pessoas com seu código do BuzzUp{" "}
               <button
                 type="button"
-                onClick={() => { handleOpenChange(false); navigate("/members"); }}
-                className="text-primary font-medium hover:underline focus:underline outline-none"
+                onClick={copyCode}
+                title={copied ? "Copiado!" : "Copiar código"}
+                className="inline-flex items-center gap-1 text-primary font-semibold hover:underline focus:underline outline-none"
               >
-                Acessos
+                {workspaceCode}
+                {copied
+                  ? <Check className="h-3 w-3" />
+                  : <Copy className="h-3 w-3 opacity-70" />}
               </button>{" "}
               e faça a festa! 🎉
             </p>
