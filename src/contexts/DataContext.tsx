@@ -184,6 +184,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     async function fetchAll() {
       setLoading(true);
       const wsId = workspaceId!;
+      try {
 
       const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes, etRes, anRes, piRes, gaRes, gwRes, ltRes, asRes, arRes, bcRes] = await Promise.all([
         (supabase.from("people") as any).select("id, name, nickname, area, user_id").eq("workspace_id", wsId),
@@ -386,7 +387,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         }
       } catch (_) { /* migration failure is non-fatal */ }
 
-      setLoading(false);
+      if (!cancelled) setLoading(false);
+      } catch (err) {
+        // Catch-all: network errors, unexpected exceptions — always clear loading state
+        // so the app doesn't get stuck on a spinner (especially on mobile)
+        if (!cancelled) setLoading(false);
+      }
     }
     fetchAll();
     return () => { cancelled = true; };

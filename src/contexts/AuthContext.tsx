@@ -68,40 +68,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const ws: MyWorkspace[] = (wsRes.data as any[] | null) || [];
     const newRequests = ((reqRes.data as any[] | null) || []) as MyJoinRequest[];
 
-    // Detect status transitions after the first successful load
-    if (hubLoadedRef.current) {
-      newRequests.forEach(nr => {
-        const prev = prevJoinRequestsRef.current.find(r => r.id === nr.id);
-        if (prev?.status === "pending") {
-          if (nr.status === "approved") {
-            toast.success(`Entrada aprovada em "${nr.workspace_name}"! 🎉`, {
-              description: "Você já pode acessar o workspace.",
-              duration: 6000,
-            });
-          } else if (nr.status === "rejected") {
-            toast.error(`Pedido recusado para "${nr.workspace_name}".`, {
-              description: "O owner não aprovou sua entrada.",
-              duration: 6000,
-            });
-          }
-        }
+    // Only update workspace list and active selection when the fetch succeeded.
+    // On network errors, wsRes.error is set and ws is []. We must NOT reset
+    // activeWorkspaceId in that case — it would kick the user back to /welcome
+    // even though they have a valid session (especially common on slow mobile networks).
+    if (!wsRes.error) {
+      setMyWorkspaces(ws);
+      setActiveWorkspaceIdState(prev => {
+        if (prev && ws.find(w => w.workspace_id === prev)) return prev;
+        const next = ws[0]?.workspace_id ?? null;
+        try {
+          if (next) localStorage.setItem(ACTIVE_WS_KEY, next);
+          else localStorage.removeItem(ACTIVE_WS_KEY);
+        } catch {}
+        return next;
       });
     }
 
-    prevJoinRequestsRef.current = newRequests;
-    hubLoadedRef.current = true;
+    // Detect status transitions after the first successful load
+    if (!reqRes.error) {
+      if (hubLoadedRef.current) {
+        newRequests.forEach(nr => {
+          const prev = prevJoinRequestsRef.current.find(r => r.id === nr.id);
+          if (prev?.status === "pending") {
+            if (nr.status === "approved") {
+              toast.success(`Entrada aprovada em "${nr.workspace_name}"! 🎉`, {
+                description: "Você já pode acessar o workspace.",
+                duration: 6000,
+              });
+            } else if (nr.status === "rejected") {
+              toast.error(`Pedido recusado para "${nr.workspace_name}".`, {
+                description: "O owner não aprovou sua entrada.",
+                duration: 6000,
+              });
+            }
+          }
+        });
+      }
+      prevJoinRequestsRef.current = newRequests;
+      setMyJoinRequests(newRequests);
+    }
 
-    setMyWorkspaces(ws);
-    setMyJoinRequests(newRequests);
-    setActiveWorkspaceIdState(prev => {
-      if (prev && ws.find(w => w.workspace_id === prev)) return prev;
-      const next = ws[0]?.workspace_id ?? null;
-      try {
-        if (next) localStorage.setItem(ACTIVE_WS_KEY, next);
-        else localStorage.removeItem(ACTIVE_WS_KEY);
-      } catch {}
-      return next;
-    });
+    // Mark hub as loaded once at least one successful fetch happens
+    if (!wsRes.error || !reqRes.error) {
+      hubLoadedRef.current = true;
+    }
   }
 
   useEffect(() => {
