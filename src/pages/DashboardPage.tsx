@@ -251,86 +251,109 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Minhas Demandas */}
-      {currentPerson && (
-        <div className="bg-card border border-border rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-            <ListChecks className="h-4 w-4 text-[#2563EB]" /> Minhas Demandas
-          </h2>
-          {myDemands.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Nenhuma demanda atribuída. Parabéns! 🎉</p>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {myDemands.map(demand => {
-                const area = AREAS.find(a => a.key === demand.area);
-                return (
-                  <div
-                    key={demand.id}
-                    className="flex flex-col gap-3 p-4 rounded-lg border border-border bg-muted/20"
-                    style={{
-                      borderColor: `${area?.color}33`,
-                      backgroundColor: `${area?.color}08`,
-                    }}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1">
-                        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: area?.color }}>
-                          {area?.label || demand.area}
-                        </p>
-                        <p className="text-sm font-semibold text-foreground mt-1.5">{demand.title}</p>
-                        {demand.description && (
-                          <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{demand.description}</p>
-                        )}
+      {/* Minhas Demandas + Meus Pontos */}
+      {currentPerson && (() => {
+        const myNickname = (currentPerson.nickname && currentPerson.nickname.trim())
+          ? currentPerson.nickname.trim()
+          : currentPerson.name;
+        const myPoints = pointsByPerson[currentPerson.id] || 0;
+        const myRankPos = allRanking.findIndex(r => r.id === currentPerson.id);
+        const myRankLabel = myRankPos === 0 ? "🥇 1º lugar" : myRankPos === 1 ? "🥈 2º lugar" : myRankPos === 2 ? "🥉 3º lugar" : myRankPos >= 0 ? `${myRankPos + 1}º lugar` : "—";
+
+        return (
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_240px] gap-4 items-start">
+            {/* Minhas Demandas */}
+            <div className="bg-card border border-border rounded-xl p-5">
+              <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+                <ListChecks className="h-4 w-4 text-[#2563EB]" /> Minhas Demandas
+              </h2>
+              {myDemands.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Nenhuma demanda atribuída. Parabéns! 🎉</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {myDemands.map(demand => {
+                    const area = AREAS.find(a => a.key === demand.area);
+                    return (
+                      <div
+                        key={demand.id}
+                        className="flex flex-col gap-3 p-4 rounded-lg border border-border bg-muted/20"
+                        style={{ borderColor: `${area?.color}33`, backgroundColor: `${area?.color}08` }}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: area?.color }}>
+                              {area?.label || demand.area}
+                            </p>
+                            <p className="text-sm font-semibold text-foreground mt-1.5">{demand.title}</p>
+                            {demand.description && (
+                              <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{demand.description}</p>
+                            )}
+                          </div>
+                          {demand.points && (
+                            <span className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-md text-white" style={{ backgroundColor: area?.color }}>
+                              +{demand.points}p
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                          {demand.date && (
+                            <span className="text-[11px] font-medium px-2 py-0.5 rounded-md text-white" style={{ backgroundColor: area?.color }}>
+                              {new Date(demand.date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex gap-2 pt-2 border-t border-border/30">
+                          <button
+                            onClick={() => updateParkingItem({ ...demand, status: "in-progress" })}
+                            className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-md transition-all ${
+                              demand.status === "in-progress"
+                                ? "bg-orange-500/20 text-orange-600 border border-orange-300"
+                                : "bg-muted hover:bg-muted/80 text-muted-foreground"
+                            }`}
+                          >
+                            <Circle className="h-3 w-3" /> Em andamento
+                          </button>
+                          <button
+                            onClick={async () => { await updateParkingItem({ ...demand, status: "done" }); }}
+                            className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-md transition-all bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30 border border-emerald-300"
+                          >
+                            <CheckCircle className="h-3 w-3" /> Concluído
+                          </button>
+                        </div>
                       </div>
-                      {demand.points && (
-                        <span
-                          className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-md text-white"
-                          style={{ backgroundColor: area?.color }}
-                        >
-                          +{demand.points}p
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-2 pt-1">
-                      {demand.date && (
-                        <span
-                          className="text-[11px] font-medium px-2 py-0.5 rounded-md text-white"
-                          style={{ backgroundColor: area?.color }}
-                        >
-                          {new Date(demand.date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex gap-2 pt-2 border-t border-border/30">
-                      <button
-                        onClick={() => updateParkingItem({ ...demand, status: "in-progress" })}
-                        className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-md transition-all ${
-                          demand.status === "in-progress"
-                            ? "bg-orange-500/20 text-orange-600 border border-orange-300"
-                            : "bg-muted hover:bg-muted/80 text-muted-foreground"
-                        }`}
-                      >
-                        <Circle className="h-3 w-3" /> Em andamento
-                      </button>
-                      <button
-                        onClick={async () => {
-                          // updateParkingItem awards points automatically when status becomes "done"
-                          await updateParkingItem({ ...demand, status: "done" });
-                        }}
-                        className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-md transition-all bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30 border border-emerald-300"
-                      >
-                        <CheckCircle className="h-3 w-3" /> Concluído
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      )}
+
+            {/* Meus Pontos */}
+            <div className="bg-card border border-border rounded-xl p-5 flex flex-col items-center text-center gap-4">
+              {/* Trophy icon */}
+              <div className="h-14 w-14 rounded-full flex items-center justify-center bg-gradient-to-br from-yellow-400/30 to-orange-400/20 border-2 border-yellow-400/40">
+                <Trophy className="h-7 w-7 text-yellow-500" />
+              </div>
+
+              {/* Identity */}
+              <div className="space-y-0.5">
+                <p className="text-[11px] font-medium text-muted-foreground">Eu sou</p>
+                <p className="text-base font-bold text-foreground leading-tight">{myNickname}</p>
+              </div>
+
+              {/* Points */}
+              <div className="w-full rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 py-4 px-3">
+                <p className="text-3xl font-extrabold text-primary leading-none">{myPoints}</p>
+                <p className="text-[11px] font-medium text-muted-foreground mt-1">
+                  {myPoints === 1 ? "ponto" : "pontos"}
+                </p>
+              </div>
+
+              {/* Rank */}
+              <p className="text-xs font-semibold text-muted-foreground">{myRankLabel} no ranking</p>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Ranking */}
       <div className="bg-card border border-border rounded-xl p-5">
