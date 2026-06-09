@@ -63,11 +63,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { displayName, signOut, isAdmin, isOwner, role, user, myWorkspaces, activeWorkspaceId } = useAuth();
 
   // Find teams the current user belongs to
+  // Uses ALL person records linked to this user (guards against duplicate person rows)
   const myTeams = useMemo(() => {
     if (!user) return [];
-    const currentPerson = people.find(p => p.userId === user.id);
-    if (!currentPerson) return [];
-    return teams.filter(t => t.memberIds.includes(currentPerson.id));
+    const myPersonIds = new Set(
+      people.filter(p => p.userId === user.id).map(p => p.id)
+    );
+    if (myPersonIds.size === 0) return [];
+    return teams.filter(t => t.memberIds.some(id => myPersonIds.has(id)));
   }, [user, people, teams]);
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);
