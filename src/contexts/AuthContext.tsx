@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
+import { toast } from "sonner";
 
 export type WorkspaceRole = "owner" | "admin" | "leader" | "member";
 export type MyWorkspace = { workspace_id: string; name: string; code: string; role: WorkspaceRole; created_at: string };
@@ -44,6 +45,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const currentUserIdRef = useRef<string | null>(null);
   const [myWorkspaces, setMyWorkspaces] = useState<MyWorkspace[]>([]);
   const [myJoinRequests, setMyJoinRequests] = useState<MyJoinRequest[]>([]);
+  // Used to detect status transitions and fire toasts
+  const prevJoinRequestsRef = useRef<MyJoinRequest[]>([]);
+  const hubLoadedRef = useRef(false);
   const [activeWorkspaceId, setActiveWorkspaceIdState] = useState<string | null>(() => {
     try { return localStorage.getItem(ACTIVE_WS_KEY); } catch { return null; }
   });
@@ -62,8 +66,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (supabase.rpc as any)("list_my_join_requests"),
     ]);
     const ws: MyWorkspace[] = (wsRes.data as any[] | null) || [];
+    const newRequests = ((reqRes.data as any[] | null) || []) as MyJoinRequest[];
+
+    // Detect status transitions after the first successful load
+    if (hubLoadedRef.current) {
+      newRequests.forEach(nr => {
+        const prev = prevJoinRequestsRef.current.find(r => r.id === nr.id);
+        if (prev?.status === "pending") {
+          if (nr.status === "approved") {
+            toast.success(`Entrada aprovada em "${nr.workspace_name}"! 🎉`, {
+              description: "Você já pode acessar o workspace.",
+              duration: 6000,
+            });
+          } else if (nr.status === "rejected") {
+            toast.error(`Pedido recusado para "${nr.workspace_name}".`, {
+              description: "O owner não aprovou sua entrada.",
+              duration: 6000,
+            });
+          }
+        }
+      });
+    }
+
+    prevJoinRequestsRef.current = newRequests;
+    hubLoadedRef.current = true;
+
     setMyWorkspaces(ws);
-    setMyJoinRequests(((reqRes.data as any[] | null) || []) as MyJoinRequest[]);
+    setMyJoinRequests(newRequests);
     setActiveWorkspaceIdState(prev => {
       if (prev && ws.find(w => w.workspace_id === prev)) return prev;
       const next = ws[0]?.workspace_id ?? null;
@@ -91,6 +120,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setMyWorkspaces([]);
         setMyJoinRequests([]);
         setActiveWorkspaceId(null);
+        prevJoinRequestsRef.current = [];
+        hubLoadedRef.current = false;
       }
       setLoading(false);
     });

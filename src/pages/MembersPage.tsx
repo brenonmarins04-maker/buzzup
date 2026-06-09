@@ -45,13 +45,25 @@ export default function MembersPage() {
 
   useEffect(() => {
     if (!workspaceId) return;
+    let initialLoadDone = false;
+    // Wait for the first load() call to complete before we start toasting
+    load().then(() => { initialLoadDone = true; });
+
     const ch = supabase
       .channel(`members-${workspaceId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "workspace_join_requests", filter: `workspace_id=eq.${workspaceId}` }, () => load())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "workspace_join_requests", filter: `workspace_id=eq.${workspaceId}` }, (payload) => {
+        if (initialLoadDone && isOwner) {
+          const name = (payload.new as any)?.display_name || "Alguém";
+          toast.info(`Novo pedido de ${name}`, { description: "Aprovação pendente nesta página.", duration: 5000 });
+        }
+        load();
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "workspace_join_requests", filter: `workspace_id=eq.${workspaceId}` }, () => load())
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "workspace_join_requests", filter: `workspace_id=eq.${workspaceId}` }, () => load())
       .on("postgres_changes", { event: "*", schema: "public", table: "workspace_members", filter: `workspace_id=eq.${workspaceId}` }, () => load())
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [workspaceId, load]);
+  }, [workspaceId, load, isOwner]);
 
   const copyCode = async () => {
     if (!wsCode) return;

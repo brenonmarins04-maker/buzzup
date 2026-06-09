@@ -83,6 +83,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user || ownedWorkspaceIds.length === 0) { setPendingJoinCount(0); return; }
     let cancelled = false;
+    let initialLoadDone = false;
+
     const load = async () => {
       const { count } = await supabase
         .from("workspace_join_requests")
@@ -92,10 +94,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         .neq("user_id", user.id);
       if (!cancelled) setPendingJoinCount(count || 0);
     };
-    load();
+    load().then(() => { initialLoadDone = true; });
+
     const ch = supabase
       .channel(`pending-joins-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "workspace_join_requests" }, () => load())
+      // New join request arrived → toast the owner
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "workspace_join_requests" }, (payload) => {
+        const wsId = (payload.new as any)?.workspace_id;
+        if (initialLoadDone && ownedWorkspaceIds.includes(wsId)) {
+          toast.info("Novo pedido de entrada!", {
+            description: "Alguém quer entrar no workspace. Veja em Acessos → Pedidos.",
+            duration: 8000,
+          });
+        }
+        load();
+      })
+      // Request cancelled/rejected/approved → just refresh count
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "workspace_join_requests" }, () => load())
+      .on("postgres_changes", { event: "DELETE", schema: "public", table: "workspace_join_requests" }, () => load())
       .subscribe();
     return () => { cancelled = true; supabase.removeChannel(ch); };
   }, [user?.id, ownedWorkspaceIds.join(",")]);
