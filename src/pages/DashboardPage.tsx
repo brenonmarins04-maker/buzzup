@@ -1,13 +1,12 @@
 import { useMemo, useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  Trophy, Medal, FolderKanban, ListChecks, Megaphone,
+  Trophy, Medal, ListChecks, Megaphone,
   CheckCircle2, FolderPlus, CalendarPlus, TrendingUp, TrendingDown, Minus,
   Sparkles, BarChart2, Star, ClipboardList, Circle, CheckCircle,
 } from "lucide-react";
-import { Area, AreaChart, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Cell } from "recharts";
+import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import { getNowBrasilia } from "@/lib/utils";
 import { format, endOfWeek, differenceInHours, differenceInDays, subDays, startOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -148,34 +147,20 @@ export default function DashboardPage() {
   gamificationAwards.forEach(a => {
     pointsByPerson[a.personId] = (pointsByPerson[a.personId] || 0) + (a.points || 0);
   });
-  const ranking = people
+  const allRanking = useMemo(() => people
     .map(p => ({
       id: p.id,
       label: (p.nickname && p.nickname.trim()) ? p.nickname.trim() : p.name,
       points: pointsByPerson[p.id] || 0,
     }))
-    .filter(r => r.points > 0)
-    .sort((a, b) => b.points - a.points)
-    .slice(0, 8);
+    .sort((a, b) => b.points - a.points || a.label.localeCompare(b.label)),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  [people, gamificationAwards]);
+  // Top 15 (3 cols × 5 rows) shown by default; rest shown via "Ver mais"
+  const top15 = allRanking.slice(0, 15);
+  const restRanking = allRanking.slice(15);
 
-  // Active projects with progress
-  const activeProjects = projects.filter(p => p.status === "active").map(p => {
-    const projTasks = tasks.filter(t => t.responsible.some(r => p.members.some(m => m.id === r.id)));
-    const total = projTasks.length;
-    const done = projTasks.filter(t => t.status === "done").length;
-    const pct = total === 0 ? 0 : Math.round((done / total) * 100);
-    return { ...p, total, done, pct };
-  });
-
-  // Tasks per person (top)
-  const tasksPerPerson = people.map(p => {
-    const ps = tasks.filter(t => t.responsible.some(r => r.id === p.id));
-    const total = ps.length;
-    const done = ps.filter(t => t.status === "done").length;
-    return { id: p.id, name: p.name, total, done, pct: total === 0 ? 0 : Math.round((done / total) * 100) };
-  }).filter(p => p.total > 0).sort((a, b) => b.total - a.total).slice(0, 6);
-
-  // Demandas por área (bar chart)
+  // Demandas por área
   const demandasByArea = AREAS.map(a => ({
     label: a.label,
     color: a.color,
@@ -198,6 +183,7 @@ export default function DashboardPage() {
     }), [parkingItems, people, todayStr, weekEndStr]);
 
   const [demandIdx, setDemandIdx] = useState(0);
+  const [showAllRanking, setShowAllRanking] = useState(false);
   useEffect(() => {
     if (weekDemands.length <= 1) return;
     const timer = setInterval(() => setDemandIdx(i => (i + 1) % weekDemands.length), 2000);
@@ -346,61 +332,73 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Ranking — primeiro lugar */}
+      {/* Ranking */}
       <div className="bg-card border border-border rounded-xl p-5">
         <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
           <Trophy className="h-4 w-4 text-[#F97316]" /> Gameficação — Ranking
         </h2>
-        {ranking.length === 0 ? (
+        {allRanking.length === 0 ? (
           <p className="text-xs text-muted-foreground">Nenhum ponto ainda. Conclua demandas com pontos atribuídos para entrar no ranking.</p>
-        ) : (
-          <ol className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-            {ranking.map((r, i) => {
-              const medalColor = i === 0 ? "text-yellow-500" : i === 1 ? "text-gray-400" : i === 2 ? "text-amber-700" : "text-muted-foreground";
-              return (
-                <li key={r.id} className="flex items-center gap-3 p-2.5 rounded-md bg-muted/40">
-                  <div className="flex items-center justify-center w-7 h-7 shrink-0">
-                    {i < 3 ? <Medal className={`h-5 w-5 ${medalColor}`} /> : <span className="text-xs font-bold text-muted-foreground">{i + 1}</span>}
-                  </div>
-                  <span className="flex-1 text-sm font-medium text-foreground truncate">{r.label}</span>
-                  <span className="text-sm font-bold text-primary">{r.points} pts</span>
-                </li>
-              );
-            })}
-          </ol>
-        )}
+        ) : (() => {
+          // Split top15 into 3 columns of up to 5 each
+          const cols = [top15.slice(0, 5), top15.slice(5, 10), top15.slice(10, 15)];
+          // global position offset for correct rank numbers
+          const renderItem = (r: typeof top15[0], globalIdx: number) => {
+            const medalColor = globalIdx === 0 ? "text-yellow-500" : globalIdx === 1 ? "text-gray-400" : globalIdx === 2 ? "text-amber-700" : "text-muted-foreground";
+            return (
+              <li key={r.id} className="flex items-center gap-2.5 p-2.5 rounded-md bg-muted/40">
+                <div className="flex items-center justify-center w-6 h-6 shrink-0">
+                  {globalIdx < 3
+                    ? <Medal className={`h-4 w-4 ${medalColor}`} />
+                    : <span className="text-xs font-bold text-muted-foreground">{globalIdx + 1}</span>}
+                </div>
+                <span className="flex-1 text-sm font-medium text-foreground truncate">{r.label}</span>
+                <span className="text-xs font-bold text-primary whitespace-nowrap">{r.points} pts</span>
+              </li>
+            );
+          };
+          return (
+            <div className="space-y-4">
+              {/* 3 vertical columns side by side */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {cols.map((col, ci) => (
+                  col.length > 0 && (
+                    <ol key={ci} className="flex flex-col gap-2">
+                      {col.map((r, ri) => renderItem(r, ci * 5 + ri))}
+                    </ol>
+                  )
+                ))}
+              </div>
+              {/* Ver mais — pessoas com 0 pontos além das top 15 */}
+              {restRanking.length > 0 && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAllRanking(v => !v)}
+                    className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+                  >
+                    {showAllRanking ? "Ver menos ▲" : `Ver mais (${restRanking.length} com 0 pts) ▼`}
+                  </button>
+                  {showAllRanking && (
+                    <ol className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {restRanking.map((r, i) => (
+                        <li key={r.id} className="flex items-center gap-2.5 p-2.5 rounded-md bg-muted/20 opacity-60">
+                          <span className="w-6 text-center text-xs font-bold text-muted-foreground">{top15.length + i + 1}</span>
+                          <span className="flex-1 text-sm font-medium text-foreground truncate">{r.label}</span>
+                          <span className="text-xs text-muted-foreground">0 pts</span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
-      {/* 3 columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Active projects */}
-        <div className="bg-card border border-border rounded-xl p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-              <FolderKanban className="h-4 w-4 text-[#2563EB]" /> Projetos ativos
-            </h2>
-            <Link to="/projetos" className="text-xs text-primary hover:underline">Ver todos</Link>
-          </div>
-          {activeProjects.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Nenhum projeto ativo.</p>
-          ) : (
-            <ul className="flex flex-col gap-3">
-              {activeProjects.slice(0, 6).map(p => (
-                <li key={p.id}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: p.color }} />
-                    <span className="flex-1 text-xs font-medium text-foreground truncate">{p.name}</span>
-                    <span className="text-xs font-bold text-muted-foreground">{p.pct}%</span>
-                  </div>
-                  <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full rounded-full transition-all" style={{ width: `${p.pct}%`, backgroundColor: p.color }} />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
+      {/* 2 columns */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Demandas por área */}
         <div className="bg-card border border-border rounded-xl p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -409,17 +407,28 @@ export default function DashboardPage() {
           {demandasByArea.every(a => a.total === 0) ? (
             <p className="text-xs text-muted-foreground">Sem demandas ativas.</p>
           ) : (
-            <ResponsiveContainer width="100%" height={140}>
-              <BarChart data={demandasByArea} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                <XAxis dataKey="label" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Bar dataKey="total" radius={[4, 4, 0, 0]} maxBarSize={40}>
-                  {demandasByArea.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="flex flex-col gap-2.5">
+              {demandasByArea.map((a) => (
+                <div key={a.label} className="flex items-center gap-3">
+                  <span
+                    className="shrink-0 text-[11px] font-semibold leading-tight"
+                    style={{ color: a.color, minWidth: "7rem" }}
+                  >
+                    {a.label}
+                  </span>
+                  <div className="flex-1 h-5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${demandasByArea.every(x => x.total === 0) ? 0 : Math.max(4, Math.round((a.total / Math.max(...demandasByArea.map(x => x.total), 1)) * 100))}%`,
+                        backgroundColor: a.color,
+                      }}
+                    />
+                  </div>
+                  <span className="shrink-0 text-xs font-bold text-foreground w-5 text-right">{a.total}</span>
+                </div>
+              ))}
+            </div>
           )}
         </div>
 

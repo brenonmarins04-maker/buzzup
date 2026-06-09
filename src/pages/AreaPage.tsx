@@ -412,6 +412,12 @@ function KanbanTab({ area }: { area: AreaKey }) {
   const [doneOpen, setDoneOpen] = useState(false);
   const [completing, setCompleting] = useState<Set<string>>(new Set());
 
+  // All person IDs belonging to the current logged-in user
+  const myPersonIds = useMemo(() => {
+    if (!user) return new Set<string>();
+    return new Set(people.filter(p => p.userId === user.id).map(p => p.id));
+  }, [user, people]);
+
   const onDragStart = (e: DragEvent, id: string) => {
     if (!canManage) { e.preventDefault(); return; }
     setDragId(id);
@@ -427,7 +433,6 @@ function KanbanTab({ area }: { area: AreaKey }) {
     if (!id) return;
     const item = items.find(i => i.id === id);
     if (!item) return;
-    // Dropping anywhere (Demandas/membro) reactivates a "done" card and moves it.
     if (item.status === "done") {
       updateParkingItem({ ...item, personId, status: "in-progress" });
     } else if (item.personId !== personId) {
@@ -436,42 +441,36 @@ function KanbanTab({ area }: { area: AreaKey }) {
     setDragId(null);
   };
 
-  // Only "in-progress" cards live in their assigned column.
-  const columnItems = (personId: string | null) =>
-    items.filter(i => i.personId === personId && i.status !== "done").sort((a, b) => a.position - b.position);
-  const doneItems = useMemo(() => items.filter(i => i.status === "done").sort((a, b) => a.position - b.position), [items]);
+  // Cards in completing set stay visible in their column during animation even after status="done"
+  const columnItems = (pid: string | null) =>
+    items.filter(i => i.personId === pid && (i.status !== "done" || completing.has(i.id))).sort((a, b) => a.position - b.position);
+  const doneItems = useMemo(() => items.filter(i => i.status === "done" && !completing.has(i.id)).sort((a, b) => a.position - b.position), [items, completing]);
 
   const setStatus = (item: ParkingItem, status: ParkingItemStatus) => {
     if (item.status === status) return;
     if (status === "done") {
-      // Trigger walking animation then move to done after 2s
-      setCompleting(prev => {
-        const n = new Set(prev);
-        n.add(item.id);
-        return n;
-      });
+      // Save to DB immediately — fixes F5 revert bug
+      updateParkingItem({ ...item, status: "done" });
+      setDoneOpen(true);
+      // Play animation (purely cosmetic — card stays in column until animation ends)
+      setCompleting(prev => { const n = new Set(prev); n.add(item.id); return n; });
       setTimeout(() => {
-        updateParkingItem({ ...item, status: "done" });
-        setDoneOpen(true);
-        // Clear AFTER the card has unmounted from the in-progress column,
-        // so removing the .demand-walking class doesn't cause a snap-back.
-        setTimeout(() => {
-          setCompleting(prev => {
-            const n = new Set(prev);
-            n.delete(item.id);
-            return n;
-          });
-        }, 200);
+        setCompleting(prev => { const n = new Set(prev); n.delete(item.id); return n; });
       }, 2000);
       return;
     }
     updateParkingItem({ ...item, status });
   };
 
+  // Can the current user mark this specific item as done?
+  const canMarkDone = (item: ParkingItem) =>
+    canManage || (item.personId !== null && myPersonIds.has(item.personId));
+
   const renderCard = (item: ParkingItem) => {
     const isDone = item.status === "done";
     const isCompleting = completing.has(item.id) && !isDone;
     const tint = isDone || isCompleting ? "#10B981" : "#F59E0B"; // green / orange
+    const memberCanDone = !canManage && canMarkDone(item);
     return (
       <div
         key={item.id}
@@ -481,7 +480,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
         className={`group bg-card border rounded-lg p-3 text-sm shadow-sm transition-colors ${canManage ? "cursor-grab active:cursor-grabbing" : ""} ${isCompleting ? "demand-walking" : ""}`}
         style={{ borderColor: `${tint}66`, backgroundColor: `${tint}10` }}
       >
-        {/* Status toggle row */}
+        {/* Status toggle row — full controls for admin/leader */}
         {canManage && (
           <div className="flex items-center gap-1.5 mb-2.5">
             <button
@@ -512,6 +511,22 @@ function KanbanTab({ area }: { area: AreaKey }) {
             >
               <X className="h-3.5 w-3.5" />
             </button>
+          </div>
+        )}
+        {/* Done button only — for the member assigned to this task */}
+        {memberCanDone && (
+          <div className="flex items-center gap-1.5 mb-2.5">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setStatus(item, "done"); }}
+              title="Marcar como concluída"
+              aria-label="Marcar como concluída"
+              className="h-5 w-5 rounded-full transition-all border-2"
+              style={item.status === "done" || isCompleting
+                ? { backgroundColor: "#10B981", borderColor: "#10B981", boxShadow: "0 2px 6px #10B98188" }
+                : { backgroundColor: "transparent", borderColor: "#10B981" }}
+            />
+            <span className="text-[10px] text-muted-foreground">Concluir tarefa</span>
           </div>
         )}
         <div onClick={() => canManage && openEdit(item)} className={canManage ? "cursor-pointer" : ""}>

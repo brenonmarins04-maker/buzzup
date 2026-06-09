@@ -168,71 +168,208 @@ function TeamNotesTab({ teamAreaKey }: { teamAreaKey: string }) {
 
 function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: string }) {
   const { people, teams, parkingItems, addParkingItem, moveParkingItem, deleteParkingItem, updateParkingItem } = useData();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
 
   const team = teams.find(t => t.id === teamId);
   const members = useMemo(() => people.filter(p => team?.memberIds.includes(p.id)), [people, team]);
   const items = useMemo(() => parkingItems.filter(p => p.area === teamAreaKey), [parkingItems, teamAreaKey]);
 
+  // All person IDs belonging to the current logged-in user
+  const myPersonIds = useMemo(() => {
+    if (!user) return new Set<string>();
+    return new Set(people.filter(p => p.userId === user.id).map(p => p.id));
+  }, [user, people]);
+
+  // ── Drag-and-drop ──
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [overCol, setOverCol] = useState<string | null>(null);
+
+  const onDragStart = (e: DragEvent, id: string) => {
+    if (!isAdmin) { e.preventDefault(); return; }
+    setDragId(id);
+    e.dataTransfer!.effectAllowed = "move";
+    e.dataTransfer!.setData("text/plain", id);
+  };
+  const onDragOver = (e: DragEvent, col: string) => {
+    if (!isAdmin) return;
+    e.preventDefault();
+    setOverCol(col);
+  };
+  const onDrop = (e: DragEvent, targetPersonId: string | null) => {
+    e.preventDefault();
+    setOverCol(null);
+    if (!isAdmin) return;
+    const id = dragId || e.dataTransfer.getData("text/plain");
+    if (!id) return;
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+    if (item.status === "done") {
+      updateParkingItem({ ...item, personId: targetPersonId, status: "in-progress" });
+    } else if (item.personId !== targetPersonId) {
+      moveParkingItem(id, targetPersonId);
+    }
+    setDragId(null);
+  };
+
+  // ── Task completion with animation (F5-safe: DB saved immediately) ──
+  const [completing, setCompleting] = useState<Set<string>>(new Set());
+  const [doneOpen, setDoneOpen] = useState(false);
+
+  const markDone = (item: ParkingItem) => {
+    if (item.status === "done") return;
+    // Save to DB immediately — no F5 revert
+    updateParkingItem({ ...item, status: "done" });
+    setDoneOpen(true);
+    // Visual animation only
+    setCompleting(prev => { const n = new Set(prev); n.add(item.id); return n; });
+    setTimeout(() => {
+      setCompleting(prev => { const n = new Set(prev); n.delete(item.id); return n; });
+    }, 2000);
+  };
+
+  // Cards in completing set remain visible during animation
+  const columnItems = (pid: string | null) =>
+    items.filter(i => i.personId === pid && (i.status !== "done" || completing.has(i.id))).sort((a, b) => a.position - b.position);
+  const doneItems = useMemo(() => items.filter(i => i.status === "done" && !completing.has(i.id)).sort((a, b) => a.position - b.position), [items, completing]);
+
+  // ── Edit modal ──
   const [modal, setModal] = useState<{ open: boolean; item?: ParkingItem | null }>({ open: false });
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
-  const [personId, setPersonId] = useState<string>("");
+  const [editPersonId, setEditPersonId] = useState<string>("");
   const [points, setPoints] = useState<number>(1);
 
-  const openCreate = () => { setModal({ open: true, item: null }); setTitle(""); setDate(""); setPersonId(""); setPoints(1); };
+  const openCreate = () => { setModal({ open: true, item: null }); setTitle(""); setDate(""); setEditPersonId(""); setPoints(1); };
+  const openEdit = (item: ParkingItem) => {
+    setModal({ open: true, item });
+    setTitle(item.title);
+    setDate(item.date || "");
+    setEditPersonId(item.personId || "");
+    setPoints(item.points || 1);
+  };
 
   const save = async () => {
     if (!title.trim()) { toast.error("Título obrigatório"); return; }
     if (!date) { toast.error("Data obrigatória"); return; }
     if (modal.item) {
-      await updateParkingItem({ ...modal.item, title: title.trim(), date, personId: personId || null, points });
+      await updateParkingItem({ ...modal.item, title: title.trim(), date, personId: editPersonId || null, points });
       toast.success("Atualizado");
     } else {
-      await addParkingItem(teamAreaKey, title.trim(), date, "", points, personId || null);
+      await addParkingItem(teamAreaKey, title.trim(), date, "", points, editPersonId || null);
       toast.success("Demanda criada");
     }
     setModal({ open: false });
   };
 
-  const columnItems = (pid: string | null) =>
-    items.filter(i => i.personId === pid && i.status !== "done").sort((a, b) => a.position - b.position);
-  const doneItems = useMemo(() => items.filter(i => i.status === "done"), [items]);
+  // ── Card renderer ──
+  const renderCard = (item: ParkingItem) => {
+    const isDone = item.status === "done";
+    const isCompleting = completing.has(item.id) && !isDone;
+    const tint = isDone || isCompleting ? "#10B981" : "#F59E0B";
+    const memberCanDone = !isAdmin && item.personId !== null && myPersonIds.has(item.personId);
 
-  const [doneOpen, setDoneOpen] = useState(false);
+    return (
+      <div
+        key={item.id}
+        draggable={isAdmin}
+        onDragStart={(e) => onDragStart(e, item.id)}
+        onDragEnd={() => setDragId(null)}
+        className={`group bg-card border rounded-lg p-3 text-sm shadow-sm transition-colors ${isAdmin ? "cursor-grab active:cursor-grabbing" : ""} ${isCompleting ? "demand-walking" : ""}`}
+        style={{ borderColor: `${tint}66`, backgroundColor: `${tint}10` }}
+      >
+        {/* Full controls for admin */}
+        {isAdmin && (
+          <div className="flex items-center gap-1.5 mb-2.5">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); updateParkingItem({ ...item, status: "in-progress" }); }}
+              title="Em andamento"
+              className="h-5 w-5 rounded-full transition-all border-2"
+              style={item.status === "in-progress" && !isCompleting
+                ? { backgroundColor: "#F59E0B", borderColor: "#F59E0B", boxShadow: "0 2px 6px #F59E0B88" }
+                : { backgroundColor: "transparent", borderColor: "#F59E0B" }}
+            />
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); markDone(item); }}
+              title="Concluída"
+              className="h-5 w-5 rounded-full transition-all border-2"
+              style={isDone || isCompleting
+                ? { backgroundColor: "#10B981", borderColor: "#10B981", boxShadow: "0 2px 6px #10B98188" }
+                : { backgroundColor: "transparent", borderColor: "#10B981" }}
+            />
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); deleteParkingItem(item.id).then(() => toast.success("Excluído")); }}
+              className="ml-auto text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+              title="Excluir"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
+        {/* Done-only button for member assigned to this task */}
+        {memberCanDone && (
+          <div className="flex items-center gap-1.5 mb-2.5">
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); markDone(item); }}
+              title="Marcar como concluída"
+              className="h-5 w-5 rounded-full transition-all border-2"
+              style={isDone || isCompleting
+                ? { backgroundColor: "#10B981", borderColor: "#10B981", boxShadow: "0 2px 6px #10B98188" }
+                : { backgroundColor: "transparent", borderColor: "#10B981" }}
+            />
+            <span className="text-[10px] text-muted-foreground">Concluir tarefa</span>
+          </div>
+        )}
+        <div onClick={() => isAdmin && openEdit(item)} className={isAdmin ? "cursor-pointer" : ""}>
+          <div className="flex items-start justify-between gap-2">
+            <span className={`font-semibold leading-snug flex-1 ${isDone ? "text-muted-foreground line-through" : "text-foreground"}`}>{item.title}</span>
+            {item.points ? (
+              <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md text-white" style={{ backgroundColor: tint }}>
+                {item.points}p
+              </span>
+            ) : null}
+          </div>
+          {item.description && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-3">{item.description}</p>}
+          {item.date && (
+            <div className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md text-white" style={{ backgroundColor: tint }}>
+              {new Date(item.date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
-  return (
-    <div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 pb-3">
-        {/* Demandas column */}
-        <div className="w-full flex flex-col rounded-lg border border-border bg-muted/30">
-          <div className="px-4 py-3 border-b bg-card border-primary/30 rounded-t-lg flex items-center justify-between">
-            <span className="text-sm font-semibold text-foreground">Demandas</span>
-            <span className="text-xs text-muted-foreground">{columnItems(null).length}</span>
-          </div>
-          <div className="flex-1 p-3 flex flex-col gap-3 min-h-[160px]">
-            {isAdmin && (
-              <button onClick={openCreate}
-                className="w-full flex items-center justify-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-primary/50 rounded-lg py-2 transition-colors">
-                <Plus className="h-3.5 w-3.5" /> nova demanda
-              </button>
-            )}
-            {columnItems(null).map(item => (
-              <div key={item.id} className="group bg-card border rounded-lg p-3 text-sm shadow-sm" style={{ borderColor: "#F59E0B66", backgroundColor: "#F59E0B10" }}>
-                {isAdmin && (
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <button onClick={() => updateParkingItem({ ...item, status: "done" })} className="h-5 w-5 rounded-full border-2" style={{ borderColor: "#10B981" }} title="Concluir" />
-                    <button onClick={() => deleteParkingItem(item.id).then(() => toast.success("Excluído"))} className="ml-auto text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100" type="button">
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                )}
-                <p className="font-semibold text-foreground">{item.title}</p>
-                {item.date && <span className="mt-1 inline-block text-[11px] font-semibold px-2 py-0.5 rounded-md text-white bg-amber-500">{new Date(item.date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>}
-              </div>
-            ))}
-          </div>
-          {/* Done */}
+  // ── Column renderer ──
+  const renderColumn = (colPersonId: string | null, colTitle: string, accent?: boolean) => {
+    const colKey = colPersonId ?? "__park";
+    const isOver = overCol === colKey;
+    return (
+      <div
+        key={colKey}
+        className={`w-full flex flex-col rounded-lg border bg-muted/30 transition-colors ${isOver ? "border-primary/60 bg-primary/5" : "border-border"}`}
+        onDragOver={(e) => onDragOver(e, colKey)}
+        onDragLeave={() => setOverCol(null)}
+        onDrop={(e) => onDrop(e, colPersonId)}
+      >
+        <div className={`px-4 py-3 border-b rounded-t-lg flex items-center justify-between ${accent ? "bg-card border-primary/30" : "border-border"}`}>
+          <span className="text-sm font-semibold text-foreground truncate">{colTitle}</span>
+          <span className="text-xs text-muted-foreground">{columnItems(colPersonId).length}</span>
+        </div>
+        <div className="flex-1 p-3 flex flex-col gap-3 min-h-[160px]">
+          {colPersonId === null && isAdmin && (
+            <button onClick={openCreate}
+              className="w-full flex items-center justify-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-primary/50 rounded-lg py-2 transition-colors">
+              <Plus className="h-3.5 w-3.5" /> nova demanda
+            </button>
+          )}
+          {columnItems(colPersonId).map(item => renderCard(item))}
+        </div>
+        {/* Concluídas accordion — only in Demandas column */}
+        {colPersonId === null && (
           <div className="border-t border-border bg-card/40 rounded-b-lg">
             <button type="button" onClick={() => setDoneOpen(o => !o)}
               className="w-full px-3 py-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground">
@@ -254,25 +391,16 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
               </div>
             )}
           </div>
-        </div>
+        )}
+      </div>
+    );
+  };
 
-        {/* Member columns */}
-        {members.map(m => (
-          <div key={m.id} className="w-full flex flex-col rounded-lg border border-border bg-muted/30">
-            <div className="px-4 py-3 border-b border-border rounded-t-lg flex items-center justify-between">
-              <span className="text-sm font-semibold text-foreground truncate">{m.name}</span>
-              <span className="text-xs text-muted-foreground">{columnItems(m.id).length}</span>
-            </div>
-            <div className="flex-1 p-3 flex flex-col gap-3 min-h-[160px]">
-              {columnItems(m.id).map(item => (
-                <div key={item.id} className="group bg-card border rounded-lg p-3 text-sm shadow-sm" style={{ borderColor: "#F59E0B66", backgroundColor: "#F59E0B10" }}>
-                  <p className="font-semibold text-foreground">{item.title}</p>
-                  {item.date && <span className="mt-1 inline-block text-[11px] font-semibold px-2 py-0.5 rounded-md text-white bg-amber-500">{new Date(item.date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>}
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
+  return (
+    <div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 pb-3">
+        {renderColumn(null, "Demandas", true)}
+        {members.map(m => renderColumn(m.id, m.name))}
       </div>
 
       <Dialog open={modal.open} onOpenChange={(o) => setModal({ open: o, item: null })}>
@@ -287,8 +415,8 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Responsável</label>
               <div className="flex flex-wrap gap-2">
                 {members.map(p => (
-                  <button key={p.id} type="button" onClick={() => setPersonId(personId === p.id ? "" : p.id)}
-                    className={`px-3 h-8 rounded-full text-sm font-medium border transition-all ${personId === p.id ? "bg-primary text-white border-primary" : "bg-muted border-border text-foreground"}`}>
+                  <button key={p.id} type="button" onClick={() => setEditPersonId(editPersonId === p.id ? "" : p.id)}
+                    className={`px-3 h-8 rounded-full text-sm font-medium border transition-all ${editPersonId === p.id ? "bg-primary text-white border-primary" : "bg-muted border-border text-foreground"}`}>
                     {p.name}
                   </button>
                 ))}
