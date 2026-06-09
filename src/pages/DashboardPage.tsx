@@ -143,22 +143,23 @@ export default function DashboardPage() {
   };
 
   // Ranking — soma TODOS os pontos da gamificação (demandas concluídas + ações manuais)
-  const pointsByPerson: Record<string, number> = {};
-  gamificationAwards.forEach(a => {
-    pointsByPerson[a.personId] = (pointsByPerson[a.personId] || 0) + (a.points || 0);
-  });
-  const allRanking = useMemo(() => people
-    .map(p => ({
-      id: p.id,
-      label: (p.nickname && p.nickname.trim()) ? p.nickname.trim() : p.name,
-      points: pointsByPerson[p.id] || 0,
-    }))
-    .sort((a, b) => b.points - a.points || a.label.localeCompare(b.label)),
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  [people, gamificationAwards]);
+  const allRanking = useMemo(() => {
+    const pointsByPerson: Record<string, number> = {};
+    gamificationAwards.forEach(a => {
+      pointsByPerson[a.personId] = (pointsByPerson[a.personId] || 0) + (a.points || 0);
+    });
+    return people
+      .map(p => ({
+        id: p.id,
+        label: (p.nickname && p.nickname.trim()) ? p.nickname.trim() : p.name,
+        points: pointsByPerson[p.id] || 0,
+      }))
+      .sort((a, b) => b.points - a.points || a.label.localeCompare(b.label));
+  }, [people, gamificationAwards]);
   // Top 15 (3 cols × 5 rows) shown by default; rest shown via "Ver mais"
   const top15 = allRanking.slice(0, 15);
   const restRanking = allRanking.slice(15);
+  const restZeroCount = restRanking.filter(r => r.points === 0).length;
 
   // Demandas por área
   const demandasByArea = AREAS.map(a => ({
@@ -256,7 +257,7 @@ export default function DashboardPage() {
         const myNickname = (currentPerson.nickname && currentPerson.nickname.trim())
           ? currentPerson.nickname.trim()
           : currentPerson.name;
-        const myPoints = pointsByPerson[currentPerson.id] || 0;
+        const myPoints = allRanking.find(r => r.id === currentPerson.id)?.points || 0;
         const myRankPos = allRanking.findIndex(r => r.id === currentPerson.id);
         const myRankLabel = myRankPos === 0 ? "🥇 1º lugar" : myRankPos === 1 ? "🥈 2º lugar" : myRankPos === 2 ? "🥉 3º lugar" : myRankPos >= 0 ? `${myRankPos + 1}º lugar` : "—";
 
@@ -392,7 +393,7 @@ export default function DashboardPage() {
                   )
                 ))}
               </div>
-              {/* Ver mais — pessoas com 0 pontos além das top 15 */}
+              {/* Ver mais — posições além do top 15 */}
               {restRanking.length > 0 && (
                 <div>
                   <button
@@ -400,15 +401,21 @@ export default function DashboardPage() {
                     onClick={() => setShowAllRanking(v => !v)}
                     className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
                   >
-                    {showAllRanking ? "Ver menos ▲" : `Ver mais (${restRanking.length} com 0 pts) ▼`}
+                    {showAllRanking
+                      ? "Ver menos ▲"
+                      : restZeroCount > 0
+                        ? `Ver mais (${restRanking.length - restZeroCount} com pontos + ${restZeroCount} com 0) ▼`
+                        : `Ver mais (${restRanking.length}) ▼`}
                   </button>
                   {showAllRanking && (
                     <ol className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                       {restRanking.map((r, i) => (
-                        <li key={r.id} className="flex items-center gap-2.5 p-2.5 rounded-md bg-muted/20 opacity-60">
+                        <li key={r.id} className={`flex items-center gap-2.5 p-2.5 rounded-md ${r.points > 0 ? "bg-muted/40" : "bg-muted/20 opacity-60"}`}>
                           <span className="w-6 text-center text-xs font-bold text-muted-foreground">{top15.length + i + 1}</span>
                           <span className="flex-1 text-sm font-medium text-foreground truncate">{r.label}</span>
-                          <span className="text-xs text-muted-foreground">0 pts</span>
+                          <span className={`text-xs font-bold ${r.points > 0 ? "text-primary" : "text-muted-foreground"}`}>
+                            {r.points} pts
+                          </span>
                         </li>
                       ))}
                     </ol>
