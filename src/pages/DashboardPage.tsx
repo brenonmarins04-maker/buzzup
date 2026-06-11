@@ -272,7 +272,7 @@ export default function DashboardPage() {
         const myRankLabel = myRankPos === 0 ? "🥇 1º lugar" : myRankPos === 1 ? "🥈 2º lugar" : myRankPos === 2 ? "🥉 3º lugar" : myRankPos >= 0 ? `${myRankPos + 1}º lugar` : "—";
 
         return (
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_240px] gap-4 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(280px,0.6fr)_240px] gap-4 items-start">
             {/* Minhas Demandas */}
             <div className="bg-card border border-border rounded-xl p-5">
               <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -338,6 +338,9 @@ export default function DashboardPage() {
               )}
             </div>
 
+            {/* Formulários — entre demandas e pontos */}
+            <FormsSection />
+
             {/* Meus Pontos */}
             <div className="bg-card border border-border rounded-xl p-5 flex flex-col items-center text-center gap-4">
               {/* Trophy icon */}
@@ -365,9 +368,6 @@ export default function DashboardPage() {
           </div>
         );
       })()}
-
-      {/* Formulários — pendentes para mim + gestão (admins) */}
-      <FormsSection />
 
       {/* Ranking */}
       <div className="bg-card border border-border rounded-xl p-5">

@@ -47,9 +47,6 @@ export default function FormsSection() {
   // Formulários pendentes para mim (elegível e ainda não preenchido)
   const myPending = forms.filter(f => isEligible(f) && !completedByMe.has(f.id));
 
-  // Nada para mostrar: membro sem pendências e sem permissão de admin
-  if (!isAdmin && myPending.length === 0) return null;
-
   const targetLabel = (f: WorkspaceForm) => {
     if (f.targetType === "area") return getAreaLabel(f.targetValue || "");
     if (f.targetType === "team") return teams.find(t => t.id === f.targetValue)?.name || "Time";
@@ -99,7 +96,7 @@ export default function FormsSection() {
       {myPending.length === 0 ? (
         <p className="text-xs text-muted-foreground">Nenhum formulário pendente. 🎉</p>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 gap-3">
           {myPending.map(f => (
             <div key={f.id} className="flex flex-col gap-3 p-4 rounded-lg border border-[#8B5CF6]/20 bg-[#8B5CF6]/5">
               <div className="flex items-start justify-between gap-2">
