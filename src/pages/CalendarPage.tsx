@@ -9,6 +9,7 @@ import {
   startOfWeek, endOfWeek, addDays, subDays, isTomorrow,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import TaskModal from "@/components/modals/TaskModal";
 import PostModal from "@/components/modals/PostModal";
 import EventModal from "@/components/modals/EventModal";
@@ -70,6 +71,8 @@ export default function CalendarPage() {
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [trashActive, setTrashActive] = useState(false);
   const [shrinkingId, setShrinkingId] = useState<string | null>(null);
+  // Popup com todas as demandas de um dia (mobile)
+  const [dayPopup, setDayPopup] = useState<string | null>(null);
 
   const performTrashDelete = (item: CalendarItem) => {
     setShrinkingId(item.id);
@@ -395,6 +398,9 @@ export default function CalendarPage() {
     const dayItems = allItems.filter((item) => item.date === dayStr);
     const todayFlag = isToday(day);
     const isDropping = dropTarget === dayStr;
+    // Mobile: mostra no máximo 3 demandas; o restante fica no popup do dia
+    const visibleItems = isMobile ? dayItems.slice(0, 3) : dayItems;
+    const hiddenCount = dayItems.length - visibleItems.length;
     return (
       <div
         key={dayStr}
@@ -402,6 +408,7 @@ export default function CalendarPage() {
         onDragOver={(e) => handleDragOver(e, dayStr)}
         onDragLeave={handleDragLeave}
         onDrop={(e) => isAdmin && handleDrop(e, dayStr)}
+        onClick={() => { if (isMobile && dayItems.length > 0) setDayPopup(dayStr); }}
         className={`h-full min-h-[64px] sm:min-h-0 border-b border-r border-border p-1 sm:p-1.5 transition-colors flex flex-col ${!inMonth ? "bg-muted/30" : ""} ${todayFlag ? "bg-accent/50" : ""} ${isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""}`}
       >
         <div className="flex items-center justify-between mb-1">
@@ -418,7 +425,15 @@ export default function CalendarPage() {
             </button>
           )}
         </div>
-        <div className="flex flex-col gap-0.5 min-h-0 overflow-y-auto scrollbar-thin">{dayItems.map((item) => renderItemPill(item))}</div>
+        <div className="flex flex-col gap-0.5 min-h-0 overflow-y-auto scrollbar-thin">{visibleItems.map((item) => renderItemPill(item))}</div>
+        {hiddenCount > 0 && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setDayPopup(dayStr); }}
+            className="mt-0.5 text-[9px] font-bold text-primary text-left px-0.5"
+          >
+            +{hiddenCount} mais
+          </button>
+        )}
       </div>
     );
   };
@@ -727,6 +742,48 @@ export default function CalendarPage() {
           )}
         </div>
       )}
+
+      {/* Popup com todas as demandas do dia */}
+      <Dialog open={!!dayPopup} onOpenChange={(o) => { if (!o) setDayPopup(null); }}>
+        <DialogContent className="max-w-sm max-h-[75vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="capitalize text-base">
+              {dayPopup ? format(new Date(dayPopup + "T00:00:00"), "EEEE, d 'de' MMMM", { locale: ptBR }) : ""}
+            </DialogTitle>
+          </DialogHeader>
+          {(() => {
+            const popupItems = dayPopup
+              ? allItems
+                  .filter(i => i.date === dayPopup)
+                  .sort((a, b) => (a.time || "99:99").localeCompare(b.time || "99:99"))
+              : [];
+            if (popupItems.length === 0) {
+              return <p className="text-sm text-muted-foreground text-center py-4">Nada agendado neste dia.</p>;
+            }
+            return (
+              <div className="flex flex-col gap-1.5">
+                {popupItems.map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => { setDayPopup(null); handleItemClick(item); }}
+                    className="flex items-start gap-2.5 text-left rounded-lg px-3 py-2.5 border border-border/60 hover:bg-accent transition-colors"
+                  >
+                    <span className="h-2.5 w-2.5 rounded-full shrink-0 mt-1" style={{ backgroundColor: item.color }} />
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-medium text-foreground break-words leading-snug">{item.title}</span>
+                      <span className="block text-[10px] text-muted-foreground mt-0.5">
+                        {item.parkingId ? item.eventTypeName : typeLabels[item.type]}
+                        {item.type === "post" && item.status ? ` • ${POST_STATUS_META[item.status]?.label || item.status}` : ""}
+                      </span>
+                    </span>
+                    {item.time && <span className="text-[10px] text-muted-foreground tabular-nums shrink-0 mt-0.5">{item.time}</span>}
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
 
       <TaskModal open={taskModal.open} onOpenChange={o => setTaskModal({ open: o })} task={taskModal.task} defaultDate={taskModal.date} />
       <PostModal open={postModal.open} onOpenChange={o => setPostModal({ open: o })} post={postModal.post} defaultDate={postModal.date} />
