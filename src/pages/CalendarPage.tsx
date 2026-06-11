@@ -372,7 +372,7 @@ export default function CalendarPage() {
           )}
           <div
             style={{ backgroundColor: item.color }}
-            className="flex-1 min-w-0 text-[9px] sm:text-[10px] leading-tight px-1 sm:px-1.5 py-0.5 text-white font-medium hover:opacity-80 transition-opacity pr-4 pointer-events-none truncate whitespace-nowrap"
+            className={`flex-1 min-w-0 text-[9px] sm:text-[10px] leading-tight px-1 sm:px-1.5 py-0.5 text-white font-medium hover:opacity-80 transition-opacity pointer-events-none ${isMobile ? "whitespace-normal break-words pr-1" : "truncate whitespace-nowrap pr-4"}`}
           >
             {item.title}
           </div>
@@ -642,7 +642,16 @@ export default function CalendarPage() {
             <div className="grid grid-cols-7 border-b border-border shrink-0">
               {weekDays.map(d => (<div key={d} className="py-2 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">{d}</div>))}
             </div>
-            <div className="grid grid-cols-7 flex-1 min-h-0" style={{ gridTemplateRows: `repeat(${monthDays.length / 7}, minmax(0, 1fr))` }}>
+            <div
+              className="grid grid-cols-7 flex-1 min-h-0"
+              style={{
+                // Mobile: linhas crescem conforme o conteúdo para mostrar nomes completos;
+                // desktop: linhas iguais preenchendo a altura disponível
+                gridTemplateRows: isMobile
+                  ? `repeat(${monthDays.length / 7}, minmax(72px, auto))`
+                  : `repeat(${monthDays.length / 7}, minmax(0, 1fr))`,
+              }}
+            >
               {monthDays.map((day) => (<div key={format(day, "yyyy-MM-dd")} className="group min-h-0">{renderDayCell(day, isSameMonth(day, currentDate))}</div>))}
             </div>
           </div>

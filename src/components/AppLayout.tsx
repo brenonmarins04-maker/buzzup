@@ -186,7 +186,28 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       <span className="truncate">{item.label}</span>
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent side="top" align="center" className="w-48 p-1">
+                  <PopoverContent side="top" align="center" className="w-52 p-1 max-h-[60vh] overflow-y-auto">
+                    {/* Times do usuário — aparecem em cima das áreas */}
+                    {myTeams.length > 0 && (
+                      <>
+                        <div className="px-3 pt-1.5 pb-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Times</div>
+                        {myTeams.map(team => {
+                          const tc = getTeamColor(team.id);
+                          return (
+                            <NavLink key={team.id} to={`/time/${team.id}`}
+                              style={({ isActive }) => isActive
+                                ? { backgroundColor: `${tc}1F`, color: tc }
+                                : { color: tc }}
+                              className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold hover:bg-accent/50">
+                              <UsersRound className="h-4 w-4 shrink-0" />
+                              <span className="truncate">{team.name}</span>
+                            </NavLink>
+                          );
+                        })}
+                        <div className="border-t border-border my-1" />
+                        <div className="px-3 pt-1 pb-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Áreas</div>
+                      </>
+                    )}
                     {getAreaItems().map((a) => (
                       <NavLink key={a.to} to={a.to}
                         style={({ isActive }) => isActive
