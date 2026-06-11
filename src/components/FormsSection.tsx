@@ -22,6 +22,8 @@ export default function FormsSection() {
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<WorkspaceForm | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
+  // Admin: popup com quem preencheu / quem falta
+  const [viewResponses, setViewResponses] = useState<WorkspaceForm | null>(null);
 
   // Pessoas vinculadas ao usuário atual → áreas e times dele
   const { myAreas, myTeamIds } = useMemo(() => {
@@ -191,9 +193,13 @@ export default function FormsSection() {
                 <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0">
                   {TargetIcon(f)} {targetLabel(f)}
                 </span>
-                <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
+                <button
+                  onClick={() => setViewResponses(f)}
+                  title="Ver quem preencheu e quem falta"
+                  className="text-xs font-medium text-primary hover:underline whitespace-nowrap shrink-0"
+                >
                   {completionCount(f.id)} preencheram
-                </span>
+                </button>
                 <button
                   onClick={() => setConfirmDelete(f)}
                   className="p-1 rounded text-destructive hover:bg-destructive/10 shrink-0"
@@ -277,6 +283,73 @@ export default function FormsSection() {
               {busy ? "Publicando…" : "Publicar"}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: quem preencheu / quem falta (admins) */}
+      <Dialog open={!!viewResponses} onOpenChange={(o) => { if (!o) setViewResponses(null); }}>
+        <DialogContent className="max-w-sm max-h-[75vh] overflow-y-auto">
+          {viewResponses && (() => {
+            const f = viewResponses;
+            // Pessoas elegíveis para este formulário
+            const eligiblePeople =
+              f.targetType === "area"
+                ? people.filter(p => (p.areas || []).includes(f.targetValue || ""))
+                : f.targetType === "team"
+                  ? people.filter(p => teams.find(t => t.id === f.targetValue)?.memberIds.includes(p.id))
+                  : people;
+            const completedUserIds = new Set(formCompletions.filter(c => c.formId === f.id).map(c => c.userId));
+            const filled = eligiblePeople.filter(p => p.userId && completedUserIds.has(p.userId));
+            const missing = eligiblePeople.filter(p => !p.userId || !completedUserIds.has(p.userId));
+            const personLabel = (p: typeof people[0]) =>
+              (p.nickname && p.nickname.trim()) ? `${p.name} (${p.nickname.trim()})` : p.name;
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="text-base">{f.title}</DialogTitle>
+                  <p className="text-xs text-muted-foreground">
+                    {targetLabel(f)} • {filled.length} de {eligiblePeople.length} preencheram
+                  </p>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> Preencheram ({filled.length})
+                    </p>
+                    {filled.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">Ninguém preencheu ainda.</p>
+                    ) : (
+                      <ul className="space-y-0.5">
+                        {filled.map(p => (
+                          <li key={p.id} className="text-sm text-foreground flex items-center gap-2 px-2 py-1 rounded bg-emerald-500/5">
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                            <span className="truncate">{personLabel(p)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider mb-1.5">
+                      Faltam preencher ({missing.length})
+                    </p>
+                    {missing.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">Todo mundo preencheu! 🎉</p>
+                    ) : (
+                      <ul className="space-y-0.5">
+                        {missing.map(p => (
+                          <li key={p.id} className="text-sm text-muted-foreground flex items-center gap-2 px-2 py-1 rounded bg-muted/40">
+                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500/70 shrink-0" />
+                            <span className="truncate">{personLabel(p)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              </>
+            );
+          })()}
         </DialogContent>
       </Dialog>
 
