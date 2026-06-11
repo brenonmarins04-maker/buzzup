@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, type DragEvent } from "react";
+import { useState, useMemo, useRef, useEffect, type DragEvent } from "react";
 import { ChevronLeft, ChevronRight, Plus, X, PanelLeftClose, PanelLeftOpen, Inbox, ChevronUp, ChevronDown, CalendarDays } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
@@ -55,6 +55,9 @@ export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(getNowBrasilia());
   const [filterArea, setFilterArea] = useState<string | null>(null);
   const [parkingOpen, setParkingOpen] = useState(true);
+
+  // No celular o Papel começa recolhido para o calendário aparecer logo
+  useEffect(() => { if (isMobile) setParkingOpen(false); }, [isMobile]);
   const [newIdea, setNewIdea] = useState("");
   const [parkingDropActive, setParkingDropActive] = useState(false);
   const newIdeaRef = useRef<HTMLInputElement>(null);
@@ -362,7 +365,7 @@ export default function CalendarPage() {
             opacity: shrinkingId === item.id ? 0 : 1,
             transformOrigin: "bottom right",
           }}
-          className={`relative group/pill flex items-stretch rounded-sm overflow-hidden ${isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}`}
+          className={`relative group/pill flex items-stretch ${isMobile ? "rounded-md" : "rounded-sm"} overflow-hidden ${isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}`}
         >
           {item.type === "post" && (
             <button
@@ -375,7 +378,11 @@ export default function CalendarPage() {
           )}
           <div
             style={{ backgroundColor: item.color }}
-            className={`flex-1 min-w-0 text-[9px] sm:text-[10px] leading-tight px-1 sm:px-1.5 py-0.5 text-white font-medium hover:opacity-80 transition-opacity pointer-events-none ${isMobile ? "whitespace-normal break-words pr-1" : "truncate whitespace-nowrap pr-4"}`}
+            className={`flex-1 min-w-0 text-white font-medium hover:opacity-80 transition-opacity pointer-events-none ${
+              isMobile
+                ? "text-[10px] leading-snug px-1.5 py-1 rounded-md whitespace-normal break-words line-clamp-2"
+                : "text-[9px] sm:text-[10px] leading-tight px-1 sm:px-1.5 py-0.5 truncate whitespace-nowrap pr-4"
+            }`}
           >
             {item.title}
           </div>
@@ -409,7 +416,7 @@ export default function CalendarPage() {
         onDragLeave={handleDragLeave}
         onDrop={(e) => isAdmin && handleDrop(e, dayStr)}
         onClick={() => { if (isMobile && dayItems.length > 0) setDayPopup(dayStr); }}
-        className={`h-full min-h-[64px] sm:min-h-0 border-b border-r border-border p-1 sm:p-1.5 transition-colors flex flex-col ${!inMonth ? "bg-muted/30" : ""} ${todayFlag ? "bg-accent/50" : ""} ${isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""}`}
+        className={`h-full min-h-[64px] sm:min-h-0 border-b border-r border-border p-1 sm:p-1.5 transition-colors flex flex-col ${!inMonth ? "bg-muted/30" : ""} ${todayFlag ? "bg-accent/50" : ""} ${isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""} ${isMobile && dayItems.length > 0 ? "active:bg-accent/60 cursor-pointer" : ""}`}
       >
         <div className="flex items-center justify-between mb-1">
           <div className={`text-xs font-medium ${todayFlag ? "bg-primary text-primary-foreground h-5 w-5 rounded-full flex items-center justify-center" : inMonth ? "text-foreground" : "text-muted-foreground/50"}`}>
@@ -429,9 +436,9 @@ export default function CalendarPage() {
         {hiddenCount > 0 && (
           <button
             onClick={(e) => { e.stopPropagation(); setDayPopup(dayStr); }}
-            className="mt-0.5 text-[9px] font-bold text-primary text-left px-0.5"
+            className="mt-0.5 w-full text-center text-[10px] font-bold text-primary bg-primary/10 rounded-md py-0.5"
           >
-            +{hiddenCount} mais
+            +{hiddenCount}
           </button>
         )}
       </div>
@@ -655,7 +662,11 @@ export default function CalendarPage() {
           )}
           <div className="bg-card border border-border rounded-2xl overflow-hidden flex flex-col h-full min-h-0 w-full">
             <div className="grid grid-cols-7 border-b border-border shrink-0">
-              {weekDays.map(d => (<div key={d} className="py-2 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">{d}</div>))}
+              {weekDays.map(d => (
+                <div key={d} className={`text-center font-medium text-muted-foreground uppercase tracking-wider ${isMobile ? "py-1.5 text-[10px]" : "py-2 text-xs"}`}>
+                  {isMobile ? d[0] : d}
+                </div>
+              ))}
             </div>
             <div
               className="grid grid-cols-7 flex-1 min-h-0"
@@ -745,41 +756,51 @@ export default function CalendarPage() {
 
       {/* Popup com todas as demandas do dia */}
       <Dialog open={!!dayPopup} onOpenChange={(o) => { if (!o) setDayPopup(null); }}>
-        <DialogContent className="max-w-sm max-h-[75vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="capitalize text-base">
-              {dayPopup ? format(new Date(dayPopup + "T00:00:00"), "EEEE, d 'de' MMMM", { locale: ptBR }) : ""}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className="max-w-sm max-h-[75vh] overflow-y-auto rounded-2xl">
           {(() => {
             const popupItems = dayPopup
               ? allItems
                   .filter(i => i.date === dayPopup)
                   .sort((a, b) => (a.time || "99:99").localeCompare(b.time || "99:99"))
               : [];
-            if (popupItems.length === 0) {
-              return <p className="text-sm text-muted-foreground text-center py-4">Nada agendado neste dia.</p>;
-            }
             return (
-              <div className="flex flex-col gap-1.5">
-                {popupItems.map(item => (
-                  <button
-                    key={item.id}
-                    onClick={() => { setDayPopup(null); handleItemClick(item); }}
-                    className="flex items-start gap-2.5 text-left rounded-lg px-3 py-2.5 border border-border/60 hover:bg-accent transition-colors"
-                  >
-                    <span className="h-2.5 w-2.5 rounded-full shrink-0 mt-1" style={{ backgroundColor: item.color }} />
-                    <span className="flex-1 min-w-0">
-                      <span className="block text-sm font-medium text-foreground break-words leading-snug">{item.title}</span>
-                      <span className="block text-[10px] text-muted-foreground mt-0.5">
-                        {item.parkingId ? item.eventTypeName : typeLabels[item.type]}
-                        {item.type === "post" && item.status ? ` • ${POST_STATUS_META[item.status]?.label || item.status}` : ""}
-                      </span>
-                    </span>
-                    {item.time && <span className="text-[10px] text-muted-foreground tabular-nums shrink-0 mt-0.5">{item.time}</span>}
-                  </button>
-                ))}
-              </div>
+              <>
+                <DialogHeader>
+                  <DialogTitle className="capitalize text-base">
+                    {dayPopup ? format(new Date(dayPopup + "T00:00:00"), "EEEE, d 'de' MMMM", { locale: ptBR }) : ""}
+                  </DialogTitle>
+                  <p className="text-xs text-muted-foreground">
+                    {popupItems.length} {popupItems.length === 1 ? "item agendado" : "itens agendados"}
+                  </p>
+                </DialogHeader>
+                {popupItems.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">Nada agendado neste dia.</p>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {popupItems.map(item => (
+                      <button
+                        key={item.id}
+                        onClick={() => { setDayPopup(null); handleItemClick(item); }}
+                        className="flex items-stretch gap-0 text-left rounded-xl border border-border/60 overflow-hidden hover:bg-accent active:scale-[0.99] transition-all"
+                        style={{ backgroundColor: `${item.color}0A` }}
+                      >
+                        <span className="w-1.5 shrink-0" style={{ backgroundColor: item.color }} />
+                        <span className="flex-1 min-w-0 px-3 py-2.5">
+                          <span className="block text-sm font-semibold text-foreground break-words leading-snug">{item.title}</span>
+                          <span className="block text-[10px] font-medium mt-1" style={{ color: item.color }}>
+                            {item.parkingId ? item.eventTypeName : typeLabels[item.type]}
+                            {item.type === "post" && item.status ? ` • ${POST_STATUS_META[item.status]?.label || item.status}` : ""}
+                            {item.type === "event" && !item.parkingId && item.eventTypeName ? ` • ${item.eventTypeName}` : ""}
+                          </span>
+                        </span>
+                        {item.time && (
+                          <span className="self-center text-[11px] font-semibold text-muted-foreground tabular-nums shrink-0 pr-3">{item.time}</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
             );
           })()}
         </DialogContent>
