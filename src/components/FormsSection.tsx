@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { FileText, Plus, ExternalLink, CheckCircle2, Trash2, Users, UsersRound, Globe } from "lucide-react";
+import { FileText, Plus, ExternalLink, CheckCircle2, Trash2, Users, UsersRound, Globe, ChevronDown, ChevronUp, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { AREAS, getAreaLabel } from "@/lib/areas";
 
 export default function FormsSection() {
-  const { forms, formCompletions, teams, people, addForm, deleteForm, markFormCompleted } = useData();
+  const { forms, formCompletions, teams, people, addForm, deleteForm, markFormCompleted, unmarkFormCompleted } = useData();
   const { user, isAdmin } = useAuth();
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -21,6 +21,7 @@ export default function FormsSection() {
   const [targetValue, setTargetValue] = useState<string>("");
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<WorkspaceForm | null>(null);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   // Pessoas vinculadas ao usuário atual → áreas e times dele
   const { myAreas, myTeamIds } = useMemo(() => {
@@ -46,6 +47,8 @@ export default function FormsSection() {
 
   // Formulários pendentes para mim (elegível e ainda não preenchido)
   const myPending = forms.filter(f => isEligible(f) && !completedByMe.has(f.id));
+  // Formulários que eu já marquei como preenchidos
+  const myCompleted = forms.filter(f => isEligible(f) && completedByMe.has(f.id));
 
   const targetLabel = (f: WorkspaceForm) => {
     if (f.targetType === "area") return getAreaLabel(f.targetValue || "");
@@ -128,6 +131,51 @@ export default function FormsSection() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Preenchidos — setinha para expandir; dá para desfazer e voltar ao pendente */}
+      {myCompleted.length > 0 && (
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={() => setShowCompleted(v => !v)}
+            className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {showCompleted ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            Preenchidos ({myCompleted.length})
+          </button>
+          {showCompleted && (
+            <div className="mt-2 flex flex-col gap-2">
+              {myCompleted.map(f => (
+                <div key={f.id} className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-emerald-300/40 bg-emerald-500/5">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{f.title}</p>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+                      {TargetIcon(f)} {targetLabel(f)}
+                    </span>
+                  </div>
+                  <a
+                    href={f.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Abrir formulário"
+                    className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent shrink-0"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
+                  <button
+                    onClick={() => { unmarkFormCompleted(f.id); toast.info("Formulário voltou para pendentes."); }}
+                    title="Desfazer — voltar para pendentes"
+                    className="flex items-center gap-1 text-[11px] font-semibold px-2 py-1.5 rounded-md text-emerald-700 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-300/50 shrink-0 transition-colors"
+                  >
+                    <Undo2 className="h-3 w-3" /> Preenchido
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

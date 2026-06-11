@@ -151,6 +151,7 @@ type DataContextType = {
   addForm: (title: string, url: string, targetType: WorkspaceFormTarget, targetValue: string | null, description?: string) => Promise<void>;
   deleteForm: (id: string) => Promise<void>;
   markFormCompleted: (formId: string) => Promise<void>;
+  unmarkFormCompleted: (formId: string) => Promise<void>;
 };
 
 const DataContext = createContext<DataContextType | null>(null);
@@ -1060,6 +1061,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (data) setFormCompletions(prev => prev.map(c => c.id === tempId ? { id: data.id, formId: data.form_id, userId: data.user_id, completedAt: data.completed_at } : c));
   }, [workspaceId, uid]);
 
+  const unmarkFormCompleted = useCallback(async (formId: string) => {
+    if (!workspaceId || !uid) return;
+    // Optimistic — o card volta para pendente na hora
+    let removed: FormCompletion[] = [];
+    setFormCompletions(prev => {
+      removed = prev.filter(c => c.formId === formId && c.userId === uid);
+      return prev.filter(c => !(c.formId === formId && c.userId === uid));
+    });
+    const { error } = await (supabase.from("form_completions") as any)
+      .delete().eq("form_id", formId).eq("user_id", uid);
+    if (error) {
+      toast.error("Erro ao desfazer preenchimento");
+      setFormCompletions(prev => [...prev, ...removed]);
+    }
+  }, [workspaceId, uid]);
+
   return (
     <DataContext.Provider value={{
       people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, gamificationActions, gamificationAwards, leadThermometer, attendanceSettings, attendanceRecords, broadcasts, forms, formCompletions, loading, workspaceId,
@@ -1080,7 +1097,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addLeadThermometer, updateLeadThermometer, deleteLeadThermometer,
       upsertAttendanceSetting, setAttendance, clearAttendance,
       addBroadcast, deleteBroadcast,
-      addForm, deleteForm, markFormCompleted,
+      addForm, deleteForm, markFormCompleted, unmarkFormCompleted,
     }}>
       {children}
     </DataContext.Provider>
