@@ -54,6 +54,10 @@ export type AttendanceRecord = { id: string; area: string; personId: string; dat
 
 export type Broadcast = { id: string; message: string; durationDays: number; createdAt: string; expiresAt: string; createdBy: string | null };
 
+export type WorkspaceFormTarget = "all" | "area" | "team";
+export type WorkspaceForm = { id: string; title: string; description: string; url: string; targetType: WorkspaceFormTarget; targetValue: string | null; createdBy: string | null; createdAt: string };
+export type FormCompletion = { id: string; formId: string; userId: string; completedAt: string };
+
 export type Notification = {
   id: string; title: string; message: string;
   type: "warning" | "danger" | "info"; read: boolean; date: string;
@@ -69,6 +73,7 @@ type DataContextType = {
   attendanceSettings: AttendanceSetting[];
   attendanceRecords: AttendanceRecord[];
   broadcasts: Broadcast[];
+  forms: WorkspaceForm[]; formCompletions: FormCompletion[];
   loading: boolean; workspaceId: string | null;
 
   addPerson: (name: string) => void;
@@ -142,6 +147,10 @@ type DataContextType = {
 
   addBroadcast: (message: string, durationDays: number) => Promise<void>;
   deleteBroadcast: (id: string) => Promise<void>;
+
+  addForm: (title: string, url: string, targetType: WorkspaceFormTarget, targetValue: string | null, description?: string) => Promise<void>;
+  deleteForm: (id: string) => Promise<void>;
+  markFormCompleted: (formId: string) => Promise<void>;
 };
 
 const DataContext = createContext<DataContextType | null>(null);
@@ -168,6 +177,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [attendanceSettings, setAttendanceSettings] = useState<AttendanceSetting[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
+  const [forms, setForms] = useState<WorkspaceForm[]>([]);
+  const [formCompletions, setFormCompletions] = useState<FormCompletion[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoriesRaw, setCategoriesRaw] = useState<{ id: string; name: string }[]>([]);
   const [refetchTick, setRefetchTick] = useState(0);
@@ -177,7 +188,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!uid || !workspaceId) {
       setPeople([]); setProjects([]); setTasks([]); setPosts([]);
       setEvents([]); setCategories([]); setChannels([]); setTeams([]);
-      setCategoriesRaw([]); setEventTypes([]); setAreaNotes([]); setParkingItems([]); setGamificationActions([]); setGamificationAwards([]); setLeadThermometer([]); setAttendanceSettings([]); setAttendanceRecords([]); setBroadcasts([]); setLoading(false);
+      setCategoriesRaw([]); setEventTypes([]); setAreaNotes([]); setParkingItems([]); setGamificationActions([]); setGamificationAwards([]); setLeadThermometer([]); setAttendanceSettings([]); setAttendanceRecords([]); setBroadcasts([]); setForms([]); setFormCompletions([]); setLoading(false);
       return;
     }
     let cancelled = false;
@@ -186,7 +197,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const wsId = workspaceId!;
       try {
 
-      const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes, etRes, anRes, piRes, gaRes, gwRes, ltRes, asRes, arRes, bcRes] = await Promise.all([
+      const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes, etRes, anRes, piRes, gaRes, gwRes, ltRes, asRes, arRes, bcRes, fmRes, fcRes] = await Promise.all([
         (supabase.from("people") as any).select("id, name, nickname, area, user_id").eq("workspace_id", wsId),
         supabase.from("projects").select("*").eq("workspace_id", wsId),
         supabase.from("tasks").select("*").eq("workspace_id", wsId),
@@ -208,6 +219,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         (supabase.from as any)("attendance_settings").select("*").eq("workspace_id", wsId),
         (supabase.from as any)("attendance_records").select("*").eq("workspace_id", wsId),
         (supabase.from as any)("broadcasts").select("*").eq("workspace_id", wsId).gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }),
+        (supabase.from as any)("workspace_forms").select("*").eq("workspace_id", wsId).order("created_at", { ascending: false }),
+        (supabase.from as any)("form_completions").select("*").eq("workspace_id", wsId),
       ]);
       if (cancelled) return;
 
@@ -349,6 +362,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setAttendanceSettings(((asRes as any)?.data || []).map((s: any) => ({ id: s.id, area: s.area, intervalDays: s.interval_days ?? 7, startDate: s.start_date ?? "", meetingCount: s.meeting_count ?? 8 })));
       setAttendanceRecords(((arRes as any)?.data || []).map((r: any) => ({ id: r.id, area: r.area, personId: r.person_id, date: r.date, status: (r.status ?? "P") as AttendanceStatus, justification: r.justification ?? "" })));
       setBroadcasts(((bcRes as any)?.data || []).map((b: any) => ({ id: b.id, message: b.message, durationDays: b.duration_days ?? 7, createdAt: b.created_at, expiresAt: b.expires_at, createdBy: b.created_by ?? null })));
+      // Forms — se as tabelas ainda não existirem no banco, os resultados vêm com erro e ficam vazios (não quebra o app)
+      setForms(((fmRes as any)?.data || []).map((f: any) => ({ id: f.id, title: f.title, description: f.description ?? "", url: f.url, targetType: (f.target_type ?? "all") as WorkspaceFormTarget, targetValue: f.target_value ?? null, createdBy: f.created_by ?? null, createdAt: f.created_at })));
+      setFormCompletions(((fcRes as any)?.data || []).map((c: any) => ({ id: c.id, formId: c.form_id, userId: c.user_id, completedAt: c.completed_at })));
 
       // Sync: migrate tasks with deadlines into parkingItems so they appear in Quadro CB
       try {
@@ -410,6 +426,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       "lead_thermometer",
       "attendance_settings", "attendance_records",
       "broadcasts",
+      "workspace_forms", "form_completions",
     ];
     let scheduled: ReturnType<typeof setTimeout> | null = null;
     const trigger = () => {
@@ -1007,9 +1024,45 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setBroadcasts(prev => prev.filter(b => b.id !== id));
   }, []);
 
+  // === FORMS (Formulários do workspace) ===
+  const addForm = useCallback(async (title: string, url: string, targetType: WorkspaceFormTarget, targetValue: string | null, description = "") => {
+    if (!workspaceId) return;
+    const { data, error } = await (supabase.from("workspace_forms") as any)
+      .insert({ workspace_id: workspaceId, title, description, url, target_type: targetType, target_value: targetValue, created_by: uid })
+      .select().single();
+    if (error) { toast.error("Erro ao criar formulário"); return; }
+    if (data) setForms(prev => [{ id: data.id, title: data.title, description: data.description ?? "", url: data.url, targetType: (data.target_type ?? "all") as WorkspaceFormTarget, targetValue: data.target_value ?? null, createdBy: data.created_by ?? null, createdAt: data.created_at }, ...prev]);
+  }, [workspaceId, uid]);
+
+  const deleteForm = useCallback(async (id: string) => {
+    const { error } = await (supabase.from("workspace_forms") as any).delete().eq("id", id);
+    if (error) { toast.error("Erro ao remover formulário"); return; }
+    setForms(prev => prev.filter(f => f.id !== id));
+    setFormCompletions(prev => prev.filter(c => c.formId !== id));
+  }, []);
+
+  const markFormCompleted = useCallback(async (formId: string) => {
+    if (!workspaceId || !uid) return;
+    // Optimistic — o card some na hora
+    const tempId = `tmp-${formId}-${uid}`;
+    setFormCompletions(prev => [...prev, { id: tempId, formId, userId: uid, completedAt: new Date().toISOString() }]);
+    const { data, error } = await (supabase.from("form_completions") as any)
+      .insert({ form_id: formId, workspace_id: workspaceId, user_id: uid })
+      .select().single();
+    if (error) {
+      // 23505 = já marcado (unique) — mantém otimista; outros erros revertem
+      if (!String(error.code) .includes("23505")) {
+        toast.error("Erro ao marcar como preenchido");
+        setFormCompletions(prev => prev.filter(c => c.id !== tempId));
+      }
+      return;
+    }
+    if (data) setFormCompletions(prev => prev.map(c => c.id === tempId ? { id: data.id, formId: data.form_id, userId: data.user_id, completedAt: data.completed_at } : c));
+  }, [workspaceId, uid]);
+
   return (
     <DataContext.Provider value={{
-      people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, gamificationActions, gamificationAwards, leadThermometer, attendanceSettings, attendanceRecords, broadcasts, loading, workspaceId,
+      people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, gamificationActions, gamificationAwards, leadThermometer, attendanceSettings, attendanceRecords, broadcasts, forms, formCompletions, loading, workspaceId,
       addPerson, updatePerson, updatePersonNickname, updatePersonArea, updatePersonAreas, updatePersonLeaderArea, updatePersonLeaderAreas, deletePerson,
       addTask, updateTask, deleteTask,
       addPost, updatePost, deletePost,
@@ -1027,6 +1080,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addLeadThermometer, updateLeadThermometer, deleteLeadThermometer,
       upsertAttendanceSetting, setAttendance, clearAttendance,
       addBroadcast, deleteBroadcast,
+      addForm, deleteForm, markFormCompleted,
     }}>
       {children}
     </DataContext.Provider>

@@ -224,7 +224,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex h-screen overflow-hidden bg-background">
       <aside className={`${collapsed ? "w-16" : "w-60"} shrink-0 border-r border-border bg-card flex flex-col transition-all duration-200`}>
         <div className="h-14 px-4 flex items-center justify-between border-b border-border">
           {!collapsed && <span className="font-bold text-foreground tracking-tight text-lg">BuzzUp</span>}

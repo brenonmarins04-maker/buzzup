@@ -12,6 +12,7 @@ import { format, endOfWeek, differenceInHours, differenceInDays, subDays, startO
 import { ptBR } from "date-fns/locale";
 import { AREAS } from "@/lib/areas";
 import buzzupLogo from "@/assets/buzzup-logo.png";
+import FormsSection from "@/components/FormsSection";
 
 function timeAgo(iso: string) {
   const d = new Date(iso);
@@ -148,12 +149,21 @@ export default function DashboardPage() {
     gamificationAwards.forEach(a => {
       pointsByPerson[a.personId] = (pointsByPerson[a.personId] || 0) + (a.points || 0);
     });
+    // Conta apelidos repetidos para desambiguar (ex.: dois "Panamá" → "Panamá (Diogo)" / "Panamá (Mateus)")
+    const nickCount: Record<string, number> = {};
+    people.forEach(p => {
+      const nick = p.nickname?.trim().toLowerCase();
+      if (nick) nickCount[nick] = (nickCount[nick] || 0) + 1;
+    });
     return people
-      .map(p => ({
-        id: p.id,
-        label: (p.nickname && p.nickname.trim()) ? p.nickname.trim() : p.name,
-        points: pointsByPerson[p.id] || 0,
-      }))
+      .map(p => {
+        const nick = p.nickname?.trim();
+        let label = nick || p.name;
+        if (nick && nickCount[nick.toLowerCase()] > 1) {
+          label = `${nick} (${p.name.split(" ")[0]})`;
+        }
+        return { id: p.id, label, points: pointsByPerson[p.id] || 0 };
+      })
       .sort((a, b) => b.points - a.points || a.label.localeCompare(b.label));
   }, [people, gamificationAwards]);
   // Top 15 (3 cols × 5 rows) shown by default; rest shown via "Ver mais"
@@ -355,6 +365,9 @@ export default function DashboardPage() {
           </div>
         );
       })()}
+
+      {/* Formulários — pendentes para mim + gestão (admins) */}
+      <FormsSection />
 
       {/* Ranking */}
       <div className="bg-card border border-border rounded-xl p-5">
