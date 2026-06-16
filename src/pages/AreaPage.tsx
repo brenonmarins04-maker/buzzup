@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect, type DragEvent, type KeyboardEven
 import { useData, type ParkingItem, type ParkingItemStatus, type AttendanceStatus } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { AREAS, type AreaKey, getAreaLabel } from "@/lib/areas";
+import { leadsKey } from "@/lib/leadership";
 import { Plus, ExternalLink, Pencil, Trash2, X, Settings, ChevronDown, ChevronUp, Circle, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -153,9 +154,11 @@ function addDaysISO(iso: string, days: number) {
 
 function AttendanceTab({ area }: { area: AreaKey }) {
   const { people, attendanceSettings, attendanceRecords, upsertAttendanceSetting, setAttendance, clearAttendance } = useData();
-  const { isAdmin } = useAuth();
+  const { isAdmin: _isAdmin, user } = useAuth();
+  // Líder da área também gerencia presenças da área
+  const isAdmin = _isAdmin || leadsKey(people, user?.id, area);
 
-  // Apenas Admin pode acessar a aba de presenças
+  // Apenas Admin/líder pode acessar a aba de presenças
   if (!isAdmin) {
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4">
@@ -365,24 +368,17 @@ function AttendanceTab({ area }: { area: AreaKey }) {
 // ===== Quadro CB (kanban: estacionamento + uma coluna por membro) =====
 function KanbanTab({ area }: { area: AreaKey }) {
   const { people, parkingItems, addParkingItem, moveParkingItem, deleteParkingItem, updateParkingItem } = useData();
-  const { isAdmin, isLeader, user } = useAuth();
+  const { isAdmin, user } = useAuth();
   const meta = AREAS.find(a => a.key === area)!;
 
   const members = useMemo(() => people.filter(p => (p.areas && p.areas.includes(area)) || p.area === area), [people, area]);
   const items = useMemo(() => parkingItems.filter(p => p.area === area), [parkingItems, area]);
 
-  // Verificar se o usuário atual é líder desta área
-  const currentPersonAsLeader = useMemo(() => {
-    if (!isLeader || !user) return null;
-    return people.find(p => {
-      if (p.userId !== user.id) return false;
-      const leaderList = p.leaderAreas || (p.leaderArea ? [p.leaderArea] : []);
-      return leaderList.includes(area);
-    });
-  }, [isLeader, user, people, area]);
+  // Verificar se o usuário atual é líder desta área (liderança vem do banco/leaderAreas)
+  const isAreaLeader = useMemo(() => leadsKey(people, user?.id, area), [people, user, area]);
 
   // Verificar se pode mover (admin ou líder da área)
-  const canManage = isAdmin || !!currentPersonAsLeader;
+  const canManage = isAdmin || isAreaLeader;
 
   const [modal, setModal] = useState<{ open: boolean; item?: ParkingItem | null }>({ open: false });
   const [title, setTitle] = useState("");

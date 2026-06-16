@@ -199,7 +199,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       try {
 
       const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes, etRes, anRes, piRes, gaRes, gwRes, ltRes, asRes, arRes, bcRes, fmRes, fcRes] = await Promise.all([
-        (supabase.from("people") as any).select("id, name, nickname, area, user_id").eq("workspace_id", wsId),
+        (supabase.from("people") as any).select("*").eq("workspace_id", wsId),
         supabase.from("projects").select("*").eq("workspace_id", wsId),
         supabase.from("tasks").select("*").eq("workspace_id", wsId),
         supabase.from("posts").select("*").eq("workspace_id", wsId),
@@ -225,21 +225,39 @@ export function DataProvider({ children }: { children: ReactNode }) {
       ]);
       if (cancelled) return;
 
+      // Migrações pendentes de liderança (localStorage → banco), feitas após carregar
+      const leaderMigrations: { id: string; leader_areas: string }[] = [];
+
       let pplList: Person[] = (pplRes.data || []).map((p: any) => {
         const rawArea: string | null = p.area ?? null;
         const areas = rawArea ? rawArea.split(",").filter(Boolean) : [];
         let leaderAreas: string[] = [];
-        let leaderArea: string | null = null;
-        try {
-          // New format: comma-separated array (areas + team_<id>)
-          const stored = localStorage.getItem(`buzzup.leader.${p.id}`);
-          if (stored) {
-            leaderAreas = stored.split(",").filter(Boolean);
-            leaderArea = leaderAreas[0] || null; // backward-compat single field
-          }
-        } catch {}
+        // 1. Fonte da verdade: coluna leader_areas no banco (cross-device)
+        if (typeof p.leader_areas === "string" && p.leader_areas.trim()) {
+          leaderAreas = p.leader_areas.split(",").filter(Boolean);
+        } else {
+          // 2. Fallback/legado: localStorage (só existe no aparelho de quem cadastrou)
+          try {
+            const stored = localStorage.getItem(`buzzup.leader.${p.id}`);
+            if (stored && stored.trim()) {
+              leaderAreas = stored.split(",").filter(Boolean);
+              // Marca para migrar ao banco para que valha em qualquer aparelho
+              leaderMigrations.push({ id: p.id, leader_areas: leaderAreas.join(",") });
+            }
+          } catch {}
+        }
+        const leaderArea = leaderAreas[0] || null; // backward-compat single field
         return { id: p.id, name: p.name, nickname: p.nickname ?? null, area: rawArea, areas, userId: p.user_id ?? null, leaderArea, leaderAreas };
       });
+
+      // Migra liderança que só existia em localStorage para a coluna do banco.
+      // Só funciona quando quem está logado é admin (RLS people_w), que é justamente
+      // o aparelho onde a liderança foi cadastrada. Falhas são silenciosas.
+      if (leaderMigrations.length > 0) {
+        for (const m of leaderMigrations) {
+          try { await (supabase.from("people") as any).update({ leader_areas: m.leader_areas }).eq("id", m.id); } catch {}
+        }
+      }
 
       // Sync: keep people list in sync with workspace_members
       try {
@@ -515,20 +533,26 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updatePersonLeaderAreas = useCallback(async (id: string, leaderAreas: string[]) => {
+    const areaStr = leaderAreas.length > 0 ? leaderAreas.join(",") : null;
+    // Persiste no banco (cross-device); mantém localStorage como cache/legado
+    const { error } = await (supabase.from("people") as any).update({ leader_areas: areaStr }).eq("id", id);
+    if (error) { toast.error("Erro ao salvar liderança"); return; }
     try {
-      if (leaderAreas.length > 0) localStorage.setItem(`buzzup.leader.${id}`, leaderAreas.join(","));
+      if (areaStr) localStorage.setItem(`buzzup.leader.${id}`, areaStr);
       else localStorage.removeItem(`buzzup.leader.${id}`);
     } catch {}
     setPeople(prev => prev.map(p => p.id === id ? { ...p, leaderAreas, leaderArea: leaderAreas[0] || null } : p));
   }, []);
 
   const updatePersonLeaderArea = useCallback(async (id: string, leaderArea: string | null) => {
-    // Store leader_area in localStorage since column may not exist in DB
+    const areaStr = leaderArea || null;
+    const { error } = await (supabase.from("people") as any).update({ leader_areas: areaStr }).eq("id", id);
+    if (error) { toast.error("Erro ao salvar liderança"); return; }
     try {
-      if (leaderArea) localStorage.setItem(`buzzup.leader.${id}`, leaderArea);
+      if (areaStr) localStorage.setItem(`buzzup.leader.${id}`, areaStr);
       else localStorage.removeItem(`buzzup.leader.${id}`);
     } catch {}
-    setPeople(prev => prev.map(p => p.id === id ? { ...p, leaderArea } : p));
+    setPeople(prev => prev.map(p => p.id === id ? { ...p, leaderArea, leaderAreas: leaderArea ? [leaderArea] : [] } : p));
   }, []);
 
   const deletePerson = useCallback(async (id: string) => {

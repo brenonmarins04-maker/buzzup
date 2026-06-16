@@ -21,6 +21,7 @@ import { getNowBrasilia } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useLongPressDrag, type DragDropResult } from "@/hooks/useLongPressDrag";
 import { AREAS, getTeamColor, getAreaColor } from "@/lib/areas";
+import { isLeaderOfAny } from "@/lib/leadership";
 import trashBinImg from "@/assets/trash-bin.png";
 
 export type CalendarItem = {
@@ -49,8 +50,11 @@ const nextPostStatus = (s?: string) => {
 };
 
 export default function CalendarPage() {
-  const { tasks, posts, events, eventTypes, parkingItems, teams, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addParkingItem, updateParkingItem, deleteParkingItem } = useData();
-  const { isAdmin } = useAuth();
+  const { tasks, posts, events, eventTypes, parkingItems, teams, people, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addParkingItem, updateParkingItem, deleteParkingItem } = useData();
+  const { isAdmin: _isAdmin, user } = useAuth();
+  // No calendário, líderes de qualquer área/time podem editar (mover, criar, status).
+  // Sombreamos isAdmin para que todas as checagens existentes incluam líderes.
+  const isAdmin = _isAdmin || isLeaderOfAny(people, user?.id);
   const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(getNowBrasilia());
   const [filterArea, setFilterArea] = useState<string | null>(null);

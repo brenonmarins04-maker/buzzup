@@ -10,6 +10,7 @@ import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { AREAS, getAreaLabel, getTeamColor } from "@/lib/areas";
+import { getLeaderKeys } from "@/lib/leadership";
 import { toast } from "sonner";
 import QuickCreateMenu from "@/components/modals/QuickCreateMenu";
 import EditAreaNamesModal from "@/components/modals/EditAreaNamesModal";
@@ -69,8 +70,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const myPersonIds = new Set(
       people.filter(p => p.userId === user.id).map(p => p.id)
     );
-    if (myPersonIds.size === 0) return [];
-    return teams.filter(t => t.memberIds.some(id => myPersonIds.has(id)));
+    // Times onde sou membro OU que eu lidero (líder pode não estar na lista de membros)
+    const leaderKeys = getLeaderKeys(people, user.id);
+    return teams.filter(t =>
+      t.memberIds.some(id => myPersonIds.has(id)) || leaderKeys.has(`team_${t.id}`)
+    );
   }, [user, people, teams]);
   const navigate = useNavigate();
   const [showNotifications, setShowNotifications] = useState(false);

@@ -49,6 +49,7 @@ export default function TeamAreaPage() {
 // Team-scoped tabs: Quadro CB, Links úteis, Controle de Presenças
 // These use a virtual "area" key based on team id so data is isolated per team
 import { useAuth } from "@/contexts/AuthContext";
+import { leadsKey } from "@/lib/leadership";
 import { type ParkingItem, type ParkingItemStatus, type AttendanceStatus } from "@/contexts/DataContext";
 import { Plus, ExternalLink, Pencil, Trash2, X, Settings, ChevronDown, ChevronUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -168,7 +169,9 @@ function TeamNotesTab({ teamAreaKey }: { teamAreaKey: string }) {
 
 function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: string }) {
   const { people, teams, parkingItems, addParkingItem, moveParkingItem, deleteParkingItem, updateParkingItem } = useData();
-  const { isAdmin, user } = useAuth();
+  const { isAdmin: _isAdmin, user } = useAuth();
+  // Líderes deste time podem gerenciar o quadro. Sombreia isAdmin p/ incluir o líder.
+  const isAdmin = _isAdmin || leadsKey(people, user?.id, teamAreaKey);
 
   const team = teams.find(t => t.id === teamId);
   const members = useMemo(() => people.filter(p => team?.memberIds.includes(p.id)), [people, team]);
@@ -450,7 +453,9 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
 
 function TeamAttendanceTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: string }) {
   const { people, teams, attendanceSettings, attendanceRecords, upsertAttendanceSetting, setAttendance, clearAttendance } = useData();
-  const { isAdmin } = useAuth();
+  const { isAdmin: _isAdmin, user } = useAuth();
+  // Líder do time também gerencia presenças do time
+  const isAdmin = _isAdmin || leadsKey(people, user?.id, teamAreaKey);
 
   if (!isAdmin) {
     return (
