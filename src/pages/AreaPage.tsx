@@ -383,22 +383,28 @@ function KanbanTab({ area }: { area: AreaKey }) {
   const [modal, setModal] = useState<{ open: boolean; item?: ParkingItem | null }>({ open: false });
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
-  const [personId, setPersonId] = useState<string>("");
+  // Na criação aceita várias pessoas (a demanda é copiada para cada uma); na edição, uma só.
+  const [personIds, setPersonIds] = useState<string[]>([]);
   const [points, setPoints] = useState<number>(1);
 
-  const openCreate = () => { setModal({ open: true, item: null }); setTitle(""); setDate(""); setPersonId(""); setPoints(1); };
-  const openEdit = (item: ParkingItem) => { setModal({ open: true, item }); setTitle(item.title); setDate(item.date || ""); setPersonId(item.personId || ""); setPoints(item.points ?? 1); };
+  const openCreate = () => { setModal({ open: true, item: null }); setTitle(""); setDate(""); setPersonIds([]); setPoints(1); };
+  const openEdit = (item: ParkingItem) => { setModal({ open: true, item }); setTitle(item.title); setDate(item.date || ""); setPersonIds(item.personId ? [item.personId] : []); setPoints(item.points ?? 1); };
 
   const save = async () => {
     if (!title.trim()) { toast.error("Título obrigatório"); return; }
     if (!date) { toast.error("Data obrigatória"); return; }
     if (![1, 2, 3].includes(points)) { toast.error("Selecione os pontos"); return; }
     if (modal.item) {
-      await updateParkingItem({ ...modal.item, title: title.trim(), date, personId: personId || null, points });
+      await updateParkingItem({ ...modal.item, title: title.trim(), date, personId: personIds[0] || null, points });
       toast.success("Atualizado");
     } else {
-      await addParkingItem(area, title.trim(), date, "", points, personId || null);
-      toast.success("Card criado");
+      // Cria uma cópia da demanda para cada pessoa selecionada (mesma data, pontos e nome).
+      // Sem ninguém selecionado, cria uma demanda na coluna "Demandas" (sem responsável).
+      const targets = personIds.length > 0 ? personIds : [null];
+      for (const pid of targets) {
+        await addParkingItem(area, title.trim(), date, "", points, pid);
+      }
+      toast.success(targets.length > 1 ? `Demanda criada para ${targets.length} pessoas` : "Card criado");
     }
     setModal({ open: false });
   };
@@ -638,31 +644,50 @@ function KanbanTab({ area }: { area: AreaKey }) {
               <Input autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder="Descreva a demanda" className="rounded-full h-11 px-4" />
             </div>
             <div>
-              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Responsável</label>
+              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">
+                {modal.item ? "Responsável" : "Responsáveis"}
+              </label>
               {members.length === 0 ? (
                 <div className="h-11 rounded-full border border-input bg-muted/30 px-4 flex items-center text-2xl">😞</div>
               ) : (
-                <div className="flex flex-wrap gap-2">
-                  {members.map(p => {
-                    const selected = personId === p.id;
-                    return (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => setPersonId(selected ? "" : p.id)}
-                        className="px-4 h-9 rounded-full text-sm font-medium transition-all border"
-                        style={{
-                          backgroundColor: selected ? meta.color : `${meta.color}10`,
-                          color: selected ? "#fff" : "hsl(var(--foreground))",
-                          borderColor: selected ? meta.color : `${meta.color}30`,
-                          boxShadow: selected ? `0 4px 14px ${meta.color}55` : "none",
-                        }}
-                      >
-                        {p.name}
-                      </button>
-                    );
-                  })}
-                </div>
+                <>
+                  <div className="flex flex-wrap gap-2">
+                    {members.map(p => {
+                      const selected = personIds.includes(p.id);
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => {
+                            if (modal.item) {
+                              // Edição: seleção única (reatribui o card)
+                              setPersonIds(selected ? [] : [p.id]);
+                            } else {
+                              // Criação: múltipla (copia a demanda para cada pessoa)
+                              setPersonIds(prev => selected ? prev.filter(id => id !== p.id) : [...prev, p.id]);
+                            }
+                          }}
+                          className="px-4 h-9 rounded-full text-sm font-medium transition-all border"
+                          style={{
+                            backgroundColor: selected ? meta.color : `${meta.color}10`,
+                            color: selected ? "#fff" : "hsl(var(--foreground))",
+                            borderColor: selected ? meta.color : `${meta.color}30`,
+                            boxShadow: selected ? `0 4px 14px ${meta.color}55` : "none",
+                          }}
+                        >
+                          {p.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {!modal.item && (
+                    <p className="text-[10px] text-muted-foreground mt-1.5">
+                      {personIds.length > 1
+                        ? `A mesma demanda será criada para ${personIds.length} pessoas.`
+                        : "Selecione uma ou mais pessoas — a demanda é copiada para cada uma."}
+                    </p>
+                  )}
+                </>
               )}
             </div>
             <div>

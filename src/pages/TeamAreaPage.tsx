@@ -239,15 +239,16 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
   const [modal, setModal] = useState<{ open: boolean; item?: ParkingItem | null }>({ open: false });
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
-  const [editPersonId, setEditPersonId] = useState<string>("");
+  // Na criação aceita várias pessoas (copia a demanda para cada uma); na edição, uma só.
+  const [editPersonIds, setEditPersonIds] = useState<string[]>([]);
   const [points, setPoints] = useState<number>(1);
 
-  const openCreate = () => { setModal({ open: true, item: null }); setTitle(""); setDate(""); setEditPersonId(""); setPoints(1); };
+  const openCreate = () => { setModal({ open: true, item: null }); setTitle(""); setDate(""); setEditPersonIds([]); setPoints(1); };
   const openEdit = (item: ParkingItem) => {
     setModal({ open: true, item });
     setTitle(item.title);
     setDate(item.date || "");
-    setEditPersonId(item.personId || "");
+    setEditPersonIds(item.personId ? [item.personId] : []);
     setPoints(item.points || 1);
   };
 
@@ -255,11 +256,15 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
     if (!title.trim()) { toast.error("Título obrigatório"); return; }
     if (!date) { toast.error("Data obrigatória"); return; }
     if (modal.item) {
-      await updateParkingItem({ ...modal.item, title: title.trim(), date, personId: editPersonId || null, points });
+      await updateParkingItem({ ...modal.item, title: title.trim(), date, personId: editPersonIds[0] || null, points });
       toast.success("Atualizado");
     } else {
-      await addParkingItem(teamAreaKey, title.trim(), date, "", points, editPersonId || null);
-      toast.success("Demanda criada");
+      // Cria uma cópia da demanda para cada pessoa selecionada (mesma data, pontos e nome).
+      const targets = editPersonIds.length > 0 ? editPersonIds : [null];
+      for (const pid of targets) {
+        await addParkingItem(teamAreaKey, title.trim(), date, "", points, pid);
+      }
+      toast.success(targets.length > 1 ? `Demanda criada para ${targets.length} pessoas` : "Demanda criada");
     }
     setModal({ open: false });
   };
@@ -415,15 +420,29 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
               <Input autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder="Descreva a demanda" />
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Responsável</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">{modal.item ? "Responsável" : "Responsáveis"}</label>
               <div className="flex flex-wrap gap-2">
-                {members.map(p => (
-                  <button key={p.id} type="button" onClick={() => setEditPersonId(editPersonId === p.id ? "" : p.id)}
-                    className={`px-3 h-8 rounded-full text-sm font-medium border transition-all ${editPersonId === p.id ? "bg-primary text-white border-primary" : "bg-muted border-border text-foreground"}`}>
-                    {p.name}
-                  </button>
-                ))}
+                {members.map(p => {
+                  const selected = editPersonIds.includes(p.id);
+                  return (
+                    <button key={p.id} type="button"
+                      onClick={() => {
+                        if (modal.item) setEditPersonIds(selected ? [] : [p.id]);
+                        else setEditPersonIds(prev => selected ? prev.filter(id => id !== p.id) : [...prev, p.id]);
+                      }}
+                      className={`px-3 h-8 rounded-full text-sm font-medium border transition-all ${selected ? "bg-primary text-white border-primary" : "bg-muted border-border text-foreground"}`}>
+                      {p.name}
+                    </button>
+                  );
+                })}
               </div>
+              {!modal.item && (
+                <p className="text-[10px] text-muted-foreground mt-1.5">
+                  {editPersonIds.length > 1
+                    ? `A mesma demanda será criada para ${editPersonIds.length} pessoas.`
+                    : "Selecione uma ou mais pessoas — a demanda é copiada para cada uma."}
+                </p>
+              )}
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Data</label>

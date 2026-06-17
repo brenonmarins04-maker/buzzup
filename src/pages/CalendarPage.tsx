@@ -223,6 +223,14 @@ export default function CalendarPage() {
       const et = eventTypes.find(t => t.name === e.type);
       items.push({ id: e.id, title: e.title, type: "event", date: e.date, color: et?.color || EVENT_FALLBACK_COLOR, eventTypeName: e.type });
     });
+    // Detecta demandas copiadas entre pessoas (mesmo título + data + área).
+    // Para essas, o calendário mostra "PrimeiroNome - Título" para diferenciá-las.
+    const dupCount = new Map<string, number>();
+    parkingItems.forEach((p) => {
+      if (!p.date || p.status === "done") return;
+      const sig = `${p.area}|||${p.date}|||${p.title}`;
+      dupCount.set(sig, (dupCount.get(sig) || 0) + 1);
+    });
     parkingItems.forEach((p) => {
       if (!p.date) return;
       if (p.status === "done") return;
@@ -232,10 +240,15 @@ export default function CalendarPage() {
       const teamObj = isTeam ? teams.find(t => `team_${t.id}` === p.area) : null;
       const color = isTeam ? getTeamColor(p.area.slice(5)) : (areaMeta?.color || "#CBD5E1");
       const label = isTeam ? (teamObj?.name || "Time") : (areaMeta?.label || "Sem área");
-      items.push({ id: p.id, parkingId: p.id, title: p.title, type: "event", date: p.date, color, eventTypeName: label });
+      const sig = `${p.area}|||${p.date}|||${p.title}`;
+      const isDup = (dupCount.get(sig) || 0) > 1;
+      const person = p.personId ? people.find(pe => pe.id === p.personId) : null;
+      const firstName = person ? person.name.split(" ")[0] : null;
+      const displayTitle = isDup && firstName ? `${firstName} - ${p.title}` : p.title;
+      items.push({ id: p.id, parkingId: p.id, title: displayTitle, type: "event", date: p.date, color, eventTypeName: label });
     });
     return items;
-  }, [tasks, posts, events, parkingItems, teams, filterArea, eventTypes]);
+  }, [tasks, posts, events, parkingItems, teams, people, filterArea, eventTypes]);
 
   const upcomingPendingPosts = useMemo(() => {
     const today = getNowBrasilia();
