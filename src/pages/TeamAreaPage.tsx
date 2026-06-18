@@ -222,12 +222,11 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
     if (item.status === "done") return;
     // Save to DB immediately — no F5 revert
     updateParkingItem({ ...item, status: "done" });
-    setDoneOpen(true);
-    // Visual animation only
+    // Fade out: a aba de concluídas NÃO abre sozinha
     setCompleting(prev => { const n = new Set(prev); n.add(item.id); return n; });
     setTimeout(() => {
       setCompleting(prev => { const n = new Set(prev); n.delete(item.id); return n; });
-    }, 2000);
+    }, 600);
   };
 
   // Cards in completing set remain visible during animation
@@ -282,8 +281,8 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
         draggable={isAdmin}
         onDragStart={(e) => onDragStart(e, item.id)}
         onDragEnd={() => setDragId(null)}
-        className={`group bg-card border rounded-lg p-3 text-sm shadow-sm transition-colors ${isAdmin ? "cursor-grab active:cursor-grabbing" : ""} ${isCompleting ? "demand-walking" : ""}`}
-        style={{ borderColor: `${tint}66`, backgroundColor: `${tint}10` }}
+        className={`group bg-card border rounded-lg p-3 text-sm shadow-sm transition-all ${isAdmin ? "cursor-grab active:cursor-grabbing" : ""}`}
+        style={{ borderColor: `${tint}66`, backgroundColor: `${tint}10`, opacity: isCompleting ? 0 : 1, transition: "opacity 550ms ease, background-color 300ms ease, border-color 300ms ease" }}
       >
         {/* Full controls for admin */}
         {isAdmin && (

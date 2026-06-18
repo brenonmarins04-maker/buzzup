@@ -53,18 +53,13 @@ export default function EditAreaNamesModal({ open, onOpenChange }: Props) {
           {areaNames.map(area => (
             <div key={area.key} className="flex items-center gap-3">
               <div className="h-4 w-4 rounded-full shrink-0" style={{ backgroundColor: area.color }} />
-              <div className="flex-1">
-                <label className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1 block">
-                  {area.defaultLabel} (padrão)
-                </label>
-                <Input
-                  value={names[area.key] || ""}
-                  onChange={e => setNames(prev => ({ ...prev, [area.key]: e.target.value }))}
-                  placeholder={area.defaultLabel}
-                  className="h-9"
-                  disabled={saving}
-                />
-              </div>
+              <Input
+                value={names[area.key] || ""}
+                onChange={e => setNames(prev => ({ ...prev, [area.key]: e.target.value }))}
+                placeholder={area.defaultLabel}
+                className="h-9 flex-1"
+                disabled={saving}
+              />
             </div>
           ))}
 

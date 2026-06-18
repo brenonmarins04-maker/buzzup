@@ -453,12 +453,12 @@ function KanbanTab({ area }: { area: AreaKey }) {
     if (status === "done") {
       // Save to DB immediately — fixes F5 revert bug
       updateParkingItem({ ...item, status: "done" });
-      setDoneOpen(true);
-      // Play animation (purely cosmetic — card stays in column until animation ends)
+      // Fade out: card stays in its column fading out, then moves to Concluídas
+      // (a aba de concluídas NÃO abre sozinha).
       setCompleting(prev => { const n = new Set(prev); n.add(item.id); return n; });
       setTimeout(() => {
         setCompleting(prev => { const n = new Set(prev); n.delete(item.id); return n; });
-      }, 2000);
+      }, 600);
       return;
     }
     updateParkingItem({ ...item, status });
@@ -479,8 +479,8 @@ function KanbanTab({ area }: { area: AreaKey }) {
         draggable={canManage}
         onDragStart={(e) => onDragStart(e, item.id)}
         onDragEnd={() => setDragId(null)}
-        className={`group bg-card border rounded-lg p-3 text-sm shadow-sm transition-colors ${canManage ? "cursor-grab active:cursor-grabbing" : ""} ${isCompleting ? "demand-walking" : ""}`}
-        style={{ borderColor: `${tint}66`, backgroundColor: `${tint}10` }}
+        className={`group bg-card border rounded-lg p-3 text-sm shadow-sm transition-all ${canManage ? "cursor-grab active:cursor-grabbing" : ""}`}
+        style={{ borderColor: `${tint}66`, backgroundColor: `${tint}10`, opacity: isCompleting ? 0 : 1, transition: "opacity 550ms ease, background-color 300ms ease, border-color 300ms ease" }}
       >
         {/* Status toggle row — full controls for admin/leader */}
         {canManage && (
