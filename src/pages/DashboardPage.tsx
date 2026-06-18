@@ -11,7 +11,6 @@ import { getNowBrasilia } from "@/lib/utils";
 import { format, endOfWeek, differenceInHours, differenceInDays, subDays, startOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { AREAS } from "@/lib/areas";
-import buzzupLogo from "@/assets/buzzup-logo.png";
 import FormsSection from "@/components/FormsSection";
 
 function timeAgo(iso: string) {
@@ -85,7 +84,7 @@ function KpiCard({ title, value, icon, color, delta, spark }: KpiProps) {
 
 export default function DashboardPage() {
   const { people, tasks, projects, events, posts, broadcasts, gamificationAwards, parkingItems, updateParkingItem, loading } = useData();
-  const { displayName, user } = useAuth();
+  const { user } = useAuth();
   const today = getNowBrasilia();
 
   // Buscar a pessoa correspondente ao usuário atual
@@ -236,32 +235,8 @@ export default function DashboardPage() {
     );
   }
 
-  const fullName =
-    (displayName && displayName.trim()) ||
-    (user?.email ? user.email.split("@")[0] : "") ||
-    "Usuário";
-  const firstName = fullName.split(" ")[0];
-
   return (
-    <div className="animate-fade-in space-y-5">
-      {/* Hero */}
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-accent to-secondary/40 p-6 md:p-8">
-        <div className="flex flex-col md:flex-row items-center gap-6">
-          {/* Illustration */}
-          <div className="relative w-full md:w-64 h-32 md:h-36 shrink-0 rounded-xl border border-border/70 overflow-hidden flex items-center justify-center bg-gradient-to-br from-emerald-400/30 via-teal-400/25 to-emerald-300/20">
-            <img src={buzzupLogo} alt="BuzzUp" className="h-24 md:h-28 w-auto object-contain drop-shadow-md" />
-          </div>
-          <div className="flex-1 text-center md:text-left">
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight flex items-center justify-center md:justify-start gap-2">
-              Olá, {firstName}! <span className="inline-block">👋</span>
-            </h1>
-            <p className="text-sm md:text-base text-muted-foreground mt-1.5 max-w-md">
-              Aqui está o resumo do que está acontecendo no workspace.
-            </p>
-          </div>
-        </div>
-      </div>
-
+    <div className="animate-fade-in space-y-4 md:space-y-5">
       {/* Minhas Demandas + Meus Pontos */}
       {currentPerson && (() => {
         const myNickname = (currentPerson.nickname && currentPerson.nickname.trim())
@@ -272,10 +247,10 @@ export default function DashboardPage() {
         const myRankLabel = myRankPos === 0 ? "🥇 1º lugar" : myRankPos === 1 ? "🥈 2º lugar" : myRankPos === 2 ? "🥉 3º lugar" : myRankPos >= 0 ? `${myRankPos + 1}º lugar` : "—";
 
         return (
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(280px,0.6fr)_240px] gap-4 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(280px,0.6fr)_240px] gap-3 md:gap-4 items-start">
             {/* Minhas Demandas */}
-            <div className="bg-card border border-border rounded-xl p-5">
-              <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+            <div className="order-2 lg:order-1 bg-card border border-border rounded-xl p-4 md:p-5">
+              <h2 className="text-sm font-semibold text-foreground mb-3 md:mb-4 flex items-center gap-2">
                 <ListChecks className="h-4 w-4 text-[#2563EB]" /> Minhas Demandas
               </h2>
               {myDemands.length === 0 ? (
@@ -339,23 +314,32 @@ export default function DashboardPage() {
             </div>
 
             {/* Formulários — entre demandas e pontos */}
-            <FormsSection />
+            <div className="order-3 lg:order-2">
+              <FormsSection />
+            </div>
 
             {/* Meus Pontos */}
-            <div className="bg-card border border-border rounded-xl p-5 flex flex-col items-center text-center gap-4">
+            <div className="order-1 lg:order-3 bg-card border border-border rounded-xl p-4 md:p-5 flex flex-col gap-3 md:gap-4">
               {/* Trophy icon */}
-              <div className="h-14 w-14 rounded-full flex items-center justify-center bg-gradient-to-br from-yellow-400/30 to-orange-400/20 border-2 border-yellow-400/40">
-                <Trophy className="h-7 w-7 text-yellow-500" />
-              </div>
+              <div className="flex items-center gap-3 md:flex-col md:text-center">
+                <div className="h-12 w-12 md:h-14 md:w-14 rounded-full flex items-center justify-center bg-gradient-to-br from-yellow-400/30 to-orange-400/20 border-2 border-yellow-400/40 shrink-0">
+                  <Trophy className="h-6 w-6 md:h-7 md:w-7 text-yellow-500" />
+                </div>
 
-              {/* Identity */}
-              <div className="space-y-0.5">
-                <p className="text-[11px] font-medium text-muted-foreground">Eu sou</p>
-                <p className="text-base font-bold text-foreground leading-tight">{myNickname}</p>
+                {/* Identity */}
+                <div className="space-y-0.5 min-w-0 flex-1 md:flex-none">
+                  <div className="flex items-center justify-between gap-3 md:block">
+                    <p className="text-base font-bold text-foreground leading-tight truncate">{myNickname}</p>
+                    <span className="md:hidden h-14 w-14 rounded-xl border border-primary/20 bg-primary/10 text-3xl font-extrabold text-primary flex items-center justify-center shrink-0">
+                      {myPoints}
+                    </span>
+                  </div>
+                  <p className="text-xs font-semibold text-muted-foreground md:hidden">{myRankLabel} no ranking</p>
+                </div>
               </div>
 
               {/* Points */}
-              <div className="w-full rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 py-4 px-3">
+              <div className="hidden md:block w-full rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 py-3 md:py-4 px-3 text-center">
                 <p className="text-3xl font-extrabold text-primary leading-none">{myPoints}</p>
                 <p className="text-[11px] font-medium text-muted-foreground mt-1">
                   {myPoints === 1 ? "ponto" : "pontos"}
@@ -363,7 +347,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Rank */}
-              <p className="text-xs font-semibold text-muted-foreground">{myRankLabel} no ranking</p>
+              <p className="hidden md:block text-xs font-semibold text-muted-foreground text-center">{myRankLabel} no ranking</p>
             </div>
           </div>
         );
@@ -377,6 +361,7 @@ export default function DashboardPage() {
         {allRanking.length === 0 ? (
           <p className="text-xs text-muted-foreground">Nenhum ponto ainda. Conclua demandas com pontos atribuídos para entrar no ranking.</p>
         ) : (() => {
+          const mobileRestRanking = allRanking.slice(5);
           // Split top15 into 3 columns of up to 5 each
           const cols = [top15.slice(0, 5), top15.slice(5, 10), top15.slice(10, 15)];
           // global position offset for correct rank numbers
@@ -396,8 +381,36 @@ export default function DashboardPage() {
           };
           return (
             <div className="space-y-4">
+              <ol className="sm:hidden flex flex-col gap-2">
+                {allRanking.slice(0, 5).map((r, i) => renderItem(r, i))}
+              </ol>
+              {mobileRestRanking.length > 0 && (
+                <div className="sm:hidden">
+                  <button
+                    type="button"
+                    onClick={() => setShowAllRanking(v => !v)}
+                    className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
+                  >
+                    {showAllRanking ? "Ver menos ▲" : `Ver mais (${mobileRestRanking.length}) ▼`}
+                  </button>
+                  {showAllRanking && (
+                    <ol className="mt-3 grid grid-cols-1 gap-2">
+                      {mobileRestRanking.map((r, i) => (
+                        <li key={r.id} className={`flex items-center gap-2.5 p-2.5 rounded-md ${r.points > 0 ? "bg-muted/40" : "bg-muted/20 opacity-60"}`}>
+                          <span className="w-6 text-center text-xs font-bold text-muted-foreground">{5 + i + 1}</span>
+                          <span className="flex-1 text-sm font-medium text-foreground truncate">{r.label}</span>
+                          <span className={`text-xs font-bold ${r.points > 0 ? "text-primary" : "text-muted-foreground"}`}>
+                            {r.points} pts
+                          </span>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+              )}
+
               {/* 3 vertical columns side by side */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div className="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {cols.map((col, ci) => (
                   col.length > 0 && (
                     <ol key={ci} className="flex flex-col gap-2">
@@ -408,7 +421,7 @@ export default function DashboardPage() {
               </div>
               {/* Ver mais — posições além do top 15 */}
               {restRanking.length > 0 && (
-                <div>
+                <div className="hidden sm:block">
                   <button
                     type="button"
                     onClick={() => setShowAllRanking(v => !v)}
@@ -441,7 +454,7 @@ export default function DashboardPage() {
       </div>
 
       {/* 2 columns */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="hidden md:grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Demandas por área */}
         <div className="bg-card border border-border rounded-xl p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -509,7 +522,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Atividade recente */}
-      <div className="bg-card border border-border rounded-xl p-5">
+      <div className="hidden md:block bg-card border border-border rounded-xl p-5">
         <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-[#8B5CF6]" /> Atividade recente
         </h2>

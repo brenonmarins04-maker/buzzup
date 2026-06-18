@@ -3,8 +3,12 @@ import type { Database } from './types';
 
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-// Use proxy to bypass DNS issues — Vite proxies in dev, Vercel rewrites in prod
-const SUPABASE_URL = typeof window !== 'undefined'
+const isLocalhost = typeof window !== 'undefined'
+  && ["localhost", "127.0.0.1"].includes(window.location.hostname);
+
+// Production uses the Vercel rewrite. Local development uses Supabase directly
+// because the Vite proxy can fail on some Windows networks.
+const SUPABASE_URL = typeof window !== 'undefined' && !isLocalhost
   ? window.location.origin + '/sb-proxy'
   : import.meta.env.VITE_SUPABASE_URL;
 

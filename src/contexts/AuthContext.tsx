@@ -210,14 +210,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
+    const loginDirectly = async () => {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+      return { error: error as Error | null };
+    };
+
     try {
       const r = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const data = await r.json();
+      if (r.status === 404) {
+        return await loginDirectly();
+      }
+
+      const text = await r.text();
+      const data = text ? JSON.parse(text) : null;
       if (!r.ok) {
+        if (data?.error === "server_config") {
+          return await loginDirectly();
+        }
         return { error: new Error(data?.message || "Email ou senha incorretos.") };
       }
       // Injeta a sessão retornada pelo servidor no cliente Supabase
@@ -227,6 +243,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       return { error: error as Error | null };
     } catch (e: any) {
+      if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+        return await loginDirectly();
+      }
       return { error: new Error(e.message || "Erro de conexão") };
     }
   };

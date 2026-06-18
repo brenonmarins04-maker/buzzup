@@ -85,13 +85,13 @@ export default function FormsSection() {
   };
 
   return (
-    <div className="bg-card border border-border rounded-xl p-5">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-card border border-border rounded-xl p-4 md:p-5">
+      <div className="flex items-center justify-between gap-3 mb-3 md:mb-4">
         <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <FileText className="h-4 w-4 text-[#8B5CF6]" /> Formulários
         </h2>
         {isAdmin && (
-          <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>
+          <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)} className="shrink-0">
             <Plus className="h-3.5 w-3.5 mr-1" /> Novo formulário
           </Button>
         )}
