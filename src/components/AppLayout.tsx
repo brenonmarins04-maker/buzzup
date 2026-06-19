@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   CalendarDays, Megaphone,
-  FolderKanban, Bell, Search, ChevronLeft, Plus, Users, LogOut, Eye, Shield, Briefcase, Crown, Sparkles, Home, Building2, UsersRound, Pencil,
+  FolderKanban, Bell, Search, ChevronLeft, Plus, Users, LogOut, Eye, Shield, Briefcase, Crown, Sparkles, Home, Building2, UsersRound, Pencil, Settings,
 } from "lucide-react";
 import { useMemo } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -49,11 +49,9 @@ function getAreaItems() {
 }
 
 const mobileNavItems = [
-  { to: "/people",   icon: Users,        label: "Pessoas" },
   { to: "/calendar", icon: CalendarDays, label: "Calendário" },
   { to: "/",         icon: Home,         label: "Início" },
   { to: "areas",     icon: FolderKanban, label: "Áreas" },
-  { to: "/members",  icon: Shield,       label: "Acessos" },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -120,6 +118,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true; supabase.removeChannel(ch); };
   }, [user?.id, ownedWorkspaceIds.join(",")]);
 
+  // Areas the current user belongs to (for mobile "Minha Área" shortcut)
+  const myAreas = useMemo(() => {
+    if (!user) return [];
+    const myPerson = people.find(p => p.userId === user.id);
+    if (!myPerson) return [];
+    const areaKeys = myPerson.areas && myPerson.areas.length > 0
+      ? myPerson.areas
+      : (myPerson.area ? [myPerson.area] : []);
+    return areaKeys.map(key => AREAS.find(a => a.key === key)).filter(Boolean) as typeof AREAS;
+  }, [user, people]);
+
   const [eventModal, setEventModal] = useState(false);
   const [broadcastModal, setBroadcastModal] = useState(false);
   const [editAreasModal, setEditAreasModal] = useState(false);
@@ -156,9 +165,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <button onClick={() => navigate("/welcome")} title="Trocar workspace" className="p-2 rounded-md hover:bg-accent text-muted-foreground">
               <Building2 className="h-4 w-4" />
             </button>
-            <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 rounded-md hover:bg-accent text-muted-foreground">
-              <Bell className="h-4 w-4" />
-              {unreadCount > 0 && <span className="absolute top-0.5 right-0.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">{unreadCount > 9 ? "9+" : unreadCount}</span>}
+            <button onClick={() => navigate("/settings")} title="Menu" className="relative p-2 rounded-md hover:bg-accent text-muted-foreground">
+              <Settings className="h-4 w-4" />
+              {pendingJoinCount > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
+                  {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
+                </span>
+              )}
             </button>
             <button onClick={() => signOut()} className="p-2 rounded-md hover:bg-accent text-muted-foreground">
               <LogOut className="h-4 w-4" />
@@ -181,6 +194,58 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         )}
         <nav className="fixed bottom-0 left-0 right-0 z-30 bg-card border-t border-border flex items-center justify-around h-16 px-1">
           {mobileNavItems.map((item) => {
+            if (item.to === "myarea") {
+              // Shortcut to the user's own area(s)
+              if (myAreas.length === 0) {
+                // No area assigned — show a disabled placeholder
+                return (
+                  <button key="myarea" disabled className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-md text-[10px] font-medium text-muted-foreground/40 min-w-0">
+                    <item.icon className="h-5 w-5 shrink-0" />
+                    <span className="truncate">{item.label}</span>
+                  </button>
+                );
+              }
+              if (myAreas.length === 1) {
+                const area = myAreas[0];
+                const AreaIcon = areaIcons[area.key] || FolderKanban;
+                return (
+                  <NavLink key="myarea" to={area.path}
+                    style={({ isActive }) => isActive
+                      ? { color: area.color }
+                      : { color: area.color }}
+                    className={({ isActive }) => `flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-md text-[10px] font-medium transition-colors min-w-0 ${isActive ? "opacity-100" : "opacity-60"}`}>
+                    <AreaIcon className="h-5 w-5 shrink-0" />
+                    <span className="truncate">{getAreaLabel(area.key)}</span>
+                  </NavLink>
+                );
+              }
+              // Multiple areas — popover
+              return (
+                <Popover key="myarea">
+                  <PopoverTrigger asChild>
+                    <button className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-md text-[10px] font-medium transition-colors min-w-0 text-muted-foreground">
+                      <item.icon className="h-5 w-5 shrink-0" />
+                      <span className="truncate">{item.label}</span>
+                    </button>
+                  </PopoverTrigger>
+                  <PopoverContent side="top" align="start" className="w-44 p-1">
+                    {myAreas.map(area => {
+                      const AreaIcon = areaIcons[area.key] || FolderKanban;
+                      return (
+                        <NavLink key={area.path} to={area.path}
+                          style={({ isActive }) => isActive
+                            ? { backgroundColor: `${area.color}1F`, color: area.color }
+                            : { color: area.color }}
+                          className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold hover:bg-accent/50">
+                          <AreaIcon className="h-4 w-4" />
+                          <span>{getAreaLabel(area.key)}</span>
+                        </NavLink>
+                      );
+                    })}
+                  </PopoverContent>
+                </Popover>
+              );
+            }
             if (item.to === "areas") {
               return (
                 <Popover key="areas">
@@ -231,7 +296,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 className={({ isActive }) => `flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-md text-[10px] font-medium transition-colors min-w-0 ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
                 <div className="relative">
                   <item.icon className="h-5 w-5 shrink-0" />
-                  {item.to === "/members" && pendingJoinCount > 0 && (
+                  {item.to === "/settings" && pendingJoinCount > 0 && (
                     <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
                       {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
                     </span>

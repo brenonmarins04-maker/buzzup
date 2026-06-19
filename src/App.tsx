@@ -12,6 +12,7 @@ import DashboardPage from "./pages/DashboardPage";
 import CalendarPage from "./pages/CalendarPage";
 import PeoplePage from "./pages/PeoplePage";
 import MembersPage from "./pages/MembersPage";
+import SettingsPage from "./pages/SettingsPage";
 import AreaPage from "./pages/AreaPage";
 import TeamAreaPage from "./pages/TeamAreaPage";
 import LoginPage from "./pages/LoginPage";
@@ -67,6 +68,7 @@ const App = () => (
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/people" element={<PeoplePage />} />
               <Route path="/members" element={<MembersPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
               <Route path="/time/:teamId" element={<TeamAreaPage />} />
               <Route path="/:area" element={<AreaRoute />} />
             </Route>
