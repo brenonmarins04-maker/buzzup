@@ -5,14 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { KeyRound, ArrowRight, ArrowLeft, LogOut, Building2, Clock, CheckCircle2, XCircle, Crown, Shield, User as UserIcon, Plus, X } from "lucide-react";
+import { KeyRound, ArrowRight, ArrowLeft, LogOut, Building2, Clock, CheckCircle2, XCircle, Crown, Shield, User as UserIcon, Plus, X, Trash2, RotateCcw } from "lucide-react";
 
 export default function WelcomePage() {
   const {
     user, loading, displayName,
-    myWorkspaces, myJoinRequests,
+    myWorkspaces, trashedWorkspaces, myJoinRequests,
     setActiveWorkspaceId,
     createWorkspace, requestJoinWorkspace, cancelJoinRequest,
+    trashWorkspace, restoreWorkspace,
     signOut,
   } = useAuth();
   const navigate = useNavigate();
@@ -28,6 +29,25 @@ export default function WelcomePage() {
   const enterWorkspace = (id: string) => {
     setActiveWorkspaceId(id);
     navigate("/", { replace: true });
+  };
+
+  const daysLeft = (iso: string) => {
+    const diff = new Date(iso).getTime() - Date.now();
+    return Math.max(0, Math.ceil(diff / (24 * 60 * 60 * 1000)));
+  };
+
+  const onTrashWorkspace = async (workspaceId: string, name: string) => {
+    const ok = window.confirm(`Mover "${name}" para a lixeira? Ele sumirá definitivamente após 14 dias.`);
+    if (!ok) return;
+    const result = await trashWorkspace(workspaceId);
+    if (result.ok) toast.success("Workspace movido para a lixeira por 14 dias.");
+    else toast.error(result.error || "Não foi possível mover para a lixeira. Aplique o SQL da lixeira no Supabase.");
+  };
+
+  const onRestoreWorkspace = async (workspaceId: string) => {
+    const result = await restoreWorkspace(workspaceId);
+    if (result.ok) toast.success("Workspace restaurado.");
+    else toast.error(result.error || "Não foi possível restaurar o workspace.");
   };
 
   const onCreate = async (e: React.FormEvent) => {
@@ -99,10 +119,10 @@ export default function WelcomePage() {
                 ) : (
                   <div className="grid sm:grid-cols-2 gap-3">
                     {myWorkspaces.map(w => (
-                      <button
+                      <div
                         key={w.workspace_id}
                         onClick={() => enterWorkspace(w.workspace_id)}
-                        className="group text-left rounded-xl border border-border bg-card p-4 hover:border-primary hover:shadow-md transition-all flex items-start gap-3"
+                        className="group text-left rounded-xl border border-border bg-card p-4 hover:border-primary hover:shadow-md transition-all flex items-start gap-3 cursor-pointer"
                       >
                         <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
                           <Building2 className="h-5 w-5" />
@@ -116,12 +136,53 @@ export default function WelcomePage() {
                             <span className="text-xs text-muted-foreground font-mono truncate">{w.code}</span>
                           </div>
                         </div>
-                        <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all mt-1" />
-                      </button>
+                        {w.role === "owner" ? (
+                          <button
+                            type="button"
+                            title="Mover para lixeira"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onTrashWorkspace(w.workspace_id, w.name);
+                            }}
+                            className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        ) : (
+                          <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all mt-1" />
+                        )}
+                      </div>
                     ))}
                   </div>
                 )}
               </section>
+
+              {trashedWorkspaces.length > 0 && (
+                <section className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Lixeira</h2>
+                    <span className="text-xs text-muted-foreground">{trashedWorkspaces.length}</span>
+                  </div>
+                  <div className="space-y-2">
+                    {trashedWorkspaces.map(w => (
+                      <div key={w.workspace_id} className="rounded-xl border border-dashed border-destructive/30 bg-destructive/5 p-4 flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
+                          <Trash2 className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-foreground truncate">{w.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Some definitivamente em {daysLeft(w.delete_after)} dia{daysLeft(w.delete_after) === 1 ? "" : "s"}
+                          </div>
+                        </div>
+                        <Button variant="outline" size="sm" onClick={() => onRestoreWorkspace(w.workspace_id)}>
+                          <RotateCcw className="h-3.5 w-3.5 mr-1" /> Restaurar
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
 
               {/* Pending join requests */}
               {pendingRequests.length > 0 && (

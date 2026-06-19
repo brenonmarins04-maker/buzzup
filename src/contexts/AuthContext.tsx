@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 export type WorkspaceRole = "owner" | "admin" | "leader" | "member";
 export type MyWorkspace = { workspace_id: string; name: string; code: string; role: WorkspaceRole; created_at: string };
+export type MyTrashedWorkspace = { workspace_id: string; name: string; code: string; deleted_at: string; delete_after: string };
 export type MyJoinRequest = { id: string; workspace_id: string; workspace_name: string; workspace_code: string; status: "pending"|"approved"|"rejected"|"canceled"; requested_at: string; decided_at: string | null; decided_role: string | null };
 
 type AuthContextType = {
@@ -17,6 +18,7 @@ type AuthContextType = {
   activeWorkspaceId: string | null;
   setActiveWorkspaceId: (id: string | null) => void;
   myWorkspaces: MyWorkspace[];
+  trashedWorkspaces: MyTrashedWorkspace[];
   myJoinRequests: MyJoinRequest[];
   refreshHub: () => Promise<void>;
   isAdmin: boolean;
@@ -26,6 +28,8 @@ type AuthContextType = {
   requestJoinWorkspace: (code: string) => Promise<{ ok: boolean; error?: string }>;
   cancelJoinRequest: (reqId: string) => Promise<{ ok: boolean; error?: string }>;
   createWorkspace: (name: string) => Promise<{ ok: boolean; error?: string; workspace?: { id: string; name: string; code: string } }>;
+  trashWorkspace: (workspaceId: string) => Promise<{ ok: boolean; error?: string }>;
+  restoreWorkspace: (workspaceId: string) => Promise<{ ok: boolean; error?: string }>;
   signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -44,6 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [displayName, setDisplayName] = useState("");
   const currentUserIdRef = useRef<string | null>(null);
   const [myWorkspaces, setMyWorkspaces] = useState<MyWorkspace[]>([]);
+  const [trashedWorkspaces, setTrashedWorkspaces] = useState<MyTrashedWorkspace[]>([]);
   const [myJoinRequests, setMyJoinRequests] = useState<MyJoinRequest[]>([]);
   // Used to detect status transitions and fire toasts
   const prevJoinRequestsRef = useRef<MyJoinRequest[]>([]);
@@ -61,11 +66,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   async function fetchHub() {
-    const [wsRes, reqRes] = await Promise.all([
+    const [wsRes, trashRes, reqRes] = await Promise.all([
       (supabase.rpc as any)("list_my_workspaces"),
+      (supabase.rpc as any)("list_my_trashed_workspaces"),
       (supabase.rpc as any)("list_my_join_requests"),
     ]);
     const ws: MyWorkspace[] = (wsRes.data as any[] | null) || [];
+    const trash: MyTrashedWorkspace[] = (trashRes.data as any[] | null) || [];
     const newRequests = ((reqRes.data as any[] | null) || []) as MyJoinRequest[];
 
     // Only update workspace list and active selection when the fetch succeeded.
@@ -83,6 +90,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch {}
         return next;
       });
+    }
+
+    if (!trashRes.error) {
+      setTrashedWorkspaces(trash);
     }
 
     // Detect status transitions after the first successful load
@@ -129,6 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setDisplayName("");
         setMyWorkspaces([]);
+        setTrashedWorkspaces([]);
         setMyJoinRequests([]);
         setActiveWorkspaceId(null);
         prevJoinRequestsRef.current = [];
@@ -207,6 +219,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (e: any) {
       return { error: new Error(e.message || "Erro de conexão") };
     }
+
   };
 
   const signIn = async (email: string, password: string) => {
@@ -321,6 +334,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { ok: true, workspace: ws ? { id: ws.id, name: ws.name, code: ws.code } : undefined };
   };
 
+  const trashWorkspace = async (workspaceId: string) => {
+    const { error } = await (supabase.rpc as any)("trash_workspace", { _ws_id: workspaceId });
+    if (error) return { ok: false, error: error.message };
+    if (activeWorkspaceId === workspaceId) setActiveWorkspaceId(null);
+    await fetchHub();
+    return { ok: true };
+  };
+
+  const restoreWorkspace = async (workspaceId: string) => {
+    const { error } = await (supabase.rpc as any)("restore_workspace", { _ws_id: workspaceId });
+    if (error) return { ok: false, error: error.message };
+    await fetchHub();
+    return { ok: true };
+  };
+
   const activeWs = myWorkspaces.find(w => w.workspace_id === activeWorkspaceId) || null;
   const role = activeWs?.role ?? null;
   const workspaceId = activeWorkspaceId;
@@ -329,11 +357,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{
       user, session, loading, displayName, role, workspaceId,
       activeWorkspaceId, setActiveWorkspaceId,
-      myWorkspaces, myJoinRequests, refreshHub,
+      myWorkspaces, trashedWorkspaces, myJoinRequests, refreshHub,
       isAdmin: role === "admin" || role === "owner",
       isOwner: role === "owner",
       isLeader: role === "leader",
-      refreshMembership, requestJoinWorkspace, cancelJoinRequest, createWorkspace,
+      refreshMembership, requestJoinWorkspace, cancelJoinRequest, createWorkspace, trashWorkspace, restoreWorkspace,
       signUp, signIn, signOut, resetPassword, updatePassword,
     }}>
       {children}
