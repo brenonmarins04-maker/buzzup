@@ -356,7 +356,7 @@ export default function DashboardPage() {
       {/* Ranking */}
       <div className="bg-card border border-border rounded-xl p-5">
         <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
-          <Trophy className="h-4 w-4 text-[#F97316]" /> Gameficação — Ranking
+          <Trophy className="h-4 w-4 text-[#F97316]" /> Gameficação
         </h2>
         {allRanking.length === 0 ? (
           <p className="text-xs text-muted-foreground">Nenhum ponto ainda. Conclua demandas com pontos atribuídos para entrar no ranking.</p>

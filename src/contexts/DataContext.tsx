@@ -1070,9 +1070,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!workspaceId || !uid) return;
     // Optimistic — o card some na hora
     const tempId = `tmp-${formId}-${uid}`;
-    setFormCompletions(prev => [...prev, { id: tempId, formId, userId: uid, completedAt: new Date().toISOString() }]);
+    const completedAt = new Date().toISOString();
+    setFormCompletions(prev => [...prev, { id: tempId, formId, userId: uid, completedAt }]);
     const { data, error } = await (supabase.from("form_completions") as any)
-      .insert({ form_id: formId, workspace_id: workspaceId, user_id: uid })
+      .insert({ form_id: formId, workspace_id: workspaceId, user_id: uid, completed_at: completedAt })
       .select().single();
     if (error) {
       // 23505 = já marcado (unique) — mantém otimista; outros erros revertem

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { FileText, Plus, ExternalLink, CheckCircle2, Trash2, Users, UsersRound, Globe, ChevronDown, ChevronUp, Undo2 } from "lucide-react";
+import { FileText, Plus, ExternalLink, CheckCircle2, Trash2, Users, UsersRound, Globe, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { AREAS, getAreaLabel } from "@/lib/areas";
 
@@ -63,6 +63,18 @@ export default function FormsSection() {
     <Globe className="h-3 w-3" />;
 
   const completionCount = (formId: string) => formCompletions.filter(c => c.formId === formId).length;
+  const formatCompletionDate = (value?: string | null) => {
+    if (!value) return "Sem horário registrado";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Sem horário registrado";
+    return date.toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   const resetModal = () => {
     setTitle(""); setUrl(""); setDescription(""); setTargetType("all"); setTargetValue("");
@@ -126,9 +138,9 @@ export default function FormsSection() {
                 </a>
                 <button
                   onClick={() => { markFormCompleted(f.id); toast.success("Formulário marcado como preenchido!"); }}
-                  className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-md bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30 border border-emerald-300 transition-all"
+                  className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-md bg-red-500/15 text-red-600 hover:bg-red-500/25 border border-red-300 transition-all"
                 >
-                  <CheckCircle2 className="h-3 w-3" /> Preenchido
+                  <span aria-hidden="true">⚠️</span> Preencher
                 </button>
               </div>
             </div>
@@ -172,7 +184,7 @@ export default function FormsSection() {
                     title="Desfazer — voltar para pendentes"
                     className="flex items-center gap-1 text-[11px] font-semibold px-2 py-1.5 rounded-md text-emerald-700 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-300/50 shrink-0 transition-colors"
                   >
-                    <Undo2 className="h-3 w-3" /> Preenchido
+                    <CheckCircle2 className="h-3 w-3" /> Preenchido
                   </button>
                 </div>
               ))}
@@ -298,9 +310,13 @@ export default function FormsSection() {
                 : f.targetType === "team"
                   ? people.filter(p => teams.find(t => t.id === f.targetValue)?.memberIds.includes(p.id))
                   : people;
-            const completedUserIds = new Set(formCompletions.filter(c => c.formId === f.id).map(c => c.userId));
-            const filled = eligiblePeople.filter(p => p.userId && completedUserIds.has(p.userId));
-            const missing = eligiblePeople.filter(p => !p.userId || !completedUserIds.has(p.userId));
+            const completionsByUser = new Map(
+              formCompletions.filter(c => c.formId === f.id).map(c => [c.userId, c])
+            );
+            const filled = eligiblePeople
+              .map(p => ({ person: p, completion: p.userId ? completionsByUser.get(p.userId) : undefined }))
+              .filter(item => !!item.completion);
+            const missing = eligiblePeople.filter(p => !p.userId || !completionsByUser.has(p.userId));
             const personLabel = (p: typeof people[0]) =>
               (p.nickname && p.nickname.trim()) ? `${p.name} (${p.nickname.trim()})` : p.name;
             return (
@@ -320,10 +336,15 @@ export default function FormsSection() {
                       <p className="text-xs text-muted-foreground">Ninguém preencheu ainda.</p>
                     ) : (
                       <ul className="space-y-0.5">
-                        {filled.map(p => (
-                          <li key={p.id} className="text-sm text-foreground flex items-center gap-2 px-2 py-1 rounded bg-emerald-500/5">
+                        {filled.map(({ person: p, completion }) => (
+                          <li key={p.id} className="text-sm text-foreground flex items-start gap-2 px-2 py-1.5 rounded bg-emerald-500/5">
                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
-                            <span className="truncate">{personLabel(p)}</span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate">{personLabel(p)}</span>
+                              <span className="block text-[10px] text-muted-foreground leading-tight">
+                                {formatCompletionDate(completion?.completedAt)}
+                              </span>
+                            </span>
                           </li>
                         ))}
                       </ul>

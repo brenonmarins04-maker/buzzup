@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   CalendarDays, Megaphone,
-  FolderKanban, Bell, Search, ChevronLeft, Plus, Users, LogOut, Eye, Shield, Briefcase, Crown, Sparkles, Home, Building2, UsersRound, Pencil, Settings,
+  FolderKanban, Bell, Search, ChevronLeft, Plus, Users, LogOut, Eye, Shield, Briefcase, Crown, Sparkles, Home, UsersRound, Pencil, Settings,
 } from "lucide-react";
 import { useMemo } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -163,7 +163,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-1.5 shrink-0">
             <RoleBadge />
             <button onClick={() => navigate("/welcome")} title="Trocar workspace" className="p-2 rounded-md hover:bg-accent text-muted-foreground">
-              <Building2 className="h-4 w-4" />
+              <Home className="h-4 w-4" />
             </button>
             <button onClick={() => navigate("/settings")} title="Menu" className="relative p-2 rounded-md hover:bg-accent text-muted-foreground">
               <Settings className="h-4 w-4" />
@@ -433,7 +433,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {!collapsed && (
               <>
                 <button onClick={() => navigate("/welcome")} className="p-1 rounded hover:bg-accent text-muted-foreground" title="Trocar workspace">
-                  <Building2 className="h-4 w-4" />
+                  <Home className="h-4 w-4" />
                 </button>
                 <button onClick={() => signOut()} className="p-1 rounded hover:bg-accent text-muted-foreground" title="Sair">
                   <LogOut className="h-4 w-4" />
