@@ -12,6 +12,7 @@ import { format, endOfWeek, differenceInHours, differenceInDays, subDays, startO
 import { ptBR } from "date-fns/locale";
 import { AREAS } from "@/lib/areas";
 import FormsSection from "@/components/FormsSection";
+import SummarySection from "@/components/SummarySection";
 
 function timeAgo(iso: string) {
   const d = new Date(iso);
@@ -316,6 +317,11 @@ export default function DashboardPage() {
             {/* Formulários — entre demandas e pontos */}
             <div className="order-3 lg:order-2">
               <FormsSection />
+            </div>
+
+            {/* Resumo IA — apenas mobile, abaixo de Formulários */}
+            <div className="order-4 lg:hidden">
+              <SummarySection />
             </div>
 
             {/* Meus Pontos */}
