@@ -320,7 +320,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Resumo IA — apenas mobile, abaixo de Formulários */}
-            <div className="order-4 lg:hidden">
+            <div className="order-4 lg:col-span-3">
               <SummarySection />
             </div>
 
