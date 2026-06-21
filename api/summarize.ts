@@ -45,7 +45,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
   if (!ANTHROPIC_KEY) return res.status(500).json({ error: "no_api_key", message: "ANTHROPIC_API_KEY não configurada." });
 
-  const { areas } = req.body as { areas: Record<string, AreaData> };
+  const body = req.body as { areas?: Record<string, AreaData> } | null;
+  const areas = body?.areas;
+
+  if (!areas || typeof areas !== "object") {
+    return res.status(400).json({ error: "bad_request", message: "areas é obrigatório." });
+  }
 
   try {
     const entries = Object.entries(areas);

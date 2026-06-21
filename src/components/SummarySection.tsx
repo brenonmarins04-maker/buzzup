@@ -136,7 +136,7 @@ export default function SummarySection() {
     } catch { return ""; }
   };
 
-  const hasSummaries = row && Object.keys(row.summaries ?? {}).length > 0;
+  const hasSummaries = row && row.summaries && typeof row.summaries === "object" && Object.keys(row.summaries).length > 0;
 
   return (
     <div className="bg-card border border-border rounded-xl p-4 flex flex-col gap-3">
@@ -223,7 +223,7 @@ export default function SummarySection() {
       {!loading && !generating && hasSummaries && (
         <div className="space-y-2">
           <p className="text-sm text-foreground leading-relaxed">
-            {row!.summaries[selectedArea] || `Sem demandas previstas para ${getAreaLabel(selectedArea)} nas próximas semanas.`}
+            {row!.summaries?.[selectedArea] || `Sem demandas previstas para ${getAreaLabel(selectedArea)} nas próximas semanas.`}
           </p>
           <p className="text-[10px] text-muted-foreground">
             Atualizado em {fmtTime(row!.generated_at)}
