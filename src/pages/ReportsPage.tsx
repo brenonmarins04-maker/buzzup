@@ -7,7 +7,7 @@ import { AREAS_DEFAULT, getAreaLabel, getAreaColor } from "@/lib/areas";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
-import { BarChart2, Users, Trophy, Clock } from "lucide-react";
+import { BarChart2, Users, Trophy, Clock, ChevronLeft } from "lucide-react";
 
 type TimeSlot = "morning" | "afternoon" | "night";
 
@@ -54,6 +54,7 @@ export default function ReportsPage() {
 
   const [loginsByArea, setLoginsByArea] = useState<Record<string, number>>({});
   const [loadingLogins, setLoadingLogins] = useState(true);
+  const [drillArea, setDrillArea] = useState<string | null>(null);
 
   // Guard — non-admins go back to home
   useEffect(() => {
@@ -97,11 +98,27 @@ export default function ReportsPage() {
       areas.forEach(aKey => { byArea[aKey] = (byArea[aKey] ?? 0) + award.points; });
     });
     return AREAS_DEFAULT.map(a => ({
+      key: a.key,
       label: getAreaLabel(a.key) || a.label,
       pts: byArea[a.key] || 0,
       color: getAreaColor(a.key),
     }));
   }, [gamificationAwards, people]);
+
+  // Drill-down: pontos por pessoa dentro da área selecionada
+  const drillData = useMemo(() => {
+    if (!drillArea) return [];
+    const byPerson: Record<string, { name: string; pts: number }> = {};
+    gamificationAwards.forEach(award => {
+      const person = people.find(p => p.id === award.personId);
+      if (!person) return;
+      const areas = person.areas?.length ? person.areas : (person.area ? [person.area] : []);
+      if (!areas.includes(drillArea)) return;
+      if (!byPerson[award.personId]) byPerson[award.personId] = { name: person.nickname || person.name, pts: 0 };
+      byPerson[award.personId].pts += award.points;
+    });
+    return Object.values(byPerson).sort((a, b) => b.pts - a.pts);
+  }, [drillArea, gamificationAwards, people]);
 
   // Logins chart data
   const loginData = useMemo(() =>
@@ -150,26 +167,74 @@ export default function ReportsPage() {
       {/* Row: Charts side by side */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
 
-        {/* Chart 1: Pontos por área */}
+        {/* Chart 1: Pontos por área / drill-down por pessoa */}
         <div className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-center gap-2 mb-5">
-            <Trophy className="h-4 w-4 text-amber-500" />
-            <h2 className="text-sm font-semibold text-foreground">Pontos por Área (Gamificação)</h2>
+            {drillArea ? (
+              <>
+                <button
+                  onClick={() => setDrillArea(null)}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Voltar
+                </button>
+                <span className="text-muted-foreground">·</span>
+                <Trophy className="h-4 w-4 text-amber-500" />
+                <h2 className="text-sm font-semibold text-foreground">
+                  Pontos por Pessoa —{" "}
+                  <span style={{ color: getAreaColor(drillArea) }}>
+                    {getAreaLabel(drillArea) || AREAS_DEFAULT.find(a => a.key === drillArea)?.label}
+                  </span>
+                </h2>
+              </>
+            ) : (
+              <>
+                <Trophy className="h-4 w-4 text-amber-500" />
+                <h2 className="text-sm font-semibold text-foreground">Pontos por Área (Gamificação)</h2>
+                <span className="text-[10px] text-muted-foreground ml-auto">clique numa barra para detalhes</span>
+              </>
+            )}
           </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={pointsData} barSize={36} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
-              <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} allowDecimals={false} />
-              <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--accent)", opacity: 0.5 }} />
-              <Bar dataKey="pts" radius={[6, 6, 0, 0]}>
-                {pointsData.map((entry, i) => (
-                  <Cell key={i} fill={entry.color} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-          {pointsData.every(d => d.pts === 0) && (
-            <p className="text-xs text-muted-foreground text-center mt-2">Nenhum ponto registrado ainda.</p>
+
+          {drillArea ? (
+            drillData.length === 0 ? (
+              <div className="flex items-center justify-center h-[220px]">
+                <p className="text-xs text-muted-foreground">Nenhum ponto registrado nessa área.</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={drillData} barSize={28} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--accent)", opacity: 0.5 }} />
+                  <Bar dataKey="pts" radius={[6, 6, 0, 0]} fill={getAreaColor(drillArea)} />
+                </BarChart>
+              </ResponsiveContainer>
+            )
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart
+                  data={pointsData}
+                  barSize={36}
+                  margin={{ top: 4, right: 8, left: -16, bottom: 0 }}
+                  style={{ cursor: "pointer" }}
+                >
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--accent)", opacity: 0.5 }} />
+                  <Bar dataKey="pts" radius={[6, 6, 0, 0]} onClick={(data: any) => setDrillArea(data.key)}>
+                    {pointsData.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              {pointsData.every(d => d.pts === 0) && (
+                <p className="text-xs text-muted-foreground text-center mt-2">Nenhum ponto registrado ainda.</p>
+              )}
+            </>
           )}
         </div>
 
