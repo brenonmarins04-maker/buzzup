@@ -2,8 +2,5 @@
   "rewrites": [
     { "source": "/sb-proxy/:path*", "destination": "https://twwcnudhfvzbkdrtfmtu.supabase.co/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "crons": [
-    { "path": "/api/cron-summary", "schedule": "0 18 * * 5" }
   ]
 }
