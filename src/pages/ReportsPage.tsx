@@ -114,7 +114,11 @@ export default function ReportsPage() {
       if (!person) return;
       const areas = person.areas?.length ? person.areas : (person.area ? [person.area] : []);
       if (!areas.includes(drillArea)) return;
-      if (!byPerson[award.personId]) byPerson[award.personId] = { name: person.nickname || person.name, pts: 0 };
+      if (!byPerson[award.personId]) {
+        const firstName = person.name.split(" ")[0];
+        const label = person.nickname ? `${firstName} (${person.nickname})` : firstName;
+        byPerson[award.personId] = { name: label, pts: 0 };
+      }
       byPerson[award.personId].pts += award.points;
     });
     return Object.values(byPerson).sort((a, b) => b.pts - a.pts);
@@ -203,9 +207,17 @@ export default function ReportsPage() {
                 <p className="text-xs text-muted-foreground">Nenhum ponto registrado nessa área.</p>
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={drillData} barSize={28} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
-                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={drillData} barSize={24} margin={{ top: 4, right: 8, left: -16, bottom: 60 }}>
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                    axisLine={false}
+                    tickLine={false}
+                    interval={0}
+                    angle={-40}
+                    textAnchor="end"
+                  />
                   <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} allowDecimals={false} />
                   <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--accent)", opacity: 0.5 }} />
                   <Bar dataKey="pts" radius={[6, 6, 0, 0]} fill={getAreaColor(drillArea)} />
@@ -220,11 +232,15 @@ export default function ReportsPage() {
                   barSize={36}
                   margin={{ top: 4, right: 8, left: -16, bottom: 0 }}
                   style={{ cursor: "pointer" }}
+                  onClick={(data: any) => {
+                    const key = data?.activePayload?.[0]?.payload?.key;
+                    if (key) setDrillArea(key);
+                  }}
                 >
                   <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} allowDecimals={false} />
                   <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--accent)", opacity: 0.5 }} />
-                  <Bar dataKey="pts" radius={[6, 6, 0, 0]} onClick={(data: any) => setDrillArea(data.key)}>
+                  <Bar dataKey="pts" radius={[6, 6, 0, 0]}>
                     {pointsData.map((entry, i) => (
                       <Cell key={i} fill={entry.color} />
                     ))}
