@@ -41,7 +41,7 @@ export type EventType = { id: string; name: string; color: string };
 
 export type AreaNote = { id: string; area: string; name: string; url: string; position: number };
 export type ParkingItemStatus = "in-progress" | "done";
-export type ParkingItem = { id: string; area: string; personId: string | null; title: string; description: string; date: string; position: number; status: ParkingItemStatus; points: number };
+export type ParkingItem = { id: string; area: string; personId: string | null; title: string; description: string; date: string; position: number; status: ParkingItemStatus; points: number; completedAt?: string | null };
 
 export type GamificationAction = { id: string; name: string; points: number };
 export type GamificationAward = { id: string; personId: string; actionId: string | null; actionName: string; points: number; awardedAt: string };
@@ -374,7 +374,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setChannels((chRes.data || []).map(c => ({ id: c.id, name: c.name, color: c.color })));
       setEventTypes(((etRes as any)?.data || []).map((e: any) => ({ id: e.id, name: e.name, color: e.color })));
       setAreaNotes(((anRes as any)?.data || []).map((n: any) => ({ id: n.id, area: n.area, name: n.name, url: n.url, position: n.position ?? 0 })));
-      setParkingItems(((piRes as any)?.data || []).map((p: any) => ({ id: p.id, area: p.area, personId: p.person_id ?? null, title: p.title, description: p.description ?? "", date: p.date ?? "", position: p.position ?? 0, status: (p.status as ParkingItemStatus) ?? "in-progress", points: p.points ?? 1 })));
+      setParkingItems(((piRes as any)?.data || []).map((p: any) => ({ id: p.id, area: p.area, personId: p.person_id ?? null, title: p.title, description: p.description ?? "", date: p.date ?? "", position: p.position ?? 0, status: (p.status as ParkingItemStatus) ?? "in-progress", points: p.points ?? 1, completedAt: p.completed_at ?? null })));
       setGamificationActions(((gaRes as any)?.data || []).map((a: any) => ({ id: a.id, name: a.name, points: a.points ?? 0 })));
       setGamificationAwards(((gwRes as any)?.data || []).map((w: any) => ({ id: w.id, personId: w.person_id, actionId: w.action_id ?? null, actionName: w.action_name, points: w.points ?? 0, awardedAt: w.awarded_at })));
       setLeadThermometer(((ltRes as any)?.data || []).map((l: any) => ({ id: l.id, name: l.name, value: l.value ?? "", areaSize: l.area_size ?? "", type: l.type ?? "", position: l.position ?? 0 })));
@@ -459,6 +459,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
     channel.subscribe();
     return () => { if (scheduled) clearTimeout(scheduled); supabase.removeChannel(channel); };
   }, [workspaceId]);
+
+  // Daily login tracking — upsert once per day per user/workspace (ignoreDuplicates handles re-renders)
+  useEffect(() => {
+    if (!uid || !workspaceId) return;
+    const today = getTodayBrasilia();
+    (supabase.from("user_daily_logins") as any).upsert(
+      { workspace_id: workspaceId, user_id: uid, login_date: today },
+      { onConflict: "workspace_id,user_id,login_date", ignoreDuplicates: true }
+    );
+  }, [uid, workspaceId]);
 
   // Notifications
   useEffect(() => {
@@ -864,13 +874,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const updateParkingItem = useCallback(async (p: ParkingItem) => {
     const prev = parkingItems.find(x => x.id === p.id);
+    const becomingDone = prev && prev.status !== "done" && p.status === "done";
     const { error } = await (supabase.from("parking_items") as any)
-      .update({ title: p.title, description: p.description, date: p.date, person_id: p.personId, position: p.position, status: p.status, points: p.points })
+      .update({ title: p.title, description: p.description, date: p.date, person_id: p.personId, position: p.position, status: p.status, points: p.points, ...(becomingDone ? { completed_at: new Date().toISOString() } : {}) })
       .eq("id", p.id);
     if (error) { toast.error("Erro ao atualizar"); return; }
-    setParkingItems(prev => prev.map(x => x.id === p.id ? p : x));
+    const completedAt = becomingDone ? new Date().toISOString() : p.completedAt ?? prev?.completedAt ?? null;
+    setParkingItems(curr => curr.map(x => x.id === p.id ? { ...p, completedAt } : x));
     // Award gamification points when transitioning to "done"
-    if (workspaceId && prev && prev.status !== "done" && p.status === "done" && p.personId) {
+    if (workspaceId && becomingDone && p.personId) {
       const pts = Math.max(1, Math.min(3, p.points || 1));
       const { data: aw } = await (supabase.from("gamification_awards") as any)
         .insert({ workspace_id: workspaceId, person_id: p.personId, action_id: null, action_name: `Demanda: ${p.title}`, points: pts, awarded_by: uid })

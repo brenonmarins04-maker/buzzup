@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   CalendarDays, Megaphone,
-  FolderKanban, Bell, Search, ChevronLeft, Plus, Users, LogOut, Eye, Shield, Briefcase, Crown, Sparkles, Home, UsersRound, Pencil, Settings,
+  FolderKanban, Bell, Search, ChevronLeft, Plus, Users, LogOut, Eye, Shield, Briefcase, Crown, Sparkles, Home, UsersRound, Pencil, Settings, BarChart2,
 } from "lucide-react";
 import { useMemo } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -401,6 +401,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </NavLink>
             );
           })()}
+
+          {/* ── Relatórios (apenas admins/owners, desktop only) ── */}
+          {isAdmin && (
+            <NavLink to="/reports"
+              className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-colors ${isActive ? "bg-accent text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"} ${collapsed ? "justify-center" : ""}`}>
+              <BarChart2 className="h-4 w-4 shrink-0" />
+              {!collapsed && <span>Relatórios</span>}
+            </NavLink>
+          )}
         </nav>
         <div className="p-3 border-t border-border">
           {isAdmin && (
