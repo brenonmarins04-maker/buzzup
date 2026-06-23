@@ -319,11 +319,6 @@ export default function DashboardPage() {
               <FormsSection />
             </div>
 
-            {/* Resumo IA — apenas mobile, abaixo de Formulários */}
-            <div className="order-4 lg:col-span-3">
-              <SummarySection />
-            </div>
-
             {/* Meus Pontos */}
             <div className="order-1 lg:order-3 bg-card border border-border rounded-xl p-4 md:p-5 flex flex-col gap-3 md:gap-4">
               {/* Trophy icon */}
@@ -458,6 +453,9 @@ export default function DashboardPage() {
           );
         })()}
       </div>
+
+      {/* Atualizações das Áreas */}
+      <SummarySection />
 
       {/* 2 columns */}
       <div className="hidden md:grid grid-cols-1 lg:grid-cols-2 gap-4">
