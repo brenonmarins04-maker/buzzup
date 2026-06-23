@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { FileText, Plus, ExternalLink, CheckCircle2, Trash2, Users, UsersRound, Globe, ChevronDown, ChevronUp } from "lucide-react";
+import { FileText, Plus, ExternalLink, CheckCircle2, Trash2, Users, UsersRound, Globe, ChevronDown, ChevronUp, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { AREAS, getAreaLabel } from "@/lib/areas";
 
@@ -24,6 +24,7 @@ export default function FormsSection() {
   const [showCompleted, setShowCompleted] = useState(false);
   // Admin: popup com quem preencheu / quem falta
   const [viewResponses, setViewResponses] = useState<WorkspaceForm | null>(null);
+  const [responseAreaFilter, setResponseAreaFilter] = useState<string>("all");
 
   // Pessoas vinculadas ao usuário atual → áreas e times dele
   const { myAreas, myTeamIds } = useMemo(() => {
@@ -299,17 +300,34 @@ export default function FormsSection() {
       </Dialog>
 
       {/* Modal: quem preencheu / quem falta (admins) */}
-      <Dialog open={!!viewResponses} onOpenChange={(o) => { if (!o) setViewResponses(null); }}>
-        <DialogContent className="max-w-sm max-h-[75vh] overflow-y-auto">
+      <Dialog open={!!viewResponses} onOpenChange={(o) => { if (!o) { setViewResponses(null); setResponseAreaFilter("all"); } }}>
+        <DialogContent className="max-w-md max-h-[80vh] flex flex-col">
           {viewResponses && (() => {
             const f = viewResponses;
-            // Pessoas elegíveis para este formulário
-            const eligiblePeople =
+            const personLabel = (p: typeof people[0]) =>
+              (p.nickname && p.nickname.trim()) ? `${p.name} (${p.nickname.trim()})` : p.name;
+
+            // Todas as pessoas elegíveis para o formulário
+            const allEligible =
               f.targetType === "area"
                 ? people.filter(p => (p.areas || []).includes(f.targetValue || ""))
                 : f.targetType === "team"
                   ? people.filter(p => teams.find(t => t.id === f.targetValue)?.memberIds.includes(p.id))
                   : people;
+
+            // Áreas presentes entre as pessoas elegíveis (para o filtro)
+            const areasInForm = Array.from(
+              new Set(allEligible.flatMap(p => p.areas?.length ? p.areas : (p.area ? [p.area] : [])))
+            );
+
+            // Aplicar filtro de área
+            const eligiblePeople = responseAreaFilter === "all"
+              ? allEligible
+              : allEligible.filter(p => {
+                  const areas = p.areas?.length ? p.areas : (p.area ? [p.area] : []);
+                  return areas.includes(responseAreaFilter);
+                });
+
             const completionsByUser = new Map(
               formCompletions.filter(c => c.formId === f.id).map(c => [c.userId, c])
             );
@@ -317,17 +335,58 @@ export default function FormsSection() {
               .map(p => ({ person: p, completion: p.userId ? completionsByUser.get(p.userId) : undefined }))
               .filter(item => !!item.completion);
             const missing = eligiblePeople.filter(p => !p.userId || !completionsByUser.has(p.userId));
-            const personLabel = (p: typeof people[0]) =>
-              (p.nickname && p.nickname.trim()) ? `${p.name} (${p.nickname.trim()})` : p.name;
+
             return (
               <>
-                <DialogHeader>
+                <DialogHeader className="shrink-0">
                   <DialogTitle className="text-base">{f.title}</DialogTitle>
                   <p className="text-xs text-muted-foreground">
                     {targetLabel(f)} • {filled.length} de {eligiblePeople.length} preencheram
+                    {responseAreaFilter !== "all" && ` (filtrando por área)`}
                   </p>
                 </DialogHeader>
-                <div className="space-y-4">
+
+                {/* Filtro de área — visível quando há mais de uma área */}
+                {areasInForm.length > 1 && (
+                  <div className="shrink-0 -mx-1">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Filter className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Filtrar por área</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button
+                        onClick={() => setResponseAreaFilter("all")}
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors ${
+                          responseAreaFilter === "all"
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "border-border text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        Todas
+                      </button>
+                      {areasInForm.map(aKey => {
+                        const color = AREAS.find(a => a.key === aKey)?.color || "#6b7280";
+                        const active = responseAreaFilter === aKey;
+                        return (
+                          <button
+                            key={aKey}
+                            onClick={() => setResponseAreaFilter(aKey)}
+                            className="px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors"
+                            style={active
+                              ? { backgroundColor: `${color}22`, color, borderColor: `${color}88` }
+                              : { borderColor: "var(--border)", color: "var(--muted-foreground)" }
+                            }
+                          >
+                            {getAreaLabel(aKey) || aKey}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                <div className="overflow-y-auto flex-1 space-y-4 pr-1">
+                  {/* Preencheram */}
                   <div>
                     <p className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider mb-1.5 flex items-center gap-1">
                       <CheckCircle2 className="h-3 w-3" /> Preencheram ({filled.length})
@@ -338,7 +397,7 @@ export default function FormsSection() {
                       <ul className="space-y-0.5">
                         {filled.map(({ person: p, completion }) => (
                           <li key={p.id} className="text-sm text-foreground flex items-start gap-2 px-2 py-1.5 rounded bg-emerald-500/5">
-                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
                             <span className="min-w-0 flex-1">
                               <span className="block truncate">{personLabel(p)}</span>
                               <span className="block text-[10px] text-muted-foreground leading-tight">
@@ -350,6 +409,8 @@ export default function FormsSection() {
                       </ul>
                     )}
                   </div>
+
+                  {/* Faltam */}
                   <div>
                     <p className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider mb-1.5">
                       Faltam preencher ({missing.length})
