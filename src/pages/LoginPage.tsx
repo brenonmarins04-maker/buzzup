@@ -71,13 +71,18 @@ export default function LoginPage() {
         return;
       }
 
-      // Conta criada com email já confirmado — loga direto
+      // Tenta logar; se e-mail não confirmado, exibe tela de confirmação
       const { error: loginErr } = await signIn(email, password);
       if (!loginErr) {
         setJustSignedUp(true);
       } else {
-        toast.error("Conta criada! Faça login com seu e-mail e senha.");
-        setMode("login");
+        const msg = (loginErr.message || "").toLowerCase();
+        if (msg.includes("email not confirmed") || msg.includes("not_confirmed")) {
+          setEmailConfirmNeeded(true);
+        } else {
+          toast.success("Conta criada! Faça login com seu e-mail e senha.");
+          setMode("login");
+        }
       }
       setSubmitting(false);
       return;
