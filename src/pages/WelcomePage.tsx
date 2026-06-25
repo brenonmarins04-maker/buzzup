@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,8 @@ export default function WelcomePage() {
   }, [loading, user, navigate]);
 
   const enterWorkspace = (id: string) => {
-    setActiveWorkspaceId(id);
+    // flushSync garante que o estado é aplicado antes do navigate re-renderizar o ProtectedRoute
+    flushSync(() => { setActiveWorkspaceId(id); });
     navigate("/", { replace: true });
   };
 
@@ -54,10 +56,14 @@ export default function WelcomePage() {
     e.preventDefault();
     if (!name.trim() || busy) return;
     setBusy(true);
-    const { ok, error } = await createWorkspace(name.trim());
+    const { ok, error, workspace } = await createWorkspace(name.trim());
     setBusy(false);
-    if (ok) { toast.success("Workspace criado!"); navigate("/", { replace: true }); }
-    else toast.error(error || "Erro ao criar workspace");
+    if (ok) {
+      toast.success("Workspace criado!");
+      // Garante que o workspaceId está no estado antes do ProtectedRoute checar
+      if (workspace?.id) setActiveWorkspaceId(workspace.id);
+      navigate("/", { replace: true });
+    } else toast.error(error || "Erro ao criar workspace");
   };
 
   const onJoin = async (e: React.FormEvent) => {
