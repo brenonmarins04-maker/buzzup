@@ -117,49 +117,65 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
             </div>
             <div>
               <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Área <span className="text-destructive">*</span></label>
-              <div className="flex flex-wrap gap-2">
-                {AREAS.map(a => {
-                  const selected = area === a.key;
-                  return (
-                    <button
-                      key={a.key}
-                      type="button"
-                      onClick={() => { setArea(a.key); setPersonId(""); }}
-                      className="px-4 h-9 rounded-full text-sm font-medium transition-all border"
-                      style={{
-                        backgroundColor: selected ? a.color : `${a.color}14`,
-                        color: selected ? "#fff" : a.color,
-                        borderColor: selected ? a.color : `${a.color}40`,
-                        boxShadow: selected ? `0 4px 14px ${a.color}55` : "none",
-                        transform: selected ? "translateY(-1px)" : "none",
-                      }}
-                    >
-                      {a.label}
-                    </button>
-                  );
-                })}
-                {teams.map(t => {
-                  const teamKey = `team_${t.id}`;
-                  const selected = area === teamKey;
-                  const tc = getTeamColor(t.id);
-                  return (
-                    <button
-                      key={teamKey}
-                      type="button"
-                      onClick={() => { setArea(teamKey); setPersonId(""); }}
-                      className="px-4 h-9 rounded-full text-sm font-medium transition-all border"
-                      style={{
-                        backgroundColor: selected ? tc : `${tc}14`,
-                        color: selected ? "#fff" : tc,
-                        borderColor: selected ? tc : `${tc}40`,
-                        boxShadow: selected ? `0 4px 14px ${tc}55` : "none",
-                        transform: selected ? "translateY(-1px)" : "none",
-                      }}
-                    >
-                      {t.name}
-                    </button>
-                  );
-                })}
+              <div className="flex gap-3 items-start">
+                {/* Áreas */}
+                <div className="flex flex-col gap-1.5 shrink-0">
+                  <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wide">Áreas</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {AREAS.map(a => {
+                      const selected = area === a.key;
+                      return (
+                        <button
+                          key={a.key}
+                          type="button"
+                          onClick={() => { setArea(a.key); setPersonId(""); }}
+                          className="px-3 h-8 rounded-full text-xs font-medium transition-all border"
+                          style={{
+                            backgroundColor: selected ? a.color : `${a.color}14`,
+                            color: selected ? "#fff" : a.color,
+                            borderColor: selected ? a.color : `${a.color}40`,
+                            boxShadow: selected ? `0 4px 14px ${a.color}55` : "none",
+                            transform: selected ? "translateY(-1px)" : "none",
+                          }}
+                        >
+                          {a.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                {/* Divisor */}
+                {teams.length > 0 && <div className="w-px bg-border/60 self-stretch mt-5 shrink-0" />}
+                {/* Times */}
+                {teams.length > 0 && (
+                  <div className="flex flex-col gap-1.5 min-w-0 flex-1">
+                    <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wide">Times</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {teams.map(t => {
+                        const teamKey = `team_${t.id}`;
+                        const selected = area === teamKey;
+                        const tc = getTeamColor(t.id);
+                        return (
+                          <button
+                            key={teamKey}
+                            type="button"
+                            onClick={() => { setArea(teamKey); setPersonId(""); }}
+                            className="px-3 h-8 rounded-full text-xs font-medium transition-all border"
+                            style={{
+                              backgroundColor: selected ? tc : `${tc}14`,
+                              color: selected ? "#fff" : tc,
+                              borderColor: selected ? tc : `${tc}40`,
+                              boxShadow: selected ? `0 4px 14px ${tc}55` : "none",
+                              transform: selected ? "translateY(-1px)" : "none",
+                            }}
+                          >
+                            {t.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             <div>
