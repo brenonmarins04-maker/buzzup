@@ -418,8 +418,9 @@ export default function CalendarPage() {
     const dayItems = allItems.filter((item) => item.date === dayStr);
     const todayFlag = isToday(day);
     const isDropping = dropTarget === dayStr;
-    // Mobile: mostra no máximo 3 demandas; o restante fica no popup do dia
-    const visibleItems = isMobile ? dayItems.slice(0, 3) : dayItems;
+    // Mobile: máx 3; desktop: máx 10 (5 linhas × 2 colunas — excesso no popup)
+    const maxVisible = isMobile ? 3 : 10;
+    const visibleItems = dayItems.slice(0, maxVisible);
     const hiddenCount = dayItems.length - visibleItems.length;
     return (
       <div
@@ -445,7 +446,7 @@ export default function CalendarPage() {
             </button>
           )}
         </div>
-        <div className={`${isMobile ? "flex flex-col" : "grid grid-cols-2"} gap-0.5 min-h-0 overflow-y-auto scrollbar-thin`}>{visibleItems.map((item) => renderItemPill(item))}</div>
+        <div className={`${isMobile ? "flex flex-col overflow-y-auto scrollbar-thin" : "grid grid-cols-2"} gap-0.5 min-h-0`}>{visibleItems.map((item) => renderItemPill(item))}</div>
         {hiddenCount > 0 && (
           <button
             onClick={(e) => { e.stopPropagation(); setDayPopup(dayStr); }}
@@ -680,7 +681,7 @@ export default function CalendarPage() {
             <div
               key={format(day, "yyyy-MM-dd")}
               className="group"
-              style={!isMobile ? { aspectRatio: "1" } : undefined}
+              style={!isMobile ? { aspectRatio: "1", overflow: "visible" } : undefined}
             >
               {renderDayCell(day, isSameMonth(day, currentDate))}
             </div>
