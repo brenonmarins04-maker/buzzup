@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect, type DragEvent } from "react";
+import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight, Plus, X, ChevronUp, ChevronDown, CalendarDays } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
@@ -15,7 +16,6 @@ import PostModal from "@/components/modals/PostModal";
 import EventModal from "@/components/modals/EventModal";
 import IdeaModal from "@/components/modals/IdeaModal";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { getNowBrasilia } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -69,6 +69,8 @@ export default function CalendarPage() {
   const [eventModal, setEventModal] = useState<{ open: boolean; event?: CalendarEvent | null; date?: string }>({ open: false });
   const [ideaModal, setIdeaModal] = useState<{ open: boolean; item: import("@/contexts/DataContext").ParkingItem | null; defaultDate?: string; defaultArea?: string; requireFull?: boolean }>({ open: false, item: null });
   const [deleting, setDeleting] = useState<{ open: boolean; id: string; title: string; type: string }>({ open: false, id: "", title: "", type: "" });
+
+  const [tooltipState, setTooltipState] = useState<{ item: CalendarItem; rect: DOMRect } | null>(null);
 
   const [dragItem, setDragItem] = useState<CalendarItem | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
@@ -360,57 +362,53 @@ export default function CalendarPage() {
   const typeLabels: Record<string, string> = { task: "Demanda", post: "Post", event: "Evento" };
 
   const renderItemPill = (item: CalendarItem) => (
-    <Tooltip key={item.id} delayDuration={0}>
-      <TooltipTrigger asChild>
-        <div
-          draggable={isAdmin}
-          onDragStart={(e) => handleDragStart(e, item)}
-          onDragEnd={handleDragEnd}
-          onClick={(e) => { e.stopPropagation(); if (longPress.isActive()) return; handleItemClick(item); }}
-          onPointerDown={(e) => longPress.handlers.onPointerDown(e, { payload: item, label: item.title, color: item.color })}
-          onPointerMove={longPress.handlers.onPointerMove}
-          onPointerUp={longPress.handlers.onPointerUp}
-          onPointerCancel={longPress.handlers.onPointerCancel}
-          style={{
-            touchAction: "pan-y",
-            transition: "transform 380ms cubic-bezier(0.4,0,0.2,1), opacity 380ms ease",
-            transform: shrinkingId === item.id ? "scale(0)" : undefined,
-            opacity: shrinkingId === item.id ? 0 : 1,
-            transformOrigin: "bottom right",
-          }}
-          className={`demand-hover relative group/pill flex items-stretch ${isMobile ? "rounded-lg" : "rounded-md"} overflow-hidden shadow-sm ${isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}`}
-        >
-          {item.type === "post" && (
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); if (isAdmin) cyclePostStatus(item.id); }}
-              title={POST_STATUS_META[item.status || "not-started"]?.label}
-              style={{ backgroundColor: POST_STATUS_META[item.status || "not-started"]?.color || "#9CA3AF" }}
-              className={`w-1 shrink-0 ${isAdmin ? "cursor-pointer hover:w-1.5 transition-all" : ""}`}
-            />
-          )}
-          <div
-            style={{ backgroundColor: item.color }}
-            className={`flex-1 min-w-0 text-white font-medium hover:opacity-80 transition-opacity pointer-events-none ${
-              isMobile
-                ? "text-[10px] leading-snug px-1.5 py-1 rounded-md whitespace-normal break-words line-clamp-2"
-                : "text-[9px] sm:text-[10px] leading-tight px-1 sm:px-1.5 py-0.5 whitespace-normal break-words line-clamp-2 pr-4"
-            }`}
-          >
-            {item.title}
-          </div>
-          <button onClick={(e) => { e.stopPropagation(); setDeleting({ open: true, id: item.id, title: item.title, type: item.type }); }}
-            className="absolute top-0 right-0 h-full px-0.5 flex items-center opacity-0 group-hover/pill:opacity-100 transition-opacity">
-            <X className="h-2.5 w-2.5 text-white hover:text-destructive" />
-          </button>
-        </div>
-      </TooltipTrigger>
-      <TooltipContent side="top" sideOffset={6} avoidCollisions className="text-xs max-w-[200px] z-[9999]">
-        <p className="font-semibold">{item.title}</p>
-        <p className="text-muted-foreground">{typeLabels[item.type]} • {item.date}{item.time ? ` ${item.time}` : ""}</p>
-        {item.status && <p className="text-muted-foreground">Status: {item.type === "post" ? POST_STATUS_META[item.status]?.label || item.status : item.status}</p>}
-      </TooltipContent>
-    </Tooltip>
+    <div
+      key={item.id}
+      draggable={isAdmin}
+      onDragStart={(e) => handleDragStart(e, item)}
+      onDragEnd={handleDragEnd}
+      onClick={(e) => { e.stopPropagation(); if (longPress.isActive()) return; handleItemClick(item); }}
+      onPointerDown={(e) => longPress.handlers.onPointerDown(e, { payload: item, label: item.title, color: item.color })}
+      onPointerMove={longPress.handlers.onPointerMove}
+      onPointerUp={longPress.handlers.onPointerUp}
+      onPointerCancel={longPress.handlers.onPointerCancel}
+      onMouseEnter={(e) => {
+        if (!isMobile) setTooltipState({ item, rect: (e.currentTarget as HTMLElement).getBoundingClientRect() });
+      }}
+      onMouseLeave={() => setTooltipState(null)}
+      style={{
+        touchAction: "pan-y",
+        transition: "transform 380ms cubic-bezier(0.4,0,0.2,1), opacity 380ms ease",
+        transform: shrinkingId === item.id ? "scale(0)" : undefined,
+        opacity: shrinkingId === item.id ? 0 : 1,
+        transformOrigin: "bottom right",
+      }}
+      className={`demand-hover relative group/pill flex items-stretch ${isMobile ? "rounded-lg" : "rounded-md"} overflow-hidden shadow-sm ${isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}`}
+    >
+      {item.type === "post" && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); if (isAdmin) cyclePostStatus(item.id); }}
+          title={POST_STATUS_META[item.status || "not-started"]?.label}
+          style={{ backgroundColor: POST_STATUS_META[item.status || "not-started"]?.color || "#9CA3AF" }}
+          className={`w-1 shrink-0 ${isAdmin ? "cursor-pointer hover:w-1.5 transition-all" : ""}`}
+        />
+      )}
+      <div
+        style={{ backgroundColor: item.color }}
+        className={`flex-1 min-w-0 text-white font-medium hover:opacity-80 transition-opacity pointer-events-none ${
+          isMobile
+            ? "text-[10px] leading-snug px-1.5 py-1 rounded-md whitespace-normal break-words line-clamp-2"
+            : "text-[9px] sm:text-[10px] leading-tight px-1 sm:px-1.5 py-0.5 whitespace-normal break-words line-clamp-2 pr-4"
+        }`}
+      >
+        {item.title}
+      </div>
+      <button onClick={(e) => { e.stopPropagation(); setDeleting({ open: true, id: item.id, title: item.title, type: item.type }); }}
+        className="absolute top-0 right-0 h-full px-0.5 flex items-center opacity-0 group-hover/pill:opacity-100 transition-opacity">
+        <X className="h-2.5 w-2.5 text-white hover:text-destructive" />
+      </button>
+    </div>
   );
 
   const renderDayCell = (day: Date, inMonth: boolean) => {
@@ -826,6 +824,34 @@ export default function CalendarPage() {
       />
       <DeleteConfirmDialog open={deleting.open} onOpenChange={o => setDeleting(p => ({ ...p, open: o }))}
         title={deleting.title} onConfirm={handleDelete} />
+
+      {tooltipState && createPortal(
+        <div
+          style={{
+            position: "fixed",
+            bottom: window.innerHeight - tooltipState.rect.top + 8,
+            left: tooltipState.rect.left + tooltipState.rect.width / 2,
+            transform: "translateX(-50%)",
+            zIndex: 99999,
+            pointerEvents: "none",
+          }}
+          className="bg-popover text-popover-foreground border border-border rounded-lg shadow-lg px-3 py-2 text-xs max-w-[220px]"
+        >
+          <p className="font-semibold leading-snug">{tooltipState.item.title}</p>
+          <p className="text-muted-foreground mt-0.5">
+            {typeLabels[tooltipState.item.type]} • {tooltipState.item.date}
+            {tooltipState.item.time ? ` ${tooltipState.item.time}` : ""}
+          </p>
+          {tooltipState.item.status && (
+            <p className="text-muted-foreground">
+              Status: {tooltipState.item.type === "post"
+                ? POST_STATUS_META[tooltipState.item.status]?.label || tooltipState.item.status
+                : tooltipState.item.status}
+            </p>
+          )}
+        </div>,
+        document.body
+      )}
 
       {isAdmin && !isMobile && (
         <>
