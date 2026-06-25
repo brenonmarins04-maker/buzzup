@@ -605,10 +605,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           await (supabase.from("people") as any).delete().eq("id", (orphan as any).id);
         }
 
-        // Bump the refetch tick only if something actually changed, to reload people
-        if (!cancelled && (toCreate.length > 0 || orphaned.length > 0)) {
-          setRefetchTick(t => t + 1);
-        }
+        // Realtime subscription on `people` table handles the reload automatically
       } catch (_) {}
     })();
     return () => { cancelled = true; };
