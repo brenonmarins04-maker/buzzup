@@ -88,12 +88,12 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
     <>
       <Dialog open={open} onOpenChange={handleClose}>
         <DialogContent
-          className="max-w-md overflow-hidden shadow-2xl bg-background"
+          className="max-w-2xl shadow-2xl bg-background"
           style={{
             background: area
               ? (() => {
                   const c = area.startsWith("team_") ? getTeamColor(area.slice(5)) : (AREAS.find(a => a.key === area)?.color || "#64748B");
-                  return `linear-gradient(160deg, color-mix(in srgb, ${c} 35%, white) 0%, color-mix(in srgb, ${c} 15%, white) 45%, white 100%)`;
+                  return `linear-gradient(160deg, color-mix(in srgb, ${c} 30%, white) 0%, color-mix(in srgb, ${c} 12%, white) 50%, white 100%)`;
                 })()
               : undefined,
           }}
@@ -103,39 +103,40 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
             style={{ background: area ? (area.startsWith("team_") ? getTeamColor(area.slice(5)) : (AREAS.find(a => a.key === area)?.color || "#64748B")) : "hsl(var(--muted))" }}
           />
           <DialogHeader>
-            <DialogTitle className="text-lg">{item ? "Editar ideia" : "Nova ideia"}</DialogTitle>
+            <DialogTitle className="text-base">{item ? "Editar ideia" : "Nova ideia"}</DialogTitle>
             {requireFull && (
               <DialogDescription className="text-xs">
                 Para colocar no calendário, preencha área, responsável e data.
               </DialogDescription>
             )}
           </DialogHeader>
-          <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="flex flex-col gap-4">
+          <form onSubmit={(e) => { e.preventDefault(); handleSave(); }} className="flex flex-col gap-3">
+            {/* Título — largura total */}
             <div>
-              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Título</label>
-              <Input autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder="Descreva a ideia" className="rounded-full h-11 px-4" />
+              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1 block">Título</label>
+              <Input autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder="Descreva a ideia" className="rounded-full h-9 px-4 text-sm" />
             </div>
-            <div>
-              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Área <span className="text-destructive">*</span></label>
-              <div className={`grid gap-x-3 gap-y-0 ${teams.length > 0 ? "grid-cols-2" : "grid-cols-1"}`}>
-                {/* Áreas */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wide">Áreas</span>
-                  <div className="flex flex-col gap-1.5">
+
+            {/* Linha principal: Área (esq) | Responsável + Data + Pontos (dir) */}
+            <div className="grid grid-cols-2 gap-4 items-start">
+
+              {/* Esquerda: Área */}
+              <div>
+                <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1 block">Área <span className="text-destructive">*</span></label>
+                <div className={`grid gap-x-2 ${teams.length > 0 ? "grid-cols-2" : "grid-cols-1"}`}>
+                  {/* Áreas */}
+                  <div className="flex flex-col gap-1">
+                    {teams.length > 0 && <span className="text-[9px] font-semibold text-muted-foreground/60 uppercase tracking-wide mb-0.5">Áreas</span>}
                     {AREAS.map(a => {
                       const selected = area === a.key;
                       return (
-                        <button
-                          key={a.key}
-                          type="button"
-                          onClick={() => { setArea(a.key); setPersonId(""); }}
-                          className="w-full px-3 py-1.5 rounded-full text-xs font-medium transition-all border text-left"
+                        <button key={a.key} type="button" onClick={() => { setArea(a.key); setPersonId(""); }}
+                          className="w-full px-2 py-1 rounded-full text-xs font-medium transition-all border text-left leading-tight"
                           style={{
                             backgroundColor: selected ? a.color : `${a.color}14`,
                             color: selected ? "#fff" : a.color,
                             borderColor: selected ? a.color : `${a.color}40`,
-                            boxShadow: selected ? `0 4px 14px ${a.color}55` : "none",
-                            transform: selected ? "translateY(-1px)" : "none",
+                            boxShadow: selected ? `0 2px 8px ${a.color}55` : "none",
                           }}
                         >
                           {a.label}
@@ -143,117 +144,119 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
                       );
                     })}
                   </div>
+                  {/* Times */}
+                  {teams.length > 0 && (
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] font-semibold text-muted-foreground/60 uppercase tracking-wide mb-0.5">Times</span>
+                      <div className="flex flex-col gap-1 max-h-[180px] overflow-y-auto pr-0.5">
+                        {teams.map(t => {
+                          const teamKey = `team_${t.id}`;
+                          const selected = area === teamKey;
+                          const tc = getTeamColor(t.id);
+                          return (
+                            <button key={teamKey} type="button" onClick={() => { setArea(teamKey); setPersonId(""); }}
+                              className="w-full px-2 py-1 rounded-full text-xs font-medium transition-all border text-left leading-tight"
+                              style={{
+                                backgroundColor: selected ? tc : `${tc}14`,
+                                color: selected ? "#fff" : tc,
+                                borderColor: selected ? tc : `${tc}40`,
+                                boxShadow: selected ? `0 2px 8px ${tc}55` : "none",
+                              }}
+                            >
+                              {t.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                {/* Times */}
-                {teams.length > 0 && (
-                  <div className="flex flex-col gap-1.5">
-                    <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wide">Times</span>
-                    <div className="flex flex-col gap-1.5">
-                      {teams.map(t => {
-                        const teamKey = `team_${t.id}`;
-                        const selected = area === teamKey;
-                        const tc = getTeamColor(t.id);
+              </div>
+
+              {/* Direita: Responsável + Data + Pontos */}
+              <div className="flex flex-col gap-3">
+                {/* Responsável */}
+                <div>
+                  <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1 block">
+                    Responsável {requireFull && <span className="text-destructive">*</span>}
+                  </label>
+                  {!area ? (
+                    <div className="h-8 rounded-full border border-dashed border-input bg-muted/30 px-3 flex items-center text-xs text-muted-foreground">
+                      Selecione a área primeiro
+                    </div>
+                  ) : peopleForArea.length === 0 ? (
+                    <div className="h-8 rounded-full border border-input bg-muted/30 px-3 flex items-center">😞</div>
+                  ) : (
+                    <div className="flex flex-wrap gap-1.5 max-h-[130px] overflow-y-auto">
+                      {peopleForArea.map(p => {
+                        const selected = personId === p.id;
+                        const areaColor = AREAS.find(a => a.key === area)?.color || "#64748B";
                         return (
-                          <button
-                            key={teamKey}
-                            type="button"
-                            onClick={() => { setArea(teamKey); setPersonId(""); }}
-                            className="w-full px-3 py-1.5 rounded-full text-xs font-medium transition-all border text-left"
+                          <button key={p.id} type="button" onClick={() => setPersonId(p.id)}
+                            className="px-2.5 h-7 rounded-full text-xs font-medium transition-all border"
                             style={{
-                              backgroundColor: selected ? tc : `${tc}14`,
-                              color: selected ? "#fff" : tc,
-                              borderColor: selected ? tc : `${tc}40`,
-                              boxShadow: selected ? `0 4px 14px ${tc}55` : "none",
-                              transform: selected ? "translateY(-1px)" : "none",
+                              backgroundColor: selected ? areaColor : `${areaColor}10`,
+                              color: selected ? "#fff" : "hsl(var(--foreground))",
+                              borderColor: selected ? areaColor : `${areaColor}30`,
+                              boxShadow: selected ? `0 2px 8px ${areaColor}55` : "none",
                             }}
                           >
-                            {t.name}
+                            {p.name}
                           </button>
                         );
                       })}
                     </div>
+                  )}
+                </div>
+
+                {/* Data */}
+                <div>
+                  <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1 block">
+                    Data {requireFull && <span className="text-destructive">*</span>}
+                  </label>
+                  <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="rounded-full h-9 px-4 text-sm" />
+                  {!requireFull && <p className="text-[10px] text-muted-foreground mt-0.5">Deixe em branco para manter em Papel.</p>}
+                </div>
+
+                {/* Pontos */}
+                <div>
+                  <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1 block">
+                    Pontos <span className="text-destructive">*</span>
+                  </label>
+                  <div className="flex gap-1.5">
+                    {[1, 2, 3].map(n => {
+                      const selected = points === n;
+                      const areaColor = AREAS.find(a => a.key === area)?.color || "#64748B";
+                      return (
+                        <button key={n} type="button" onClick={() => setPoints(n)}
+                          className="flex-1 h-9 rounded-full text-sm font-bold transition-all border"
+                          style={{
+                            backgroundColor: selected ? areaColor : `${areaColor}10`,
+                            color: selected ? "#fff" : areaColor,
+                            borderColor: selected ? areaColor : `${areaColor}30`,
+                            boxShadow: selected ? `0 2px 8px ${areaColor}55` : "none",
+                            transform: selected ? "translateY(-1px)" : "none",
+                          }}
+                        >
+                          {n}pt
+                        </button>
+                      );
+                    })}
                   </div>
-                )}
+                </div>
               </div>
             </div>
-            <div>
-              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Responsável {requireFull && <span className="text-destructive">*</span>}</label>
-              {!area ? (
-                <div className="h-11 rounded-full border border-dashed border-input bg-muted/30 px-4 flex items-center text-sm text-muted-foreground">
-                  Selecione a área primeiro
-                </div>
-              ) : peopleForArea.length === 0 ? (
-                <div className="h-11 rounded-full border border-input bg-muted/30 px-4 flex items-center text-2xl">😞</div>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {peopleForArea.map(p => {
-                    const selected = personId === p.id;
-                    const areaColor = AREAS.find(a => a.key === area)?.color || "#64748B";
-                    return (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => setPersonId(p.id)}
-                        className="px-4 h-9 rounded-full text-sm font-medium transition-all border"
-                        style={{
-                          backgroundColor: selected ? areaColor : `${areaColor}10`,
-                          color: selected ? "#fff" : "hsl(var(--foreground))",
-                          borderColor: selected ? areaColor : `${areaColor}30`,
-                          boxShadow: selected ? `0 4px 14px ${areaColor}55` : "none",
-                        }}
-                      >
-                        {p.name}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-            <div>
-              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Data {requireFull && <span className="text-destructive">*</span>}</label>
-              <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="rounded-full h-11 px-4" />
-              {!requireFull && <p className="text-[10px] text-muted-foreground mt-1">Deixe em branco para manter em Papel.</p>}
-            </div>
-            <div>
-              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">
-                Pontos <span className="text-destructive">*</span>
-              </label>
-              <div className="flex gap-2">
-                {[1, 2, 3].map(n => {
-                  const selected = points === n;
-                  const areaColor = AREAS.find(a => a.key === area)?.color || "#64748B";
-                  return (
-                    <button
-                      key={n}
-                      type="button"
-                      onClick={() => setPoints(n)}
-                      className="flex-1 h-12 rounded-full text-base font-bold transition-all border"
-                      style={{
-                        backgroundColor: selected ? areaColor : `${areaColor}10`,
-                        color: selected ? "#fff" : areaColor,
-                        borderColor: selected ? areaColor : `${areaColor}30`,
-                        boxShadow: selected ? `0 4px 14px ${areaColor}55` : "none",
-                        transform: selected ? "translateY(-1px)" : "none",
-                      }}
-                    >
-                      {n} {n === 1 ? "ponto" : "pontos"}
-                    </button>
-                  );
-                })}
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-1">Somados na gamificação quando a demanda for concluída.</p>
-            </div>
-            <div className="flex items-center justify-between pt-2">
+
+            {/* Botões */}
+            <div className="flex items-center justify-between pt-1">
               {item ? (
                 <Button type="button" variant="ghost" size="sm" className="text-destructive hover:text-destructive rounded-full" onClick={() => setConfirmDel(true)}>
                   <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir
                 </Button>
               ) : <div />}
               <div className="flex gap-2">
-                <Button type="button" variant="outline" className="rounded-full px-5" onClick={() => handleClose(false)}>Cancelar</Button>
-                <Button
-                  type="submit"
-                  className="rounded-full px-5 text-white border-0 hover:opacity-90"
+                <Button type="button" variant="outline" className="rounded-full px-4 h-9" onClick={() => handleClose(false)}>Cancelar</Button>
+                <Button type="submit" className="rounded-full px-4 h-9 text-white border-0 hover:opacity-90"
                   style={area ? { backgroundColor: AREAS.find(a => a.key === area)?.color } : undefined}
                 >
                   {requireFull ? "Colocar no calendário" : "Salvar"}
