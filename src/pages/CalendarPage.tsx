@@ -664,7 +664,7 @@ export default function CalendarPage() {
       )}
 
       {/* Calendário full width — dias quadrados no desktop */}
-      <div className="glass-panel rounded-2xl overflow-hidden">
+      <div className="glass-panel rounded-2xl cal-grid">
         <div className="grid grid-cols-7 border-b border-border">
           {weekDays.map(d => (
             <div key={d} className={`text-center font-medium text-muted-foreground uppercase tracking-wider ${isMobile ? "py-1.5 text-[10px]" : "py-2 text-xs"}`}>
