@@ -409,7 +409,7 @@ export default function CalendarPage() {
           </button>
         </div>
       </TooltipTrigger>
-      <TooltipContent side="right" className="text-xs max-w-[200px]">
+      <TooltipContent side="top" sideOffset={6} avoidCollisions className="text-xs max-w-[200px] z-[9999]">
         <p className="font-semibold">{item.title}</p>
         <p className="text-muted-foreground">{typeLabels[item.type]} • {item.date}{item.time ? ` ${item.time}` : ""}</p>
         {item.status && <p className="text-muted-foreground">Status: {item.type === "post" ? POST_STATUS_META[item.status]?.label || item.status : item.status}</p>}
@@ -538,10 +538,12 @@ export default function CalendarPage() {
               <span className="text-sm font-semibold text-foreground min-w-[140px] sm:min-w-[180px] text-center capitalize">{headerLabel()}</span>
               <button onClick={navigateNext} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground"><ChevronRight className="h-4 w-4" /></button>
             </div>
-            <button onClick={() => setParkingOpen(o => !o)} title={parkingOpen ? "Esconder papel" : "Mostrar papel"}
-              className="p-2 rounded-2xl bg-white/70 border border-border/70 backdrop-blur-sm text-muted-foreground hover:text-foreground transition-colors">
-              {parkingOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
-            </button>
+            {!isMobile && (
+              <button onClick={() => setParkingOpen(o => !o)} title={parkingOpen ? "Esconder papel" : "Mostrar papel"}
+                className="p-2 rounded-2xl bg-white/70 border border-border/70 backdrop-blur-sm text-muted-foreground hover:text-foreground transition-colors">
+                {parkingOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -603,8 +605,14 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      <div className={`grid gap-2 sm:gap-4 flex-1 min-h-0 w-full ${parkingOpen ? "grid-cols-[1fr] lg:grid-cols-[260px_1fr]" : "grid-cols-[28px_1fr] lg:grid-cols-[32px_1fr]"}`}>
-          {!parkingOpen && (
+      <div className={`grid gap-2 sm:gap-4 flex-1 min-h-0 w-full ${
+        isMobile
+          ? "grid-cols-[1fr]"
+          : parkingOpen
+            ? "grid-cols-[260px_1fr]"
+            : "grid-cols-[32px_1fr]"
+      }`}>
+          {!isMobile && !parkingOpen && (
             <button
               data-drop-parking="1"
               onClick={() => setParkingOpen(true)}
@@ -627,7 +635,7 @@ export default function CalendarPage() {
               </div>
             </button>
           )}
-          {parkingOpen && (
+          {!isMobile && parkingOpen && (
             <aside
               data-drop-parking="1"
               onDragOver={handleParkingDragOver}
