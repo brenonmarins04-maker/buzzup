@@ -513,7 +513,7 @@ export default function CalendarPage() {
   );
 
   return (
-    <div className="animate-fade-in flex flex-col gap-5 h-full min-h-[600px]">
+    <div className="animate-fade-in flex flex-col gap-3">
       {/* Hero (mesma identidade visual do Início) */}
       <div className="page-hero relative overflow-hidden rounded-2xl p-5 md:p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -538,48 +538,98 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* PAPEL strip — desktop only, horizontal scrollable */}
+      {/* Desktop: dois retângulos acima do calendário */}
       {!isMobile && (
-        <div
-          data-drop-parking="1"
-          onDragOver={handleParkingDragOver}
-          onDragLeave={handleParkingDragLeave}
-          onDrop={handleParkingDrop}
-          className={`glass-panel rounded-2xl flex items-center gap-3 px-3 py-2 shrink-0 transition-colors ${
-            parkingDropActive ? "border-primary ring-2 ring-primary/30 bg-primary/5" : ""
-          }`}
-        >
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Papel</span>
-            <span className="text-[10px] text-muted-foreground bg-muted rounded-full px-1.5 py-0.5 font-medium shrink-0">{parkedIdeas.length}</span>
-          </div>
-          {isAdmin && (
-            <form onSubmit={handleQuickIdea} className="shrink-0">
-              <input
-                ref={newIdeaRef}
-                value={newIdea}
-                onChange={e => setNewIdea(e.target.value)}
-                placeholder={filterArea ? `Nova ideia em ${activeAreaMeta?.label}…` : "Nova ideia + Enter"}
-                className="bg-muted/50 rounded-md px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60 w-44"
-              />
-            </form>
-          )}
-          <div className="flex-1 flex items-center gap-1.5 overflow-x-auto scrollbar-thin min-w-0 py-0.5">
-            {parkedIdeas.length === 0 ? (
-              <span className="text-[11px] text-muted-foreground/60 italic whitespace-nowrap">Nenhuma ideia estacionada</span>
-            ) : parkedIdeas.map(p => {
-              const isTeam = p.area?.startsWith("team_");
-              const areaMeta = AREAS.find(a => a.key === p.area);
-              const teamObj = isTeam ? teams.find(t => `team_${t.id}` === p.area) : null;
-              const color = getAreaColor(p.area);
-              const label = isTeam ? (teamObj?.name || "Time") : (areaMeta?.label || "Sem área");
-              const dim = filterArea && p.area && p.area !== filterArea;
-              return (
-                <div key={p.id} className={`shrink-0 ${dim ? "opacity-40" : ""}`}>
-                  {renderItemPill({ id: p.id, parkingId: p.id, title: p.title, type: "event", date: "", color, eventTypeName: label })}
+        <div className="flex gap-3 shrink-0">
+
+          {/* Retângulo de filtros */}
+          <div className="glass-panel rounded-2xl p-3 shrink-0">
+            <div className="flex flex-col gap-2.5">
+              <div>
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Áreas</span>
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {AREAS.map(a => {
+                    const active = filterArea === a.key;
+                    return (
+                      <button key={a.key} onClick={() => setFilterArea(active ? null : a.key)}
+                        style={active ? { backgroundColor: a.color, borderColor: a.color, color: "#fff" } : undefined}
+                        className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${active ? "" : "bg-background text-muted-foreground border-border hover:border-foreground/30 hover:text-foreground"}`}>
+                        {a.label}
+                      </button>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              </div>
+              {teams.length > 0 && (
+                <div>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Times</span>
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {teams.map(t => {
+                      const teamKey = `team_${t.id}`;
+                      const active = filterArea === teamKey;
+                      const teamColor = getTeamColor(t.id);
+                      return (
+                        <button key={teamKey} onClick={() => setFilterArea(active ? null : teamKey)}
+                          style={active ? { backgroundColor: teamColor, borderColor: teamColor, color: "#fff" } : { borderColor: `${teamColor}40`, color: teamColor }}
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${active ? "" : "bg-background hover:bg-accent"}`}>
+                          {t.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {filterArea && activeAreaMeta && (
+                <button onClick={() => setFilterArea(null)} className="text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1 w-fit">
+                  <X className="h-3 w-3" /> Limpar filtro
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Retângulo do Papel — matriz 5 linhas × 8 colunas, colunas primeiro */}
+          <div
+            data-drop-parking="1"
+            onDragOver={handleParkingDragOver}
+            onDragLeave={handleParkingDragLeave}
+            onDrop={handleParkingDrop}
+            className={`glass-panel rounded-2xl flex-1 p-3 transition-colors overflow-hidden ${
+              parkingDropActive ? "border-primary ring-2 ring-primary/30 bg-primary/5" : ""
+            }`}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Papel</span>
+              <span className="text-[10px] text-muted-foreground bg-muted rounded-full px-1.5 py-0.5 font-medium">{parkedIdeas.length}</span>
+              {isAdmin && (
+                <form onSubmit={handleQuickIdea} className="ml-auto">
+                  <input ref={newIdeaRef} value={newIdea} onChange={e => setNewIdea(e.target.value)}
+                    placeholder={filterArea ? `Nova ideia em ${activeAreaMeta?.label}…` : "Nova ideia + Enter"}
+                    className="bg-muted/50 rounded-md px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60 w-44" />
+                </form>
+              )}
+            </div>
+            {parkedIdeas.length === 0 ? (
+              <span className="text-[11px] text-muted-foreground/60 italic">Nenhuma ideia estacionada</span>
+            ) : (
+              <div
+                className="overflow-x-auto scrollbar-thin"
+                style={{ display: "grid", gridAutoFlow: "column", gridTemplateRows: "repeat(5, auto)", gap: "3px" }}
+              >
+                {parkedIdeas.slice(0, 40).map(p => {
+                  const isTeam = p.area?.startsWith("team_");
+                  const areaMeta = AREAS.find(a => a.key === p.area);
+                  const teamObj = isTeam ? teams.find(t => `team_${t.id}` === p.area) : null;
+                  const color = getAreaColor(p.area);
+                  const label = isTeam ? (teamObj?.name || "Time") : (areaMeta?.label || "Sem área");
+                  const dim = filterArea && p.area && p.area !== filterArea;
+                  return (
+                    <div key={p.id} className={`shrink-0 ${dim ? "opacity-40" : ""}`} style={{ width: 118 }}>
+                      {renderItemPill({ id: p.id, parkingId: p.id, title: p.title, type: "event", date: "", color, eventTypeName: label })}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -613,91 +663,28 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* Área principal: [sidebar filtros desktop | calendário] */}
-      <div className="flex gap-2 sm:gap-3 flex-1 min-h-0">
-
-        {/* Sidebar de filtros — desktop only */}
-        {!isMobile && (
-          <aside className="glass-panel rounded-2xl flex flex-col overflow-y-auto overflow-x-hidden shrink-0 w-[148px]">
-            <div className="px-3 pt-3 pb-2">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Áreas</span>
-              <div className="flex flex-col gap-0.5 mt-2">
-                {AREAS.map(a => {
-                  const active = filterArea === a.key;
-                  return (
-                    <button
-                      key={a.key}
-                      onClick={() => setFilterArea(active ? null : a.key)}
-                      style={active ? { backgroundColor: a.color, color: "#fff" } : undefined}
-                      className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
-                        active ? "shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                      }`}
-                    >
-                      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: active ? "#fff8" : a.color }} />
-                      {a.label}
-                    </button>
-                  );
-                })}
-              </div>
+      {/* Calendário full width — dias quadrados no desktop */}
+      <div className="glass-panel rounded-2xl overflow-hidden">
+        <div className="grid grid-cols-7 border-b border-border">
+          {weekDays.map(d => (
+            <div key={d} className={`text-center font-medium text-muted-foreground uppercase tracking-wider ${isMobile ? "py-1.5 text-[10px]" : "py-2 text-xs"}`}>
+              {isMobile ? d[0] : d}
             </div>
-            {teams.length > 0 && (
-              <>
-                <div className="mx-3 border-t border-border" />
-                <div className="px-3 pt-2.5 pb-3">
-                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Times</span>
-                  <div className="flex flex-col gap-0.5 mt-2">
-                    {teams.map(t => {
-                      const teamKey = `team_${t.id}`;
-                      const active = filterArea === teamKey;
-                      const teamColor = getTeamColor(t.id);
-                      return (
-                        <button
-                          key={teamKey}
-                          onClick={() => setFilterArea(active ? null : teamKey)}
-                          style={active ? { backgroundColor: teamColor, color: "#fff" } : { color: teamColor }}
-                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
-                            active ? "shadow-sm" : "hover:bg-accent"
-                          }`}
-                        >
-                          <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: active ? "#fff8" : teamColor }} />
-                          {t.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </>
-            )}
-            {filterArea && (
-              <div className="px-3 pb-3 mt-auto">
-                <button onClick={() => setFilterArea(null)}
-                  className="w-full text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1">
-                  <X className="h-3 w-3" /> Limpar filtro
-                </button>
-              </div>
-            )}
-          </aside>
-        )}
-
-        {/* Grid do calendário */}
-        <div className="glass-panel rounded-2xl overflow-hidden flex flex-col flex-1 min-h-0">
-          <div className="grid grid-cols-7 border-b border-border shrink-0">
-            {weekDays.map(d => (
-              <div key={d} className={`text-center font-medium text-muted-foreground uppercase tracking-wider ${isMobile ? "py-1.5 text-[10px]" : "py-2 text-xs"}`}>
-                {isMobile ? d[0] : d}
-              </div>
-            ))}
-          </div>
-          <div
-            className="grid grid-cols-7 flex-1 min-h-0"
-            style={{
-              gridTemplateRows: isMobile
-                ? `repeat(${monthDays.length / 7}, minmax(72px, auto))`
-                : `repeat(${monthDays.length / 7}, minmax(0, 1fr))`,
-            }}
-          >
-            {monthDays.map((day) => (<div key={format(day, "yyyy-MM-dd")} className="group min-h-0">{renderDayCell(day, isSameMonth(day, currentDate))}</div>))}
-          </div>
+          ))}
+        </div>
+        <div
+          className="grid grid-cols-7"
+          style={isMobile ? { gridTemplateRows: `repeat(${monthDays.length / 7}, minmax(72px, auto))` } : undefined}
+        >
+          {monthDays.map((day) => (
+            <div
+              key={format(day, "yyyy-MM-dd")}
+              className="group"
+              style={!isMobile ? { aspectRatio: "1" } : undefined}
+            >
+              {renderDayCell(day, isSameMonth(day, currentDate))}
+            </div>
+          ))}
         </div>
       </div>
 
