@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { useData } from "@/contexts/DataContext";
 import { UsersRound } from "lucide-react";
 import { getTeamColor } from "@/lib/areas";
+import { safeHref } from "@/lib/urlValidation";
 
 // Reuse the existing tabs from AreaPage but scoped to a team
 import AreaPage from "@/pages/AreaPage";
@@ -124,7 +125,7 @@ function TeamNotesTab({ teamAreaKey }: { teamAreaKey: string }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {notes.map(n => (
           <div key={n.id} className="group hover-lift relative glass-panel-soft rounded-2xl p-4 hover:border-primary/40">
-            <a href={n.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3">
+            <a href={safeHref(n.url)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3">
               <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
                 <ExternalLink className="h-4 w-4 text-primary" />
               </div>

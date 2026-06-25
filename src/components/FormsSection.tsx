@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { FileText, Plus, ExternalLink, CheckCircle2, Trash2, Users, UsersRound, Globe, ChevronDown, ChevronUp, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { AREAS, getAreaLabel } from "@/lib/areas";
+import { isValidHttpUrl, safeHref } from "@/lib/urlValidation";
 
 export default function FormsSection() {
   const { forms, formCompletions, teams, people, addForm, deleteForm, markFormCompleted, unmarkFormCompleted } = useData();
@@ -89,6 +90,7 @@ export default function FormsSection() {
     }
     let finalUrl = url.trim();
     if (!/^https?:\/\//i.test(finalUrl)) finalUrl = `https://${finalUrl}`;
+    if (!isValidHttpUrl(finalUrl)) { toast.error("URL inválida. Use https://..."); return; }
     setBusy(true);
     await addForm(title.trim(), finalUrl, targetType, targetType === "all" ? null : targetValue, description.trim());
     setBusy(false);
@@ -130,7 +132,7 @@ export default function FormsSection() {
               </div>
               <div className="flex gap-2 pt-2 border-t border-border/30">
                 <a
-                  href={f.url}
+                  href={safeHref(f.url)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-md bg-[#8B5CF6] text-white hover:bg-[#7C3AED] transition-all"
@@ -172,7 +174,7 @@ export default function FormsSection() {
                     </span>
                   </div>
                   <a
-                    href={f.url}
+                    href={safeHref(f.url)}
                     target="_blank"
                     rel="noopener noreferrer"
                     title="Abrir formulário"

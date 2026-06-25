@@ -26,31 +26,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const emailLower = String(email).toLowerCase().trim();
 
-  const signInRes = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
-    method: "POST",
-    headers: {
-      apikey: SERVICE_KEY,
-      Authorization: `Bearer ${SERVICE_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ email: emailLower, password }),
-  });
-
-  const session = await signInRes.json();
-
-  if (session.error || session.error_code) {
-    const isWrongCreds = session.error_code === "invalid_credentials"
-      || (session.error || "").toLowerCase().includes("invalid")
-      || signInRes.status === 400
-      || signInRes.status === 401;
-    return res.status(401).json({
-      error: isWrongCreds ? "invalid_credentials" : "auth_failed",
-      message: isWrongCreds
-        ? "Email ou senha incorretos."
-        : (session.error_description || session.error || "Erro ao autenticar"),
+  try {
+    const signInRes = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: "POST",
+      headers: {
+        apikey: SERVICE_KEY,
+        Authorization: `Bearer ${SERVICE_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email: emailLower, password }),
     });
+
+    const session = await signInRes.json();
+
+    if (session.error || session.error_code) {
+      const isWrongCreds = session.error_code === "invalid_credentials"
+        || (session.error || "").toLowerCase().includes("invalid")
+        || signInRes.status === 400
+        || signInRes.status === 401;
+      return res.status(401).json({
+        error: isWrongCreds ? "invalid_credentials" : "auth_failed",
+        message: isWrongCreds
+          ? "Email ou senha incorretos."
+          : (session.error_description || session.error || "Erro ao autenticar"),
+      });
+    }
+
+    return res.status(200).json(session);
+  } catch (e: any) {
+    Sentry.captureException(e);
+    return res.status(500).json({ error: "server_error", message: e.message });
   }
-
-  return res.status(200).json(session);
 }
-
