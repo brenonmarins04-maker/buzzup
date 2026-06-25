@@ -360,7 +360,7 @@ export default function CalendarPage() {
   const typeLabels: Record<string, string> = { task: "Demanda", post: "Post", event: "Evento" };
 
   const renderItemPill = (item: CalendarItem) => (
-    <Tooltip key={item.id}>
+    <Tooltip key={item.id} delayDuration={0}>
       <TooltipTrigger asChild>
         <div
           draggable={isAdmin}
