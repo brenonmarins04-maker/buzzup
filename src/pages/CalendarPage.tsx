@@ -359,6 +359,20 @@ export default function CalendarPage() {
   const calEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
   const monthDays = eachDayOfInterval({ start: calStart, end: calEnd });
 
+  // Dynamic cell height: compact when few demands, grows with content
+  const maxItemsInDay = useMemo(() => {
+    let max = 0;
+    monthDays.forEach(day => {
+      const dayStr = format(day, "yyyy-MM-dd");
+      const count = allItems.filter(item => item.date === dayStr).length;
+      if (count > max) max = count;
+    });
+    return max;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allItems, currentDate]);
+  // 36px header + 18px per row of 2 pills (max 10 pills = 5 rows), min 48px
+  const desktopCellHeight = isMobile ? undefined : Math.max(48, 36 + Math.ceil(Math.min(maxItemsInDay, 10) / 2) * 18);
+
   const typeLabels: Record<string, string> = { task: "Demanda", post: "Post", event: "Evento" };
 
   const renderItemPill = (item: CalendarItem) => (
@@ -680,7 +694,7 @@ export default function CalendarPage() {
             <div
               key={format(day, "yyyy-MM-dd")}
               className="group"
-              style={!isMobile ? { aspectRatio: "1", overflow: "visible" } : undefined}
+              style={!isMobile ? { minHeight: `${desktopCellHeight}px`, overflow: "visible" } : undefined}
             >
               {renderDayCell(day, isSameMonth(day, currentDate))}
             </div>
