@@ -140,6 +140,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Load custom area names per workspace — version triggers re-render of nav items
   const { version: areaNamesVersion } = useAreaNames();
 
+  // Must be called unconditionally (before any early return) to satisfy Rules of Hooks.
+  // areaNamesVersion dependency forces recompute when custom area names are saved.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const navItems = useMemo(() => getNavItems(), [areaNamesVersion]);
+
   const fullName =
     (displayName && displayName.trim()) ||
     (user?.email ? user.email.split("@")[0] : "") ||
@@ -327,9 +332,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
         <nav className="flex-1 py-4 px-2 flex flex-col gap-1 overflow-y-auto">
           {/* Main nav items (sem Acessos) */}
-          {/* areaNamesVersion in dep ensures re-render when workspace names load */}
-          {/* eslint-disable-next-line react-hooks/exhaustive-deps */}
-          {useMemo(() => getNavItems(), [areaNamesVersion]).map((item) => (
+          {navItems.map((item) => (
             <NavLink key={item.to} to={item.to}
               style={({ isActive }) => (isActive && (item as any).color
                 ? { backgroundColor: `${(item as any).color}1F`, color: (item as any).color, boxShadow: `inset 3px 0 0 ${(item as any).color}` }
