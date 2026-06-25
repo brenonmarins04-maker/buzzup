@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { initSentry, Sentry } from "./_sentry";
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || "";
 
@@ -42,6 +43,7 @@ Resumo:`;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  initSentry();
   if (req.method !== "POST") return res.status(405).json({ error: "method_not_allowed" });
   if (!ANTHROPIC_KEY) return res.status(500).json({ error: "no_api_key", message: "ANTHROPIC_API_KEY não configurada." });
 
@@ -63,6 +65,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const summaries = Object.fromEntries(results);
     return res.status(200).json({ summaries });
   } catch (e: any) {
+    Sentry.captureException(e);
     return res.status(502).json({ error: "anthropic_error", message: e.message });
   }
 }

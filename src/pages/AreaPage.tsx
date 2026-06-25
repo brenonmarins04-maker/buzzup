@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
+import { isValidHttpUrl, safeHref } from "@/lib/urlValidation";
 
 type Props = { area: AreaKey };
 
@@ -68,6 +69,7 @@ function NotesTab({ area }: { area: AreaKey }) {
     if (!name.trim() || !url.trim()) { toast.error("Nome e link são obrigatórios"); return; }
     let finalUrl = url.trim();
     if (!/^https?:\/\//i.test(finalUrl)) finalUrl = `https://${finalUrl}`;
+    if (!isValidHttpUrl(finalUrl)) { toast.error("Link inválido. Use http:// ou https://"); return; }
     if (modal.id) {
       const existing = notes.find(n => n.id === modal.id);
       if (existing) await updateAreaNote({ ...existing, name: name.trim(), url: finalUrl });
@@ -89,7 +91,7 @@ function NotesTab({ area }: { area: AreaKey }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {notes.map(n => (
           <div key={n.id} className="group hover-lift relative glass-panel-soft rounded-2xl p-4 hover:border-primary/40">
-            <a href={n.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3">
+            <a href={safeHref(n.url)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3">
               <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
                 <ExternalLink className="h-4 w-4 text-primary" />
               </div>

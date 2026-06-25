@@ -11,7 +11,7 @@ type FormMemory = {
 
 function getMemory(): FormMemory {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = sessionStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw);
   } catch {}
   return { lastTeam: "", lastChannel: "", lastCategory: "", lastTeamId: null };
@@ -19,7 +19,7 @@ function getMemory(): FormMemory {
 
 function setMemory(partial: Partial<FormMemory>) {
   const current = getMemory();
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...current, ...partial }));
+  sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ ...current, ...partial }));
 }
 
 export function useFormMemory() {

@@ -12,7 +12,7 @@ const AREA_NAMES_PREFIX = "__AREA_NAMES__:";
 
 export function useAreaNames() {
   const { broadcasts, addBroadcast, deleteBroadcast } = useData() as any;
-  const { activeWorkspaceId } = useAuth();
+  const { activeWorkspaceId, isOwner } = useAuth();
   // version bumps force consumers to re-render when names change
   const [version, setVersion] = useState(0);
 
@@ -44,7 +44,7 @@ export function useAreaNames() {
 
   const saveAreaNames = useCallback(
     async (names: Record<string, string>) => {
-      if (!activeWorkspaceId) return;
+      if (!activeWorkspaceId || !isOwner) return;
 
       // Apply locally immediately (workspace-specific)
       setCustomAreaNames(names, activeWorkspaceId);
@@ -62,7 +62,7 @@ export function useAreaNames() {
       ).toISOString();
       await addBroadcast(`${AREA_NAMES_PREFIX}${JSON.stringify(names)}`, 36500);
     },
-    [broadcasts, addBroadcast, deleteBroadcast, activeWorkspaceId]
+    [broadcasts, addBroadcast, deleteBroadcast, activeWorkspaceId, isOwner]
   );
 
   const currentNames = getCustomAreaNames(activeWorkspaceId ?? undefined);

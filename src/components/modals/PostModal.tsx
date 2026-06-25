@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useFormMemory } from "@/hooks/useFormMemory";
+import { isValidHttpUrl } from "@/lib/urlValidation";
 import TeamPersonSelector from "@/components/TeamPersonSelector";
 import TeamSelector from "@/components/TeamSelector";
 import { ChevronDown } from "lucide-react";
@@ -51,6 +52,8 @@ export default function PostModal({ open, onOpenChange, post, defaultDate }: Pro
 
   const handleSave = () => {
     if (!form.title.trim()) { toast.error("Título é obrigatório"); return; }
+    if (form.link && !isValidHttpUrl(form.link)) { toast.error("Link inválido. Use https://..."); return; }
+    if (form.media_url && !isValidHttpUrl(form.media_url)) { toast.error("URL de mídia inválida. Use https://..."); return; }
     remember({ lastChannel: form.channel, lastCategory: form.category, lastTeamId: form.teamId });
     if (post) {
       updatePost({

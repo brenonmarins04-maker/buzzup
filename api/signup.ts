@@ -1,22 +1,52 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { initSentry, Sentry } from "./_sentry";
 
-const SUPABASE_URL = "https://twwcnudhfvzbkdrtfmtu.supabase.co";
+const SUPABASE_URL = process.env.SUPABASE_URL || "https://twwcnudhfvzbkdrtfmtu.supabase.co";
 
 function cleanJwt(raw: string): string {
   return raw.replace(/[^A-Za-z0-9._\-]/g, "").trim();
 }
 
 const SERVICE_KEY = cleanJwt(process.env.SUPABASE_SERVICE_KEY || "");
-// Anon key is public — used for the regular signup endpoint so Supabase
-// respects the "Confirm email" setting and sends a verification email.
 const ANON_KEY = cleanJwt(
   process.env.SUPABASE_ANON_KEY ||
   process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   ""
 );
 
+// In-memory rate limiter: max 5 signup attempts per IP per minute.
+// Per-instance only (not global across Vercel instances) but still effective
+// against naive automated abuse targeting a single deployment.
+const rateMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX = 5;
+
+function getClientIp(req: VercelRequest): string {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (typeof forwarded === "string") return forwarded.split(",")[0].trim();
+  return req.socket?.remoteAddress ?? "unknown";
+}
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= RATE_MAX) return false;
+  entry.count++;
+  return true;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  initSentry();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+  const ip = getClientIp(req);
+  if (!checkRateLimit(ip)) {
+    return res.status(429).json({ error: "too_many_requests", message: "Muitas tentativas. Aguarde 1 minuto." });
+  }
 
   const { email, password, name } = req.body || {};
   if (!email || !password) return res.status(400).json({ error: "email e password obrigatorios" });
@@ -26,8 +56,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let userId: string | null = null;
 
     if (ANON_KEY) {
-      // Regular signup endpoint — Supabase sends confirmation email when
-      // "Confirm email" is enabled in Auth → Settings.
       const r = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
         method: "POST",
         headers: {
@@ -56,8 +84,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(r.status).json({ error: msg });
       }
 
-      // Empty identities array = email already registered (Supabase behaviour
-      // when "Confirm email" is on and duplicate signup is attempted).
       if (Array.isArray(data?.identities) && data.identities.length === 0) {
         return res.status(409).json({ error: "already_exists" });
       }
@@ -65,7 +91,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       userId = data?.id || null;
     } else {
       // Fallback when anon key is not available: admin API without email confirmation.
-      // To enable email confirmation add SUPABASE_ANON_KEY to Vercel env vars.
       const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
         method: "POST",
         headers: {
@@ -94,7 +119,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       userId = data?.id || null;
     }
 
-    // Create profile with service key (no trigger exists in this project)
+    // Create profile with service key (requires SERVICE_KEY — admin-only operation)
     if (userId) {
       const displayName = name || email.split("@")[0];
       await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
@@ -111,6 +136,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({ ok: true });
   } catch (e: any) {
+    Sentry.captureException(e);
     return res.status(500).json({ error: e.message });
   }
 }

@@ -1,7 +1,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
+import { timingSafeEqual } from "crypto";
+import { initSentry, Sentry } from "./_sentry";
 
-const SUPABASE_URL = "https://twwcnudhfvzbkdrtfmtu.supabase.co";
+const SUPABASE_URL = process.env.SUPABASE_URL || "https://twwcnudhfvzbkdrtfmtu.supabase.co";
 const SERVICE_KEY = (process.env.SUPABASE_SERVICE_KEY || "").replace(/[^A-Za-z0-9._\-]/g, "").trim();
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || "";
 
@@ -41,9 +43,17 @@ async function generateAreaSummary(areaName: string, demands: { title: string; p
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  initSentry();
   // Vercel envia Authorization: Bearer <CRON_SECRET>
-  const auth = req.headers["authorization"] ?? "";
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  // timingSafeEqual prevents timing-based secret inference attacks.
+  const auth = String(req.headers["authorization"] ?? "");
+  const expected = `Bearer ${process.env.CRON_SECRET ?? ""}`;
+  const providedBuf = Buffer.from(auth);
+  const expectedBuf = Buffer.from(expected);
+  const isAuthorized =
+    providedBuf.byteLength === expectedBuf.byteLength &&
+    timingSafeEqual(providedBuf, expectedBuf);
+  if (!isAuthorized) {
     return res.status(401).json({ error: "unauthorized" });
   }
 
@@ -118,6 +128,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       results.push({ wsId, ok: true });
     } catch (e: any) {
+      Sentry.captureException(e, { extra: { wsId } });
       results.push({ wsId, ok: false, error: e.message });
     }
   }

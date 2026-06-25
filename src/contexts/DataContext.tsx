@@ -225,78 +225,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
       ]);
       if (cancelled) return;
 
-      // Migrações pendentes de liderança (localStorage → banco), feitas após carregar
-      const leaderMigrations: { id: string; leader_areas: string }[] = [];
-
-      let pplList: Person[] = (pplRes.data || []).map((p: any) => {
+      const pplList: Person[] = (pplRes.data || []).map((p: any) => {
         const rawArea: string | null = p.area ?? null;
         const areas = rawArea ? rawArea.split(",").filter(Boolean) : [];
-        let leaderAreas: string[] = [];
-        // 1. Fonte da verdade: coluna leader_areas no banco (cross-device)
-        if (typeof p.leader_areas === "string" && p.leader_areas.trim()) {
-          leaderAreas = p.leader_areas.split(",").filter(Boolean);
-        } else {
-          // 2. Fallback/legado: localStorage (só existe no aparelho de quem cadastrou)
-          try {
-            const stored = localStorage.getItem(`buzzup.leader.${p.id}`);
-            if (stored && stored.trim()) {
-              leaderAreas = stored.split(",").filter(Boolean);
-              // Marca para migrar ao banco para que valha em qualquer aparelho
-              leaderMigrations.push({ id: p.id, leader_areas: leaderAreas.join(",") });
-            }
-          } catch {}
-        }
-        const leaderArea = leaderAreas[0] || null; // backward-compat single field
+        const leaderAreas: string[] = typeof p.leader_areas === "string" && p.leader_areas.trim()
+          ? p.leader_areas.split(",").filter(Boolean)
+          : [];
+        const leaderArea = leaderAreas[0] || null;
         return { id: p.id, name: p.name, nickname: p.nickname ?? null, area: rawArea, areas, userId: p.user_id ?? null, leaderArea, leaderAreas };
       });
-
-      // Migra liderança que só existia em localStorage para a coluna do banco.
-      // Só funciona quando quem está logado é admin (RLS people_w), que é justamente
-      // o aparelho onde a liderança foi cadastrada. Falhas são silenciosas.
-      if (leaderMigrations.length > 0) {
-        for (const m of leaderMigrations) {
-          try { await (supabase.from("people") as any).update({ leader_areas: m.leader_areas }).eq("id", m.id); } catch {}
-        }
-      }
-
-      // Sync: keep people list in sync with workspace_members
-      try {
-        const { data: wsMembers } = await (supabase.rpc as any)("list_workspace_members", { _ws_id: wsId });
-        if (wsMembers && !cancelled) {
-          const memberUserIds = new Set((wsMembers as any[]).map(m => m.user_id));
-
-          // 1. Auto-create people entries for workspace members who don't have one yet
-          const existingUserIds = new Set(pplList.filter(p => p.userId).map(p => p.userId));
-          const toCreate = (wsMembers as any[]).filter(m => m.user_id && !existingUserIds.has(m.user_id));
-          if (toCreate.length > 0) {
-            const inserts = toCreate.map((m: any) => ({
-              workspace_id: wsId,
-              name: m.display_name || "Usuário",
-              user_id: m.user_id,
-            }));
-            const { data: created } = await (supabase.from("people") as any)
-              .insert(inserts)
-              .select("id, name, nickname, area, user_id");
-            if (created && !cancelled) {
-              const newPeople: Person[] = (created as any[]).map((p: any) => {
-                const rawArea: string | null = p.area ?? null;
-                return { id: p.id, name: p.name, nickname: p.nickname ?? null, area: rawArea, areas: rawArea ? rawArea.split(",").filter(Boolean) : [], userId: p.user_id ?? null, leaderArea: null };
-              });
-              pplList = [...pplList, ...newPeople];
-            }
-          }
-
-          // 2. Remove people whose linked account was removed from workspace
-          const orphaned = pplList.filter(p => p.userId && !memberUserIds.has(p.userId));
-          for (const orphan of orphaned) {
-            await (supabase.from("people") as any).delete().eq("id", orphan.id);
-          }
-          if (orphaned.length > 0) {
-            const orphanIds = new Set(orphaned.map(o => o.id));
-            pplList = pplList.filter(p => !orphanIds.has(p.id));
-          }
-        }
-      } catch (_) { /* sync failure is non-fatal */ }
 
       const pplMap = new Map(pplList.map(p => [p.id, p]));
       setPeople(pplList);
@@ -450,7 +387,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     let scheduled: ReturnType<typeof setTimeout> | null = null;
     const trigger = () => {
       if (scheduled) return;
-      scheduled = setTimeout(() => { scheduled = null; setRefetchTick(t => t + 1); }, 250);
+      scheduled = setTimeout(() => { scheduled = null; setRefetchTick(t => t + 1); }, 1000);
     };
     const channel = supabase.channel(`ws-${workspaceId}`);
     tables.forEach(table => {
@@ -459,6 +396,47 @@ export function DataProvider({ children }: { children: ReactNode }) {
     channel.subscribe();
     return () => { if (scheduled) clearTimeout(scheduled); supabase.removeChannel(channel); };
   }, [workspaceId]);
+
+  // Sync: keep people list in sync with workspace_members.
+  // Isolated effect — runs only on workspace change, not on every Realtime tick,
+  // to prevent write race conditions when multiple Realtime events arrive simultaneously.
+  useEffect(() => {
+    if (!uid || !workspaceId) return;
+    const wsId = workspaceId;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: wsMembers } = await (supabase.rpc as any)("list_workspace_members", { _ws_id: wsId });
+        if (!wsMembers || cancelled) return;
+
+        const memberUserIds = new Set((wsMembers as any[]).map((m: any) => m.user_id));
+
+        const { data: currentPeople } = await (supabase.from("people") as any)
+          .select("id, name, user_id")
+          .eq("workspace_id", wsId);
+        if (cancelled || !currentPeople) return;
+
+        const existingUserIds = new Set((currentPeople as any[]).filter((p: any) => p.user_id).map((p: any) => p.user_id));
+        const toCreate = (wsMembers as any[]).filter((m: any) => m.user_id && !existingUserIds.has(m.user_id));
+        const orphaned = (currentPeople as any[]).filter((p: any) => p.user_id && !memberUserIds.has(p.user_id));
+
+        if (toCreate.length > 0) {
+          await (supabase.from("people") as any).insert(
+            toCreate.map((m: any) => ({ workspace_id: wsId, name: m.display_name || "Usuário", user_id: m.user_id }))
+          );
+        }
+        for (const orphan of orphaned) {
+          await (supabase.from("people") as any).delete().eq("id", (orphan as any).id);
+        }
+
+        // Bump the refetch tick only if something actually changed, to reload people
+        if (!cancelled && (toCreate.length > 0 || orphaned.length > 0)) {
+          setRefetchTick(t => t + 1);
+        }
+      } catch (_) {}
+    })();
+    return () => { cancelled = true; };
+  }, [uid, workspaceId]);
 
   // Daily login tracking — upsert once per day per user/workspace (ignoreDuplicates handles re-renders)
   useEffect(() => {
@@ -544,13 +522,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const updatePersonLeaderAreas = useCallback(async (id: string, leaderAreas: string[]) => {
     const areaStr = leaderAreas.length > 0 ? leaderAreas.join(",") : null;
-    // Persiste no banco (cross-device); mantém localStorage como cache/legado
     const { error } = await (supabase.from("people") as any).update({ leader_areas: areaStr }).eq("id", id);
     if (error) { toast.error("Erro ao salvar liderança"); return; }
-    try {
-      if (areaStr) localStorage.setItem(`buzzup.leader.${id}`, areaStr);
-      else localStorage.removeItem(`buzzup.leader.${id}`);
-    } catch {}
     setPeople(prev => prev.map(p => p.id === id ? { ...p, leaderAreas, leaderArea: leaderAreas[0] || null } : p));
   }, []);
 
@@ -558,10 +531,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const areaStr = leaderArea || null;
     const { error } = await (supabase.from("people") as any).update({ leader_areas: areaStr }).eq("id", id);
     if (error) { toast.error("Erro ao salvar liderança"); return; }
-    try {
-      if (areaStr) localStorage.setItem(`buzzup.leader.${id}`, areaStr);
-      else localStorage.removeItem(`buzzup.leader.${id}`);
-    } catch {}
     setPeople(prev => prev.map(p => p.id === id ? { ...p, leaderArea, leaderAreas: leaderArea ? [leaderArea] : [] } : p));
   }, []);
 

@@ -14,7 +14,7 @@ const SUPABASE_URL = typeof window !== 'undefined' && !isLocalhost
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
-    storage: localStorage,
+    storage: sessionStorage,
     persistSession: true,
     autoRefreshToken: true,
   }

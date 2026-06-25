@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { initSentry, Sentry } from "./_sentry";
 
-const SUPABASE_URL = "https://twwcnudhfvzbkdrtfmtu.supabase.co";
+const SUPABASE_URL = process.env.SUPABASE_URL || "https://twwcnudhfvzbkdrtfmtu.supabase.co";
 
 function cleanJwt(raw: string): string {
   return raw.replace(/[^A-Za-z0-9._\-]/g, "").trim();
@@ -9,6 +10,7 @@ function cleanJwt(raw: string): string {
 const SERVICE_KEY = cleanJwt(process.env.SUPABASE_SERVICE_KEY || "");
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  initSentry();
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -51,3 +53,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   return res.status(200).json(session);
 }
+
