@@ -68,7 +68,7 @@ export default function CalendarPage() {
   const [postModal, setPostModal] = useState<{ open: boolean; post?: Post | null; date?: string }>({ open: false });
   const [eventModal, setEventModal] = useState<{ open: boolean; event?: CalendarEvent | null; date?: string }>({ open: false });
   const [ideaModal, setIdeaModal] = useState<{ open: boolean; item: import("@/contexts/DataContext").ParkingItem | null; defaultDate?: string; defaultArea?: string; requireFull?: boolean }>({ open: false, item: null });
-  const [deleting, setDeleting] = useState<{ open: boolean; id: string; title: string; type: string }>({ open: false, id: "", title: "", type: "" });
+  const [deleting, setDeleting] = useState<{ open: boolean; id: string; title: string; type: string; parkingId?: string }>({ open: false, id: "", title: "", type: "" });
 
   const [tooltipState, setTooltipState] = useState<{ item: CalendarItem; rect: DOMRect } | null>(null);
 
@@ -197,7 +197,8 @@ export default function CalendarPage() {
   };
 
   const handleDelete = () => {
-    if (deleting.type === "task") deleteTask(deleting.id);
+    if (deleting.parkingId) deleteParkingItem(deleting.parkingId);
+    else if (deleting.type === "task") deleteTask(deleting.id);
     else if (deleting.type === "post") deletePost(deleting.id);
     else if (deleting.type === "event") deleteEvent(deleting.id);
     toast.success("Item excluído");
@@ -418,7 +419,7 @@ export default function CalendarPage() {
       >
         {item.title}
       </div>
-      <button onClick={(e) => { e.stopPropagation(); setDeleting({ open: true, id: item.id, title: item.title, type: item.type }); }}
+      <button onClick={(e) => { e.stopPropagation(); setDeleting({ open: true, id: item.id, title: item.title, type: item.type, parkingId: item.parkingId }); }}
         className="absolute top-0 right-0 h-full px-0.5 flex items-center opacity-0 group-hover/pill:opacity-100 transition-opacity">
         <X className="h-2.5 w-2.5 text-white hover:text-destructive" />
       </button>
