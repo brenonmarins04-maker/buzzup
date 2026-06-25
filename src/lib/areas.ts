@@ -20,7 +20,7 @@ export function loadAreaNamesForWorkspace(wsId: string | null): void {
   if (!wsId) return;
   if (wsNamesCache.has(wsId)) return; // already loaded
   try {
-    const raw = localStorage.getItem(lsKey(wsId));
+    const raw = sessionStorage.getItem(lsKey(wsId));
     wsNamesCache.set(wsId, raw ? JSON.parse(raw) : {});
   } catch {
     wsNamesCache.set(wsId, {});
@@ -32,7 +32,7 @@ export function setCustomAreaNames(names: Record<string, string>, wsId?: string)
   const id = wsId || _activeWsId;
   if (!id) return;
   wsNamesCache.set(id, names);
-  try { localStorage.setItem(lsKey(id), JSON.stringify(names)); } catch {}
+  try { sessionStorage.setItem(lsKey(id), JSON.stringify(names)); } catch {}
 }
 
 /** Read custom names for a workspace (defaults to active workspace). */

@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useState } from "react";
-import { useData } from "@/contexts/DataContext";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   setCustomAreaNames,
@@ -11,58 +11,87 @@ import {
 const AREA_NAMES_PREFIX = "__AREA_NAMES__:";
 
 export function useAreaNames() {
-  const { broadcasts, addBroadcast, deleteBroadcast } = useData() as any;
   const { activeWorkspaceId, isOwner } = useAuth();
-  // version bumps force consumers to re-render when names change
   const [version, setVersion] = useState(0);
 
-  // Load workspace-specific names from localStorage whenever workspace changes
   useEffect(() => {
     loadAreaNamesForWorkspace(activeWorkspaceId ?? null);
-    setVersion(v => v + 1);
-  }, [activeWorkspaceId]);
+    if (!activeWorkspaceId) { setVersion(v => v + 1); return; }
 
-  // Sync from broadcasts (workspace-scoped via DataContext) into per-workspace cache
-  useEffect(() => {
-    if (!broadcasts || !activeWorkspaceId) return;
-    const flag = (broadcasts as any[]).find((b: any) =>
-      b.message?.startsWith(AREA_NAMES_PREFIX)
-    );
-    if (flag) {
+    const wsId = activeWorkspaceId;
+    let cancelled = false;
+
+    const load = async () => {
       try {
-        const names = JSON.parse(flag.message.slice(AREA_NAMES_PREFIX.length));
-        setCustomAreaNames(names, activeWorkspaceId);
-        setVersion(v => v + 1);
+        // Primary source: workspace_config table
+        const { data: config, error } = await (supabase.from("workspace_config") as any)
+          .select("area_names")
+          .eq("workspace_id", wsId)
+          .maybeSingle();
+
+        if (cancelled) return;
+
+        if (!error && config?.area_names) {
+          setCustomAreaNames(config.area_names as Record<string, string>, wsId);
+        } else {
+          // Fallback: read from broadcasts (before SQL migration or if table doesn't exist yet)
+          const { data: bcs } = await (supabase.from("broadcasts") as any)
+            .select("message")
+            .eq("workspace_id", wsId)
+            .gt("expires_at", new Date().toISOString());
+
+          if (!cancelled && bcs) {
+            const flag = (bcs as any[]).find((b: any) => b.message?.startsWith(AREA_NAMES_PREFIX));
+            if (flag) {
+              try {
+                const names = JSON.parse(flag.message.slice(AREA_NAMES_PREFIX.length));
+                setCustomAreaNames(names, wsId);
+              } catch {}
+            }
+          }
+        }
       } catch {}
-    } else {
-      // No custom broadcast → use defaults (clear any cached names for this ws)
-      // Only clear if we already loaded this workspace (don't wipe on first load)
-      setCustomAreaNames({}, activeWorkspaceId);
-      setVersion(v => v + 1);
-    }
-  }, [broadcasts, activeWorkspaceId]);
+      if (!cancelled) setVersion(v => v + 1);
+    };
+
+    load();
+
+    // Realtime: reload when the owner updates the config (so all members see it immediately)
+    const ch = supabase
+      .channel(`wsc-${wsId}`)
+      .on("postgres_changes", {
+        event: "*",
+        schema: "public",
+        table: "workspace_config",
+        filter: `workspace_id=eq.${wsId}`,
+      }, () => { if (!cancelled) load(); })
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(ch);
+    };
+  }, [activeWorkspaceId]);
 
   const saveAreaNames = useCallback(
     async (names: Record<string, string>) => {
       if (!activeWorkspaceId || !isOwner) return;
 
-      // Apply locally immediately (workspace-specific)
+      // Apply locally immediately
       setCustomAreaNames(names, activeWorkspaceId);
       setVersion(v => v + 1);
 
-      // Remove old broadcast for this workspace, create new one
-      if (broadcasts) {
-        const old = (broadcasts as any[]).find((b: any) =>
-          b.message?.startsWith(AREA_NAMES_PREFIX)
-        );
-        if (old) await deleteBroadcast(old.id);
-      }
-      const expiresAt = new Date(
-        Date.now() + 36500 * 24 * 60 * 60 * 1000
-      ).toISOString();
-      await addBroadcast(`${AREA_NAMES_PREFIX}${JSON.stringify(names)}`, 36500);
+      // Persist to workspace_config (upsert: creates on first save, updates after)
+      await (supabase.from("workspace_config") as any).upsert(
+        {
+          workspace_id: activeWorkspaceId,
+          area_names: names,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "workspace_id" }
+      );
     },
-    [broadcasts, addBroadcast, deleteBroadcast, activeWorkspaceId, isOwner]
+    [activeWorkspaceId, isOwner]
   );
 
   const currentNames = getCustomAreaNames(activeWorkspaceId ?? undefined);

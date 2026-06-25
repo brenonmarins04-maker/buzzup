@@ -19,7 +19,8 @@ export default function BroadcastBar() {
     return () => clearInterval(id);
   }, []);
 
-  const visible = broadcasts.filter(b => !dismissed[b.id] && !b.message.startsWith("__AREA_NAMES__:"));
+  const userBroadcasts = broadcasts.filter(b => !b.message.startsWith("__AREA_NAMES__:"));
+  const visible = userBroadcasts.filter(b => !dismissed[b.id]);
   if (visible.length === 0) return null;
 
   const formatRemaining = (expiresAt: string) => {
@@ -63,12 +64,12 @@ export default function BroadcastBar() {
                 <div className="px-3 py-2 border-b border-border bg-red-500/5 flex items-center gap-2">
                   <Megaphone className="h-3.5 w-3.5 text-red-600" />
                   <span className="text-xs font-bold uppercase tracking-wide text-red-700">Mensagens ativas</span>
-                  <span className="ml-auto text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold">{broadcasts.length}</span>
+                  <span className="ml-auto text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold">{userBroadcasts.length}</span>
                 </div>
                 <div className="max-h-80 overflow-auto">
-                  {broadcasts.length === 0 ? (
+                  {userBroadcasts.length === 0 ? (
                     <div className="px-3 py-6 text-xs text-muted-foreground text-center">Nenhuma mensagem ativa</div>
-                  ) : broadcasts.map(item => (
+                  ) : userBroadcasts.map(item => (
                     <div key={item.id} className="px-3 py-2.5 border-b border-border last:border-0 flex items-start gap-2 hover:bg-accent/40 transition-colors">
                       <div className="flex-1 min-w-0">
                         <p className="text-xs font-medium text-foreground line-clamp-2 break-words">{item.message}</p>
