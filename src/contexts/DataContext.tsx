@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Database } from "@/integrations/supabase/types";
@@ -182,7 +182,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [formCompletions, setFormCompletions] = useState<FormCompletion[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoriesRaw, setCategoriesRaw] = useState<{ id: string; name: string }[]>([]);
-  const [refetchTick, setRefetchTick] = useState(0);
+  const pplMapRef = useRef<Map<string, Person>>(new Map());
 
   // Fetch workspace + all data
   useEffect(() => {
@@ -236,6 +236,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       });
 
       const pplMap = new Map(pplList.map(p => [p.id, p]));
+      pplMapRef.current = pplMap;
       setPeople(pplList);
 
       // Build junction maps
@@ -368,33 +369,208 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
     fetchAll();
     return () => { cancelled = true; };
-  }, [uid, workspaceId, refetchTick]);
+  }, [uid, workspaceId]);
 
-  // Realtime: re-fetch all data when ANY workspace table changes
+  // Realtime: re-fetch only the affected data group when a specific table changes
   useEffect(() => {
     if (!workspaceId) return;
-    const tables = [
-      "people", "tasks", "posts", "projects", "calendar_items",
-      "categories", "channels", "teams", "team_members",
-      "task_assignees", "post_assignees", "project_participants", "event_types",
-      "area_notes", "parking_items",
-      "gamification_actions", "gamification_awards",
-      "lead_thermometer",
-      "attendance_settings", "attendance_records",
-      "broadcasts",
-      "workspace_forms", "form_completions",
-    ];
-    let scheduled: ReturnType<typeof setTimeout> | null = null;
-    const trigger = () => {
-      if (scheduled) return;
-      scheduled = setTimeout(() => { scheduled = null; setRefetchTick(t => t + 1); }, 1000);
+    const wsId = workspaceId;
+
+    const refetchPeople = async () => {
+      const { data } = await (supabase.from("people") as any).select("*").eq("workspace_id", wsId);
+      const pplList: Person[] = (data || []).map((p: any) => {
+        const rawArea: string | null = p.area ?? null;
+        const areas = rawArea ? rawArea.split(",").filter(Boolean) : [];
+        const leaderAreas: string[] = typeof p.leader_areas === "string" && p.leader_areas.trim()
+          ? p.leader_areas.split(",").filter(Boolean) : [];
+        return { id: p.id, name: p.name, nickname: p.nickname ?? null, area: rawArea, areas, userId: p.user_id ?? null, leaderArea: leaderAreas[0] || null, leaderAreas };
+      });
+      pplMapRef.current = new Map(pplList.map(p => [p.id, p]));
+      setPeople(pplList);
     };
+
+    const refetchTasks = async () => {
+      const [tkRes, taRes] = await Promise.all([
+        supabase.from("tasks").select("*").eq("workspace_id", wsId),
+        supabase.from("task_assignees").select("task_id, person_id"),
+      ]);
+      const pplMap = pplMapRef.current;
+      const taskAssignees = new Map<string, Person[]>();
+      (taRes.data || []).forEach((r: any) => {
+        const person = pplMap.get(r.person_id);
+        if (person) { const arr = taskAssignees.get(r.task_id) || []; arr.push(person); taskAssignees.set(r.task_id, arr); }
+      });
+      setTasks((tkRes.data || []).map((r: any) => ({
+        id: r.id, title: r.title, description: r.description, team: r.team,
+        teamId: r.team_id ?? null,
+        responsible: taskAssignees.get(r.id) || [], deadline: r.deadline, status: r.status,
+        checklist: Array.isArray(r.checklist) ? r.checklist as { text: string; checked: boolean }[] : [],
+        points: r.points ?? 0, area: r.area ?? null,
+      })));
+    };
+
+    const refetchPosts = async () => {
+      const [psRes, paRes] = await Promise.all([
+        supabase.from("posts").select("*").eq("workspace_id", wsId),
+        supabase.from("post_assignees").select("post_id, person_id"),
+      ]);
+      const pplMap = pplMapRef.current;
+      const postAssignees = new Map<string, Person[]>();
+      (paRes.data || []).forEach((r: any) => {
+        const person = pplMap.get(r.person_id);
+        if (person) { const arr = postAssignees.get(r.post_id) || []; arr.push(person); postAssignees.set(r.post_id, arr); }
+      });
+      setPosts((psRes.data || []).map((r: any) => ({
+        id: r.id, title: r.title, copy: r.copy, channel: r.channel, category: r.category,
+        date: r.date, time: r.time, status: r.status, responsible: postAssignees.get(r.id) || [],
+        link: r.link, media_url: r.media_url, teamId: r.team_id ?? null,
+      })));
+    };
+
+    const refetchProjects = async () => {
+      const [projRes, ppRes] = await Promise.all([
+        supabase.from("projects").select("*").eq("workspace_id", wsId),
+        supabase.from("project_participants").select("project_id, person_id"),
+      ]);
+      const pplMap = pplMapRef.current;
+      const projParticipants = new Map<string, Person[]>();
+      (ppRes.data || []).forEach((r: any) => {
+        const person = pplMap.get(r.person_id);
+        if (person) { const arr = projParticipants.get(r.project_id) || []; arr.push(person); projParticipants.set(r.project_id, arr); }
+      });
+      setProjects((projRes.data || []).map((r: any) => ({
+        id: r.id, name: r.name, description: r.description, color: r.color, status: r.status,
+        members: projParticipants.get(r.id) || [],
+        managerId: r.manager_id ?? null, pipelineStatus: r.pipeline_status ?? "",
+        startDate: r.start_date ?? "", endContract: r.end_contract ?? "", endDelivered: r.end_delivered ?? "",
+      })));
+    };
+
+    const refetchTeams = async () => {
+      const [teamsRes, tmRes] = await Promise.all([
+        supabase.from("teams").select("id, name").eq("workspace_id", wsId),
+        supabase.from("team_members").select("team_id, person_id"),
+      ]);
+      const teamMembersMap = new Map<string, string[]>();
+      (tmRes.data || []).forEach((r: any) => { const arr = teamMembersMap.get(r.team_id) || []; arr.push(r.person_id); teamMembersMap.set(r.team_id, arr); });
+      setTeams((teamsRes.data || []).map((t: any) => ({ id: t.id, name: t.name, memberIds: teamMembersMap.get(t.id) || [] })));
+    };
+
+    const refetchEvents = async () => {
+      const { data } = await supabase.from("calendar_items").select("*").eq("workspace_id", wsId);
+      setEvents((data || []).map((r: any) => ({ id: r.id, title: r.title, date: r.date, type: r.type, description: r.description, teamId: r.team_id ?? null })));
+    };
+
+    const refetchCategories = async () => {
+      const { data } = await supabase.from("categories").select("id, name").eq("workspace_id", wsId);
+      const rawCats = data || [];
+      setCategoriesRaw(rawCats);
+      setCategories(rawCats.map((c: any) => c.name));
+    };
+
+    const refetchChannels = async () => {
+      const { data } = await supabase.from("channels").select("id, name, color").eq("workspace_id", wsId);
+      setChannels((data || []).map((c: any) => ({ id: c.id, name: c.name, color: c.color })));
+    };
+
+    const refetchEventTypes = async () => {
+      const { data } = await (supabase.from as any)("event_types").select("id, name, color").eq("workspace_id", wsId);
+      setEventTypes((data || []).map((e: any) => ({ id: e.id, name: e.name, color: e.color })));
+    };
+
+    const refetchAreaNotes = async () => {
+      const { data } = await (supabase.from as any)("area_notes").select("*").eq("workspace_id", wsId);
+      setAreaNotes((data || []).map((n: any) => ({ id: n.id, area: n.area, name: n.name, url: n.url, position: n.position ?? 0 })));
+    };
+
+    const refetchParkingItems = async () => {
+      const { data } = await (supabase.from as any)("parking_items").select("*").eq("workspace_id", wsId);
+      setParkingItems((data || []).map((p: any) => ({ id: p.id, area: p.area, personId: p.person_id ?? null, title: p.title, description: p.description ?? "", date: p.date ?? "", position: p.position ?? 0, status: (p.status as ParkingItemStatus) ?? "in-progress", points: p.points ?? 1, completedAt: p.completed_at ?? null })));
+    };
+
+    const refetchGamificationActions = async () => {
+      const { data } = await (supabase.from as any)("gamification_actions").select("*").eq("workspace_id", wsId);
+      setGamificationActions((data || []).map((a: any) => ({ id: a.id, name: a.name, points: a.points ?? 0 })));
+    };
+
+    const refetchGamificationAwards = async () => {
+      const { data } = await (supabase.from as any)("gamification_awards").select("*").eq("workspace_id", wsId).order("awarded_at", { ascending: false });
+      setGamificationAwards((data || []).map((w: any) => ({ id: w.id, personId: w.person_id, actionId: w.action_id ?? null, actionName: w.action_name, points: w.points ?? 0, awardedAt: w.awarded_at })));
+    };
+
+    const refetchLeadThermometer = async () => {
+      const { data } = await (supabase.from as any)("lead_thermometer").select("*").eq("workspace_id", wsId).order("position", { ascending: true });
+      setLeadThermometer((data || []).map((l: any) => ({ id: l.id, name: l.name, value: l.value ?? "", areaSize: l.area_size ?? "", type: l.type ?? "", position: l.position ?? 0 })));
+    };
+
+    const refetchAttendanceSettings = async () => {
+      const { data } = await (supabase.from as any)("attendance_settings").select("*").eq("workspace_id", wsId);
+      setAttendanceSettings((data || []).map((s: any) => ({ id: s.id, area: s.area, intervalDays: s.interval_days ?? 7, startDate: s.start_date ?? "", meetingCount: s.meeting_count ?? 8 })));
+    };
+
+    const refetchAttendanceRecords = async () => {
+      const { data } = await (supabase.from as any)("attendance_records").select("*").eq("workspace_id", wsId);
+      setAttendanceRecords((data || []).map((r: any) => ({ id: r.id, area: r.area, personId: r.person_id, date: r.date, status: (r.status ?? "P") as AttendanceStatus, justification: r.justification ?? "" })));
+    };
+
+    const refetchBroadcasts = async () => {
+      const { data } = await (supabase.from as any)("broadcasts").select("*").eq("workspace_id", wsId).gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false });
+      setBroadcasts((data || []).map((b: any) => ({ id: b.id, message: b.message, durationDays: b.duration_days ?? 7, createdAt: b.created_at, expiresAt: b.expires_at, createdBy: b.created_by ?? null })));
+    };
+
+    const refetchForms = async () => {
+      const { data } = await (supabase.from as any)("workspace_forms").select("*").eq("workspace_id", wsId).order("created_at", { ascending: false });
+      setForms((data || []).map((f: any) => ({ id: f.id, title: f.title, description: f.description ?? "", url: f.url, targetType: (f.target_type ?? "all") as WorkspaceFormTarget, targetValue: f.target_value ?? null, createdBy: f.created_by ?? null, createdAt: f.created_at })));
+    };
+
+    const refetchFormCompletions = async () => {
+      const { data } = await (supabase.from as any)("form_completions").select("*").eq("workspace_id", wsId);
+      setFormCompletions((data || []).map((c: any) => ({ id: c.id, formId: c.form_id, userId: c.user_id, completedAt: c.completed_at })));
+    };
+
+    // Per-group debounce: bursts on the same group collapse into one fetch (300ms window)
+    const timers = new Map<string, ReturnType<typeof setTimeout>>();
+    const debounced = (key: string, fn: () => Promise<void>) => {
+      const existing = timers.get(key);
+      if (existing) clearTimeout(existing);
+      timers.set(key, setTimeout(() => { timers.delete(key); fn(); }, 300));
+    };
+
+    const TABLE_HANDLERS: Record<string, () => void> = {
+      people:               () => debounced("people", refetchPeople),
+      tasks:                () => debounced("tasks", refetchTasks),
+      task_assignees:       () => debounced("tasks", refetchTasks),
+      posts:                () => debounced("posts", refetchPosts),
+      post_assignees:       () => debounced("posts", refetchPosts),
+      projects:             () => debounced("projects", refetchProjects),
+      project_participants: () => debounced("projects", refetchProjects),
+      teams:                () => debounced("teams", refetchTeams),
+      team_members:         () => debounced("teams", refetchTeams),
+      calendar_items:       () => debounced("events", refetchEvents),
+      categories:           () => debounced("categories", refetchCategories),
+      channels:             () => debounced("channels", refetchChannels),
+      event_types:          () => debounced("eventTypes", refetchEventTypes),
+      area_notes:           () => debounced("areaNotes", refetchAreaNotes),
+      parking_items:        () => debounced("parkingItems", refetchParkingItems),
+      gamification_actions: () => debounced("gamificationActions", refetchGamificationActions),
+      gamification_awards:  () => debounced("gamificationAwards", refetchGamificationAwards),
+      lead_thermometer:     () => debounced("leadThermometer", refetchLeadThermometer),
+      attendance_settings:  () => debounced("attendanceSettings", refetchAttendanceSettings),
+      attendance_records:   () => debounced("attendanceRecords", refetchAttendanceRecords),
+      broadcasts:           () => debounced("broadcasts", refetchBroadcasts),
+      workspace_forms:      () => debounced("forms", refetchForms),
+      form_completions:     () => debounced("formCompletions", refetchFormCompletions),
+    };
+
     const channel = supabase.channel(`ws-${workspaceId}`);
-    tables.forEach(table => {
-      channel.on("postgres_changes", { event: "*", schema: "public", table }, trigger);
+    Object.entries(TABLE_HANDLERS).forEach(([table, handler]) => {
+      channel.on("postgres_changes", { event: "*", schema: "public", table }, handler);
     });
     channel.subscribe();
-    return () => { if (scheduled) clearTimeout(scheduled); supabase.removeChannel(channel); };
+    return () => {
+      timers.forEach(t => clearTimeout(t));
+      supabase.removeChannel(channel);
+    };
   }, [workspaceId]);
 
   // Sync: keep people list in sync with workspace_members.
