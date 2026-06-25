@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, type DragEvent } from "react";
-import { ChevronLeft, ChevronRight, Plus, X, PanelLeftClose, PanelLeftOpen, Inbox, ChevronUp, ChevronDown, CalendarDays } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, ChevronUp, ChevronDown, CalendarDays } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import type { Task, Post, CalendarEvent } from "@/contexts/DataContext";
@@ -58,10 +58,6 @@ export default function CalendarPage() {
   const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(getNowBrasilia());
   const [filterArea, setFilterArea] = useState<string | null>(null);
-  const [parkingOpen, setParkingOpen] = useState(true);
-
-  // No celular o Papel começa recolhido para o calendário aparecer logo
-  useEffect(() => { if (isMobile) setParkingOpen(false); }, [isMobile]);
   const [newIdea, setNewIdea] = useState("");
   const [parkingDropActive, setParkingDropActive] = useState(false);
   const newIdeaRef = useRef<HTMLInputElement>(null);
@@ -449,7 +445,7 @@ export default function CalendarPage() {
             </button>
           )}
         </div>
-        <div className="flex flex-col gap-0.5 min-h-0 overflow-y-auto scrollbar-thin">{visibleItems.map((item) => renderItemPill(item))}</div>
+        <div className={`${isMobile ? "flex flex-col" : "grid grid-cols-2"} gap-0.5 min-h-0 overflow-y-auto scrollbar-thin`}>{visibleItems.map((item) => renderItemPill(item))}</div>
         {hiddenCount > 0 && (
           <button
             onClick={(e) => { e.stopPropagation(); setDayPopup(dayStr); }}
@@ -538,175 +534,172 @@ export default function CalendarPage() {
               <span className="text-sm font-semibold text-foreground min-w-[140px] sm:min-w-[180px] text-center capitalize">{headerLabel()}</span>
               <button onClick={navigateNext} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground"><ChevronRight className="h-4 w-4" /></button>
             </div>
-            {!isMobile && (
-              <button onClick={() => setParkingOpen(o => !o)} title={parkingOpen ? "Esconder papel" : "Mostrar papel"}
-                className="p-2 rounded-2xl bg-white/70 border border-border/70 backdrop-blur-sm text-muted-foreground hover:text-foreground transition-colors">
-                {parkingOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
-              </button>
-            )}
           </div>
         </div>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-4 flex-wrap">
-          {/* Áreas */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mr-1">Áreas:</span>
-            {AREAS.map(a => {
-              const active = filterArea === a.key;
+      {/* PAPEL strip — desktop only, horizontal scrollable */}
+      {!isMobile && (
+        <div
+          data-drop-parking="1"
+          onDragOver={handleParkingDragOver}
+          onDragLeave={handleParkingDragLeave}
+          onDrop={handleParkingDrop}
+          className={`glass-panel rounded-2xl flex items-center gap-3 px-3 py-2 shrink-0 transition-colors ${
+            parkingDropActive ? "border-primary ring-2 ring-primary/30 bg-primary/5" : ""
+          }`}
+        >
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Papel</span>
+            <span className="text-[10px] text-muted-foreground bg-muted rounded-full px-1.5 py-0.5 font-medium shrink-0">{parkedIdeas.length}</span>
+          </div>
+          {isAdmin && (
+            <form onSubmit={handleQuickIdea} className="shrink-0">
+              <input
+                ref={newIdeaRef}
+                value={newIdea}
+                onChange={e => setNewIdea(e.target.value)}
+                placeholder={filterArea ? `Nova ideia em ${activeAreaMeta?.label}…` : "Nova ideia + Enter"}
+                className="bg-muted/50 rounded-md px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60 w-44"
+              />
+            </form>
+          )}
+          <div className="flex-1 flex items-center gap-1.5 overflow-x-auto scrollbar-thin min-w-0 py-0.5">
+            {parkedIdeas.length === 0 ? (
+              <span className="text-[11px] text-muted-foreground/60 italic whitespace-nowrap">Nenhuma ideia estacionada</span>
+            ) : parkedIdeas.map(p => {
+              const isTeam = p.area?.startsWith("team_");
+              const areaMeta = AREAS.find(a => a.key === p.area);
+              const teamObj = isTeam ? teams.find(t => `team_${t.id}` === p.area) : null;
+              const color = getAreaColor(p.area);
+              const label = isTeam ? (teamObj?.name || "Time") : (areaMeta?.label || "Sem área");
+              const dim = filterArea && p.area && p.area !== filterArea;
               return (
-                <button
-                  key={a.key}
-                  onClick={() => setFilterArea(active ? null : a.key)}
-                  style={active ? { backgroundColor: a.color, borderColor: a.color, color: "#fff" } : undefined}
-                  className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${active ? "" : "bg-background text-muted-foreground border-border hover:border-foreground/30 hover:text-foreground"}`}
-                >
-                  {a.label}
-                </button>
+                <div key={p.id} className={`shrink-0 ${dim ? "opacity-40" : ""}`}>
+                  {renderItemPill({ id: p.id, parkingId: p.id, title: p.title, type: "event", date: "", color, eventTypeName: label })}
+                </div>
               );
             })}
           </div>
-
-          {/* Separator */}
-          {teams.length > 0 && (
-            <div className="h-5 w-px bg-border" />
-          )}
-
-          {/* Times */}
-          {teams.length > 0 && (
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mr-1">Times:</span>
-              {teams.map(t => {
-                const teamKey = `team_${t.id}`;
-                const active = filterArea === teamKey;
-                const teamColor = getTeamColor(t.id);
-                return (
-                  <button
-                    key={teamKey}
-                    onClick={() => setFilterArea(active ? null : teamKey)}
-                    style={active
-                      ? { backgroundColor: teamColor, borderColor: teamColor, color: "#fff" }
-                      : { borderColor: `${teamColor}40`, color: teamColor }}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${active ? "" : "bg-background hover:bg-accent"}`}
-                  >
-                    {t.name}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          {filterArea && activeAreaMeta && (
-            <span className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: activeAreaMeta.color }}>
-              Filtrando por {activeAreaMeta.label}
-            </span>
-          )}
         </div>
-      </div>
+      )}
 
-      <div className={`grid gap-2 sm:gap-4 flex-1 min-h-0 w-full ${
-        isMobile
-          ? "grid-cols-[1fr]"
-          : parkingOpen
-            ? "grid-cols-[260px_1fr]"
-            : "grid-cols-[32px_1fr]"
-      }`}>
-          {!isMobile && !parkingOpen && (
-            <button
-              data-drop-parking="1"
-              onClick={() => setParkingOpen(true)}
-              onDragOver={handleParkingDragOver}
-              onDragLeave={handleParkingDragLeave}
-              onDrop={handleParkingDrop}
-              title={`Abrir papel (${parkedIdeas.length})`}
-              className={`group h-full min-h-0 glass-panel-soft rounded-2xl flex flex-col items-center justify-start gap-2 py-3 transition-colors hover:bg-accent ${parkingDropActive ? "border-primary ring-2 ring-primary/30 bg-primary/5" : "border-border"}`}
-            >
-              <Inbox className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />
-              {parkedIdeas.length > 0 && (
-                <span className="text-[10px] font-semibold text-foreground bg-muted rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center">
-                  {parkedIdeas.length}
-                </span>
-              )}
-              <div className="flex-1 flex items-center">
-                <span className="text-[9px] uppercase tracking-wider text-muted-foreground" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
-                  Papel
-                </span>
-              </div>
-            </button>
-          )}
-          {!isMobile && parkingOpen && (
-            <aside
-              data-drop-parking="1"
-              onDragOver={handleParkingDragOver}
-              onDragLeave={handleParkingDragLeave}
-              onDrop={handleParkingDrop}
-              className={`glass-panel rounded-2xl flex flex-col overflow-hidden h-full min-h-0 transition-colors ${parkingDropActive ? "border-primary ring-2 ring-primary/30 bg-primary/5" : "border-border"}`}
-            >
-              <div className="px-3 py-2.5 border-b border-border flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="text-xs font-semibold uppercase tracking-wide flex items-center gap-1.5" style={filterArea ? { color: activeAreaMeta?.color } : undefined}>
-                    {filterArea && <span className="h-2 w-2 rounded-full" style={{ backgroundColor: activeAreaMeta?.color }} />}
-                    {filterArea ? `Ideias — ${activeAreaMeta?.label}` : "Papel"}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5 truncate">Ideias sem data — arraste para o calendário</div>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <span className="text-[10px] text-muted-foreground bg-muted rounded-full px-1.5 py-0.5 font-medium">{parkedIdeas.length}</span>
-                  <button onClick={() => setParkingOpen(false)} title="Recolher papel"
-                    className="h-6 w-6 rounded-md hover:bg-accent text-muted-foreground flex items-center justify-center transition-colors">
-                    <PanelLeftClose className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </div>
-              {isAdmin && (
-                <form onSubmit={handleQuickIdea} className="px-3 py-2 border-b border-border">
-                  <input ref={newIdeaRef} value={newIdea} onChange={e => setNewIdea(e.target.value)} placeholder={filterArea ? `Nova ideia em ${activeAreaMeta?.label} + Enter` : "Nova ideia + Enter"}
-                    className="w-full bg-muted/50 rounded-md px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground/60" />
-                </form>
-              )}
-              <div className="flex-1 overflow-y-auto scrollbar-thin p-2 flex flex-col gap-1">
-                {parkedIdeas.length === 0 ? (
-                  <div className="text-[11px] text-muted-foreground/70 text-center py-6 px-2">Nenhuma ideia estacionada</div>
-                ) : parkedIdeas.map(p => {
-                  const isTeam = p.area?.startsWith("team_");
-                  const areaMeta = AREAS.find(a => a.key === p.area);
-                  const teamObj = isTeam ? teams.find(t => `team_${t.id}` === p.area) : null;
-                  const color = getAreaColor(p.area);
-                  const label = isTeam ? (teamObj?.name || "Time") : (areaMeta?.label || "Sem área");
-                  // Dim if a different area/team filter is active
-                  const dim = filterArea && p.area && p.area !== filterArea;
+      {/* Filtros — mobile: pills horizontais */}
+      {isMobile && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Áreas:</span>
+          {AREAS.map(a => {
+            const active = filterArea === a.key;
+            return (
+              <button key={a.key} onClick={() => setFilterArea(active ? null : a.key)}
+                style={active ? { backgroundColor: a.color, borderColor: a.color, color: "#fff" } : undefined}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${active ? "" : "bg-background text-muted-foreground border-border"}`}>
+                {a.label}
+              </button>
+            );
+          })}
+          {teams.map(t => {
+            const teamKey = `team_${t.id}`;
+            const active = filterArea === teamKey;
+            const teamColor = getTeamColor(t.id);
+            return (
+              <button key={teamKey} onClick={() => setFilterArea(active ? null : teamKey)}
+                style={active ? { backgroundColor: teamColor, borderColor: teamColor, color: "#fff" } : { borderColor: `${teamColor}40`, color: teamColor }}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${active ? "" : "bg-background"}`}>
+                {t.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Área principal: [sidebar filtros desktop | calendário] */}
+      <div className="flex gap-2 sm:gap-3 flex-1 min-h-0">
+
+        {/* Sidebar de filtros — desktop only */}
+        {!isMobile && (
+          <aside className="glass-panel rounded-2xl flex flex-col overflow-y-auto overflow-x-hidden shrink-0 w-[148px]">
+            <div className="px-3 pt-3 pb-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Áreas</span>
+              <div className="flex flex-col gap-0.5 mt-2">
+                {AREAS.map(a => {
+                  const active = filterArea === a.key;
                   return (
-                    <div key={p.id} className={dim ? "opacity-40" : ""}>
-                      {renderItemPill({ id: p.id, parkingId: p.id, title: p.title, type: "event", date: "", color, eventTypeName: label })}
-                    </div>
+                    <button
+                      key={a.key}
+                      onClick={() => setFilterArea(active ? null : a.key)}
+                      style={active ? { backgroundColor: a.color, color: "#fff" } : undefined}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                        active ? "shadow-sm" : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                      }`}
+                    >
+                      <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: active ? "#fff8" : a.color }} />
+                      {a.label}
+                    </button>
                   );
                 })}
               </div>
-            </aside>
-          )}
-          <div className="glass-panel rounded-2xl overflow-hidden flex flex-col h-full min-h-0 w-full">
-            <div className="grid grid-cols-7 border-b border-border shrink-0">
-              {weekDays.map(d => (
-                <div key={d} className={`text-center font-medium text-muted-foreground uppercase tracking-wider ${isMobile ? "py-1.5 text-[10px]" : "py-2 text-xs"}`}>
-                  {isMobile ? d[0] : d}
+            </div>
+            {teams.length > 0 && (
+              <>
+                <div className="mx-3 border-t border-border" />
+                <div className="px-3 pt-2.5 pb-3">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Times</span>
+                  <div className="flex flex-col gap-0.5 mt-2">
+                    {teams.map(t => {
+                      const teamKey = `team_${t.id}`;
+                      const active = filterArea === teamKey;
+                      const teamColor = getTeamColor(t.id);
+                      return (
+                        <button
+                          key={teamKey}
+                          onClick={() => setFilterArea(active ? null : teamKey)}
+                          style={active ? { backgroundColor: teamColor, color: "#fff" } : { color: teamColor }}
+                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                            active ? "shadow-sm" : "hover:bg-accent"
+                          }`}
+                        >
+                          <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: active ? "#fff8" : teamColor }} />
+                          {t.name}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              ))}
-            </div>
-            <div
-              className="grid grid-cols-7 flex-1 min-h-0"
-              style={{
-                // Mobile: linhas crescem conforme o conteúdo para mostrar nomes completos;
-                // desktop: linhas iguais preenchendo a altura disponível
-                gridTemplateRows: isMobile
-                  ? `repeat(${monthDays.length / 7}, minmax(72px, auto))`
-                  : `repeat(${monthDays.length / 7}, minmax(0, 1fr))`,
-              }}
-            >
-              {monthDays.map((day) => (<div key={format(day, "yyyy-MM-dd")} className="group min-h-0">{renderDayCell(day, isSameMonth(day, currentDate))}</div>))}
-            </div>
+              </>
+            )}
+            {filterArea && (
+              <div className="px-3 pb-3 mt-auto">
+                <button onClick={() => setFilterArea(null)}
+                  className="w-full text-[10px] text-muted-foreground hover:text-foreground flex items-center gap-1">
+                  <X className="h-3 w-3" /> Limpar filtro
+                </button>
+              </div>
+            )}
+          </aside>
+        )}
+
+        {/* Grid do calendário */}
+        <div className="glass-panel rounded-2xl overflow-hidden flex flex-col flex-1 min-h-0">
+          <div className="grid grid-cols-7 border-b border-border shrink-0">
+            {weekDays.map(d => (
+              <div key={d} className={`text-center font-medium text-muted-foreground uppercase tracking-wider ${isMobile ? "py-1.5 text-[10px]" : "py-2 text-xs"}`}>
+                {isMobile ? d[0] : d}
+              </div>
+            ))}
+          </div>
+          <div
+            className="grid grid-cols-7 flex-1 min-h-0"
+            style={{
+              gridTemplateRows: isMobile
+                ? `repeat(${monthDays.length / 7}, minmax(72px, auto))`
+                : `repeat(${monthDays.length / 7}, minmax(0, 1fr))`,
+            }}
+          >
+            {monthDays.map((day) => (<div key={format(day, "yyyy-MM-dd")} className="group min-h-0">{renderDayCell(day, isSameMonth(day, currentDate))}</div>))}
           </div>
         </div>
+      </div>
 
       {isMobile && (
         <div className="glass-panel rounded-2xl overflow-hidden">
