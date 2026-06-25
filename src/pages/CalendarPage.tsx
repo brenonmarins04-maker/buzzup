@@ -594,7 +594,7 @@ export default function CalendarPage() {
             onDragOver={handleParkingDragOver}
             onDragLeave={handleParkingDragLeave}
             onDrop={handleParkingDrop}
-            className={`glass-panel rounded-2xl flex-1 p-3 transition-colors overflow-hidden ${
+            className={`cal-grid glass-panel rounded-2xl flex-1 p-3 transition-colors ${
               parkingDropActive ? "border-primary ring-2 ring-primary/30 bg-primary/5" : ""
             }`}
           >
@@ -612,23 +612,24 @@ export default function CalendarPage() {
             {parkedIdeas.length === 0 ? (
               <span className="text-[11px] text-muted-foreground/60 italic">Nenhuma ideia estacionada</span>
             ) : (
-              <div
-                className="overflow-x-auto scrollbar-thin"
-                style={{ display: "grid", gridAutoFlow: "column", gridTemplateRows: "repeat(5, auto)", gap: "3px" }}
-              >
-                {parkedIdeas.slice(0, 40).map(p => {
-                  const isTeam = p.area?.startsWith("team_");
-                  const areaMeta = AREAS.find(a => a.key === p.area);
-                  const teamObj = isTeam ? teams.find(t => `team_${t.id}` === p.area) : null;
-                  const color = getAreaColor(p.area);
-                  const label = isTeam ? (teamObj?.name || "Time") : (areaMeta?.label || "Sem área");
-                  const dim = filterArea && p.area && p.area !== filterArea;
-                  return (
-                    <div key={p.id} className={`shrink-0 ${dim ? "opacity-40" : ""}`} style={{ width: 118 }}>
-                      {renderItemPill({ id: p.id, parkingId: p.id, title: p.title, type: "event", date: "", color, eventTypeName: label })}
-                    </div>
-                  );
-                })}
+              /* scroll-wrapper permite rolar horizontalmente sem criar contexto
+                 de clipping vertical — pills escalados ficam sempre visíveis */
+              <div className="overflow-x-auto scrollbar-thin" style={{ overflowY: "visible" }}>
+                <div style={{ display: "grid", gridAutoFlow: "column", gridTemplateRows: "repeat(5, auto)", gap: "3px", width: "max-content" }}>
+                  {parkedIdeas.slice(0, 40).map(p => {
+                    const isTeam = p.area?.startsWith("team_");
+                    const areaMeta = AREAS.find(a => a.key === p.area);
+                    const teamObj = isTeam ? teams.find(t => `team_${t.id}` === p.area) : null;
+                    const color = getAreaColor(p.area);
+                    const label = isTeam ? (teamObj?.name || "Time") : (areaMeta?.label || "Sem área");
+                    const dim = filterArea && p.area && p.area !== filterArea;
+                    return (
+                      <div key={p.id} className={`shrink-0 ${dim ? "opacity-40" : ""}`} style={{ width: 118 }}>
+                        {renderItemPill({ id: p.id, parkingId: p.id, title: p.title, type: "event", date: "", color, eventTypeName: label })}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
