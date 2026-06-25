@@ -156,7 +156,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (isMobile) {
     return (
       <div className="flex flex-col min-h-screen bg-background">
-        <header className="h-12 px-4 flex items-center justify-between border-b border-border bg-card shrink-0 sticky top-0 z-30">
+        <header className="h-12 px-4 flex items-center justify-between border-b border-border glass-header shrink-0 sticky top-0 z-30">
           <div className="flex items-center gap-2 min-w-0">
             <span className="font-bold text-foreground tracking-tight text-base shrink-0">BuzzUp</span>
           </div>
@@ -192,7 +192,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Megaphone className="h-5 w-5" />
           </button>
         )}
-        <nav className="fixed bottom-0 left-0 right-0 z-30 bg-card border-t border-border flex items-center justify-around h-16 px-1">
+        <nav className="fixed bottom-0 left-0 right-0 z-30 glass-header border-t border-border flex items-center justify-around h-16 px-1">
           {mobileNavItems.map((item) => {
             if (item.to === "myarea") {
               // Shortcut to the user's own area(s)
@@ -315,8 +315,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <aside className={`${collapsed ? "w-16" : "w-60"} shrink-0 border-r border-border bg-card flex flex-col transition-all duration-200`}>
-        <div className="h-14 px-4 flex items-center justify-between border-b border-border">
+      <aside className={`${collapsed ? "w-16" : "w-60"} shrink-0 border-r border-border glass-sidebar flex flex-col transition-all duration-200`}>
+        <div className="h-14 px-4 flex items-center justify-between border-b border-border/70">
           {!collapsed && <span className="font-bold text-foreground tracking-tight text-lg">BuzzUp</span>}
           <button onClick={() => setCollapsed(!collapsed)} className="p-1 rounded hover:bg-accent transition-colors text-muted-foreground">
             <ChevronLeft className={`h-4 w-4 transition-transform ${collapsed ? "rotate-180" : ""}`} />
@@ -411,7 +411,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </NavLink>
           )}
         </nav>
-        <div className="p-3 border-t border-border">
+        <div className="p-3 border-t border-border/70">
           {isAdmin && (
             <button
               onClick={() => setEditAreasModal(true)}
@@ -432,7 +432,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               {!collapsed && <span>Mensagem geral</span>}
             </button>
           )}
-          <div className={`flex items-center gap-3 px-2 py-1.5 ${collapsed ? "justify-center" : ""}`}>
+          <div className={`flex items-center gap-3 px-2 py-1.5 rounded-2xl bg-white/58 border border-border/60 ${collapsed ? "justify-center" : ""}`}>
             <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-semibold shrink-0">{initials}</div>
             {!collapsed && (
               <div className="flex flex-col min-w-0 flex-1">
@@ -453,11 +453,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
       <main className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 px-6 flex items-center justify-between border-b border-border bg-card/80 backdrop-blur-sm shrink-0">
+        <header className="h-14 px-6 flex items-center justify-between border-b border-border glass-header shrink-0">
           <div className="flex items-center gap-3">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input type="text" placeholder="Buscar demandas, posts, projetos..." className="h-9 w-72 rounded-md border border-input bg-background pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+              <input type="text" placeholder="Buscar demandas, posts, projetos..." className="h-10 w-80 rounded-2xl border border-input bg-white/78 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30" />
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -472,7 +472,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {showNotifications && <NotificationPanel onClose={() => setShowNotifications(false)} />}
         <div className="flex-1 overflow-auto scrollbar-thin">
           <BroadcastBar />
-          <div className="p-6">{children}</div>
+          <div className="p-6 lg:p-7">{children}</div>
         </div>
       </main>
       <BroadcastModal open={broadcastModal} onOpenChange={setBroadcastModal} />

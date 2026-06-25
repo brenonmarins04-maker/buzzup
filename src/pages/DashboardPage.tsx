@@ -250,7 +250,7 @@ export default function DashboardPage() {
         return (
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(280px,0.6fr)_240px] gap-3 md:gap-4 items-start">
             {/* Minhas Demandas */}
-            <div className="order-2 lg:order-1 bg-card border border-border rounded-xl p-4 md:p-5">
+            <div className="order-2 lg:order-1 glass-panel rounded-2xl p-4 md:p-5">
               <h2 className="text-sm font-semibold text-foreground mb-3 md:mb-4 flex items-center gap-2">
                 <ListChecks className="h-4 w-4 text-[#2563EB]" /> Minhas Demandas
               </h2>
@@ -263,7 +263,7 @@ export default function DashboardPage() {
                     return (
                       <div
                         key={demand.id}
-                        className="flex flex-col gap-3 p-4 rounded-lg border border-border bg-muted/20"
+                        className="demand-hover flex flex-col gap-3 p-4 rounded-2xl border border-border bg-muted/20"
                         style={{ borderColor: `${area?.color}33`, backgroundColor: `${area?.color}08` }}
                       >
                         <div className="flex items-start justify-between gap-2">
@@ -320,7 +320,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Meus Pontos */}
-            <div className="order-1 lg:order-3 bg-card border border-border rounded-xl p-4 md:p-5 flex flex-col gap-3 md:gap-4">
+            <div className="order-1 lg:order-3 glass-panel rounded-2xl p-4 md:p-5 flex flex-col gap-3 md:gap-4">
               {/* Trophy icon */}
               <div className="flex items-center gap-3 md:flex-col md:text-center">
                 <div className="h-12 w-12 md:h-14 md:w-14 rounded-full flex items-center justify-center bg-gradient-to-br from-yellow-400/30 to-orange-400/20 border-2 border-yellow-400/40 shrink-0">
@@ -355,7 +355,7 @@ export default function DashboardPage() {
       })()}
 
       {/* Ranking */}
-      <div className="bg-card border border-border rounded-xl p-5">
+      <div className="glass-panel rounded-2xl p-5">
         <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
           <Trophy className="h-4 w-4 text-[#F97316]" /> Gameficação
         </h2>
@@ -369,7 +369,7 @@ export default function DashboardPage() {
           const renderItem = (r: typeof top15[0], globalIdx: number) => {
             const medalColor = globalIdx === 0 ? "text-yellow-500" : globalIdx === 1 ? "text-gray-400" : globalIdx === 2 ? "text-amber-700" : "text-muted-foreground";
             return (
-              <li key={r.id} className="flex items-center gap-2.5 p-2.5 rounded-md bg-muted/40">
+              <li key={r.id} className="hover-lift flex items-center gap-2.5 p-2.5 rounded-xl bg-white/62 border border-border/55">
                 <div className="flex items-center justify-center w-6 h-6 shrink-0">
                   {globalIdx < 3
                     ? <Medal className={`h-4 w-4 ${medalColor}`} />
@@ -397,7 +397,7 @@ export default function DashboardPage() {
                   {showAllRanking && (
                     <ol className="mt-3 grid grid-cols-1 gap-2">
                       {mobileRestRanking.map((r, i) => (
-                        <li key={r.id} className={`flex items-center gap-2.5 p-2.5 rounded-md ${r.points > 0 ? "bg-muted/40" : "bg-muted/20 opacity-60"}`}>
+                        <li key={r.id} className={`hover-lift flex items-center gap-2.5 p-2.5 rounded-xl border border-border/55 ${r.points > 0 ? "bg-white/62" : "bg-white/35 opacity-60"}`}>
                           <span className="w-6 text-center text-xs font-bold text-muted-foreground">{5 + i + 1}</span>
                           <span className="flex-1 text-sm font-medium text-foreground truncate">{r.label}</span>
                           <span className={`text-xs font-bold ${r.points > 0 ? "text-primary" : "text-muted-foreground"}`}>
@@ -437,7 +437,7 @@ export default function DashboardPage() {
                   {showAllRanking && (
                     <ol className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                       {restRanking.map((r, i) => (
-                        <li key={r.id} className={`flex items-center gap-2.5 p-2.5 rounded-md ${r.points > 0 ? "bg-muted/40" : "bg-muted/20 opacity-60"}`}>
+                        <li key={r.id} className={`hover-lift flex items-center gap-2.5 p-2.5 rounded-xl border border-border/55 ${r.points > 0 ? "bg-white/62" : "bg-white/35 opacity-60"}`}>
                           <span className="w-6 text-center text-xs font-bold text-muted-foreground">{top15.length + i + 1}</span>
                           <span className="flex-1 text-sm font-medium text-foreground truncate">{r.label}</span>
                           <span className={`text-xs font-bold ${r.points > 0 ? "text-primary" : "text-muted-foreground"}`}>
@@ -460,7 +460,7 @@ export default function DashboardPage() {
       {/* 2 columns */}
       <div className="hidden md:grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Demandas por área */}
-        <div className="bg-card border border-border rounded-xl p-5">
+        <div className="glass-panel rounded-2xl p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
             <BarChart2 className="h-4 w-4 text-[#F97316]" /> Demandas por área
           </h2>
@@ -493,7 +493,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Demandas da semana — carrossel */}
-        <div className="bg-card border border-border rounded-xl p-5">
+        <div className="glass-panel rounded-2xl p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
             <ClipboardList className="h-4 w-4 text-[#10B981]" /> Demandas da semana
           </h2>
@@ -503,7 +503,7 @@ export default function DashboardPage() {
             const d = weekDemands[demandIdx % weekDemands.length];
             return (
               <div className="flex flex-col gap-3">
-                <div className="rounded-lg border border-border bg-muted/30 p-4 flex flex-col gap-2 transition-all">
+                <div className="hover-lift rounded-2xl border border-border/70 bg-white/60 p-4 flex flex-col gap-2 transition-all">
                   <div className="flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: d.areaColor }} />
                     <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: d.areaColor }}>{d.areaLabel}</span>
@@ -526,7 +526,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Atividade recente */}
-      <div className="hidden md:block bg-card border border-border rounded-xl p-5">
+      <div className="hidden md:block glass-panel rounded-2xl p-5">
         <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-[#8B5CF6]" /> Atividade recente
         </h2>

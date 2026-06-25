@@ -263,7 +263,7 @@ export default function CalendarPage() {
   const handleDragStart = (e: DragEvent, item: CalendarItem) => {
     if (!isAdmin) { e.preventDefault(); return; }
     setDragItem(item); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", JSON.stringify(item));
-    if (e.currentTarget instanceof HTMLElement) e.currentTarget.style.opacity = "0.5";
+    if (!isMobile && e.currentTarget instanceof HTMLElement) e.currentTarget.style.opacity = "0.5";
   };
   const handleDragEnd = (e: DragEvent) => {
     if (e.currentTarget instanceof HTMLElement) e.currentTarget.style.opacity = "1";
@@ -378,11 +378,11 @@ export default function CalendarPage() {
           style={{
             touchAction: "pan-y",
             transition: "transform 380ms cubic-bezier(0.4,0,0.2,1), opacity 380ms ease",
-            transform: shrinkingId === item.id ? "scale(0)" : "scale(1)",
+            transform: shrinkingId === item.id ? "scale(0)" : undefined,
             opacity: shrinkingId === item.id ? 0 : 1,
             transformOrigin: "bottom right",
           }}
-          className={`relative group/pill flex items-stretch ${isMobile ? "rounded-md" : "rounded-sm"} overflow-hidden ${isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}`}
+          className={`demand-hover relative group/pill flex items-stretch ${isMobile ? "rounded-lg" : "rounded-md"} overflow-hidden shadow-sm ${isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}`}
         >
           {item.type === "post" && (
             <button
@@ -398,7 +398,7 @@ export default function CalendarPage() {
             className={`flex-1 min-w-0 text-white font-medium hover:opacity-80 transition-opacity pointer-events-none ${
               isMobile
                 ? "text-[10px] leading-snug px-1.5 py-1 rounded-md whitespace-normal break-words line-clamp-2"
-                : "text-[9px] sm:text-[10px] leading-tight px-1 sm:px-1.5 py-0.5 truncate whitespace-nowrap pr-4"
+                : "text-[9px] sm:text-[10px] leading-tight px-1 sm:px-1.5 py-0.5 whitespace-normal break-words line-clamp-2 pr-4"
             }`}
           >
             {item.title}
@@ -505,7 +505,7 @@ export default function CalendarPage() {
     <button
       key={item.id}
       onClick={() => handleItemClick(item)}
-      className={`flex items-center gap-2 text-left rounded-md px-2 py-1.5 hover:bg-accent transition-colors ${dim ? "opacity-60" : ""}`}
+      className={`demand-hover flex items-center gap-2 text-left rounded-xl px-2 py-1.5 hover:bg-accent transition-colors ${dim ? "opacity-60" : ""}`}
     >
       <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
       <span className="flex-1 min-w-0 text-xs text-foreground truncate">{item.title}</span>
@@ -519,10 +519,10 @@ export default function CalendarPage() {
   return (
     <div className="animate-fade-in flex flex-col gap-5 h-full min-h-[600px]">
       {/* Hero (mesma identidade visual do Início) */}
-      <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-accent to-secondary/40 p-5 md:p-6">
+      <div className="page-hero relative overflow-hidden rounded-2xl p-5 md:p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-xl bg-card/70 border border-border/70 backdrop-blur-sm flex items-center justify-center shrink-0">
+            <div className="h-12 w-12 rounded-2xl bg-white/72 border border-border/70 backdrop-blur-sm flex items-center justify-center shrink-0 shadow-sm">
               <CalendarDays className="h-6 w-6 text-primary" />
             </div>
             <div className="min-w-0">
@@ -533,13 +533,13 @@ export default function CalendarPage() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1 bg-card/70 border border-border/70 rounded-lg p-0.5 backdrop-blur-sm">
+            <div className="flex items-center gap-1 bg-white/70 border border-border/70 rounded-2xl p-0.5 backdrop-blur-sm">
               <button onClick={navigatePrev} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground"><ChevronLeft className="h-4 w-4" /></button>
               <span className="text-sm font-semibold text-foreground min-w-[140px] sm:min-w-[180px] text-center capitalize">{headerLabel()}</span>
               <button onClick={navigateNext} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground"><ChevronRight className="h-4 w-4" /></button>
             </div>
             <button onClick={() => setParkingOpen(o => !o)} title={parkingOpen ? "Esconder papel" : "Mostrar papel"}
-              className="p-2 rounded-lg bg-card/70 border border-border/70 backdrop-blur-sm text-muted-foreground hover:text-foreground transition-colors">
+              className="p-2 rounded-2xl bg-white/70 border border-border/70 backdrop-blur-sm text-muted-foreground hover:text-foreground transition-colors">
               {parkingOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeftOpen className="h-4 w-4" />}
             </button>
           </div>
@@ -612,7 +612,7 @@ export default function CalendarPage() {
               onDragLeave={handleParkingDragLeave}
               onDrop={handleParkingDrop}
               title={`Abrir papel (${parkedIdeas.length})`}
-              className={`group h-full min-h-0 bg-card border rounded-2xl flex flex-col items-center justify-start gap-2 py-3 transition-colors hover:bg-accent ${parkingDropActive ? "border-primary ring-2 ring-primary/30 bg-primary/5" : "border-border"}`}
+              className={`group h-full min-h-0 glass-panel-soft rounded-2xl flex flex-col items-center justify-start gap-2 py-3 transition-colors hover:bg-accent ${parkingDropActive ? "border-primary ring-2 ring-primary/30 bg-primary/5" : "border-border"}`}
             >
               <Inbox className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground" />
               {parkedIdeas.length > 0 && (
@@ -633,7 +633,7 @@ export default function CalendarPage() {
               onDragOver={handleParkingDragOver}
               onDragLeave={handleParkingDragLeave}
               onDrop={handleParkingDrop}
-              className={`bg-card border rounded-2xl flex flex-col overflow-hidden h-full min-h-0 transition-colors ${parkingDropActive ? "border-primary ring-2 ring-primary/30 bg-primary/5" : "border-border"}`}
+              className={`glass-panel rounded-2xl flex flex-col overflow-hidden h-full min-h-0 transition-colors ${parkingDropActive ? "border-primary ring-2 ring-primary/30 bg-primary/5" : "border-border"}`}
             >
               <div className="px-3 py-2.5 border-b border-border flex items-center justify-between gap-2">
                 <div className="min-w-0">
@@ -677,7 +677,7 @@ export default function CalendarPage() {
               </div>
             </aside>
           )}
-          <div className="bg-card border border-border rounded-2xl overflow-hidden flex flex-col h-full min-h-0 w-full">
+          <div className="glass-panel rounded-2xl overflow-hidden flex flex-col h-full min-h-0 w-full">
             <div className="grid grid-cols-7 border-b border-border shrink-0">
               {weekDays.map(d => (
                 <div key={d} className={`text-center font-medium text-muted-foreground uppercase tracking-wider ${isMobile ? "py-1.5 text-[10px]" : "py-2 text-xs"}`}>
@@ -701,7 +701,7 @@ export default function CalendarPage() {
         </div>
 
       {isMobile && (
-        <div className="bg-card border border-border rounded-2xl overflow-hidden">
+        <div className="glass-panel rounded-2xl overflow-hidden">
           {/* Past toggle / list */}
           <button
             onClick={() => {

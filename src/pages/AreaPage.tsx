@@ -26,9 +26,8 @@ export default function AreaPage({ area }: Props) {
   return (
     <div className="animate-fade-in space-y-5">
       <div
-        className="rounded-xl border-2 px-5 py-4 flex items-center gap-3"
+        className="page-hero rounded-2xl px-5 py-4 flex items-center gap-3"
         style={{
-          backgroundColor: `${meta.color}1A`,
           borderColor: meta.color,
         }}
       >
@@ -36,11 +35,11 @@ export default function AreaPage({ area }: Props) {
         <h1 className="text-2xl font-bold tracking-tight" style={{ color: meta.color }}>{label}</h1>
       </div>
 
-      <div className="flex items-center gap-1 border-b-2 border-border">
+      <div className="glass-panel-soft rounded-2xl p-1 flex items-center gap-1 overflow-x-auto">
         {tabs.map(t => (
           <button key={t.v} onClick={() => setTab(t.v as any)}
             style={tab === t.v ? { borderColor: meta.color, color: meta.color } : undefined}
-            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors -mb-px ${tab === t.v ? "" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+            className={`px-4 py-2 text-sm font-semibold rounded-xl transition-colors whitespace-nowrap ${tab === t.v ? "bg-white shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-white/50"}`}>
             {t.label}
           </button>
         ))}
@@ -89,7 +88,7 @@ function NotesTab({ area }: { area: AreaKey }) {
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {notes.map(n => (
-          <div key={n.id} className="group relative bg-card border border-border rounded-lg p-4 hover:border-primary/40 transition-colors">
+          <div key={n.id} className="group hover-lift relative glass-panel-soft rounded-2xl p-4 hover:border-primary/40">
             <a href={n.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3">
               <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
                 <ExternalLink className="h-4 w-4 text-primary" />
@@ -291,7 +290,7 @@ function AttendanceTab({ area }: { area: AreaKey }) {
         )}
       </div>
 
-      <div className="rounded-lg border border-border overflow-x-auto bg-card">
+      <div className="glass-panel rounded-2xl overflow-x-auto">
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr className="bg-muted/60 border-b border-border">
@@ -479,8 +478,8 @@ function KanbanTab({ area }: { area: AreaKey }) {
         draggable={canManage}
         onDragStart={(e) => onDragStart(e, item.id)}
         onDragEnd={() => setDragId(null)}
-        className={`group bg-card border rounded-lg p-3 text-sm shadow-sm transition-all ${canManage ? "cursor-grab active:cursor-grabbing" : ""}`}
-        style={{ borderColor: `${tint}66`, backgroundColor: `${tint}10`, opacity: isCompleting ? 0 : 1, transition: "opacity 550ms ease, background-color 300ms ease, border-color 300ms ease" }}
+        className={`group demand-hover bg-white/70 border rounded-2xl p-3 text-sm shadow-sm overflow-hidden ${canManage ? "cursor-grab active:cursor-grabbing" : ""}`}
+        style={{ borderColor: `${tint}66`, backgroundColor: `${tint}10`, opacity: isCompleting ? 0 : 1, transition: "opacity 550ms ease, background-color 300ms ease, border-color 300ms ease, transform 180ms ease, box-shadow 180ms ease" }}
       >
         {/* Status toggle row — full controls for admin/leader */}
         {canManage && (
@@ -533,7 +532,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
         )}
         <div onClick={() => canManage && openEdit(item)} className={canManage ? "cursor-pointer" : ""}>
           <div className="flex items-start justify-between gap-2">
-            <span className={`font-semibold leading-snug flex-1 ${isDone ? "text-muted-foreground line-through" : "text-foreground"}`}>{item.title}</span>
+            <span className={`font-semibold leading-snug flex-1 min-w-0 break-words overflow-hidden ${isDone ? "text-muted-foreground line-through" : "text-foreground"}`}>{item.title}</span>
             {item.points ? (
               <span
                 className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md text-white"
@@ -544,7 +543,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
               </span>
             ) : null}
           </div>
-          {item.description && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-3">{item.description}</p>}
+          {item.description && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-3 break-words">{item.description}</p>}
           {item.date && (
             <div
               className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md text-white"
@@ -567,17 +566,17 @@ function KanbanTab({ area }: { area: AreaKey }) {
         onDragOver={(e) => onDragOver(e, colKey)}
         onDragLeave={() => setOverCol(null)}
         onDrop={(e) => onDrop(e, personId)}
-        className={`w-full flex flex-col rounded-lg border ${overCol === colKey ? "border-primary bg-primary/5" : "border-border bg-muted/30"} transition-colors`}
+        className={`w-full min-w-[172px] sm:min-w-[190px] flex flex-col rounded-2xl border ${overCol === colKey ? "border-primary bg-primary/5" : "border-border glass-panel-soft"} transition-colors overflow-hidden`}
       >
-        <div className={`px-4 py-3 border-b ${accent ? "bg-card border-primary/30" : "border-border"} rounded-t-lg flex items-center justify-between`}>
-          <span className="text-sm font-semibold text-foreground truncate">{colTitle}</span>
+        <div className={`px-4 py-3 border-b ${accent ? "bg-white/70 border-primary/30" : "border-border/70"} flex items-center justify-between`}>
+          <span className="text-sm font-semibold text-foreground truncate min-w-0">{colTitle}</span>
           <span className="text-xs text-muted-foreground">{colItems.length}</span>
         </div>
         <div className="flex-1 p-3 flex flex-col gap-3 min-h-[160px]">
           {accent && canManage && (
             <button
               onClick={openCreate}
-              className="w-full flex items-center justify-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-primary/50 rounded-lg py-2 transition-colors"
+              className="w-full flex items-center justify-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-primary/50 rounded-2xl py-2 transition-colors bg-white/45 hover:bg-white/80"
             >
               <Plus className="h-3.5 w-3.5" /> nova demanda
             </button>
@@ -615,7 +614,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
 
   return (
     <div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 pb-3">
+      <div className="flex gap-3 pb-3 overflow-x-auto scrollbar-thin pr-2">
         <Column personId={null} title="Demandas" accent />
         {members.map(m => (
           <Column key={m.id} personId={m.id} title={m.name} />

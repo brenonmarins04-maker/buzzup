@@ -28,9 +28,8 @@ export default function TeamAreaPage() {
   return (
     <div className="animate-fade-in space-y-5">
       <div
-        className="rounded-xl border-2 px-5 py-4 flex items-center gap-3"
+        className="page-hero rounded-2xl px-5 py-4 flex items-center gap-3"
         style={{
-          backgroundColor: `${teamColor}1A`,
           borderColor: teamColor,
         }}
       >
@@ -73,10 +72,10 @@ function TeamTabs({ teamId, teamName }: { teamId: string; teamName: string }) {
 
   return (
     <>
-      <div className="flex items-center gap-1 border-b-2 border-border">
+      <div className="glass-panel-soft rounded-2xl p-1 flex items-center gap-1 overflow-x-auto">
         {tabs.map(t => (
           <button key={t.v} onClick={() => setTab(t.v)}
-            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors -mb-px ${tab === t.v ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+            className={`px-4 py-2 text-sm font-semibold rounded-xl transition-colors whitespace-nowrap ${tab === t.v ? "bg-white shadow-sm text-primary" : "text-muted-foreground hover:text-foreground hover:bg-white/50"}`}>
             {t.label}
           </button>
         ))}
@@ -124,7 +123,7 @@ function TeamNotesTab({ teamAreaKey }: { teamAreaKey: string }) {
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {notes.map(n => (
-          <div key={n.id} className="group relative bg-card border border-border rounded-lg p-4 hover:border-primary/40 transition-colors">
+          <div key={n.id} className="group hover-lift relative glass-panel-soft rounded-2xl p-4 hover:border-primary/40">
             <a href={n.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3">
               <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
                 <ExternalLink className="h-4 w-4 text-primary" />
@@ -281,8 +280,8 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
         draggable={isAdmin}
         onDragStart={(e) => onDragStart(e, item.id)}
         onDragEnd={() => setDragId(null)}
-        className={`group bg-card border rounded-lg p-3 text-sm shadow-sm transition-all ${isAdmin ? "cursor-grab active:cursor-grabbing" : ""}`}
-        style={{ borderColor: `${tint}66`, backgroundColor: `${tint}10`, opacity: isCompleting ? 0 : 1, transition: "opacity 550ms ease, background-color 300ms ease, border-color 300ms ease" }}
+        className={`group demand-hover bg-white/70 border rounded-2xl p-3 text-sm shadow-sm overflow-hidden ${isAdmin ? "cursor-grab active:cursor-grabbing" : ""}`}
+        style={{ borderColor: `${tint}66`, backgroundColor: `${tint}10`, opacity: isCompleting ? 0 : 1, transition: "opacity 550ms ease, background-color 300ms ease, border-color 300ms ease, transform 180ms ease, box-shadow 180ms ease" }}
       >
         {/* Full controls for admin */}
         {isAdmin && (
@@ -332,14 +331,14 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
         )}
         <div onClick={() => isAdmin && openEdit(item)} className={isAdmin ? "cursor-pointer" : ""}>
           <div className="flex items-start justify-between gap-2">
-            <span className={`font-semibold leading-snug flex-1 ${isDone ? "text-muted-foreground line-through" : "text-foreground"}`}>{item.title}</span>
+            <span className={`font-semibold leading-snug flex-1 min-w-0 break-words overflow-hidden ${isDone ? "text-muted-foreground line-through" : "text-foreground"}`}>{item.title}</span>
             {item.points ? (
               <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md text-white" style={{ backgroundColor: tint }}>
                 {item.points}p
               </span>
             ) : null}
           </div>
-          {item.description && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-3">{item.description}</p>}
+          {item.description && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-3 break-words">{item.description}</p>}
           {item.date && (
             <div className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md text-white" style={{ backgroundColor: tint }}>
               {new Date(item.date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
@@ -357,19 +356,19 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
     return (
       <div
         key={colKey}
-        className={`w-full flex flex-col rounded-lg border bg-muted/30 transition-colors ${isOver ? "border-primary/60 bg-primary/5" : "border-border"}`}
+        className={`w-full min-w-[172px] sm:min-w-[190px] flex flex-col rounded-2xl border transition-colors overflow-hidden ${isOver ? "border-primary/60 bg-primary/5" : "border-border glass-panel-soft"}`}
         onDragOver={(e) => onDragOver(e, colKey)}
         onDragLeave={() => setOverCol(null)}
         onDrop={(e) => onDrop(e, colPersonId)}
       >
-        <div className={`px-4 py-3 border-b rounded-t-lg flex items-center justify-between ${accent ? "bg-card border-primary/30" : "border-border"}`}>
-          <span className="text-sm font-semibold text-foreground truncate">{colTitle}</span>
+        <div className={`px-4 py-3 border-b flex items-center justify-between ${accent ? "bg-white/70 border-primary/30" : "border-border/70"}`}>
+          <span className="text-sm font-semibold text-foreground truncate min-w-0">{colTitle}</span>
           <span className="text-xs text-muted-foreground">{columnItems(colPersonId).length}</span>
         </div>
         <div className="flex-1 p-3 flex flex-col gap-3 min-h-[160px]">
           {colPersonId === null && isAdmin && (
             <button onClick={openCreate}
-              className="w-full flex items-center justify-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-primary/50 rounded-lg py-2 transition-colors">
+              className="w-full flex items-center justify-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-primary/50 rounded-2xl py-2 transition-colors bg-white/45 hover:bg-white/80">
               <Plus className="h-3.5 w-3.5" /> nova demanda
             </button>
           )}
@@ -377,7 +376,7 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
         </div>
         {/* Concluídas accordion — only in Demandas column */}
         {colPersonId === null && (
-          <div className="border-t border-border bg-card/40 rounded-b-lg">
+          <div className="border-t border-border bg-white/45">
             <button type="button" onClick={() => setDoneOpen(o => !o)}
               className="w-full px-3 py-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground">
               <span className="flex items-center gap-1.5">
@@ -391,8 +390,8 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
                 {doneItems.length === 0 ? (
                   <div className="text-[11px] text-muted-foreground/70 text-center py-3">Nenhuma demanda concluída</div>
                 ) : doneItems.map(item => (
-                  <div key={item.id} className="bg-card border rounded-lg p-3 text-sm" style={{ borderColor: "#10B98166", backgroundColor: "#10B98110" }}>
-                    <p className="font-semibold text-muted-foreground line-through">{item.title}</p>
+                  <div key={item.id} className="demand-hover bg-white/70 border rounded-2xl p-3 text-sm" style={{ borderColor: "#10B98166", backgroundColor: "#10B98110" }}>
+                    <p className="font-semibold text-muted-foreground line-through break-words">{item.title}</p>
                   </div>
                 ))}
               </div>
@@ -405,7 +404,7 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
 
   return (
     <div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 pb-3">
+      <div className="flex gap-3 pb-3 overflow-x-auto scrollbar-thin pr-2">
         {renderColumn(null, "Demandas", true)}
         {members.map(m => renderColumn(m.id, m.name))}
       </div>

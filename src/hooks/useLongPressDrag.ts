@@ -56,12 +56,13 @@ export function useLongPressDrag<T>({ delay = 200, moveTolerance = 8, onDrop, en
       position: fixed; top: 0; left: 0;
       transform: translate(${x - 60}px, ${y - 16}px);
       background: ${color}; color: white;
-      padding: 6px 10px; border-radius: 6px;
-      font-size: 12px; font-weight: 600;
-      max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      padding: 8px 12px; border-radius: 12px;
+      font-size: 12px; font-weight: 700;
+      max-width: min(220px, calc(100vw - 32px)); white-space: normal; overflow: hidden; text-overflow: ellipsis;
+      line-height: 1.15;
       pointer-events: none; z-index: 9999;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-      opacity: 0.95;
+      box-shadow: 0 14px 34px rgba(0,0,0,0.28);
+      opacity: 1;
     `;
     document.body.appendChild(ghost);
     ghostRef.current = ghost;

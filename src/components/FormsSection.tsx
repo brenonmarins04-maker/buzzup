@@ -98,13 +98,13 @@ export default function FormsSection() {
   };
 
   return (
-    <div className="bg-card border border-border rounded-xl p-4 md:p-5">
-      <div className="flex items-center justify-between gap-3 mb-3 md:mb-4">
+    <div className="glass-panel rounded-2xl p-4 md:p-5">
+      <div className="flex items-center justify-between gap-3 mb-3 md:mb-4 flex-wrap">
         <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <FileText className="h-4 w-4 text-[#8B5CF6]" /> Formulários
         </h2>
         {isAdmin && (
-          <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)} className="shrink-0">
+          <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)} className="shrink-0 rounded-2xl">
             <Plus className="h-3.5 w-3.5 mr-1" /> Novo formulário
           </Button>
         )}
@@ -116,7 +116,7 @@ export default function FormsSection() {
       ) : (
         <div className="grid grid-cols-1 gap-3">
           {myPending.map(f => (
-            <div key={f.id} className="flex flex-col gap-3 p-4 rounded-lg border border-[#8B5CF6]/20 bg-[#8B5CF6]/5">
+            <div key={f.id} className="hover-lift flex flex-col gap-3 p-4 rounded-2xl border border-[#8B5CF6]/20 bg-white/62">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground">{f.title}</p>
@@ -163,7 +163,7 @@ export default function FormsSection() {
           {showCompleted && (
             <div className="mt-2 flex flex-col gap-2">
               {myCompleted.map(f => (
-                <div key={f.id} className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-emerald-300/40 bg-emerald-500/5">
+                <div key={f.id} className="hover-lift flex items-center gap-2.5 px-3 py-2.5 rounded-2xl border border-emerald-300/40 bg-emerald-500/5">
                   <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{f.title}</p>
@@ -200,16 +200,16 @@ export default function FormsSection() {
           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Publicados ({forms.length})</p>
           <ul className="space-y-1.5">
             {forms.map(f => (
-              <li key={f.id} className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-muted/40">
+              <li key={f.id} className="hover-lift flex items-center gap-2 px-3 py-2 rounded-2xl bg-white/58 border border-border/55 min-w-0">
                 <FileText className="h-3.5 w-3.5 text-[#8B5CF6] shrink-0" />
-                <span className="flex-1 text-sm font-medium text-foreground truncate">{f.title}</span>
-                <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0">
+                <span className="flex-1 min-w-0 text-sm font-medium text-foreground truncate">{f.title}</span>
+                <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0">
                   {TargetIcon(f)} {targetLabel(f)}
                 </span>
                 <button
                   onClick={() => setViewResponses(f)}
                   title="Ver quem preencheu e quem falta"
-                  className="text-xs font-medium text-primary hover:underline whitespace-nowrap shrink-0"
+                  className="text-xs font-semibold text-primary hover:underline whitespace-nowrap shrink-0"
                 >
                   {completionCount(f.id)} preencheram
                 </button>
