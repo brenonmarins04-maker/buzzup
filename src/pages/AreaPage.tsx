@@ -480,18 +480,18 @@ function KanbanTab({ area }: { area: AreaKey }) {
         draggable={canManage}
         onDragStart={(e) => onDragStart(e, item.id)}
         onDragEnd={() => setDragId(null)}
-        className={`group demand-hover bg-white/70 border rounded-2xl p-3 text-sm shadow-sm overflow-hidden ${canManage ? "cursor-grab active:cursor-grabbing" : ""}`}
+        className={`group demand-hover bg-white/70 border rounded-xl p-2 text-xs shadow-sm overflow-hidden ${canManage ? "cursor-grab active:cursor-grabbing" : ""}`}
         style={{ borderColor: `${tint}66`, backgroundColor: `${tint}10`, opacity: isCompleting ? 0 : 1, transition: "opacity 550ms ease, background-color 300ms ease, border-color 300ms ease, transform 180ms ease, box-shadow 180ms ease" }}
       >
         {/* Status toggle row — full controls for admin/leader */}
         {canManage && (
-          <div className="flex items-center gap-1.5 mb-2.5">
+          <div className="flex items-center gap-1 mb-1.5">
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); setStatus(item, "in-progress"); }}
               title="Em andamento"
               aria-label="Em andamento"
-              className="h-5 w-5 rounded-full transition-all border-2"
+              className="h-4 w-4 rounded-full transition-all border-2 shrink-0"
               style={item.status === "in-progress" && !isCompleting
                 ? { backgroundColor: "#F59E0B", borderColor: "#F59E0B", boxShadow: "0 2px 6px #F59E0B88" }
                 : { backgroundColor: "transparent", borderColor: "#F59E0B" }}
@@ -501,7 +501,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
               onClick={(e) => { e.stopPropagation(); setStatus(item, "done"); }}
               title="Concluída"
               aria-label="Concluída"
-              className="h-5 w-5 rounded-full transition-all border-2"
+              className="h-4 w-4 rounded-full transition-all border-2 shrink-0"
               style={item.status === "done" || isCompleting
                 ? { backgroundColor: "#10B981", borderColor: "#10B981", boxShadow: "0 2px 6px #10B98188" }
                 : { backgroundColor: "transparent", borderColor: "#10B981" }}
@@ -512,32 +512,32 @@ function KanbanTab({ area }: { area: AreaKey }) {
               title="Excluir"
               type="button"
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="h-3 w-3" />
             </button>
           </div>
         )}
         {/* Done button only — for the member assigned to this task */}
         {memberCanDone && (
-          <div className="flex items-center gap-1.5 mb-2.5">
+          <div className="flex items-center gap-1 mb-1.5">
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); setStatus(item, "done"); }}
               title="Marcar como concluída"
               aria-label="Marcar como concluída"
-              className="h-5 w-5 rounded-full transition-all border-2"
+              className="h-4 w-4 rounded-full transition-all border-2 shrink-0"
               style={item.status === "done" || isCompleting
                 ? { backgroundColor: "#10B981", borderColor: "#10B981", boxShadow: "0 2px 6px #10B98188" }
                 : { backgroundColor: "transparent", borderColor: "#10B981" }}
             />
-            <span className="text-[10px] text-muted-foreground">Concluir tarefa</span>
+            <span className="text-[10px] text-muted-foreground">Concluir</span>
           </div>
         )}
         <div onClick={() => canManage && openEdit(item)} className={canManage ? "cursor-pointer" : ""}>
-          <div className="flex items-start justify-between gap-2">
+          <div className="flex items-start justify-between gap-1.5">
             <span className={`font-semibold leading-snug flex-1 min-w-0 break-words overflow-hidden ${isDone ? "text-muted-foreground line-through" : "text-foreground"}`}>{item.title}</span>
             {item.points ? (
               <span
-                className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md text-white"
+                className="shrink-0 text-[10px] font-bold px-1 py-0.5 rounded text-white"
                 style={{ backgroundColor: tint }}
                 title={`${item.points} ${item.points === 1 ? "ponto" : "pontos"}`}
               >
@@ -545,10 +545,10 @@ function KanbanTab({ area }: { area: AreaKey }) {
               </span>
             ) : null}
           </div>
-          {item.description && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-3 break-words">{item.description}</p>}
+          {item.description && <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2 break-words">{item.description}</p>}
           {item.date && (
             <div
-              className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md text-white"
+              className="mt-1.5 inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded text-white"
               style={{ backgroundColor: tint }}
             >
               {new Date(item.date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
@@ -568,19 +568,19 @@ function KanbanTab({ area }: { area: AreaKey }) {
         onDragOver={(e) => onDragOver(e, colKey)}
         onDragLeave={() => setOverCol(null)}
         onDrop={(e) => onDrop(e, personId)}
-        className={`w-full min-w-[172px] sm:min-w-[190px] flex flex-col rounded-2xl border ${overCol === colKey ? "border-primary bg-primary/5" : "border-border glass-panel-soft"} transition-colors overflow-hidden`}
+        className={`w-full min-w-[130px] sm:min-w-[148px] flex flex-col rounded-xl border ${overCol === colKey ? "border-primary bg-primary/5" : "border-border glass-panel-soft"} transition-colors overflow-hidden`}
       >
-        <div className={`px-4 py-3 border-b ${accent ? "bg-white/70 border-primary/30" : "border-border/70"} flex items-center justify-between`}>
-          <span className="text-sm font-semibold text-foreground truncate min-w-0">{colTitle}</span>
-          <span className="text-xs text-muted-foreground">{colItems.length}</span>
+        <div className={`px-3 py-2 border-b ${accent ? "bg-white/70 border-primary/30" : "border-border/70"} flex items-center justify-between`}>
+          <span className="text-xs font-semibold text-foreground truncate min-w-0">{colTitle}</span>
+          <span className="text-[11px] text-muted-foreground ml-1 shrink-0">{colItems.length}</span>
         </div>
-        <div className="flex-1 p-3 flex flex-col gap-3 min-h-[160px]">
+        <div className="flex-1 p-2 flex flex-col gap-2 min-h-[100px]">
           {accent && canManage && (
             <button
               onClick={openCreate}
-              className="w-full flex items-center justify-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-primary/50 rounded-2xl py-2 transition-colors bg-white/45 hover:bg-white/80"
+              className="w-full flex items-center justify-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-primary/50 rounded-xl py-1.5 transition-colors bg-white/45 hover:bg-white/80"
             >
-              <Plus className="h-3.5 w-3.5" /> nova demanda
+              <Plus className="h-3 w-3" /> nova demanda
             </button>
           )}
           {colItems.map(item => renderCard(item))}
@@ -591,18 +591,18 @@ function KanbanTab({ area }: { area: AreaKey }) {
             <button
               type="button"
               onClick={() => setDoneOpen(o => !o)}
-              className="w-full px-3 py-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
+              className="w-full px-2 py-1.5 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
             >
-              <span className="flex items-center gap-1.5">
-                {doneOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              <span className="flex items-center gap-1">
+                {doneOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                 Concluídas
               </span>
               <span className="text-[10px] bg-muted rounded-full px-1.5 py-0.5">{doneItems.length}</span>
             </button>
             {doneOpen && (
-              <div className="p-3 pt-0 flex flex-col gap-2">
+              <div className="p-2 pt-0 flex flex-col gap-1.5">
                 {doneItems.length === 0 ? (
-                  <div className="text-[11px] text-muted-foreground/70 text-center py-3">Nenhuma demanda concluída</div>
+                  <div className="text-[11px] text-muted-foreground/70 text-center py-2">Nenhuma demanda concluída</div>
                 ) : (
                   doneItems.map(item => renderCard(item))
                 )}
@@ -623,44 +623,44 @@ function KanbanTab({ area }: { area: AreaKey }) {
         onDrop={(e) => onDrop(e, null)}
         className={`rounded-2xl border ${overCol === "__park" ? "border-primary bg-primary/5" : "border-border glass-panel-soft"} transition-colors overflow-hidden`}
       >
-        <div className="px-4 py-3 border-b border-primary/30 bg-white/70 flex items-center gap-3">
-          <span className="text-sm font-semibold text-foreground flex-1">Demandas</span>
-          <span className="text-xs text-muted-foreground">{columnItems(null).length}</span>
+        <div className="px-3 py-2 border-b border-primary/30 bg-white/70 flex items-center gap-2">
+          <span className="text-xs font-semibold text-foreground flex-1">Demandas</span>
+          <span className="text-[11px] text-muted-foreground">{columnItems(null).length}</span>
           {canManage && (
             <button
               onClick={openCreate}
-              className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-primary/50 rounded-xl px-3 py-1.5 transition-colors bg-white/45 hover:bg-white/80"
+              className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-primary/50 rounded-lg px-2 py-1 transition-colors bg-white/45 hover:bg-white/80"
             >
-              <Plus className="h-3.5 w-3.5" /> nova demanda
+              <Plus className="h-3 w-3" /> nova demanda
             </button>
           )}
         </div>
-        <div className="p-3 min-h-[60px]">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+        <div className="p-2 min-h-[48px]">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
             {columnItems(null).map(item => renderCard(item))}
           </div>
           {columnItems(null).length === 0 && (
-            <p className="text-xs text-muted-foreground text-center py-4">Nenhuma demanda pendente</p>
+            <p className="text-[11px] text-muted-foreground text-center py-3">Nenhuma demanda pendente</p>
           )}
         </div>
         <div className="border-t border-border bg-card/40">
           <button
             type="button"
             onClick={() => setDoneOpen(o => !o)}
-            className="w-full px-3 py-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
+            className="w-full px-2 py-1.5 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
           >
-            <span className="flex items-center gap-1.5">
-              {doneOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            <span className="flex items-center gap-1">
+              {doneOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
               Concluídas
             </span>
             <span className="text-[10px] bg-muted rounded-full px-1.5 py-0.5">{doneItems.length}</span>
           </button>
           {doneOpen && (
-            <div className="p-3 pt-0">
+            <div className="p-2 pt-0">
               {doneItems.length === 0 ? (
-                <div className="text-[11px] text-muted-foreground/70 text-center py-3">Nenhuma demanda concluída</div>
+                <div className="text-[11px] text-muted-foreground/70 text-center py-2">Nenhuma demanda concluída</div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
                   {doneItems.map(item => renderCard(item))}
                 </div>
               )}
@@ -671,7 +671,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
 
       {/* ── Pessoas — grid, máximo 5 por linha ── */}
       {members.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
           {members.map(m => (
             <Column key={m.id} personId={m.id} title={m.name} />
           ))}
