@@ -49,20 +49,23 @@ export default function MembersPage() {
     // Wait for the first load() call to complete before we start toasting
     load().then(() => { initialLoadDone = true; });
 
-    const ch = supabase
-      .channel(`members-${workspaceId}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "workspace_join_requests", filter: `workspace_id=eq.${workspaceId}` }, (payload) => {
-        if (initialLoadDone && isOwner) {
-          const name = (payload.new as any)?.display_name || "Alguém";
-          toast.info(`Novo pedido de ${name}`, { description: "Aprovação pendente nesta página.", duration: 5000 });
-        }
-        load();
-      })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "workspace_join_requests", filter: `workspace_id=eq.${workspaceId}` }, () => load())
-      .on("postgres_changes", { event: "DELETE", schema: "public", table: "workspace_join_requests", filter: `workspace_id=eq.${workspaceId}` }, () => load())
-      .on("postgres_changes", { event: "*", schema: "public", table: "workspace_members", filter: `workspace_id=eq.${workspaceId}` }, () => load())
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    let ch: ReturnType<typeof supabase.channel> | null = null;
+    try {
+      ch = supabase
+        .channel(`members-${workspaceId}-${Math.random().toString(36).slice(2)}`)
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "workspace_join_requests", filter: `workspace_id=eq.${workspaceId}` }, (payload) => {
+          if (initialLoadDone && isOwner) {
+            const name = (payload.new as any)?.display_name || "Alguém";
+            toast.info(`Novo pedido de ${name}`, { description: "Aprovação pendente nesta página.", duration: 5000 });
+          }
+          load();
+        })
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "workspace_join_requests", filter: `workspace_id=eq.${workspaceId}` }, () => load())
+        .on("postgres_changes", { event: "DELETE", schema: "public", table: "workspace_join_requests", filter: `workspace_id=eq.${workspaceId}` }, () => load())
+        .on("postgres_changes", { event: "*", schema: "public", table: "workspace_members", filter: `workspace_id=eq.${workspaceId}` }, () => load())
+        .subscribe();
+    } catch { ch = null; }
+    return () => { if (ch) supabase.removeChannel(ch); };
   }, [workspaceId, load, isOwner]);
 
   const copyCode = async () => {

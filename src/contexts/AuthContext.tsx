@@ -169,12 +169,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Realtime: re-fetch hub when memberships or join requests change for this user
   useEffect(() => {
     if (!user) return;
-    const ch = supabase
-      .channel(`hub-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "workspace_members", filter: `user_id=eq.${user.id}` }, () => fetchHub())
-      .on("postgres_changes", { event: "*", schema: "public", table: "workspace_join_requests", filter: `user_id=eq.${user.id}` }, () => fetchHub())
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    let ch: ReturnType<typeof supabase.channel> | null = null;
+    try {
+      ch = supabase
+        .channel(`hub-${user.id}-${Math.random().toString(36).slice(2)}`)
+        .on("postgres_changes", { event: "*", schema: "public", table: "workspace_members", filter: `user_id=eq.${user.id}` }, () => fetchHub())
+        .on("postgres_changes", { event: "*", schema: "public", table: "workspace_join_requests", filter: `user_id=eq.${user.id}` }, () => fetchHub())
+        .subscribe();
+    } catch { ch = null; }
+    return () => { if (ch) supabase.removeChannel(ch); };
   }, [user?.id]);
 
   async function fetchDisplayName(userId: string) {

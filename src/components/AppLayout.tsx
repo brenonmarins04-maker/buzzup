@@ -98,24 +98,27 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     };
     load().then(() => { initialLoadDone = true; });
 
-    const ch = supabase
-      .channel(`pending-joins-${user.id}`)
-      // New join request arrived → toast the owner
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "workspace_join_requests" }, (payload) => {
-        const wsId = (payload.new as any)?.workspace_id;
-        if (initialLoadDone && ownedWorkspaceIds.includes(wsId)) {
-          toast.info("Novo pedido de entrada!", {
-            description: "Alguém quer entrar no workspace. Veja em Acessos → Pedidos.",
-            duration: 8000,
-          });
-        }
-        load();
-      })
-      // Request cancelled/rejected/approved → just refresh count
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "workspace_join_requests" }, () => load())
-      .on("postgres_changes", { event: "DELETE", schema: "public", table: "workspace_join_requests" }, () => load())
-      .subscribe();
-    return () => { cancelled = true; supabase.removeChannel(ch); };
+    let ch: ReturnType<typeof supabase.channel> | null = null;
+    try {
+      ch = supabase
+        .channel(`pending-joins-${user.id}-${Math.random().toString(36).slice(2)}`)
+        // New join request arrived → toast the owner
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "workspace_join_requests" }, (payload) => {
+          const wsId = (payload.new as any)?.workspace_id;
+          if (initialLoadDone && ownedWorkspaceIds.includes(wsId)) {
+            toast.info("Novo pedido de entrada!", {
+              description: "Alguém quer entrar no workspace. Veja em Acessos → Pedidos.",
+              duration: 8000,
+            });
+          }
+          load();
+        })
+        // Request cancelled/rejected/approved → just refresh count
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "workspace_join_requests" }, () => load())
+        .on("postgres_changes", { event: "DELETE", schema: "public", table: "workspace_join_requests" }, () => load())
+        .subscribe();
+    } catch { ch = null; }
+    return () => { cancelled = true; if (ch) supabase.removeChannel(ch); };
   }, [user?.id, ownedWorkspaceIds.join(",")]);
 
   // Areas the current user belongs to (for mobile "Minha Área" shortcut)

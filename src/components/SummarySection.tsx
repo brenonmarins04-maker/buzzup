@@ -39,21 +39,24 @@ export default function SummarySection() {
     };
     load();
 
-    const ch = supabase
-      .channel(`summary-${activeWorkspaceId}`)
-      .on("postgres_changes", {
-        event: "*", schema: "public",
-        table: "workspace_summaries",
-        filter: `workspace_id=eq.${activeWorkspaceId}`,
-      }, (payload) => {
-        const r = payload.new as SummaryRow | null;
-        if (r?.summaries && typeof r.summaries === "object") {
-          setSummaries(r.summaries);
-        }
-      })
-      .subscribe();
+    let ch: ReturnType<typeof supabase.channel> | null = null;
+    try {
+      ch = supabase
+        .channel(`summary-${activeWorkspaceId}-${Math.random().toString(36).slice(2)}`)
+        .on("postgres_changes", {
+          event: "*", schema: "public",
+          table: "workspace_summaries",
+          filter: `workspace_id=eq.${activeWorkspaceId}`,
+        }, (payload) => {
+          const r = payload.new as SummaryRow | null;
+          if (r?.summaries && typeof r.summaries === "object") {
+            setSummaries(r.summaries);
+          }
+        })
+        .subscribe();
+    } catch { ch = null; }
 
-    return () => { cancelled = true; supabase.removeChannel(ch); };
+    return () => { cancelled = true; if (ch) supabase.removeChannel(ch); };
   }, [activeWorkspaceId]);
 
   // Ao trocar área, sai do modo edição
