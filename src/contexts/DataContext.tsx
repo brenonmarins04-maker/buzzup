@@ -562,14 +562,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
       form_completions:     () => debounced("formCompletions", refetchFormCompletions),
     };
 
-    const channel = supabase.channel(`ws-${workspaceId}`);
-    Object.entries(TABLE_HANDLERS).forEach(([table, handler]) => {
-      channel.on("postgres_changes", { event: "*", schema: "public", table }, handler);
-    });
-    channel.subscribe();
+    // Unique suffix prevents collision when removeChannel (async) hasn't finished
+    // before this effect re-runs (e.g. AppLayout remount after an error redirect).
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    try {
+      channel = supabase.channel(`ws-${workspaceId}-${Math.random().toString(36).slice(2)}`);
+      Object.entries(TABLE_HANDLERS).forEach(([table, handler]) => {
+        channel!.on("postgres_changes", { event: "*", schema: "public", table }, handler);
+      });
+      channel.subscribe();
+    } catch { channel = null; }
     return () => {
       timers.forEach(t => clearTimeout(t));
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
     };
   }, [workspaceId]);
 

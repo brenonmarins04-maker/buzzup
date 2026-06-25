@@ -57,19 +57,24 @@ export function useAreaNames() {
     load();
 
     // Realtime: reload when the owner updates the config (so all members see it immediately)
-    const ch = supabase
-      .channel(`wsc-${wsId}`)
-      .on("postgres_changes", {
-        event: "*",
-        schema: "public",
-        table: "workspace_config",
-        filter: `workspace_id=eq.${wsId}`,
-      }, () => { if (!cancelled) load(); })
-      .subscribe();
+    // Use a unique channel name per mount — supabase.channel(name) may return an already-subscribed
+    // channel if the previous cleanup's removeChannel (async) hasn't finished yet, causing a throw.
+    let ch: ReturnType<typeof supabase.channel> | null = null;
+    try {
+      ch = supabase
+        .channel(`wsc-${wsId}-${Math.random().toString(36).slice(2)}`)
+        .on("postgres_changes", {
+          event: "*",
+          schema: "public",
+          table: "workspace_config",
+          filter: `workspace_id=eq.${wsId}`,
+        }, () => { if (!cancelled) load(); })
+        .subscribe();
+    } catch { /* realtime is non-essential; polling on mount is enough */ }
 
     return () => {
       cancelled = true;
-      supabase.removeChannel(ch);
+      if (ch) supabase.removeChannel(ch);
     };
   }, [activeWorkspaceId]);
 
