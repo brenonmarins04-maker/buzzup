@@ -1023,7 +1023,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const prev = parkingItems.find(x => x.id === p.id);
     const becomingDone = prev && prev.status !== "done" && p.status === "done";
     const { error } = await (supabase.from("parking_items") as any)
-      .update({ title: p.title, description: p.description, date: p.date, person_id: p.personId, position: p.position, status: p.status, points: p.points, ...(becomingDone ? { completed_at: new Date().toISOString() } : {}) })
+      .update({ area: p.area, title: p.title, description: p.description, date: p.date, person_id: p.personId, position: p.position, status: p.status, points: p.points, ...(becomingDone ? { completed_at: new Date().toISOString() } : {}) })
       .eq("id", p.id);
     if (error) { toast.error("Erro ao atualizar"); return; }
     const completedAt = becomingDone ? new Date().toISOString() : p.completedAt ?? prev?.completedAt ?? null;
