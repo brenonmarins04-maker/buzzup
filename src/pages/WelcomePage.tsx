@@ -100,8 +100,8 @@ export default function WelcomePage() {
       <aside
         className="login-blue-panel hidden lg:flex flex-col justify-between shrink-0 p-10 overflow-hidden"
         style={{
-          width: entered ? 380 : "100vw",
-          transition: "width 0.85s cubic-bezier(0.4, 0, 0.2, 1)",
+          width: entered ? 380 : "50vw",
+          transition: "width 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
         }}
       >
         <div className="flex items-center gap-3 shrink-0">
@@ -142,7 +142,7 @@ export default function WelcomePage() {
         className="flex-1 overflow-y-auto"
         style={{
           opacity: entered ? 1 : 0,
-          transition: "opacity 0.5s ease 0.6s",
+          transition: "opacity 0.6s ease 0.85s",
         }}
       >
         {/* Header mobile */}
