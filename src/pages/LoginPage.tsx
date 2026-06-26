@@ -1,14 +1,17 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { ArrowRight, Eye, EyeOff, Lock, Mail, User } from "lucide-react";
 
+const EXIT_MS = 260;
+
 export default function LoginPage() {
   const { user, loading, signIn, signUp, resetPassword } = useAuth();
+  const navigate = useNavigate();
   const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [justSignedUp, setJustSignedUp] = useState(false);
   const [emailConfirmNeeded, setEmailConfirmNeeded] = useState(false);
@@ -17,6 +20,7 @@ export default function LoginPage() {
   const [name, setName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [exiting, setExiting] = useState(false);
 
   if (loading) {
     return (
@@ -26,7 +30,18 @@ export default function LoginPage() {
     );
   }
 
-  if (user) return <Navigate to={justSignedUp ? "/welcome" : "/"} replace />;
+  // Already logged in (e.g., page refresh): redirect immediately, no animation
+  if (user && !exiting) return <Navigate to={justSignedUp ? "/welcome" : "/"} replace />;
+
+  const triggerExit = (dest: string) => {
+    setExiting(true);
+    setTimeout(() => {
+      navigate(dest, {
+        replace: true,
+        state: dest === "/welcome" ? { fromLogin: true } : undefined,
+      });
+    }, EXIT_MS);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,16 +60,8 @@ export default function LoginPage() {
     }
 
     if (mode === "signup") {
-      if (!name.trim()) {
-        toast.error("Informe seu nome completo");
-        setSubmitting(false);
-        return;
-      }
-      if (password.length < 6) {
-        toast.error("A senha deve ter pelo menos 6 caracteres");
-        setSubmitting(false);
-        return;
-      }
+      if (!name.trim()) { toast.error("Informe seu nome completo"); setSubmitting(false); return; }
+      if (password.length < 6) { toast.error("A senha deve ter pelo menos 6 caracteres"); setSubmitting(false); return; }
 
       const { error } = await signUp(email, password, name.trim());
       if (error) {
@@ -72,6 +79,7 @@ export default function LoginPage() {
       const { error: loginErr } = await signIn(email, password);
       if (!loginErr) {
         setJustSignedUp(true);
+        triggerExit("/welcome");
       } else {
         const msg = (loginErr.message || "").toLowerCase();
         if (msg.includes("email not confirmed") || msg.includes("not_confirmed")) {
@@ -80,8 +88,8 @@ export default function LoginPage() {
           toast.success("Conta criada! Faça login com seu e-mail e senha.");
           setMode("login");
         }
+        setSubmitting(false);
       }
-      setSubmitting(false);
       return;
     }
 
@@ -98,8 +106,12 @@ export default function LoginPage() {
       } else {
         toast.error("Erro ao entrar. Tente novamente.");
       }
+      setSubmitting(false);
+      return;
     }
-    setSubmitting(false);
+
+    // Login bem-sucedido → exit animation → navigate
+    triggerExit("/welcome");
   };
 
   if (emailConfirmNeeded) {
@@ -147,15 +159,28 @@ export default function LoginPage() {
       ? "Crie sua conta para entrar no workspace."
       : "Bem-vindo de volta. Acesse sua conta para continuar.";
 
+  // Shared ease for exit
+  const exitTransition = `opacity ${EXIT_MS}ms ease-in, transform ${EXIT_MS}ms ease-in`;
+
   return (
     <div className="h-screen overflow-hidden grid grid-cols-1 lg:grid-cols-[0.92fr_1fr] bg-background">
+
       {/* Painel azul */}
       <section className="login-blue-panel text-white p-7 md:p-10 lg:p-12 flex flex-col justify-between min-h-[220px] lg:min-h-0">
         <div className="flex items-center gap-3">
           <div className="h-11 w-11 rounded-xl bg-white/16 flex items-center justify-center font-extrabold text-2xl shadow-lg shadow-black/10">B</div>
           <span className="text-2xl font-extrabold tracking-tight">BuzzUp</span>
         </div>
-        <div className="max-w-lg py-10 lg:py-0">
+
+        {/* Text block — slides up & fades on exit */}
+        <div
+          className="max-w-lg py-10 lg:py-0"
+          style={{
+            opacity: exiting ? 0 : 1,
+            transform: exiting ? "translateY(-10px)" : "translateY(0)",
+            transition: exitTransition,
+          }}
+        >
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight leading-[0.98]">
             Gestão de times,<br />sem nenhum ruído.
           </h1>
@@ -163,11 +188,19 @@ export default function LoginPage() {
             Workspaces, pedidos e demandas em um só lugar, feito para assessores e diretores que precisam de clareza.
           </p>
         </div>
+
         <p className="hidden lg:block text-sm text-white/50">© 2026 BuzzUp</p>
       </section>
 
-      {/* Painel do formulário */}
-      <section className="flex items-center justify-center px-6 py-10 md:px-12 bg-white overflow-y-auto">
+      {/* Painel do formulário — desliza para baixo & fades on exit */}
+      <section
+        className="flex items-center justify-center px-6 py-10 md:px-12 bg-white overflow-y-auto"
+        style={{
+          opacity: exiting ? 0 : 1,
+          transform: exiting ? "translateY(14px)" : "translateY(0)",
+          transition: exitTransition,
+        }}
+      >
         <div className="w-full max-w-md">
           <div className="mb-9">
             <h2 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">{title}</h2>
@@ -180,15 +213,7 @@ export default function LoginPage() {
                 <Label htmlFor="name" className="font-semibold">Nome completo</Label>
                 <div className="relative">
                   <User className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input
-                    id="name"
-                    value={name}
-                    onChange={e => setName(e.target.value)}
-                    placeholder="Seu nome completo"
-                    className="h-16 rounded-2xl pl-14 text-base bg-[#f5f5f3]"
-                    autoFocus
-                    required
-                  />
+                  <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="Seu nome completo" className="h-16 rounded-2xl pl-14 text-base bg-[#f5f5f3]" autoFocus required />
                 </div>
               </div>
             )}
@@ -197,16 +222,7 @@ export default function LoginPage() {
               <Label htmlFor="email" className="font-semibold">E-mail</Label>
               <div className="relative">
                 <Mail className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="voce@empresa.com"
-                  className="h-16 rounded-2xl pl-14 text-base bg-[#f5f5f3]"
-                  autoFocus={mode !== "signup"}
-                  required
-                />
+                <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="voce@empresa.com" className="h-16 rounded-2xl pl-14 text-base bg-[#f5f5f3]" autoFocus={mode !== "signup"} required />
               </div>
             </div>
 
@@ -215,51 +231,29 @@ export default function LoginPage() {
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password" className="font-semibold">Senha</Label>
                   {mode === "login" && (
-                    <button
-                      type="button"
-                      onClick={() => { setMode("forgot"); setPassword(""); }}
-                      className="text-sm font-semibold text-primary hover:text-primary/80"
-                    >
+                    <button type="button" onClick={() => { setMode("forgot"); setPassword(""); }} className="text-sm font-semibold text-primary hover:text-primary/80">
                       Esqueceu?
                     </button>
                   )}
                 </div>
                 <div className="relative">
                   <Lock className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="h-16 rounded-2xl pl-14 pr-12 text-base bg-[#f5f5f3]"
-                    minLength={6}
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(p => !p)}
-                    className="absolute right-5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    tabIndex={-1}
-                  >
+                  <Input id="password" type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="h-16 rounded-2xl pl-14 pr-12 text-base bg-[#f5f5f3]" minLength={6} required />
+                  <button type="button" onClick={() => setShowPassword(p => !p)} className="absolute right-5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
                     {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                   </button>
                 </div>
-                {mode === "signup" && (
-                  <p className="text-[11px] text-muted-foreground">Mínimo de 6 caracteres</p>
-                )}
+                {mode === "signup" && <p className="text-[11px] text-muted-foreground">Mínimo de 6 caracteres</p>}
               </div>
             )}
 
-            <Button type="submit" className="w-full h-16 rounded-2xl text-base font-bold shadow-2xl shadow-primary/20 hover:-translate-y-0.5 transition-all" disabled={submitting}>
+            <Button type="submit" className="w-full h-16 rounded-2xl text-base font-bold shadow-2xl shadow-primary/20 hover:-translate-y-0.5 transition-all" disabled={submitting || exiting}>
               {submitting
                 ? "Aguarde..."
-                : mode === "forgot"
-                  ? "Enviar link de recuperação"
-                  : mode === "signup"
-                    ? "Criar conta"
-                    : "Entrar"}
-              {!submitting && <ArrowRight className="h-5 w-5 ml-2" />}
+                : mode === "forgot" ? "Enviar link de recuperação"
+                : mode === "signup" ? "Criar conta"
+                : "Entrar"}
+              {!submitting && !exiting && <ArrowRight className="h-5 w-5 ml-2" />}
             </Button>
           </form>
 
@@ -267,27 +261,18 @@ export default function LoginPage() {
             {mode === "login" && (
               <p className="text-muted-foreground">
                 Não tem conta?{" "}
-                <button
-                  onClick={() => { setMode("signup"); setPassword(""); }}
-                  className="text-primary hover:text-primary/80 font-bold transition-colors"
-                >
+                <button onClick={() => { setMode("signup"); setPassword(""); }} className="text-primary hover:text-primary/80 font-bold transition-colors">
                   Criar conta
                 </button>
               </p>
             )}
             {mode === "signup" && (
-              <button
-                onClick={() => { setMode("login"); setPassword(""); }}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
+              <button onClick={() => { setMode("login"); setPassword(""); }} className="text-muted-foreground hover:text-foreground transition-colors">
                 Já tenho conta — entrar
               </button>
             )}
             {mode === "forgot" && (
-              <button
-                onClick={() => setMode("login")}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
+              <button onClick={() => setMode("login")} className="text-muted-foreground hover:text-foreground transition-colors">
                 Voltar ao login
               </button>
             )}

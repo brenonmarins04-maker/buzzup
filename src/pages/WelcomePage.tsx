@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { KeyRound, ArrowRight, ArrowLeft, LogOut, Building2, Clock, CheckCircle2, XCircle, Crown, Shield, User as UserIcon, Plus, X, Trash2, RotateCcw } from "lucide-react";
+
+// Delay helpers
+const PANEL_DURATION = 1200; // ms — how long the 50vw→380px slide takes
 
 export default function WelcomePage() {
   const {
@@ -18,21 +21,38 @@ export default function WelcomePage() {
     signOut,
   } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromLogin = (location.state as { fromLogin?: boolean } | null)?.fromLogin === true;
+
   const [mode, setMode] = useState<"hub" | "create" | "join">("hub");
-  const [name, setName] = useState("");
+  const [wsName, setWsName] = useState("");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
-  const [entered, setEntered] = useState(false);
+
+  // ── Animation states ──────────────────────────────────────────────────────
+  // panelSlid: true = panel is at its final width (380px); false = still at 50vw
+  const [panelSlid, setPanelSlid] = useState(fromLogin);
+  // contentIn: true = right-side content is visible
+  const [contentIn, setContentIn] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) navigate("/login", { replace: true });
   }, [loading, user, navigate]);
 
-  // Entrance animation: blue panel starts full-width, shrinks to sidebar
   useEffect(() => {
-    const raf = requestAnimationFrame(() => requestAnimationFrame(() => setEntered(true)));
-    return () => cancelAnimationFrame(raf);
-  }, []);
+    if (fromLogin) {
+      // Panel is already at the right size — just fade content in quickly
+      const t = setTimeout(() => setContentIn(true), 60);
+      return () => clearTimeout(t);
+    } else {
+      // Animate panel first, then content after it lands
+      const raf = requestAnimationFrame(() =>
+        requestAnimationFrame(() => setPanelSlid(true))
+      );
+      const t = setTimeout(() => setContentIn(true), PANEL_DURATION * 0.72);
+      return () => { cancelAnimationFrame(raf); clearTimeout(t); };
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const enterWorkspace = (id: string) => {
     flushSync(() => { setActiveWorkspaceId(id); });
@@ -44,8 +64,8 @@ export default function WelcomePage() {
     return Math.max(0, Math.ceil(diff / (24 * 60 * 60 * 1000)));
   };
 
-  const onTrashWorkspace = async (workspaceId: string, wsName: string) => {
-    const ok = window.confirm(`Mover "${wsName}" para a lixeira? Ele sumirá definitivamente após 14 dias.`);
+  const onTrashWorkspace = async (workspaceId: string, name: string) => {
+    const ok = window.confirm(`Mover "${name}" para a lixeira? Ele sumirá definitivamente após 14 dias.`);
     if (!ok) return;
     const result = await trashWorkspace(workspaceId);
     if (result.ok) toast.success("Workspace movido para a lixeira por 14 dias.");
@@ -60,9 +80,9 @@ export default function WelcomePage() {
 
   const onCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || busy) return;
+    if (!wsName.trim() || busy) return;
     setBusy(true);
-    const { ok, error, workspace } = await createWorkspace(name.trim());
+    const { ok, error, workspace } = await createWorkspace(wsName.trim());
     setBusy(false);
     if (ok) {
       toast.success("Workspace criado!");
@@ -93,29 +113,52 @@ export default function WelcomePage() {
     r === "admin" ? <Shield className="h-3.5 w-3.5" /> :
     <UserIcon className="h-3.5 w-3.5" />;
 
+  // Stagger: each item gets progressively more delay
+  const stagger = (i: number, baseMs = 0) =>
+    `opacity 0.28s ease-out ${baseMs + i * 65}ms, transform 0.28s ease-out ${baseMs + i * 65}ms`;
+
+  const fadeUp = (i: number, baseMs = 0): React.CSSProperties => ({
+    opacity: contentIn ? 1 : 0,
+    transform: contentIn ? "translateY(0)" : "translateY(14px)",
+    transition: stagger(i, baseMs),
+  });
+
   return (
     <div className="h-screen overflow-hidden flex bg-[#f7f7f5]">
 
-      {/* ── Painel azul — anima de full-width para sidebar ───────────── */}
+      {/* ── Painel azul ──────────────────────────────────────────────────── */}
       <aside
         className="login-blue-panel hidden lg:flex flex-col justify-between shrink-0 p-10 overflow-hidden"
         style={{
-          width: entered ? 380 : "50vw",
-          transition: "width 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+          width: panelSlid ? 380 : "50vw",
+          transition: fromLogin ? "none" : `width ${PANEL_DURATION}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`,
         }}
       >
+        {/* Logo */}
         <div className="flex items-center gap-3 shrink-0">
           <div className="h-11 w-11 rounded-xl bg-white/16 flex items-center justify-center font-extrabold text-2xl shadow-lg shadow-black/10 shrink-0">B</div>
           <span className="text-2xl font-extrabold tracking-tight text-white whitespace-nowrap">BuzzUp</span>
         </div>
 
-        <div className="shrink-0">
-          <p className="text-white/50 text-sm font-semibold uppercase tracking-widest mb-3 whitespace-nowrap">Bem-vindo de volta</p>
+        {/* Saudação — entra com fade+slide */}
+        <div
+          className="shrink-0"
+          style={{
+            opacity: contentIn ? 1 : 0,
+            transform: contentIn ? "translateY(0)" : "translateY(16px)",
+            transition: fromLogin
+              ? "opacity 0.35s ease-out 0.05s, transform 0.35s ease-out 0.05s"
+              : "opacity 0.4s ease-out 0.1s, transform 0.4s ease-out 0.1s",
+          }}
+        >
+          <p className="text-white/50 text-sm font-semibold uppercase tracking-widest mb-3 whitespace-nowrap">
+            Bem-vindo de volta
+          </p>
           <h1 className="text-4xl font-extrabold text-white tracking-tight leading-tight whitespace-nowrap">
             Olá{firstName ? `, ${firstName}` : ""}!
           </h1>
           {user?.email && (
-            <p className="text-white/55 mt-3 text-sm whitespace-nowrap overflow-hidden text-ellipsis">{user.email}</p>
+            <p className="text-white/55 mt-3 text-sm overflow-hidden text-ellipsis whitespace-nowrap">{user.email}</p>
           )}
           <p className="text-white/40 mt-5 text-sm leading-relaxed" style={{ maxWidth: 280 }}>
             {mode === "hub"
@@ -126,25 +169,17 @@ export default function WelcomePage() {
           </p>
         </div>
 
+        {/* Footer */}
         <div className="flex items-center justify-between shrink-0">
           <p className="text-white/30 text-xs">© 2026 BuzzUp</p>
-          <button
-            onClick={() => signOut()}
-            className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors"
-          >
+          <button onClick={() => signOut()} className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors">
             <LogOut className="h-3.5 w-3.5" /> Sair
           </button>
         </div>
       </aside>
 
-      {/* ── Conteúdo (direita) — aparece conforme painel encolhe ──────── */}
-      <main
-        className="flex-1 overflow-y-auto"
-        style={{
-          opacity: entered ? 1 : 0,
-          transition: "opacity 0.6s ease 0.85s",
-        }}
-      >
+      {/* ── Conteúdo direito ──────────────────────────────────────────────── */}
+      <main className="flex-1 overflow-y-auto">
         {/* Header mobile */}
         <div className="lg:hidden flex items-center justify-between px-5 py-3.5 bg-white border-b border-border/40 sticky top-0 z-10">
           <span className="font-extrabold tracking-tight text-foreground">BuzzUp</span>
@@ -165,25 +200,26 @@ export default function WelcomePage() {
           {mode === "hub" && (
             <div className="space-y-8 flex-1">
 
-              {/* Label */}
-              <div className="flex items-center gap-3">
+              {/* Label — item 0 */}
+              <div style={fadeUp(0)} className="flex items-center gap-3">
                 <h2 className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Meus Workspaces</h2>
                 <span className="text-[10px] text-muted-foreground bg-muted rounded-full px-2 py-0.5 leading-none font-semibold">{myWorkspaces.length}</span>
               </div>
 
-              {/* Workspace cards */}
+              {/* Workspace cards — items 1…N */}
               {myWorkspaces.length === 0 ? (
-                <div className="rounded-3xl border border-dashed border-border bg-white p-10 text-center">
+                <div style={fadeUp(1)} className="rounded-3xl border border-dashed border-border bg-white p-10 text-center">
                   <Building2 className="h-10 w-10 text-muted-foreground/25 mx-auto mb-3" />
                   <p className="text-sm text-muted-foreground">Você ainda não participa de nenhum workspace.</p>
                 </div>
               ) : (
                 <div className="grid sm:grid-cols-2 gap-3">
-                  {myWorkspaces.map(w => (
+                  {myWorkspaces.map((w, i) => (
                     <div
                       key={w.workspace_id}
                       onClick={() => enterWorkspace(w.workspace_id)}
-                      className="group relative text-left rounded-3xl border border-border/50 bg-white p-6 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/8 transition-all cursor-pointer flex items-center gap-4"
+                      style={fadeUp(i + 1)}
+                      className="group relative text-left rounded-3xl border border-border/50 bg-white p-6 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/8 transition-[border-color,box-shadow] cursor-pointer flex items-center gap-4"
                     >
                       <div className="h-14 w-14 rounded-2xl bg-primary/8 text-primary flex items-center justify-center shrink-0">
                         <Building2 className="h-7 w-7" />
@@ -216,7 +252,7 @@ export default function WelcomePage() {
 
               {/* Pedidos pendentes */}
               {pendingRequests.length > 0 && (
-                <section>
+                <section style={fadeUp(myWorkspaces.length + 1)}>
                   <h2 className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Pedidos pendentes</h2>
                   <div className="space-y-2">
                     {pendingRequests.map(r => (
@@ -228,14 +264,10 @@ export default function WelcomePage() {
                           <div className="font-semibold text-foreground text-sm truncate">{r.workspace_name}</div>
                           <div className="text-xs text-muted-foreground font-mono">{r.workspace_code} · aguardando</div>
                         </div>
-                        <button
-                          onClick={async () => {
-                            const { ok, error } = await cancelJoinRequest(r.id);
-                            if (ok) toast.success("Pedido cancelado");
-                            else toast.error(error || "Erro");
-                          }}
-                          className="text-xs text-muted-foreground hover:text-destructive transition-colors shrink-0"
-                        >
+                        <button onClick={async () => {
+                          const { ok, error } = await cancelJoinRequest(r.id);
+                          if (ok) toast.success("Pedido cancelado"); else toast.error(error || "Erro");
+                        }} className="text-xs text-muted-foreground hover:text-destructive transition-colors shrink-0">
                           <X className="h-3.5 w-3.5" />
                         </button>
                       </div>
@@ -246,7 +278,7 @@ export default function WelcomePage() {
 
               {/* Histórico */}
               {otherRequests.length > 0 && (
-                <section>
+                <section style={fadeUp(myWorkspaces.length + 2)}>
                   <h2 className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Histórico</h2>
                   <div className="space-y-0.5">
                     {otherRequests.map(r => (
@@ -264,11 +296,12 @@ export default function WelcomePage() {
                 </section>
               )}
 
-              {/* Ações */}
+              {/* Ações — stagger após os workspace cards */}
               <div className="grid sm:grid-cols-2 gap-3">
                 <button
                   onClick={() => setMode("join")}
-                  className="group text-left rounded-3xl border border-border/50 bg-white p-6 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/8 transition-all flex items-center gap-4"
+                  style={fadeUp(myWorkspaces.length + 1)}
+                  className="group text-left rounded-3xl border border-border/50 bg-white p-6 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/8 transition-[border-color,box-shadow] flex items-center gap-4"
                 >
                   <div className="h-12 w-12 rounded-2xl bg-primary/8 text-primary flex items-center justify-center shrink-0">
                     <KeyRound className="h-6 w-6" />
@@ -282,6 +315,7 @@ export default function WelcomePage() {
 
                 <button
                   onClick={() => setMode("create")}
+                  style={fadeUp(myWorkspaces.length + 2)}
                   className="group text-left rounded-3xl bg-primary p-6 hover:bg-primary/90 hover:shadow-xl hover:shadow-primary/25 transition-all flex items-center gap-4"
                 >
                   <div className="h-12 w-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
@@ -297,8 +331,8 @@ export default function WelcomePage() {
 
               {/* Lixeira — discreta */}
               {trashedWorkspaces.length > 0 && (
-                <section className="pt-2 border-t border-border/30">
-                  <details className="group">
+                <section style={fadeUp(myWorkspaces.length + 3)} className="pt-2 border-t border-border/30">
+                  <details>
                     <summary className="flex items-center gap-2 text-[11px] text-muted-foreground/45 hover:text-muted-foreground cursor-pointer select-none list-none transition-colors">
                       <Trash2 className="h-3 w-3" />
                       Lixeira
@@ -309,10 +343,7 @@ export default function WelcomePage() {
                         <div key={w.workspace_id} className="flex items-center gap-2 py-1.5 px-2 rounded-xl hover:bg-muted/40 transition-colors">
                           <span className="flex-1 text-xs text-muted-foreground/60 truncate">{w.name}</span>
                           <span className="text-[10px] text-muted-foreground/40 shrink-0">Some em {daysLeft(w.delete_after)}d</span>
-                          <button
-                            onClick={() => onRestoreWorkspace(w.workspace_id)}
-                            className="text-[10px] text-primary hover:text-primary/80 font-semibold shrink-0 flex items-center gap-0.5 transition-colors"
-                          >
+                          <button onClick={() => onRestoreWorkspace(w.workspace_id)} className="text-[10px] text-primary hover:text-primary/80 font-semibold shrink-0 flex items-center gap-0.5 transition-colors">
                             <RotateCcw className="h-2.5 w-2.5" /> Restaurar
                           </button>
                         </div>
@@ -337,9 +368,9 @@ export default function WelcomePage() {
               <form onSubmit={onCreate} className="space-y-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="ws-name" className="font-semibold text-sm">Nome do workspace</Label>
-                  <Input id="ws-name" value={name} onChange={(e) => setName(e.target.value.slice(0, 60))} placeholder="Minha empresa" autoFocus maxLength={60} className="h-12 rounded-2xl text-sm bg-white" />
+                  <Input id="ws-name" value={wsName} onChange={(e) => setWsName(e.target.value.slice(0, 60))} placeholder="Minha empresa" autoFocus maxLength={60} className="h-12 rounded-2xl text-sm bg-white" />
                 </div>
-                <Button type="submit" className="w-full h-12 rounded-2xl font-bold text-sm" disabled={busy || !name.trim()}>
+                <Button type="submit" className="w-full h-12 rounded-2xl font-bold text-sm" disabled={busy || !wsName.trim()}>
                   {busy ? "Criando..." : "Criar workspace"}{!busy && <ArrowRight className="h-4 w-4 ml-2" />}
                 </Button>
                 <p className="text-xs text-muted-foreground text-center">Você será definido automaticamente como Owner.</p>
