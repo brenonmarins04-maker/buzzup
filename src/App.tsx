@@ -21,6 +21,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import WelcomePage from "./pages/WelcomePage";
 import NotFound from "./pages/NotFound";
 import AuthLayout from "./layouts/AuthLayout";
+import { AuthTransitionProvider } from "./contexts/AuthTransitionContext";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +61,7 @@ const App = () => (
       <AuthProvider>
         <Toaster />
         <ResponsiveSonner />
+        <AuthTransitionProvider>
         <BrowserRouter>
           <Routes>
             {/* AuthLayout persiste entre /login e /welcome — painel azul nunca desmonta */}
@@ -81,6 +83,7 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
+        </AuthTransitionProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

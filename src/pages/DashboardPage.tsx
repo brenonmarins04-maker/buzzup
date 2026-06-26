@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -195,6 +195,16 @@ export default function DashboardPage() {
 
   const [demandIdx, setDemandIdx] = useState(0);
   const [showAllRanking, setShowAllRanking] = useState(false);
+  const [entered, setEntered] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setEntered(true), 50);
+    return () => clearTimeout(t);
+  }, []);
+  const fadeUp = (i: number): React.CSSProperties => ({
+    opacity: entered ? 1 : 0,
+    transform: entered ? "none" : "translateY(14px)",
+    transition: `opacity 0.32s ease-out ${i * 85}ms, transform 0.32s ease-out ${i * 85}ms`,
+  });
   useEffect(() => {
     if (weekDemands.length <= 1) return;
     const timer = setInterval(() => setDemandIdx(i => (i + 1) % weekDemands.length), 2000);
@@ -237,8 +247,9 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="animate-fade-in space-y-4 md:space-y-5">
+    <div className="space-y-4 md:space-y-5">
       {/* Minhas Demandas + Meus Pontos */}
+      <div style={fadeUp(0)}>
       {currentPerson && (() => {
         const myNickname = (currentPerson.nickname && currentPerson.nickname.trim())
           ? currentPerson.nickname.trim()
@@ -353,9 +364,10 @@ export default function DashboardPage() {
           </div>
         );
       })()}
+      </div>
 
       {/* Ranking */}
-      <div className="glass-panel rounded-2xl p-5">
+      <div className="glass-panel rounded-2xl p-5" style={fadeUp(1)}>
         <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
           <Trophy className="h-4 w-4 text-[#F97316]" /> Gameficação
         </h2>
@@ -455,10 +467,10 @@ export default function DashboardPage() {
       </div>
 
       {/* Atualizações das Áreas */}
-      <SummarySection />
+      <div style={fadeUp(2)}><SummarySection /></div>
 
       {/* 2 columns */}
-      <div className="hidden md:grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="hidden md:grid grid-cols-1 lg:grid-cols-2 gap-4" style={fadeUp(3)}>
         {/* Demandas por área */}
         <div className="glass-panel rounded-2xl p-5">
           <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -526,7 +538,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Atividade recente */}
-      <div className="hidden md:block glass-panel rounded-2xl p-5">
+      <div className="hidden md:block glass-panel rounded-2xl p-5" style={fadeUp(4)}>
         <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-[#8B5CF6]" /> Atividade recente
         </h2>

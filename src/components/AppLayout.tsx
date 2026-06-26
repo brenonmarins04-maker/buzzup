@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   CalendarDays, Megaphone,
@@ -136,6 +137,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [broadcastModal, setBroadcastModal] = useState(false);
   const [editAreasModal, setEditAreasModal] = useState(false);
   const [createTeamModal, setCreateTeamModal] = useState(false);
+
+  // Nav items stagger: triggers after sidebar entrance animation is mostly done
+  const [navIn, setNavIn] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setNavIn(true), 200);
+    return () => clearTimeout(t);
+  }, []);
 
   // Load custom area names per workspace — version triggers re-render of nav items
   const { version: areaNamesVersion } = useAreaNames();
@@ -321,28 +329,42 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Stagger helper for nav items
+  const navStagger = (idx: number): React.CSSProperties => ({
+    opacity: navIn ? 1 : 0,
+    transform: navIn ? "none" : "translateX(-10px)",
+    transition: `opacity 0.2s ease-out ${idx * 28}ms, transform 0.2s ease-out ${idx * 28}ms`,
+  });
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <aside className={`${collapsed ? "w-16" : "w-60"} shrink-0 border-r border-border glass-sidebar flex flex-col transition-all duration-200`}>
-        <div className="h-14 px-4 flex items-center justify-between border-b border-border/70">
-          {!collapsed && <span className="font-bold text-foreground tracking-tight text-lg">BuzzUp</span>}
-          <button onClick={() => setCollapsed(!collapsed)} className="p-1 rounded hover:bg-accent transition-colors text-muted-foreground">
+      <motion.aside
+        className={`${collapsed ? "w-16" : "w-60"} login-blue-panel shrink-0 flex flex-col transition-[width] duration-200 overflow-hidden`}
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
+      >
+        <div className="h-14 px-4 flex items-center justify-between border-b border-white/10 shrink-0">
+          {!collapsed && <span className="font-bold text-white tracking-tight text-lg">BuzzUp</span>}
+          <button onClick={() => setCollapsed(!collapsed)} className="p-1 rounded hover:bg-white/10 transition-colors text-white/60 hover:text-white">
             <ChevronLeft className={`h-4 w-4 transition-transform ${collapsed ? "rotate-180" : ""}`} />
           </button>
         </div>
-        <nav className="flex-1 py-4 px-2 flex flex-col gap-1 overflow-y-auto">
+        <nav className="flex-1 py-4 px-2 flex flex-col gap-1 overflow-y-auto scrollbar-thin">
           {/* Main nav items (sem Acessos) */}
-          {navItems.map((item) => (
-            <NavLink key={item.to} to={item.to}
-              style={({ isActive }) => (isActive && (item as any).color
-                ? { backgroundColor: `${(item as any).color}1F`, color: (item as any).color, boxShadow: `inset 3px 0 0 ${(item as any).color}` }
-                : (item as any).color
-                  ? { color: (item as any).color }
-                  : undefined)}
-              className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-colors ${isActive && !(item as any).color ? "bg-accent text-foreground shadow-sm" : !isActive ? "text-muted-foreground hover:text-foreground hover:bg-accent/50" : ""} ${collapsed ? "justify-center" : ""}`}>
-              <item.icon className="h-4 w-4 shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
-            </NavLink>
+          {navItems.map((item, idx) => (
+            <div key={item.to} style={navStagger(idx)}>
+              <NavLink to={item.to}
+                style={({ isActive }) => (isActive && (item as any).color
+                  ? { backgroundColor: `${(item as any).color}33`, color: (item as any).color, boxShadow: `inset 3px 0 0 ${(item as any).color}` }
+                  : (item as any).color
+                    ? { color: (item as any).color }
+                    : undefined)}
+                className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-colors ${isActive && !(item as any).color ? "bg-white/20 text-white" : !isActive ? "text-white/65 hover:text-white hover:bg-white/10" : ""} ${collapsed ? "justify-center" : ""}`}>
+                <item.icon className="h-4 w-4 shrink-0" />
+                {!collapsed && <span>{item.label}</span>}
+              </NavLink>
+            </div>
           ))}
 
           {/* ── Times (sempre visível para admin/owner; visível para members que têm time) ── */}
@@ -350,28 +372,27 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <>
               {!collapsed && (
                 <div className="px-3 pt-3 pb-1 flex items-center justify-between">
-                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Times</span>
-                  {/* "+" aparece quando não há nenhum time no workspace e o user é admin/owner */}
+                  <span className="text-[10px] font-semibold text-white/50 uppercase tracking-wider">Times</span>
                   {isAdmin && teams.length === 0 && (
                     <button
                       onClick={() => setCreateTeamModal(true)}
                       title="Criar time"
-                      className="h-5 w-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-colors"
+                      className="h-5 w-5 rounded flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors"
                     >
                       <Plus className="h-3.5 w-3.5" />
                     </button>
                   )}
                 </div>
               )}
-              {collapsed && <div className="border-t border-border my-2" />}
+              {collapsed && <div className="border-t border-white/15 my-2" />}
               {myTeams.map(team => {
                 const tc = getTeamColor(team.id);
                 return (
                   <NavLink key={team.id} to={`/time/${team.id}`}
                     style={({ isActive }) => isActive
-                      ? { backgroundColor: `${tc}1F`, color: tc, boxShadow: `inset 3px 0 0 ${tc}` }
+                      ? { backgroundColor: `${tc}33`, color: tc, boxShadow: `inset 3px 0 0 ${tc}` }
                       : { color: tc }}
-                    className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-colors ${!isActive ? "hover:bg-accent/50" : ""} ${collapsed ? "justify-center" : ""}`}>
+                    className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-colors ${!isActive ? "hover:bg-white/10" : ""} ${collapsed ? "justify-center" : ""}`}>
                     <UsersRound className="h-4 w-4 shrink-0" />
                     {!collapsed && <span className="truncate">{team.name}</span>}
                   </NavLink>
@@ -385,11 +406,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             const item = getAccessItem();
             return (
               <NavLink to={item.to}
-                className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-colors ${isActive ? "bg-accent text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"} ${collapsed ? "justify-center" : ""}`}>
+                className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-colors ${isActive ? "bg-white/20 text-white" : "text-white/65 hover:text-white hover:bg-white/10"} ${collapsed ? "justify-center" : ""}`}>
                 <div className="relative">
                   <item.icon className="h-4 w-4 shrink-0" />
                   {pendingJoinCount > 0 && collapsed && (
-                    <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-3.5 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
+                    <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-3.5 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
                       {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
                     </span>
                   )}
@@ -398,7 +419,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <span className="flex-1 flex items-center justify-between">
                     <span>{item.label}</span>
                     {pendingJoinCount > 0 && (
-                      <span className="h-5 min-w-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
+                      <span className="h-5 min-w-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
                         {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
                       </span>
                     )}
@@ -411,18 +432,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {/* ── Relatórios (apenas admins/owners, desktop only) ── */}
           {isAdmin && (
             <NavLink to="/reports"
-              className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-colors ${isActive ? "bg-accent text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-accent/50"} ${collapsed ? "justify-center" : ""}`}>
+              className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-colors ${isActive ? "bg-white/20 text-white" : "text-white/65 hover:text-white hover:bg-white/10"} ${collapsed ? "justify-center" : ""}`}>
               <BarChart2 className="h-4 w-4 shrink-0" />
               {!collapsed && <span>Relatórios</span>}
             </NavLink>
           )}
         </nav>
-        <div className="p-3 border-t border-border/70">
+        <div className="p-3 border-t border-white/10 shrink-0">
           {isAdmin && (
             <button
               onClick={() => setEditAreasModal(true)}
               title="Editar nomes das áreas"
-              className={`w-full mb-2 flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors ${collapsed ? "justify-center" : ""}`}
+              className={`w-full mb-2 flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-white/60 hover:text-white hover:bg-white/10 transition-colors ${collapsed ? "justify-center" : ""}`}
             >
               <Pencil className="h-4 w-4 shrink-0" />
               {!collapsed && <span>Editar áreas</span>}
@@ -432,32 +453,32 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <button
               onClick={() => setBroadcastModal(true)}
               title="Nova mensagem geral"
-              className={`w-full mb-2 flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium border-2 border-red-500 bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-colors ${collapsed ? "justify-center" : ""}`}
+              className={`w-full mb-2 flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium border border-red-400/50 bg-red-500/20 text-red-200 hover:bg-red-500/30 transition-colors ${collapsed ? "justify-center" : ""}`}
             >
               <Plus className="h-4 w-4 shrink-0" />
               {!collapsed && <span>Mensagem geral</span>}
             </button>
           )}
-          <div className={`flex items-center gap-3 px-2 py-1.5 rounded-2xl bg-white/58 border border-border/60 ${collapsed ? "justify-center" : ""}`}>
-            <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground text-xs font-semibold shrink-0">{initials}</div>
+          <div className={`flex items-center gap-3 px-2 py-1.5 rounded-2xl bg-white/12 border border-white/10 ${collapsed ? "justify-center" : ""}`}>
+            <div className="h-8 w-8 rounded-full bg-white/90 flex items-center justify-center text-primary text-xs font-bold shrink-0">{initials}</div>
             {!collapsed && (
               <div className="flex flex-col min-w-0 flex-1">
-                <span className="text-sm font-medium text-foreground truncate">{fullName}</span>
+                <span className="text-sm font-medium text-white truncate">{fullName}</span>
               </div>
             )}
             {!collapsed && (
               <>
-                <button onClick={() => navigate("/welcome")} className="p-1 rounded hover:bg-accent text-muted-foreground" title="Trocar workspace">
+                <button onClick={() => navigate("/welcome")} className="p-1 rounded hover:bg-white/10 text-white/60 hover:text-white transition-colors" title="Trocar workspace">
                   <Home className="h-4 w-4" />
                 </button>
-                <button onClick={() => signOut()} className="p-1 rounded hover:bg-accent text-muted-foreground" title="Sair">
+                <button onClick={() => signOut()} className="p-1 rounded hover:bg-white/10 text-white/60 hover:text-white transition-colors" title="Sair">
                   <LogOut className="h-4 w-4" />
                 </button>
               </>
             )}
           </div>
         </div>
-      </aside>
+      </motion.aside>
       <main className="flex-1 flex flex-col min-w-0">
         <header className="h-14 px-6 flex items-center justify-between border-b border-border glass-header shrink-0">
           <div className="flex items-center gap-3">

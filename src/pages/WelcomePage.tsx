@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { flushSync } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAuthTransition } from "@/contexts/AuthTransitionContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,10 +23,12 @@ export default function WelcomePage() {
     signOut,
   } = useAuth();
   const navigate = useNavigate();
+  const { setLeaving: setGlobalLeaving } = useAuthTransition();
   const [mode, setMode] = useState<"hub" | "create" | "join">("hub");
   const [wsName, setWsName] = useState("");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   // Stagger trigger: fires shortly after AnimatePresence mounts this component
   const [contentIn, setContentIn] = useState(false);
@@ -38,7 +41,13 @@ export default function WelcomePage() {
     if (!loading && !user) navigate("/login", { replace: true });
   }, [loading, user, navigate]);
 
-  const enterWorkspace = (id: string) => {
+  const enterWorkspace = async (id: string) => {
+    // Trigger exit animations on cards + panel morph
+    setLeaving(true);
+    setGlobalLeaving(true);
+    await new Promise(r => setTimeout(r, 400));
+    // Reset global leaving after AuthLayout unmounts (no visual effect)
+    setTimeout(() => setGlobalLeaving(false), 200);
     flushSync(() => { setActiveWorkspaceId(id); });
     navigate("/", { replace: true });
   };
@@ -93,11 +102,20 @@ export default function WelcomePage() {
     <UserIcon className="h-3.5 w-3.5" />;
 
   // Staggered fade-up helper — delays grow by 65ms per item index
-  const fadeUp = (i: number): React.CSSProperties => ({
-    opacity: contentIn ? 1 : 0,
-    transform: contentIn ? "translateY(0)" : "translateY(12px)",
-    transition: `opacity 0.28s ease-out ${i * 65}ms, transform 0.28s ease-out ${i * 65}ms`,
-  });
+  // When leaving: all items fade out quickly (no stagger)
+  const fadeUp = (i: number): React.CSSProperties => {
+    if (leaving) return {
+      opacity: 0,
+      transform: "translateY(8px)",
+      transition: "opacity 0.2s ease-in, transform 0.2s ease-in",
+      pointerEvents: "none",
+    };
+    return {
+      opacity: contentIn ? 1 : 0,
+      transform: contentIn ? "translateY(0)" : "translateY(12px)",
+      transition: `opacity 0.28s ease-out ${i * 65}ms, transform 0.28s ease-out ${i * 65}ms`,
+    };
+  };
 
   const firstName = displayName?.split(" ")[0] ?? "";
 
