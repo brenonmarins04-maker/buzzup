@@ -20,6 +20,7 @@ import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import WelcomePage from "./pages/WelcomePage";
 import NotFound from "./pages/NotFound";
+import AuthLayout from "./layouts/AuthLayout";
 
 const queryClient = new QueryClient();
 
@@ -61,9 +62,12 @@ const App = () => (
         <ResponsiveSonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/login" element={<LoginPage />} />
+            {/* AuthLayout persiste entre /login e /welcome — painel azul nunca desmonta */}
+            <Route element={<AuthLayout />}>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/welcome" element={<WelcomePage />} />
+            </Route>
             <Route path="/reset-password" element={<ResetPasswordPage />} />
-            <Route path="/welcome" element={<WelcomePage />} />
             <Route element={<ProtectedApp />}>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/calendar" element={<CalendarPage />} />
