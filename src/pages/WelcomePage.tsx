@@ -28,7 +28,6 @@ export default function WelcomePage() {
   }, [loading, user, navigate]);
 
   const enterWorkspace = (id: string) => {
-    // flushSync garante que o estado é aplicado antes do navigate re-renderizar o ProtectedRoute
     flushSync(() => { setActiveWorkspaceId(id); });
     navigate("/", { replace: true });
   };
@@ -38,12 +37,12 @@ export default function WelcomePage() {
     return Math.max(0, Math.ceil(diff / (24 * 60 * 60 * 1000)));
   };
 
-  const onTrashWorkspace = async (workspaceId: string, name: string) => {
-    const ok = window.confirm(`Mover "${name}" para a lixeira? Ele sumirá definitivamente após 14 dias.`);
+  const onTrashWorkspace = async (workspaceId: string, wsName: string) => {
+    const ok = window.confirm(`Mover "${wsName}" para a lixeira? Ele sumirá definitivamente após 14 dias.`);
     if (!ok) return;
     const result = await trashWorkspace(workspaceId);
     if (result.ok) toast.success("Workspace movido para a lixeira por 14 dias.");
-    else toast.error(result.error || "Não foi possível mover para a lixeira. Aplique o SQL da lixeira no Supabase.");
+    else toast.error(result.error || "Não foi possível mover para a lixeira.");
   };
 
   const onRestoreWorkspace = async (workspaceId: string) => {
@@ -60,7 +59,6 @@ export default function WelcomePage() {
     setBusy(false);
     if (ok) {
       toast.success("Workspace criado!");
-      // Garante que o workspaceId está no estado antes do ProtectedRoute checar
       if (workspace?.id) setActiveWorkspaceId(workspace.id);
       navigate("/", { replace: true });
     } else toast.error(error || "Erro ao criar workspace");
@@ -81,81 +79,124 @@ export default function WelcomePage() {
 
   const pendingRequests = myJoinRequests.filter(r => r.status === "pending");
   const otherRequests = myJoinRequests.filter(r => r.status !== "pending").slice(0, 5);
+  const firstName = displayName ? displayName.split(" ")[0] : "";
 
-  const roleIcon = (r: string) => r === "owner" ? <Crown className="h-3 w-3" /> : r === "admin" ? <Shield className="h-3 w-3" /> : <UserIcon className="h-3 w-3" />;
+  const roleIcon = (r: string) =>
+    r === "owner" ? <Crown className="h-3 w-3" /> :
+    r === "admin" ? <Shield className="h-3 w-3" /> :
+    <UserIcon className="h-3 w-3" />;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="flex items-center justify-between px-6 py-4 border-b border-border/50">
-        <div className="text-sm font-semibold tracking-tight">BuzzUp</div>
-        <button
-          onClick={() => signOut()}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <LogOut className="h-3.5 w-3.5" /> Sair
-        </button>
-      </header>
+    <div className="h-screen overflow-hidden grid grid-cols-1 lg:grid-cols-[400px_1fr] bg-background">
 
-      <main className="flex-1 flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-3xl">
+      {/* ── Painel azul (esquerda) ─────────────────────────────────────── */}
+      <aside className="login-blue-panel hidden lg:flex flex-col justify-between p-10">
+        {/* Logo */}
+        <div className="flex items-center gap-3">
+          <div className="h-11 w-11 rounded-xl bg-white/16 flex items-center justify-center font-extrabold text-2xl shadow-lg shadow-black/10">B</div>
+          <span className="text-2xl font-extrabold tracking-tight text-white">BuzzUp</span>
+        </div>
+
+        {/* Saudação */}
+        <div>
+          <p className="text-white/50 text-sm font-semibold uppercase tracking-widest mb-3">Bem-vindo de volta</p>
+          <h1 className="text-4xl font-extrabold text-white tracking-tight leading-tight">
+            {firstName ? `Olá,\n${firstName}!` : "Olá!"}
+          </h1>
+          {user?.email && (
+            <p className="text-white/55 mt-3 text-sm">{user.email}</p>
+          )}
+          <p className="text-white/40 mt-5 text-sm leading-relaxed">
+            {mode === "hub"
+              ? "Escolha um workspace para continuar ou crie um novo."
+              : mode === "create"
+              ? "Crie um novo workspace para sua equipe."
+              : "Digite o código de convite para pedir acesso."}
+          </p>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between">
+          <p className="text-white/30 text-xs">© 2026 BuzzUp</p>
+          <button
+            onClick={() => signOut()}
+            className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors"
+          >
+            <LogOut className="h-3.5 w-3.5" /> Sair
+          </button>
+        </div>
+      </aside>
+
+      {/* ── Conteúdo (direita) ─────────────────────────────────────────── */}
+      <main className="overflow-y-auto bg-[#f7f7f5]">
+        {/* Header mobile */}
+        <div className="lg:hidden flex items-center justify-between px-5 py-3.5 bg-white border-b border-border/40 sticky top-0 z-10">
+          <span className="font-extrabold tracking-tight text-foreground">BuzzUp</span>
+          <button
+            onClick={() => signOut()}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <LogOut className="h-3.5 w-3.5" /> Sair
+          </button>
+        </div>
+
+        <div className="max-w-xl mx-auto px-5 py-8 lg:py-10">
+
+          {/* Saudação mobile */}
+          <div className="lg:hidden mb-7">
+            <h1 className="text-3xl font-extrabold text-foreground tracking-tight">
+              Olá{firstName ? `, ${firstName}` : ""}!
+            </h1>
+            {user?.email && <p className="text-sm text-muted-foreground mt-1">{user.email}</p>}
+          </div>
+
+          {/* ── HUB ── */}
           {mode === "hub" && (
-            <div className="space-y-10">
-              <div className="space-y-2">
-                <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
-                  Olá{displayName ? `, ${displayName.split(" ")[0]}` : ""}
-                </h1>
-                {user?.email && (
-                  <p className="text-sm sm:text-base text-foreground/50">{user.email}</p>
-                )}
-                <p className="text-sm sm:text-base text-muted-foreground">
-                  Escolha um workspace para entrar, acompanhe seus pedidos ou crie um novo.
-                </p>
-              </div>
+            <div className="space-y-7">
 
-              {/* My workspaces */}
-              <section className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Meus workspaces</h2>
-                  <span className="text-xs text-muted-foreground">{myWorkspaces.length}</span>
+              {/* Workspaces */}
+              <section>
+                <div className="flex items-center gap-2 mb-3">
+                  <h2 className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Meus Workspaces</h2>
+                  <span className="text-[10px] text-muted-foreground bg-muted rounded-full px-1.5 py-0.5 leading-none">{myWorkspaces.length}</span>
                 </div>
+
                 {myWorkspaces.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-border bg-card/50 p-6 text-center text-sm text-muted-foreground">
-                    Você ainda não participa de nenhum workspace.
+                  <div className="rounded-2xl border border-dashed border-border bg-white p-8 text-center">
+                    <Building2 className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">Você ainda não participa de nenhum workspace.</p>
                   </div>
                 ) : (
-                  <div className="grid sm:grid-cols-2 gap-3">
+                  <div className="grid sm:grid-cols-2 gap-2.5">
                     {myWorkspaces.map(w => (
                       <div
                         key={w.workspace_id}
                         onClick={() => enterWorkspace(w.workspace_id)}
-                        className="group text-left rounded-xl border border-border bg-card p-4 hover:border-primary hover:shadow-md transition-all flex items-start gap-3 cursor-pointer"
+                        className="group relative text-left rounded-2xl border border-border/60 bg-white p-4 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/5 transition-all cursor-pointer flex items-center gap-3"
                       >
-                        <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                        <div className="h-10 w-10 rounded-xl bg-primary/8 text-primary flex items-center justify-center shrink-0">
                           <Building2 className="h-5 w-5" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-foreground truncate">{w.name}</div>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+                          <div className="font-bold text-foreground truncate text-sm">{w.name}</div>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="inline-flex items-center gap-1 text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-primary/8 text-primary font-bold">
                               {roleIcon(w.role)} {w.role}
                             </span>
-                            <span className="text-xs text-muted-foreground font-mono truncate">{w.code}</span>
+                            <span className="text-[10px] text-muted-foreground font-mono">{w.code}</span>
                           </div>
                         </div>
                         {w.role === "owner" ? (
                           <button
                             type="button"
                             title="Mover para lixeira"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onTrashWorkspace(w.workspace_id, w.name);
-                            }}
-                            className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                            onClick={(e) => { e.stopPropagation(); onTrashWorkspace(w.workspace_id, w.name); }}
+                            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-muted-foreground/50 hover:text-destructive hover:bg-destructive/8 transition-all shrink-0"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         ) : (
-                          <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all mt-1" />
+                          <ArrowRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
                         )}
                       </div>
                     ))}
@@ -163,132 +204,136 @@ export default function WelcomePage() {
                 )}
               </section>
 
-              {trashedWorkspaces.length > 0 && (
-                <section className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Lixeira</h2>
-                    <span className="text-xs text-muted-foreground">{trashedWorkspaces.length}</span>
-                  </div>
-                  <div className="space-y-2">
-                    {trashedWorkspaces.map(w => (
-                      <div key={w.workspace_id} className="rounded-xl border border-dashed border-destructive/30 bg-destructive/5 p-4 flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center shrink-0">
-                          <Trash2 className="h-4 w-4" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-foreground truncate">{w.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            Some definitivamente em {daysLeft(w.delete_after)} dia{daysLeft(w.delete_after) === 1 ? "" : "s"}
-                          </div>
-                        </div>
-                        <Button variant="outline" size="sm" onClick={() => onRestoreWorkspace(w.workspace_id)}>
-                          <RotateCcw className="h-3.5 w-3.5 mr-1" /> Restaurar
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {/* Pending join requests */}
+              {/* Pedidos pendentes */}
               {pendingRequests.length > 0 && (
-                <section className="space-y-3">
-                  <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Pedidos pendentes</h2>
+                <section>
+                  <h2 className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Pedidos pendentes</h2>
                   <div className="space-y-2">
                     {pendingRequests.map(r => (
-                      <div key={r.id} className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
+                      <div key={r.id} className="rounded-2xl border border-amber-200/80 bg-amber-50 p-3.5 flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
                           <Clock className="h-4 w-4" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium text-foreground truncate">{r.workspace_name}</div>
-                          <div className="text-xs text-muted-foreground font-mono">{r.workspace_code} · aguardando aprovação</div>
+                          <div className="font-semibold text-foreground text-sm truncate">{r.workspace_name}</div>
+                          <div className="text-xs text-muted-foreground font-mono">{r.workspace_code} · aguardando</div>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
+                        <button
                           onClick={async () => {
                             const { ok, error } = await cancelJoinRequest(r.id);
                             if (ok) toast.success("Pedido cancelado");
                             else toast.error(error || "Erro");
                           }}
+                          className="text-xs text-muted-foreground hover:text-destructive transition-colors shrink-0"
                         >
-                          <X className="h-3.5 w-3.5 mr-1" /> Cancelar
-                        </Button>
+                          <X className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     ))}
                   </div>
                 </section>
               )}
 
-              {/* Recent history */}
+              {/* Histórico */}
               {otherRequests.length > 0 && (
-                <section className="space-y-3">
-                  <h2 className="text-sm font-semibold text-foreground uppercase tracking-wide">Histórico</h2>
-                  <div className="space-y-1.5">
+                <section>
+                  <h2 className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Histórico</h2>
+                  <div className="space-y-0.5">
                     {otherRequests.map(r => (
-                      <div key={r.id} className="flex items-center gap-3 px-3 py-2 text-sm">
-                        {r.status === "approved" ? <CheckCircle2 className="h-4 w-4 text-emerald-600" /> :
-                          r.status === "rejected" ? <XCircle className="h-4 w-4 text-red-500" /> :
-                            <X className="h-4 w-4 text-muted-foreground" />}
-                        <span className="flex-1 truncate text-foreground">{r.workspace_name}</span>
-                        <span className="text-xs text-muted-foreground capitalize">{r.status === "approved" ? "aprovado" : r.status === "rejected" ? "recusado" : "cancelado"}</span>
+                      <div key={r.id} className="flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-muted/40 transition-colors">
+                        {r.status === "approved" ? <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 shrink-0" /> :
+                          r.status === "rejected" ? <XCircle className="h-3.5 w-3.5 text-red-400 shrink-0" /> :
+                            <X className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />}
+                        <span className="flex-1 truncate text-sm text-foreground/80">{r.workspace_name}</span>
+                        <span className="text-[10px] text-muted-foreground capitalize shrink-0">
+                          {r.status === "approved" ? "aprovado" : r.status === "rejected" ? "recusado" : "cancelado"}
+                        </span>
                       </div>
                     ))}
                   </div>
                 </section>
               )}
 
-              {/* Actions */}
-              <div className="grid sm:grid-cols-2 gap-3 pt-2">
+              {/* Ações */}
+              <div className="grid sm:grid-cols-2 gap-2.5">
                 <button
                   onClick={() => setMode("join")}
-                  className="group text-left rounded-xl border border-border bg-card p-4 hover:border-primary hover:shadow-md transition-all flex items-center gap-3"
+                  className="group text-left rounded-2xl border border-border/60 bg-white p-4 hover:border-primary/50 hover:shadow-md transition-all flex items-center gap-3"
                 >
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                    <KeyRound className="h-5 w-5" />
+                  <div className="h-9 w-9 rounded-xl bg-primary/8 text-primary flex items-center justify-center shrink-0">
+                    <KeyRound className="h-4 w-4" />
                   </div>
-                  <div className="flex-1">
-                    <div className="font-semibold text-foreground text-sm">Entrar em um workspace</div>
-                    <div className="text-xs text-muted-foreground">Enviar pedido com código</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-foreground text-sm">Entrar com código</div>
+                    <div className="text-xs text-muted-foreground">Pedir acesso a um workspace</div>
                   </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-primary shrink-0 transition-colors" />
                 </button>
 
                 <button
                   onClick={() => setMode("create")}
-                  className="group text-left rounded-xl border border-border bg-card p-4 hover:border-primary hover:shadow-md transition-all flex items-center gap-3"
+                  className="group text-left rounded-2xl bg-primary p-4 hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20 transition-all flex items-center gap-3"
                 >
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                    <Plus className="h-5 w-5" />
+                  <div className="h-9 w-9 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                    <Plus className="h-4 w-4 text-white" />
                   </div>
-                  <div className="flex-1">
-                    <div className="font-semibold text-foreground text-sm">Criar novo workspace</div>
-                    <div className="text-xs text-muted-foreground">Você será o owner</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-white text-sm">Criar workspace</div>
+                    <div className="text-xs text-white/65">Você será o owner</div>
                   </div>
-                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                  <ArrowRight className="h-3.5 w-3.5 text-white/50 group-hover:text-white shrink-0 transition-colors" />
                 </button>
               </div>
+
+              {/* Lixeira — discreta no fundo */}
+              {trashedWorkspaces.length > 0 && (
+                <section className="pt-4 border-t border-border/30">
+                  <details className="group">
+                    <summary className="flex items-center gap-2 text-[11px] text-muted-foreground/50 hover:text-muted-foreground cursor-pointer select-none list-none transition-colors">
+                      <Trash2 className="h-3 w-3" />
+                      Lixeira
+                      <span className="bg-muted rounded-full px-1.5 py-0.5 leading-none">{trashedWorkspaces.length}</span>
+                    </summary>
+                    <div className="mt-3 space-y-1.5">
+                      {trashedWorkspaces.map(w => (
+                        <div key={w.workspace_id} className="flex items-center gap-2 py-1.5 px-2 rounded-xl hover:bg-muted/40 transition-colors">
+                          <span className="flex-1 text-xs text-muted-foreground/60 truncate">{w.name}</span>
+                          <span className="text-[10px] text-muted-foreground/40 shrink-0">
+                            Some em {daysLeft(w.delete_after)}d
+                          </span>
+                          <button
+                            onClick={() => onRestoreWorkspace(w.workspace_id)}
+                            className="text-[10px] text-primary hover:text-primary/80 font-semibold shrink-0 flex items-center gap-0.5 transition-colors"
+                          >
+                            <RotateCcw className="h-2.5 w-2.5" /> Restaurar
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                </section>
+              )}
             </div>
           )}
 
+          {/* ── CRIAR WORKSPACE ── */}
           {mode === "create" && (
-            <div className="max-w-md mx-auto">
+            <div className="max-w-sm mx-auto">
               <button
                 onClick={() => setMode("hub")}
-                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-6"
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-7 transition-colors"
               >
                 <ArrowLeft className="h-3.5 w-3.5" /> Voltar
               </button>
-              <div className="space-y-2 mb-6">
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Crie seu workspace</h1>
-                <p className="text-sm text-muted-foreground">
+              <div className="mb-7">
+                <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Criar workspace</h1>
+                <p className="text-sm text-muted-foreground mt-2">
                   Esse será o espaço principal da sua empresa ou time.
                 </p>
               </div>
-              <form onSubmit={onCreate} className="space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="ws-name">Nome do workspace</Label>
+              <form onSubmit={onCreate} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="ws-name" className="font-semibold text-sm">Nome do workspace</Label>
                   <Input
                     id="ws-name"
                     value={name}
@@ -296,35 +341,38 @@ export default function WelcomePage() {
                     placeholder="Minha empresa"
                     autoFocus
                     maxLength={60}
+                    className="h-12 rounded-2xl text-sm bg-white"
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={busy || !name.trim()}>
+                <Button type="submit" className="w-full h-12 rounded-2xl font-bold text-sm" disabled={busy || !name.trim()}>
                   {busy ? "Criando..." : "Criar workspace"}
+                  {!busy && <ArrowRight className="h-4 w-4 ml-2" />}
                 </Button>
                 <p className="text-xs text-muted-foreground text-center">
-                  Você será definido automaticamente como Owner deste workspace.
+                  Você será definido automaticamente como Owner.
                 </p>
               </form>
             </div>
           )}
 
+          {/* ── ENTRAR COM CÓDIGO ── */}
           {mode === "join" && (
-            <div className="max-w-md mx-auto">
+            <div className="max-w-sm mx-auto">
               <button
                 onClick={() => setMode("hub")}
-                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-6"
+                className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground mb-7 transition-colors"
               >
                 <ArrowLeft className="h-3.5 w-3.5" /> Voltar
               </button>
-              <div className="space-y-2 mb-6">
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Entrar com código</h1>
-                <p className="text-sm text-muted-foreground">
-                  Digite o código de convite enviado por alguém da sua time.
+              <div className="mb-7">
+                <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Entrar com código</h1>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Digite o código de convite enviado por alguém do time.
                 </p>
               </div>
-              <form onSubmit={onJoin} className="space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="ws-code">Código de convite</Label>
+              <form onSubmit={onJoin} className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="ws-code" className="font-semibold text-sm">Código de convite</Label>
                   <Input
                     id="ws-code"
                     value={code}
@@ -332,14 +380,15 @@ export default function WelcomePage() {
                     placeholder="BUZZ-XXXXXX"
                     autoFocus
                     maxLength={20}
-                    className="font-mono tracking-wider uppercase"
+                    className="h-12 rounded-2xl font-mono tracking-wider uppercase text-sm bg-white"
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={busy || !code.trim()}>
-                  {busy ? "Verificando..." : "Entrar no workspace"}
+                <Button type="submit" className="w-full h-12 rounded-2xl font-bold text-sm" disabled={busy || !code.trim()}>
+                  {busy ? "Verificando..." : "Pedir acesso"}
+                  {!busy && <ArrowRight className="h-4 w-4 ml-2" />}
                 </Button>
                 <p className="text-xs text-muted-foreground text-center">
-                  Seu cargo (admin ou member) será definido automaticamente pelo convite.
+                  Seu cargo será definido pelo owner ao aprovar o pedido.
                 </p>
               </form>
             </div>
