@@ -356,11 +356,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <div key={item.to} style={navStagger(idx)}>
               <NavLink to={item.to}
                 style={({ isActive }) => (isActive && (item as any).color
-                  ? { backgroundColor: `${(item as any).color}33`, color: (item as any).color, boxShadow: `inset 3px 0 0 ${(item as any).color}` }
+                  ? { boxShadow: `inset 3px 0 0 ${(item as any).color}` }
                   : (item as any).color
-                    ? { color: (item as any).color }
+                    ? { boxShadow: `inset 3px 0 0 ${(item as any).color}66` }
                     : undefined)}
-                className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-colors ${isActive && !(item as any).color ? "bg-white/20 text-white" : !isActive ? "text-white/65 hover:text-white hover:bg-white/10" : ""} ${collapsed ? "justify-center" : ""}`}>
+                className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all ${collapsed ? "justify-center" : ""}`}>
                 <item.icon className="h-4 w-4 shrink-0" />
                 {!collapsed && <span>{item.label}</span>}
               </NavLink>
@@ -390,9 +390,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 return (
                   <NavLink key={team.id} to={`/time/${team.id}`}
                     style={({ isActive }) => isActive
-                      ? { backgroundColor: `${tc}33`, color: tc, boxShadow: `inset 3px 0 0 ${tc}` }
-                      : { color: tc }}
-                    className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-colors ${!isActive ? "hover:bg-white/10" : ""} ${collapsed ? "justify-center" : ""}`}>
+                      ? { boxShadow: `inset 3px 0 0 ${tc}` }
+                      : { boxShadow: `inset 3px 0 0 ${tc}66` }}
+                    className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all ${collapsed ? "justify-center" : ""}`}>
                     <UsersRound className="h-4 w-4 shrink-0" />
                     {!collapsed && <span className="truncate">{team.name}</span>}
                   </NavLink>
@@ -406,7 +406,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             const item = getAccessItem();
             return (
               <NavLink to={item.to}
-                className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-colors ${isActive ? "bg-white/20 text-white" : "text-white/65 hover:text-white hover:bg-white/10"} ${collapsed ? "justify-center" : ""}`}>
+                className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all ${collapsed ? "justify-center" : ""}`}>
                 <div className="relative">
                   <item.icon className="h-4 w-4 shrink-0" />
                   {pendingJoinCount > 0 && collapsed && (
@@ -432,7 +432,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {/* ── Relatórios (apenas admins/owners, desktop only) ── */}
           {isAdmin && (
             <NavLink to="/reports"
-              className={({ isActive }) => `flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-colors ${isActive ? "bg-white/20 text-white" : "text-white/65 hover:text-white hover:bg-white/10"} ${collapsed ? "justify-center" : ""}`}>
+              className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all ${collapsed ? "justify-center" : ""}`}>
               <BarChart2 className="h-4 w-4 shrink-0" />
               {!collapsed && <span>Relatórios</span>}
             </NavLink>

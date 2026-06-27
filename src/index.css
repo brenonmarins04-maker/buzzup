@@ -8,13 +8,13 @@
   :root {
     --font-sans: 'Instrument Sans', system-ui, sans-serif;
 
-    --background: 42 32% 97%;
+    --background: 217 48% 97%;
     --foreground: 224 24% 10%;
 
-    --card: 0 0% 100%;
+    --card: 215 55% 99%;
     --card-foreground: 224 24% 10%;
 
-    --popover: 0 0% 100%;
+    --popover: 215 55% 99%;
     --popover-foreground: 224 24% 10%;
 
     --primary: 225 91% 56%;
@@ -23,17 +23,17 @@
     --secondary: 35 100% 94%;
     --secondary-foreground: 30 68% 22%;
 
-    --muted: 220 24% 94%;
-    --muted-foreground: 224 8% 50%;
+    --muted: 215 44% 94%;
+    --muted-foreground: 220 10% 47%;
 
-    --accent: 220 100% 95%;
+    --accent: 216 100% 95%;
     --accent-foreground: 225 80% 28%;
 
     --destructive: 0 84% 55%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 220 24% 88%;
-    --input: 220 24% 88%;
+    --border: 216 34% 87%;
+    --input: 216 34% 87%;
     --ring: 225 91% 56%;
 
     --radius: 0.625rem;
@@ -93,9 +93,10 @@
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-sans);
     background:
-      radial-gradient(circle at 16% 8%, hsl(var(--primary) / 0.12), transparent 28rem),
-      radial-gradient(circle at 86% 18%, hsl(var(--accent) / 0.85), transparent 24rem),
-      linear-gradient(135deg, #fbfaf7 0%, #f3f7ff 46%, #fbfaf7 100%);
+      radial-gradient(circle at 12% 6%, hsl(var(--primary) / 0.16), transparent 30rem),
+      radial-gradient(circle at 82% 14%, rgba(147, 197, 253, 0.34), transparent 28rem),
+      radial-gradient(circle at 65% 95%, rgba(219, 234, 254, 0.72), transparent 26rem),
+      linear-gradient(135deg, #f7fbff 0%, #edf5ff 48%, #f9fbff 100%);
     min-height: 100vh;
   }
 
@@ -117,24 +118,29 @@
 
 @layer components {
   .glass-panel {
-    background: rgba(255, 255, 255, 0.72);
-    border: 1px solid rgba(214, 220, 232, 0.78);
-    box-shadow: 0 18px 50px rgba(31, 41, 55, 0.08);
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.84), rgba(244, 249, 255, 0.72));
+    border: 1px solid rgba(214, 225, 240, 0.86);
+    box-shadow: 0 18px 50px rgba(30, 64, 175, 0.08);
     backdrop-filter: blur(22px);
     -webkit-backdrop-filter: blur(22px);
   }
 
   .glass-panel-soft {
-    background: rgba(255, 255, 255, 0.56);
-    border: 1px solid rgba(214, 220, 232, 0.62);
-    box-shadow: 0 14px 34px rgba(31, 41, 55, 0.06);
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.72), rgba(240, 247, 255, 0.58));
+    border: 1px solid rgba(214, 225, 240, 0.74);
+    box-shadow: 0 14px 34px rgba(30, 64, 175, 0.055);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
   }
 
-  .bg-card.border {
-    background-color: rgba(255, 255, 255, 0.68);
-    box-shadow: 0 12px 34px rgba(31, 41, 55, 0.055);
+  .bg-card.border,
+  .bg-white.border,
+  .bg-white\/70.border,
+  .bg-white\/62.border,
+  .bg-white\/58.border {
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.78), rgba(244, 249, 255, 0.62));
+    border-color: rgba(214, 225, 240, 0.78);
+    box-shadow: 0 12px 34px rgba(30, 64, 175, 0.055);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
   }
@@ -148,9 +154,9 @@
   }
 
   .glass-header {
-    background: rgba(255, 255, 255, 0.64);
-    border-color: rgba(214, 220, 232, 0.72);
-    box-shadow: 0 12px 32px rgba(31, 41, 55, 0.05);
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.82), rgba(245, 250, 255, 0.74));
+    border-color: rgba(214, 225, 240, 0.78);
+    box-shadow: 0 12px 32px rgba(30, 64, 175, 0.055);
     backdrop-filter: blur(22px);
     -webkit-backdrop-filter: blur(22px);
   }
@@ -189,14 +195,56 @@
     box-shadow: 0 10px 24px rgba(37, 99, 235, 0.08);
   }
 
+  .sidebar-glass-link {
+    color: rgba(255, 255, 255, 0.86);
+    border: 1px solid transparent;
+    background: transparent;
+    text-shadow: 0 1px 2px rgba(15, 23, 42, 0.18);
+  }
+
+  .sidebar-glass-link:hover {
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.22);
+    background: rgba(255, 255, 255, 0.14);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 10px 24px rgba(15, 23, 42, 0.12);
+  }
+
+  .sidebar-glass-link-active {
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.38);
+    background: rgba(255, 255, 255, 0.20);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 12px 28px rgba(15, 23, 42, 0.14);
+  }
+
   .page-hero {
     background:
       radial-gradient(circle at 12% 18%, rgba(255, 255, 255, 0.9), transparent 10rem),
-      linear-gradient(120deg, rgba(222, 247, 239, 0.92), rgba(232, 240, 255, 0.92) 55%, rgba(255, 246, 225, 0.88));
-    border: 1px solid rgba(214, 220, 232, 0.74);
-    box-shadow: 0 18px 45px rgba(31, 41, 55, 0.07);
+      linear-gradient(120deg, rgba(222, 247, 239, 0.9), rgba(226, 239, 255, 0.94) 55%, rgba(244, 249, 255, 0.9));
+    border: 1px solid rgba(214, 225, 240, 0.82);
+    box-shadow: 0 18px 45px rgba(30, 64, 175, 0.08);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
+  }
+
+  .app-surface {
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.82), rgba(244, 249, 255, 0.66));
+    border: 1px solid rgba(214, 225, 240, 0.8);
+    box-shadow: 0 16px 42px rgba(30, 64, 175, 0.07);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+  }
+
+  .app-control {
+    background: rgba(255, 255, 255, 0.74);
+    border-color: rgba(214, 225, 240, 0.88);
+    box-shadow: 0 8px 22px rgba(30, 64, 175, 0.045);
+    transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background-color 160ms ease;
+  }
+
+  .app-control:hover {
+    background: rgba(255, 255, 255, 0.92);
+    border-color: hsl(var(--primary) / 0.32);
+    box-shadow: 0 12px 26px rgba(30, 64, 175, 0.08);
   }
 
   .login-blue-panel {
