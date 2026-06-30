@@ -616,14 +616,33 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return () => { cancelled = true; };
   }, [uid, workspaceId]);
 
-  // Daily login tracking — upsert once per day per user/workspace (ignoreDuplicates handles re-renders)
+  // Click tracking — registra uma "entrada" no BuzzUp por usuário/workspace.
+  // Só conta uma nova entrada se passaram pelo menos 15 minutos desde a última,
+  // evitando inflar o contador com reloads/navegações rápidas.
   useEffect(() => {
     if (!uid || !workspaceId) return;
-    const today = getTodayBrasilia();
-    (supabase.from("user_daily_logins") as any).upsert(
-      { workspace_id: workspaceId, user_id: uid, login_date: today },
-      { onConflict: "workspace_id,user_id,login_date", ignoreDuplicates: true }
-    );
+    let cancelled = false;
+    (async () => {
+      const { data: last } = await (supabase.from("user_daily_logins") as any)
+        .select("created_at")
+        .eq("workspace_id", workspaceId)
+        .eq("user_id", uid)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (cancelled) return;
+
+      const FIFTEEN_MIN_MS = 15 * 60 * 1000;
+      const lastClickMs = last?.created_at ? new Date(last.created_at).getTime() : 0;
+      if (Date.now() - lastClickMs < FIFTEEN_MIN_MS) return;
+
+      await (supabase.from("user_daily_logins") as any).insert({
+        workspace_id: workspaceId,
+        user_id: uid,
+        login_date: getTodayBrasilia(),
+      });
+    })();
+    return () => { cancelled = true; };
   }, [uid, workspaceId]);
 
   // Notifications

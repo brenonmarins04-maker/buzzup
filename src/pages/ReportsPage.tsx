@@ -93,40 +93,32 @@ export default function ReportsPage() {
     }
   };
 
-  // Logins state
-  const [loginsByArea, setLoginsByArea] = useState<Record<string, number>>({});
+  // Logins (entradas) state — linhas brutas, agregadas por área e por pessoa via useMemo
+  const [loginRows, setLoginRows] = useState<{ user_id: string }[]>([]);
   const [loadingLogins, setLoadingLogins] = useState(true);
 
   // Drill-down
   const [drillArea, setDrillArea] = useState<string | null>(null);
+  const [loginDrillArea, setLoginDrillArea] = useState<string | null>(null);
 
   // Guard
   useEffect(() => { if (!isAdmin) navigate("/"); }, [isAdmin, navigate]);
 
-  // Fetch logins whenever workspace, people or date range changes
+  // Fetch logins (entradas) whenever workspace or date range changes
   useEffect(() => {
-    if (!activeWorkspaceId || !people.length) return;
+    if (!activeWorkspaceId) return;
     setLoadingLogins(true);
 
-    let q = (supabase.from("user_daily_logins") as any)
+    (supabase.from("user_daily_logins") as any)
       .select("user_id")
       .eq("workspace_id", activeWorkspaceId)
       .gte("login_date", dateRange.start)
-      .lte("login_date", dateRange.end);
-
-    q.then(({ data }: { data: { user_id: string }[] | null }) => {
-      const byArea: Record<string, number> = {};
-      AREAS_DEFAULT.forEach(a => { byArea[a.key] = 0; });
-      (data || []).forEach(row => {
-        const person = people.find(p => p.userId === row.user_id);
-        if (!person) return;
-        const areas = person.areas?.length ? person.areas : (person.area ? [person.area] : []);
-        areas.forEach(aKey => { byArea[aKey] = (byArea[aKey] ?? 0) + 1; });
+      .lte("login_date", dateRange.end)
+      .then(({ data }: { data: { user_id: string }[] | null }) => {
+        setLoginRows(data || []);
+        setLoadingLogins(false);
       });
-      setLoginsByArea(byArea);
-      setLoadingLogins(false);
-    });
-  }, [activeWorkspaceId, people, dateRange]);
+  }, [activeWorkspaceId, dateRange]);
 
   // Points by area filtered by date range
   const pointsData = useMemo(() => {
@@ -169,15 +161,42 @@ export default function ReportsPage() {
     return Object.values(byPerson).sort((a, b) => b.pts - a.pts);
   }, [drillArea, gamificationAwards, people, dateRange]);
 
-  // Logins chart data
-  const loginData = useMemo(() =>
-    AREAS_DEFAULT.map(a => ({
+  // Entradas por área (chart 2)
+  const loginData = useMemo(() => {
+    const byArea: Record<string, number> = {};
+    AREAS_DEFAULT.forEach(a => { byArea[a.key] = 0; });
+    loginRows.forEach(row => {
+      const person = people.find(p => p.userId === row.user_id);
+      if (!person) return;
+      const areas = person.areas?.length ? person.areas : (person.area ? [person.area] : []);
+      areas.forEach(aKey => { byArea[aKey] = (byArea[aKey] ?? 0) + 1; });
+    });
+    return AREAS_DEFAULT.map(a => ({
+      key: a.key,
       label: getAreaLabel(a.key) || a.label,
-      entradas: loginsByArea[a.key] || 0,
+      entradas: byArea[a.key] || 0,
       color: getAreaColor(a.key),
-    })),
-    [loginsByArea]
-  );
+    }));
+  }, [loginRows, people]);
+
+  // Drill-down: entradas por pessoa na área selecionada (filtered)
+  const loginDrillData = useMemo(() => {
+    if (!loginDrillArea) return [];
+    const byPerson: Record<string, { name: string; entradas: number }> = {};
+    loginRows.forEach(row => {
+      const person = people.find(p => p.userId === row.user_id);
+      if (!person) return;
+      const areas = person.areas?.length ? person.areas : (person.area ? [person.area] : []);
+      if (!areas.includes(loginDrillArea)) return;
+      if (!byPerson[person.id]) {
+        const firstName = person.name.split(" ")[0];
+        const label = person.nickname ? `${firstName} (${person.nickname})` : firstName;
+        byPerson[person.id] = { name: label, entradas: 0 };
+      }
+      byPerson[person.id].entradas += 1;
+    });
+    return Object.values(byPerson).sort((a, b) => b.entradas - a.entradas);
+  }, [loginDrillArea, loginRows, people]);
 
   // Heatmap
   const heatmap = useMemo(() => {
@@ -351,32 +370,87 @@ export default function ReportsPage() {
           )}
         </div>
 
-        {/* Chart 2: Entradas por área */}
+        {/* Chart 2: Entradas por área / drill-down por pessoa */}
         <div className="bg-card border border-border rounded-xl p-5">
           <div className="flex items-center gap-2 mb-5">
-            <Users className="h-4 w-4 text-blue-500" />
-            <h2 className="text-sm font-semibold text-foreground">Entradas no BuzzUp por Área</h2>
+            {loginDrillArea ? (
+              <>
+                <button
+                  onClick={() => setLoginDrillArea(null)}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                  Voltar
+                </button>
+                <span className="text-muted-foreground">·</span>
+                <Users className="h-4 w-4 text-blue-500" />
+                <h2 className="text-sm font-semibold text-foreground">
+                  Entradas por Pessoa —{" "}
+                  <span style={{ color: getAreaColor(loginDrillArea) }}>
+                    {getAreaLabel(loginDrillArea) || AREAS_DEFAULT.find(a => a.key === loginDrillArea)?.label}
+                  </span>
+                </h2>
+              </>
+            ) : (
+              <>
+                <Users className="h-4 w-4 text-blue-500" />
+                <h2 className="text-sm font-semibold text-foreground">Entradas no BuzzUp por Área</h2>
+                <span className="text-[10px] text-muted-foreground ml-auto">clique numa barra para detalhes</span>
+              </>
+            )}
           </div>
+
           {loadingLogins ? (
             <div className="flex items-center justify-center h-[220px]">
               <div className="h-5 w-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             </div>
+          ) : loginDrillArea ? (
+            loginDrillData.length === 0 ? (
+              <div className="flex items-center justify-center h-[220px]">
+                <p className="text-xs text-muted-foreground">Nenhuma entrada registrada nessa área no período.</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={loginDrillData} barSize={24} margin={{ top: 4, right: 8, left: -16, bottom: 60 }}>
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+                    axisLine={false} tickLine={false}
+                    interval={0} angle={-40} textAnchor="end"
+                  />
+                  <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--accent)", opacity: 0.5 }} />
+                  <Bar dataKey="entradas" radius={[6, 6, 0, 0]} fill={getAreaColor(loginDrillArea)} />
+                </BarChart>
+              </ResponsiveContainer>
+            )
           ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={loginData} barSize={36} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--accent)", opacity: 0.5 }} />
-                <Bar dataKey="entradas" radius={[6, 6, 0, 0]}>
-                  {loginData.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          )}
-          {!loadingLogins && loginData.every(d => d.entradas === 0) && (
-            <p className="text-xs text-muted-foreground text-center mt-2">Dados sendo coletados a partir de agora.</p>
+            <>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart
+                  data={loginData}
+                  barSize={36}
+                  margin={{ top: 4, right: 8, left: -16, bottom: 0 }}
+                  style={{ cursor: "pointer" }}
+                  onClick={(data: any) => {
+                    const key = data?.activePayload?.[0]?.payload?.key;
+                    if (key) setLoginDrillArea(key);
+                  }}
+                >
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} allowDecimals={false} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: "var(--accent)", opacity: 0.5 }} />
+                  <Bar dataKey="entradas" radius={[6, 6, 0, 0]}>
+                    {loginData.map((entry, i) => (
+                      <Cell key={i} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              {loginData.every(d => d.entradas === 0) && (
+                <p className="text-xs text-muted-foreground text-center mt-2">Dados sendo coletados a partir de agora.</p>
+              )}
+            </>
           )}
         </div>
       </div>
