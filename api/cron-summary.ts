@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createClient } from "@supabase/supabase-js";
 import { timingSafeEqual } from "crypto";
-import { initSentry, Sentry } from "./_sentry";
+import { initSentry, Sentry } from "./_sentry.js";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://twwcnudhfvzbkdrtfmtu.supabase.co";
 const SERVICE_KEY = (process.env.SUPABASE_SERVICE_KEY || "").replace(/[^A-Za-z0-9._\-]/g, "").trim();

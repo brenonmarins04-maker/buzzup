@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { initSentry, Sentry } from "./_sentry";
+import { initSentry, Sentry } from "./_sentry.js";
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || "";
 
