@@ -101,6 +101,7 @@ export default function ReportsPage() {
   const [drillArea, setDrillArea] = useState<string | null>(null);
   const [loginDrillArea, setLoginDrillArea] = useState<string | null>(null);
   const [loginHeatmapDrill, setLoginHeatmapDrill] = useState<{ day: number; slot: TimeSlot } | null>(null);
+  const [taskHeatmapDrill, setTaskHeatmapDrill] = useState<{ day: number; slot: TimeSlot } | null>(null);
 
   // Guard
   useEffect(() => { if (!isAdmin) navigate("/"); }, [isAdmin, navigate]);
@@ -216,6 +217,28 @@ export default function ReportsPage() {
 
   const maxHeat = Math.max(0, ...Object.values(heatmap));
   const totalHeatItems = Object.values(heatmap).reduce((a, b) => a + b, 0);
+
+  // Drill-down: quem concluiu tarefas no dia/período de horário selecionado
+  const taskHeatmapDrillData = useMemo(() => {
+    if (!taskHeatmapDrill) return [];
+    const { day, slot } = taskHeatmapDrill;
+    const items: { name: string; title: string; time: string; ts: number }[] = [];
+    parkingItems.forEach(item => {
+      if (item.status !== "done" || !item.completedAt) return;
+      const date = new Date(item.completedAt);
+      if (date.getDay() !== day || getTimeSlot(date.getHours()) !== slot) return;
+      const person = people.find(p => p.id === item.personId);
+      const firstName = person?.name.split(" ")[0] ?? "Sem responsável";
+      const label = person?.nickname ? `${firstName} (${person.nickname})` : firstName;
+      items.push({
+        name: label,
+        title: item.title,
+        time: date.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
+        ts: date.getTime(),
+      });
+    });
+    return items.sort((a, b) => b.ts - a.ts);
+  }, [taskHeatmapDrill, parkingItems, people]);
 
   // Heatmap de entradas no BuzzUp por dia/horário
   const loginHeatmap = useMemo(() => {
@@ -498,63 +521,107 @@ export default function ReportsPage() {
       {/* Heatmap */}
       <div className="bg-card border border-border rounded-xl p-5">
         <div className="flex items-center gap-2 mb-5">
-          <Clock className="h-4 w-4 text-indigo-500" />
-          <h2 className="text-sm font-semibold text-foreground">Tarefas Concluídas por Dia e Período</h2>
-          {totalHeatItems === 0 && (
-            <span className="ml-auto text-[10px] bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full font-medium">
-              Dados sendo coletados
-            </span>
+          {taskHeatmapDrill ? (
+            <>
+              <button
+                onClick={() => setTaskHeatmapDrill(null)}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+                Voltar
+              </button>
+              <span className="text-muted-foreground">·</span>
+              <Clock className="h-4 w-4 text-indigo-500" />
+              <h2 className="text-sm font-semibold text-foreground">
+                Concluídas — {DAYS_LABELS[taskHeatmapDrill.day]} · {SLOTS.find(s => s.key === taskHeatmapDrill.slot)?.label}
+              </h2>
+            </>
+          ) : (
+            <>
+              <Clock className="h-4 w-4 text-indigo-500" />
+              <h2 className="text-sm font-semibold text-foreground">Tarefas Concluídas por Dia e Período</h2>
+              {totalHeatItems === 0 ? (
+                <span className="ml-auto text-[10px] bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full font-medium">
+                  Dados sendo coletados
+                </span>
+              ) : (
+                <span className="ml-auto text-[10px] text-muted-foreground">clique num horário para detalhes</span>
+              )}
+            </>
           )}
         </div>
 
-        <div className="flex items-center gap-3 mb-4 justify-end">
-          <span className="text-[10px] text-muted-foreground">Menos</span>
-          <div className="flex gap-1">
-            {[0.05, 0.25, 0.5, 0.75, 1].map((r, i) => (
-              <div key={i} className="h-4 w-4 rounded" style={{ backgroundColor: `rgba(99,102,241,${r})` }} />
-            ))}
-          </div>
-          <span className="text-[10px] text-muted-foreground">Mais</span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[480px] border-separate border-spacing-1.5">
-            <thead>
-              <tr>
-                <th className="text-[10px] font-medium text-muted-foreground text-left pr-3 pb-1 w-32"></th>
-                {DAYS_LABELS.map(d => (
-                  <th key={d} className="text-[10px] font-semibold text-muted-foreground text-center pb-1">{d}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {SLOTS.map(slot => (
-                <tr key={slot.key}>
-                  <td className="text-[10px] text-muted-foreground pr-3 py-0.5 whitespace-nowrap">{slot.label}</td>
-                  {DAYS_LABELS.map((_, dayIdx) => {
-                    const count = heatmap[`${dayIdx}-${slot.key}`] || 0;
-                    return (
-                      <td key={dayIdx} className="text-center">
-                        <div
-                          className="rounded-lg flex items-center justify-center mx-auto text-[11px] font-semibold transition-all"
-                          style={{ backgroundColor: heatColor(count, maxHeat), color: heatTextColor(count, maxHeat), width: "100%", minWidth: 36, height: 40 }}
-                          title={`${DAYS_LABELS[dayIdx]} – ${slot.label}: ${count} tarefa${count !== 1 ? "s" : ""}`}
-                        >
-                          {count > 0 ? count : ""}
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
+        {taskHeatmapDrill ? (
+          taskHeatmapDrillData.length === 0 ? (
+            <div className="flex items-center justify-center h-[160px]">
+              <p className="text-xs text-muted-foreground">Nenhuma tarefa concluída nesse horário.</p>
+            </div>
+          ) : (
+            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[320px] overflow-y-auto pr-1">
+              {taskHeatmapDrillData.map((item, i) => (
+                <li key={i} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-indigo-500/5 border border-indigo-500/15">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-foreground truncate">{item.name}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">{item.title}</p>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground font-mono shrink-0">{item.time}</span>
+                </li>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </ul>
+          )
+        ) : (
+          <>
+            <div className="flex items-center gap-3 mb-4 justify-end">
+              <span className="text-[10px] text-muted-foreground">Menos</span>
+              <div className="flex gap-1">
+                {[0.05, 0.25, 0.5, 0.75, 1].map((r, i) => (
+                  <div key={i} className="h-4 w-4 rounded" style={{ backgroundColor: `rgba(99,102,241,${r})` }} />
+                ))}
+              </div>
+              <span className="text-[10px] text-muted-foreground">Mais</span>
+            </div>
 
-        {totalHeatItems === 0 && (
-          <p className="text-xs text-muted-foreground text-center mt-4">
-            A partir de agora, cada demanda concluída será registrada e aparecerá aqui.
-          </p>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[480px] border-separate border-spacing-1.5">
+                <thead>
+                  <tr>
+                    <th className="text-[10px] font-medium text-muted-foreground text-left pr-3 pb-1 w-32"></th>
+                    {DAYS_LABELS.map(d => (
+                      <th key={d} className="text-[10px] font-semibold text-muted-foreground text-center pb-1">{d}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {SLOTS.map(slot => (
+                    <tr key={slot.key}>
+                      <td className="text-[10px] text-muted-foreground pr-3 py-0.5 whitespace-nowrap">{slot.label}</td>
+                      {DAYS_LABELS.map((_, dayIdx) => {
+                        const count = heatmap[`${dayIdx}-${slot.key}`] || 0;
+                        return (
+                          <td key={dayIdx} className="text-center">
+                            <div
+                              onClick={() => count > 0 && setTaskHeatmapDrill({ day: dayIdx, slot: slot.key })}
+                              className={`rounded-lg flex items-center justify-center mx-auto text-[11px] font-semibold transition-all ${count > 0 ? "cursor-pointer hover:ring-2 hover:ring-indigo-400/60" : ""}`}
+                              style={{ backgroundColor: heatColor(count, maxHeat), color: heatTextColor(count, maxHeat), width: "100%", minWidth: 36, height: 40 }}
+                              title={`${DAYS_LABELS[dayIdx]} – ${slot.label}: ${count} tarefa${count !== 1 ? "s" : ""}`}
+                            >
+                              {count > 0 ? count : ""}
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {totalHeatItems === 0 && (
+              <p className="text-xs text-muted-foreground text-center mt-4">
+                A partir de agora, cada demanda concluída será registrada e aparecerá aqui.
+              </p>
+            )}
+          </>
         )}
       </div>
 
