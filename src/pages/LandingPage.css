@@ -104,6 +104,100 @@
   border-top:1px solid var(--line);background:#fff;font-size:10px;font-weight:600;color:var(--muted)}
 .buzz-lp .app-nav .on{color:var(--blue-deep)}
 
+.buzz-lp .signup-transition{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;
+  background:linear-gradient(145deg,#2f5cf6 0%,#2247dd 54%,#eef4ff 55%,#fff 100%);
+  overflow:hidden;pointer-events:auto;animation:bzSignupOverlay 2450ms var(--ease) forwards}
+.buzz-lp .signup-transition::before{content:"";position:absolute;inset:-20%;background:
+  radial-gradient(circle at 32% 28%,rgba(255,255,255,.24),transparent 24%),
+  radial-gradient(circle at 72% 70%,rgba(47,92,246,.16),transparent 30%);
+  opacity:.9;animation:bzSignupGlow 2450ms var(--ease) forwards}
+.buzz-lp .signup-phone-stage{position:absolute;inset:0;display:grid;place-items:center;
+  animation:bzSignupPhoneStage 2450ms cubic-bezier(.22,1,.36,1) forwards;transform-origin:center}
+.buzz-lp .signup-phone{width:min(318px,76vw);background:#0e1730;border-radius:42px;padding:10px;
+  box-shadow:0 34px 90px rgba(8,18,55,.44)}
+.buzz-lp .signup-screen{position:relative;background:#eef4ff;border-radius:32px;overflow:hidden;height:min(600px,82vh)}
+.buzz-lp .signup-status{display:flex;justify-content:space-between;align-items:center;padding:11px 20px 6px;
+  font-size:11px;font-weight:700;color:var(--ink);background:rgba(255,255,255,.88)}
+.buzz-lp .signup-topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;
+  border-bottom:1px solid var(--line);background:rgba(255,255,255,.88)}
+.buzz-lp .signup-topbar b{font-size:14px}
+.buzz-lp .signup-topbar span{font-size:10px;font-weight:800;color:var(--blue-deep);background:rgba(47,92,246,.1);
+  padding:3px 9px;border-radius:20px}
+.buzz-lp .signup-body{padding:13px;display:flex;flex-direction:column;gap:10px}
+.buzz-lp .signup-mini-card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:13px;
+  box-shadow:0 10px 24px rgba(30,64,175,.07)}
+.buzz-lp .signup-mini-label{font-size:12px;font-weight:800;color:#2563EB;margin-bottom:9px}
+.buzz-lp .signup-mini-label.gold{color:#BA7517}
+.buzz-lp .signup-mini-task{border:1px solid rgba(249,115,22,.25);background:rgba(249,115,22,.06);
+  border-radius:12px;padding:11px;display:grid;gap:5px}
+.buzz-lp .signup-mini-task span{font-size:10px;font-weight:800;color:#F97316}
+.buzz-lp .signup-mini-task strong{font-size:13px;color:var(--ink);line-height:1.25}
+.buzz-lp .signup-mini-task small{justify-self:start;font-size:10px;font-weight:800;color:#fff;background:#F97316;padding:2px 8px;border-radius:7px}
+.buzz-lp .signup-rank-line{display:flex;align-items:center;gap:9px;font-size:12px;color:var(--ink);padding:6px 0}
+.buzz-lp .signup-rank-line+.signup-rank-line{border-top:1px solid var(--line)}
+.buzz-lp .signup-rank-line b{width:20px;height:20px;border-radius:999px;background:#EF9F27;color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:11px}
+.buzz-lp .signup-rank-line span{flex:1}
+.buzz-lp .signup-rank-line strong{font-size:11px;color:var(--blue-deep)}
+.buzz-lp .signup-rank-line.muted b{background:#B4B2A9}
+.buzz-lp .signup-rank-line.muted strong{color:var(--muted)}
+.buzz-lp .signup-nav{position:absolute;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(3,1fr);
+  gap:0;padding:11px 0 15px;border-top:1px solid var(--line);background:#fff;font-size:10px;font-weight:800;color:var(--muted)}
+.buzz-lp .signup-nav span{text-align:center}
+.buzz-lp .signup-nav .active{color:var(--blue-deep);animation:bzSignupNavClick 2450ms var(--ease) forwards}
+.buzz-lp .signup-touch{position:absolute;left:50%;bottom:28px;width:52px;height:52px;border-radius:999px;
+  border:2px solid rgba(47,92,246,.72);background:rgba(47,92,246,.12);transform:translateX(-50%) scale(.35);
+  opacity:0;animation:bzSignupTouch 2450ms var(--ease) forwards}
+.buzz-lp .signup-login-reveal{position:absolute;inset:0;display:grid;place-items:center;padding:24px;opacity:0;
+  animation:bzSignupLoginReveal 2450ms var(--ease) forwards}
+.buzz-lp .signup-login-panel{width:min(520px,88vw);min-height:260px;background:rgba(255,255,255,.96);
+  border:1px solid rgba(255,255,255,.7);border-radius:28px;box-shadow:0 38px 100px rgba(8,18,55,.22);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;
+  padding:36px 28px;transform:translateY(28px) scale(.96);
+  animation:bzSignupLoginPanel 2450ms cubic-bezier(.22,1,.36,1) forwards}
+.buzz-lp .signup-login-logo{width:58px;height:58px;border-radius:18px;background:var(--blue);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:900;box-shadow:0 18px 36px rgba(47,92,246,.3)}
+.buzz-lp .signup-login-copy{display:flex;justify-content:center}
+.buzz-lp .signup-login-panel strong{display:block;max-width:330px;font-size:28px;line-height:1.1;color:var(--ink)}
+
+@keyframes bzSignupOverlay{
+  0%{opacity:0}
+  8%{opacity:1}
+  88%{opacity:1}
+  100%{opacity:1}
+}
+@keyframes bzSignupGlow{
+  0%{transform:scale(.96) rotate(0deg)}
+  100%{transform:scale(1.08) rotate(4deg)}
+}
+@keyframes bzSignupPhoneStage{
+  0%{opacity:0;transform:translateY(36px) scale(.72)}
+  16%{opacity:1;transform:translateY(0) scale(1)}
+  42%{opacity:1;transform:translateY(0) scale(1)}
+  60%{opacity:1;transform:translateY(-12px) scale(1.05)}
+  82%{opacity:1;transform:translateY(0) scale(7.2)}
+  100%{opacity:0;transform:translateY(0) scale(8.2)}
+}
+@keyframes bzSignupTouch{
+  0%,30%{opacity:0;transform:translateX(-50%) scale(.35)}
+  39%{opacity:1;transform:translateX(-50%) scale(.9)}
+  48%{opacity:.15;transform:translateX(-50%) scale(1.55)}
+  56%,100%{opacity:0;transform:translateX(-50%) scale(1.85)}
+}
+@keyframes bzSignupNavClick{
+  0%,32%{background:transparent}
+  40%{background:rgba(47,92,246,.1)}
+  56%,100%{background:transparent}
+}
+@keyframes bzSignupLoginReveal{
+  0%,62%{opacity:0}
+  78%,100%{opacity:1}
+}
+@keyframes bzSignupLoginPanel{
+  0%,64%{opacity:0;transform:translateY(28px) scale(.96)}
+  82%,100%{opacity:1;transform:translateY(0) scale(1)}
+}
+
 .buzz-lp .trust{padding:26px 0;border-bottom:1px solid var(--line);background:#fff}
 .buzz-lp .trust p{text-align:center;color:var(--muted);font-size:14px}
 .buzz-lp .trust .tags{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:14px}
@@ -204,4 +298,5 @@
   .buzz-lp .reveal{opacity:1!important;transform:none!important;transition:none}
   .buzz-lp .btn:hover,.buzz-lp .pain:hover,.buzz-lp .feat:hover,.buzz-lp .step:hover,.buzz-lp .price:hover{transform:none}
   .buzz-lp .pulse{animation:none}
+  .buzz-lp .signup-transition,.buzz-lp .signup-transition *{animation:none!important;transition:none!important}
 }

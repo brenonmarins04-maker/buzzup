@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { useLocation, Outlet } from "react-router-dom";
+import { Link, useLocation, Outlet } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthTransition } from "@/contexts/AuthTransitionContext";
 import { LogOut } from "lucide-react";
@@ -31,14 +31,14 @@ export default function AuthLayout() {
           transition={{ duration: 0.15, ease: "easeOut" }}
         >
           {/* Logo */}
-          <div className="flex items-center gap-3 shrink-0">
+          <Link to="/home" className="flex items-center gap-3 shrink-0 transition-opacity hover:opacity-90" aria-label="Voltar para a home do BuzzUp">
             <div className="h-11 w-11 rounded-xl bg-white/16 flex items-center justify-center font-extrabold text-2xl shadow-lg shadow-black/10 shrink-0">
               B
             </div>
             <span className="text-2xl font-extrabold tracking-tight text-white whitespace-nowrap">
               BuzzUp
             </span>
-          </div>
+          </Link>
 
           {/* Texto — crossfade entre login e welcome */}
           <AnimatePresence mode="wait" initial={false}>

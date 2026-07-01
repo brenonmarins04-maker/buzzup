@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackPlatformEvent } from "@/lib/platformAnalytics";
 import "./LandingPage.css";
@@ -8,9 +8,11 @@ const SIGNUP = "/login?mode=signup";
 
 export default function LandingPage() {
   const { user, loading } = useAuth();
+  const navigate = useNavigate();
   const rootRef = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [signupTransition, setSignupTransition] = useState(false);
 
   // Header shrink on scroll
   useEffect(() => {
@@ -49,14 +51,29 @@ export default function LandingPage() {
     return () => io.disconnect();
   }, []);
 
-  // Logged-in users skip the landing
-  if (!loading && user) return <Navigate to="/" replace />;
-
   useEffect(() => {
+    if (loading || user) return;
     trackPlatformEvent("landing_view", {
       metadata: { path: window.location.pathname },
     });
-  }, []);
+  }, [loading, user]);
+
+  useEffect(() => {
+    if (!signupTransition) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const timer = window.setTimeout(() => {
+      navigate(SIGNUP);
+    }, reducedMotion ? 180 : 2450);
+    return () => {
+      window.clearTimeout(timer);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [navigate, signupTransition]);
+
+  // Logged-in users skip the landing
+  if (!loading && user) return <Navigate to="/" replace />;
 
   const goTo = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
@@ -64,8 +81,18 @@ export default function LandingPage() {
     rootRef.current?.querySelector(`#${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  const startSignupTransition = (e: React.MouseEvent, source: string) => {
+    e.preventDefault();
+    if (signupTransition) return;
+    setMenuOpen(false);
+    trackPlatformEvent("signup_cta_click", { metadata: { source } });
+    setSignupTransition(true);
+  };
+
   return (
     <div className="buzz-lp" ref={rootRef}>
+      {signupTransition && <SignupTransitionOverlay />}
+
       <a className="skip" href="#main">Pular para o conteúdo</a>
 
       <div className="announce">Grátis por 3 meses para toda entidade que entrar até o final de 2026 · Sem cartão</div>
@@ -82,9 +109,9 @@ export default function LandingPage() {
           <Link
             className="btn btn-green nav-cta"
             to={SIGNUP}
-            onClick={() => trackPlatformEvent("signup_cta_click", { metadata: { source: "landing_nav" } })}
+            onClick={(e) => startSignupTransition(e, "landing_nav")}
           >
-            Criar conta grátis
+            Criar conta
           </Link>
           <button className="menu-btn" onClick={() => setMenuOpen((o) => !o)} aria-label="Abrir menu" aria-expanded={menuOpen}>☰</button>
         </div>
@@ -101,9 +128,9 @@ export default function LandingPage() {
                 <Link
                   className="btn btn-green pulse"
                   to={SIGNUP}
-                  onClick={() => trackPlatformEvent("signup_cta_click", { metadata: { source: "landing_hero" } })}
+                  onClick={(e) => startSignupTransition(e, "landing_hero")}
                 >
-                  Criar conta grátis <span aria-hidden="true">→</span>
+                  Criar conta <span aria-hidden="true">→</span>
                 </Link>
                 <span className="hero-sub">Crie sua conta, compartilhe seu código e pronto! Fácil assim.</span>
               </div>
@@ -244,7 +271,14 @@ export default function LandingPage() {
                 <div className="k">Plano completo</div>
                 <div className="big">3 meses grátis</div>
                 <p>Tudo liberado, sem cartão. Válido para toda entidade que entrar até o final de 2026.</p>
-                <Link className="btn btn-solid" to={SIGNUP} style={{ width: "100%", justifyContent: "center" }}>Criar minha entidade</Link>
+                <Link
+                  className="btn btn-solid"
+                  to={SIGNUP}
+                  onClick={(e) => startSignupTransition(e, "landing_pricing")}
+                  style={{ width: "100%", justifyContent: "center" }}
+                >
+                  Criar minha entidade
+                </Link>
               </div>
               <div className="price reveal">
                 <div className="k">Bônus por indicação</div>
@@ -276,7 +310,13 @@ export default function LandingPage() {
             <h2 className="reveal mx">Sua próxima gestão pode herdar um legado — não uma bagunça.</h2>
             <p className="lead reveal mx" style={{ color: "rgba(255,255,255,.86)", marginTop: 14 }}>Coloque sua entidade no ritmo certo hoje. Leva 5 minutos e os primeiros 3 meses são por nossa conta.</p>
             <div className="reveal" style={{ marginTop: 30 }}>
-              <Link className="btn btn-white" to={SIGNUP}>Criar minha entidade grátis <span aria-hidden="true">→</span></Link>
+              <Link
+                className="btn btn-white"
+                to={SIGNUP}
+                onClick={(e) => startSignupTransition(e, "landing_final")}
+              >
+                Criar minha entidade grátis <span aria-hidden="true">→</span>
+              </Link>
             </div>
           </div>
         </section>
@@ -289,6 +329,51 @@ export default function LandingPage() {
           <div>© 2026 BuzzUp · Feito por universitários, para universitários</div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+function SignupTransitionOverlay() {
+  return (
+    <div className="signup-transition" aria-hidden="true">
+      <div className="signup-phone-stage">
+        <div className="signup-phone">
+          <div className="signup-screen">
+            <div className="signup-status"><span>9:41</span><span>•••</span></div>
+            <div className="signup-topbar"><b>BuzzUp</b><span>Owner</span></div>
+            <div className="signup-body">
+              <div className="signup-mini-card">
+                <p className="signup-mini-label">Minhas Demandas</p>
+                <div className="signup-mini-task">
+                  <span>MARKETING</span>
+                  <strong>Post de recrutamento</strong>
+                  <small>02/07</small>
+                </div>
+              </div>
+              <div className="signup-mini-card">
+                <p className="signup-mini-label gold">Gameficação</p>
+                <div className="signup-rank-line"><b>1</b><span>Duda</span><strong>340 pts</strong></div>
+                <div className="signup-rank-line muted"><b>2</b><span>Léo</span><strong>290 pts</strong></div>
+              </div>
+            </div>
+            <div className="signup-nav">
+              <span>Calendário</span>
+              <span className="active">Início</span>
+              <span>Áreas</span>
+            </div>
+            <div className="signup-touch" />
+          </div>
+        </div>
+      </div>
+
+      <div className="signup-login-reveal">
+        <div className="signup-login-panel">
+          <span className="signup-login-logo">B</span>
+          <div className="signup-login-copy">
+            <strong>Bem-vindo ao BuzzUp</strong>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
