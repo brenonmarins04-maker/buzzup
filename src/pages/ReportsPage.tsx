@@ -45,10 +45,10 @@ function getTimeSlot(hour: number): TimeSlot {
   return "night";
 }
 
-function heatColor(count: number, max: number): string {
-  if (max === 0 || count === 0) return "rgba(99,102,241,0.05)";
+function heatColor(count: number, max: number, rgb: string = "99,102,241"): string {
+  if (max === 0 || count === 0) return `rgba(${rgb},0.05)`;
   const alpha = 0.1 + (count / max) * 0.85;
-  return `rgba(99,102,241,${alpha.toFixed(2)})`;
+  return `rgba(${rgb},${alpha.toFixed(2)})`;
 }
 function heatTextColor(count: number, max: number): string {
   if (max === 0 || count === 0) return "var(--muted-foreground)";
@@ -93,13 +93,14 @@ export default function ReportsPage() {
     }
   };
 
-  // Logins (entradas) state — linhas brutas, agregadas por área e por pessoa via useMemo
-  const [loginRows, setLoginRows] = useState<{ user_id: string }[]>([]);
+  // Logins (entradas) state — linhas brutas, agregadas por área/pessoa/horário via useMemo
+  const [loginRows, setLoginRows] = useState<{ user_id: string; created_at: string }[]>([]);
   const [loadingLogins, setLoadingLogins] = useState(true);
 
   // Drill-down
   const [drillArea, setDrillArea] = useState<string | null>(null);
   const [loginDrillArea, setLoginDrillArea] = useState<string | null>(null);
+  const [loginHeatmapDrill, setLoginHeatmapDrill] = useState<{ day: number; slot: TimeSlot } | null>(null);
 
   // Guard
   useEffect(() => { if (!isAdmin) navigate("/"); }, [isAdmin, navigate]);
@@ -110,11 +111,11 @@ export default function ReportsPage() {
     setLoadingLogins(true);
 
     (supabase.from("user_daily_logins") as any)
-      .select("user_id")
+      .select("user_id, created_at")
       .eq("workspace_id", activeWorkspaceId)
       .gte("login_date", dateRange.start)
       .lte("login_date", dateRange.end)
-      .then(({ data }: { data: { user_id: string }[] | null }) => {
+      .then(({ data }: { data: { user_id: string; created_at: string }[] | null }) => {
         setLoginRows(data || []);
         setLoadingLogins(false);
       });
@@ -215,6 +216,45 @@ export default function ReportsPage() {
 
   const maxHeat = Math.max(0, ...Object.values(heatmap));
   const totalHeatItems = Object.values(heatmap).reduce((a, b) => a + b, 0);
+
+  // Heatmap de entradas no BuzzUp por dia/horário
+  const loginHeatmap = useMemo(() => {
+    const grid: Record<string, number> = {};
+    for (let d = 0; d < 7; d++) {
+      for (const s of SLOTS) { grid[`${d}-${s.key}`] = 0; }
+    }
+    loginRows.forEach(row => {
+      if (!row.created_at) return;
+      const date = new Date(row.created_at);
+      const key = `${date.getDay()}-${getTimeSlot(date.getHours())}`;
+      grid[key] = (grid[key] || 0) + 1;
+    });
+    return grid;
+  }, [loginRows]);
+
+  const maxLoginHeat = Math.max(0, ...Object.values(loginHeatmap));
+  const totalLoginHeatItems = Object.values(loginHeatmap).reduce((a, b) => a + b, 0);
+
+  // Drill-down: quem entrou e a que horas, no dia/período de horário selecionado
+  const loginHeatmapDrillData = useMemo(() => {
+    if (!loginHeatmapDrill) return [];
+    const { day, slot } = loginHeatmapDrill;
+    const items: { name: string; time: string; ts: number }[] = [];
+    loginRows.forEach(row => {
+      if (!row.created_at) return;
+      const date = new Date(row.created_at);
+      if (date.getDay() !== day || getTimeSlot(date.getHours()) !== slot) return;
+      const person = people.find(p => p.userId === row.user_id);
+      const firstName = person?.name.split(" ")[0] ?? "Desconhecido";
+      const label = person?.nickname ? `${firstName} (${person.nickname})` : firstName;
+      items.push({
+        name: label,
+        time: date.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
+        ts: date.getTime(),
+      });
+    });
+    return items.sort((a, b) => b.ts - a.ts);
+  }, [loginHeatmapDrill, loginRows, people]);
 
   if (!isAdmin) return null;
 
@@ -515,6 +555,110 @@ export default function ReportsPage() {
           <p className="text-xs text-muted-foreground text-center mt-4">
             A partir de agora, cada demanda concluída será registrada e aparecerá aqui.
           </p>
+        )}
+      </div>
+
+      {/* Heatmap de Entradas no BuzzUp por horário / drill-down por pessoa */}
+      <div className="bg-card border border-border rounded-xl p-5">
+        <div className="flex items-center gap-2 mb-5">
+          {loginHeatmapDrill ? (
+            <>
+              <button
+                onClick={() => setLoginHeatmapDrill(null)}
+                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ChevronLeft className="h-3.5 w-3.5" />
+                Voltar
+              </button>
+              <span className="text-muted-foreground">·</span>
+              <Users className="h-4 w-4 text-blue-500" />
+              <h2 className="text-sm font-semibold text-foreground">
+                Entradas — {DAYS_LABELS[loginHeatmapDrill.day]} · {SLOTS.find(s => s.key === loginHeatmapDrill.slot)?.label}
+              </h2>
+            </>
+          ) : (
+            <>
+              <Users className="h-4 w-4 text-blue-500" />
+              <h2 className="text-sm font-semibold text-foreground">Entradas no BuzzUp por Horário</h2>
+              {totalLoginHeatItems === 0 ? (
+                <span className="ml-auto text-[10px] bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full font-medium">
+                  Dados sendo coletados
+                </span>
+              ) : (
+                <span className="ml-auto text-[10px] text-muted-foreground">clique num horário para detalhes</span>
+              )}
+            </>
+          )}
+        </div>
+
+        {loginHeatmapDrill ? (
+          loginHeatmapDrillData.length === 0 ? (
+            <div className="flex items-center justify-center h-[160px]">
+              <p className="text-xs text-muted-foreground">Nenhuma entrada nesse horário.</p>
+            </div>
+          ) : (
+            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-[320px] overflow-y-auto pr-1">
+              {loginHeatmapDrillData.map((item, i) => (
+                <li key={i} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-blue-500/5 border border-blue-500/15">
+                  <span className="text-xs font-medium text-foreground truncate">{item.name}</span>
+                  <span className="text-[11px] text-muted-foreground font-mono shrink-0">{item.time}</span>
+                </li>
+              ))}
+            </ul>
+          )
+        ) : (
+          <>
+            <div className="flex items-center gap-3 mb-4 justify-end">
+              <span className="text-[10px] text-muted-foreground">Menos</span>
+              <div className="flex gap-1">
+                {[0.05, 0.25, 0.5, 0.75, 1].map((r, i) => (
+                  <div key={i} className="h-4 w-4 rounded" style={{ backgroundColor: `rgba(59,130,246,${r})` }} />
+                ))}
+              </div>
+              <span className="text-[10px] text-muted-foreground">Mais</span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[480px] border-separate border-spacing-1.5">
+                <thead>
+                  <tr>
+                    <th className="text-[10px] font-medium text-muted-foreground text-left pr-3 pb-1 w-32"></th>
+                    {DAYS_LABELS.map(d => (
+                      <th key={d} className="text-[10px] font-semibold text-muted-foreground text-center pb-1">{d}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {SLOTS.map(slot => (
+                    <tr key={slot.key}>
+                      <td className="text-[10px] text-muted-foreground pr-3 py-0.5 whitespace-nowrap">{slot.label}</td>
+                      {DAYS_LABELS.map((_, dayIdx) => {
+                        const count = loginHeatmap[`${dayIdx}-${slot.key}`] || 0;
+                        return (
+                          <td key={dayIdx} className="text-center">
+                            <div
+                              onClick={() => count > 0 && setLoginHeatmapDrill({ day: dayIdx, slot: slot.key })}
+                              className={`rounded-lg flex items-center justify-center mx-auto text-[11px] font-semibold transition-all ${count > 0 ? "cursor-pointer hover:ring-2 hover:ring-blue-400/60" : ""}`}
+                              style={{ backgroundColor: heatColor(count, maxLoginHeat, "59,130,246"), color: heatTextColor(count, maxLoginHeat), width: "100%", minWidth: 36, height: 40 }}
+                              title={`${DAYS_LABELS[dayIdx]} – ${slot.label}: ${count} entrada${count !== 1 ? "s" : ""}`}
+                            >
+                              {count > 0 ? count : ""}
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {totalLoginHeatItems === 0 && (
+              <p className="text-xs text-muted-foreground text-center mt-4">
+                A partir de agora, cada entrada no BuzzUp será registrada e aparecerá aqui.
+              </p>
+            )}
+          </>
         )}
       </div>
     </div>
