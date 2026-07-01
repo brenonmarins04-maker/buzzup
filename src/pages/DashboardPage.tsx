@@ -299,23 +299,17 @@ export default function DashboardPage() {
                               {new Date(demand.date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
                             </span>
                           )}
+                          {/* Status é sempre "em andamento" enquanto a demanda estiver nesta lista — informativo, não é uma ação */}
+                          <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-orange-500/15 text-orange-600 flex items-center gap-1">
+                            <Circle className="h-2.5 w-2.5 fill-current" /> Em andamento
+                          </span>
                         </div>
-                        <div className="flex gap-2 pt-2 border-t border-border/30">
-                          <button
-                            onClick={() => updateParkingItem({ ...demand, status: "in-progress" })}
-                            className={`flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-md transition-all ${
-                              demand.status === "in-progress"
-                                ? "bg-orange-500/20 text-orange-600 border border-orange-300"
-                                : "bg-muted hover:bg-muted/80 text-muted-foreground"
-                            }`}
-                          >
-                            <Circle className="h-3 w-3" /> Em andamento
-                          </button>
+                        <div className="pt-2 border-t border-border/30">
                           <button
                             onClick={async () => { await updateParkingItem({ ...demand, status: "done" }); }}
-                            className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-md transition-all bg-emerald-500/20 text-emerald-600 hover:bg-emerald-500/30 border border-emerald-300"
+                            className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-2.5 rounded-lg transition-all bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm shadow-emerald-500/20"
                           >
-                            <CheckCircle className="h-3 w-3" /> Concluído
+                            <CheckCircle className="h-3.5 w-3.5" /> Marcar como concluída
                           </button>
                         </div>
                       </div>
