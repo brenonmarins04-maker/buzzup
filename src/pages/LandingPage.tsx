@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { trackPlatformEvent } from "@/lib/platformAnalytics";
 import "./LandingPage.css";
 
 const SIGNUP = "/login?mode=signup";
@@ -51,6 +52,12 @@ export default function LandingPage() {
   // Logged-in users skip the landing
   if (!loading && user) return <Navigate to="/" replace />;
 
+  useEffect(() => {
+    trackPlatformEvent("landing_view", {
+      metadata: { path: window.location.pathname },
+    });
+  }, []);
+
   const goTo = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     setMenuOpen(false);
@@ -72,7 +79,13 @@ export default function LandingPage() {
             <a href="#planos" onClick={(e) => goTo(e, "planos")}>Planos</a>
             <a href="#faq" onClick={(e) => goTo(e, "faq")}>FAQ</a>
           </nav>
-          <Link className="btn btn-green nav-cta" to={SIGNUP}>Criar conta grátis</Link>
+          <Link
+            className="btn btn-green nav-cta"
+            to={SIGNUP}
+            onClick={() => trackPlatformEvent("signup_cta_click", { metadata: { source: "landing_nav" } })}
+          >
+            Criar conta grátis
+          </Link>
           <button className="menu-btn" onClick={() => setMenuOpen((o) => !o)} aria-label="Abrir menu" aria-expanded={menuOpen}>☰</button>
         </div>
       </header>
@@ -85,7 +98,13 @@ export default function LandingPage() {
               <span className="eyebrow badge-red reveal">3 meses de graça · sem cartão</span>
               <h1 className="reveal">Gestão da sua entidade na faculdade no seu celular.</h1>
               <div className="hero-cta reveal" style={{ flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
-                <Link className="btn btn-green pulse" to={SIGNUP}>Criar conta grátis <span aria-hidden="true">→</span></Link>
+                <Link
+                  className="btn btn-green pulse"
+                  to={SIGNUP}
+                  onClick={() => trackPlatformEvent("signup_cta_click", { metadata: { source: "landing_hero" } })}
+                >
+                  Criar conta grátis <span aria-hidden="true">→</span>
+                </Link>
                 <span className="hero-sub">Crie sua conta, compartilhe seu código e pronto! Fácil assim.</span>
               </div>
             </div>

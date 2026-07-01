@@ -6,6 +6,7 @@ import { useAuthTransition } from "@/contexts/AuthTransitionContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { trackPlatformEvent } from "@/lib/platformAnalytics";
 import { toast } from "sonner";
 import {
   KeyRound, ArrowRight, ArrowLeft, LogOut, Building2,
@@ -42,6 +43,10 @@ export default function WelcomePage() {
   }, [loading, user, navigate]);
 
   const enterWorkspace = async (id: string) => {
+    trackPlatformEvent("workspace_entered", {
+      email: user?.email,
+      metadata: { workspace_id: id },
+    });
     // Trigger exit animations on cards + panel morph
     setLeaving(true);
     setGlobalLeaving(true);
@@ -75,6 +80,13 @@ export default function WelcomePage() {
     const { ok, error, workspace } = await createWorkspace(wsName.trim());
     setBusy(false);
     if (ok) {
+      trackPlatformEvent("workspace_created", {
+        email: user?.email,
+        metadata: {
+          workspace_id: workspace?.id ?? null,
+          workspace_name: wsName.trim(),
+        },
+      });
       toast.success("Workspace criado!");
       if (workspace?.id) setActiveWorkspaceId(workspace.id);
       navigate("/", { replace: true });
@@ -88,6 +100,10 @@ export default function WelcomePage() {
     const result = await requestJoinWorkspace(code.trim().toUpperCase());
     setBusy(false);
     if (result.ok) {
+      trackPlatformEvent("workspace_join_requested", {
+        email: user?.email,
+        metadata: { code: code.trim().toUpperCase() },
+      });
       toast.success("Pedido enviado!");
       setCode(""); setMode("hub");
     } else toast.error(result.error || "Código inválido");

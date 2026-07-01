@@ -4,6 +4,7 @@ import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { trackPlatformEvent } from "@/lib/platformAnalytics";
 import { toast } from "sonner";
 import { ArrowRight, Eye, EyeOff, Lock, Mail, User } from "lucide-react";
 
@@ -51,6 +52,14 @@ export default function LoginPage() {
         setSubmitting(false);
         return;
       }
+
+      await trackPlatformEvent("signup_success", {
+        email,
+        metadata: {
+          source: "signup_form",
+          name: name.trim(),
+        },
+      });
 
       const { error: loginErr } = await signIn(email, password);
       if (!loginErr) {
@@ -186,7 +195,14 @@ export default function LoginPage() {
           {mode === "login" && (
             <p className="text-muted-foreground">
               Não tem conta?{" "}
-              <button onClick={() => { setMode("signup"); setPassword(""); }} className="text-primary hover:text-primary/80 font-bold transition-colors">
+              <button
+                onClick={() => {
+                  trackPlatformEvent("signup_cta_click", { metadata: { source: "login_switch" } });
+                  setMode("signup");
+                  setPassword("");
+                }}
+                className="text-primary hover:text-primary/80 font-bold transition-colors"
+              >
                 Criar conta
               </button>
             </p>
