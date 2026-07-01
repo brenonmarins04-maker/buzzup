@@ -20,6 +20,7 @@ import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import WelcomePage from "./pages/WelcomePage";
 import LandingPage from "./pages/LandingPage";
+import SecretAdminPage from "./pages/SecretAdminPage";
 import NotFound from "./pages/NotFound";
 import AuthLayout from "./layouts/AuthLayout";
 import { AuthTransitionProvider } from "./contexts/AuthTransitionContext";
@@ -83,6 +84,8 @@ const App = () => (
               <Route path="/time/:teamId" element={<TeamAreaPage />} />
               <Route path="/:area" element={<AreaRoute />} />
             </Route>
+            {/* Portal restrito — o código na URL é validado por hash; acesso real exige login + checagem no servidor */}
+            <Route path="/p/:k" element={<SecretAdminPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

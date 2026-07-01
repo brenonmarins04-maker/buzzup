@@ -33,3 +33,6 @@ buzzup-backup.json
 CORRIGIR-DNS-ADMIN.bat
 migrate-now.mjs
 .vercel
+
+# Portal do moderador - contem link secreto, NUNCA commitar
+admin-portal-setup.sql
