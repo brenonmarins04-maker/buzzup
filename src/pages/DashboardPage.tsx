@@ -259,14 +259,17 @@ export default function DashboardPage() {
         const myRankLabel = myRankPos === 0 ? "🥇 1º lugar" : myRankPos === 1 ? "🥈 2º lugar" : myRankPos === 2 ? "🥉 3º lugar" : myRankPos >= 0 ? `${myRankPos + 1}º lugar` : "—";
 
         return (
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(280px,0.6fr)_240px] gap-3 md:gap-4 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_minmax(280px,0.6fr)_240px] gap-3 md:gap-4 items-stretch">
             {/* Minhas Demandas */}
-            <div className="order-2 lg:order-1 glass-panel rounded-2xl p-4 md:p-5">
+            <div className="order-2 lg:order-1 glass-panel rounded-2xl p-4 md:p-5 h-full flex flex-col">
               <h2 className="text-sm font-semibold text-foreground mb-3 md:mb-4 flex items-center gap-2">
                 <ListChecks className="h-4 w-4 text-[#2563EB]" /> Minhas Demandas
               </h2>
               {myDemands.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Nenhuma demanda atribuída. Parabéns! 🎉</p>
+                <div className="flex-1 flex flex-col items-center justify-center text-center gap-2 py-6">
+                  <CheckCircle className="h-8 w-8 text-emerald-400/50" />
+                  <p className="text-xs text-muted-foreground">Nenhuma demanda atribuída. Parabéns! 🎉</p>
+                </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {myDemands.map(demand => {
@@ -320,12 +323,12 @@ export default function DashboardPage() {
             </div>
 
             {/* Formulários — entre demandas e pontos */}
-            <div className="order-3 lg:order-2">
+            <div className="order-3 lg:order-2 h-full">
               <FormsSection />
             </div>
 
             {/* Meus Pontos */}
-            <div className="order-1 lg:order-3 glass-panel rounded-2xl p-4 md:p-5 flex flex-col gap-3 md:gap-4">
+            <div className="order-1 lg:order-3 glass-panel rounded-2xl p-4 md:p-5 h-full flex flex-col justify-center gap-3 md:gap-4">
               {/* Trophy icon */}
               <div className="flex items-center gap-3 md:flex-col md:text-center">
                 <div className="h-12 w-12 md:h-14 md:w-14 rounded-full flex items-center justify-center bg-gradient-to-br from-yellow-400/30 to-orange-400/20 border-2 border-yellow-400/40 shrink-0">

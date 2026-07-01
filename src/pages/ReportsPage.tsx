@@ -4,10 +4,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import { supabase } from "@/integrations/supabase/client";
 import { AREAS_DEFAULT, getAreaLabel, getAreaColor } from "@/lib/areas";
+import { safeHref } from "@/lib/urlValidation";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
-import { BarChart2, Users, Trophy, Clock, ChevronLeft, CalendarDays } from "lucide-react";
+import { BarChart2, Users, Trophy, Clock, ChevronLeft, CalendarDays, FileText, ExternalLink, Globe, UsersRound } from "lucide-react";
 
 type TimeSlot = "morning" | "afternoon" | "night";
 type Preset = "7d" | "30d" | "3m" | "6m" | "custom";
@@ -70,7 +71,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export default function ReportsPage() {
   const navigate = useNavigate();
   const { isAdmin, activeWorkspaceId } = useAuth();
-  const { gamificationAwards, parkingItems, people } = useData();
+  const { gamificationAwards, parkingItems, people, forms, formCompletions, teams } = useData();
 
   // Date range
   const [preset, setPreset] = useState<Preset>("30d");
@@ -287,6 +288,20 @@ export default function ReportsPage() {
     return items.sort((a, b) => b.ts - a.ts);
   }, [loginHeatmapDrill, loginRows, people]);
 
+  // Formulários publicados — resumo para o diretor acessar/gerenciar direto dos Relatórios
+  const formsSummary = useMemo(() => {
+    const targetLabel = (targetType: string, targetValue: string | null) => {
+      if (targetType === "area") return getAreaLabel(targetValue || "") || targetValue || "Área";
+      if (targetType === "team") return teams.find(t => t.id === targetValue)?.name || "Time";
+      return "Todos";
+    };
+    return forms.map(f => ({
+      ...f,
+      completions: formCompletions.filter(c => c.formId === f.id).length,
+      targetLabel: targetLabel(f.targetType, f.targetValue),
+    }));
+  }, [forms, formCompletions, teams]);
+
   if (!isAdmin) return null;
 
   return (
@@ -355,6 +370,47 @@ export default function ReportsPage() {
           <span className="text-[11px] text-muted-foreground ml-auto">
             {dateRange.start} → {dateRange.end}
           </span>
+        )}
+      </div>
+
+      {/* Formulários — acesso rápido para o diretor abrir e acompanhar respostas */}
+      <div className="bg-card border border-border rounded-xl p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <FileText className="h-4 w-4 text-[#8B5CF6]" />
+          <h2 className="text-sm font-semibold text-foreground">Formulários</h2>
+          <span className="ml-auto text-[10px] text-muted-foreground">
+            {forms.length} publicado{forms.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+
+        {formsSummary.length === 0 ? (
+          <p className="text-xs text-muted-foreground">Nenhum formulário publicado ainda. Vá até o Início para criar um.</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {formsSummary.map(f => (
+              <li key={f.id} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/30 border border-border/50 min-w-0">
+                <span className="h-6 w-6 rounded-md bg-[#8B5CF6]/10 text-[#8B5CF6] flex items-center justify-center shrink-0">
+                  {f.targetType === "area" ? <Users className="h-3.5 w-3.5" /> : f.targetType === "team" ? <UsersRound className="h-3.5 w-3.5" /> : <Globe className="h-3.5 w-3.5" />}
+                </span>
+                <span className="flex-1 min-w-0 text-sm font-medium text-foreground truncate">{f.title}</span>
+                <span className="hidden sm:inline text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0">
+                  {f.targetLabel}
+                </span>
+                <span className="text-xs font-semibold text-primary shrink-0 whitespace-nowrap">
+                  {f.completions} preencheram
+                </span>
+                <a
+                  href={safeHref(f.url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Ir para o formulário"
+                  className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-md bg-[#8B5CF6] text-white hover:bg-[#7C3AED] transition-colors shrink-0"
+                >
+                  <ExternalLink className="h-3 w-3" /> Abrir
+                </a>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 

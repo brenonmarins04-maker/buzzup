@@ -99,9 +99,11 @@ export default function FormsSection() {
     setCreateOpen(false);
   };
 
+  const nothingToShow = myPending.length === 0 && myCompleted.length === 0 && (!isAdmin || forms.length === 0);
+
   return (
-    <div className="glass-panel rounded-2xl p-4 md:p-5">
-      <div className="flex items-center justify-between gap-3 mb-3 md:mb-4 flex-wrap">
+    <div className="glass-panel rounded-2xl p-4 md:p-5 h-full flex flex-col">
+      <div className="flex items-center justify-between gap-3 mb-1 flex-wrap">
         <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <FileText className="h-4 w-4 text-[#8B5CF6]" /> Formulários
         </h2>
@@ -112,10 +114,26 @@ export default function FormsSection() {
         )}
       </div>
 
+      {/* Subtítulo contextual — muda conforme o papel de quem vê */}
+      <p className="text-xs text-muted-foreground mb-3 md:mb-4">
+        {myPending.length > 0
+          ? `${myPending.length} pendente${myPending.length > 1 ? "s" : ""} para você preencher`
+          : isAdmin
+            ? `${forms.length} formulário${forms.length !== 1 ? "s" : ""} publicado${forms.length !== 1 ? "s" : ""} no workspace`
+            : "Você está em dia com seus formulários"}
+      </p>
+
+      {nothingToShow && (
+        <div className="flex-1 flex flex-col items-center justify-center text-center gap-2 py-6">
+          <CheckCircle2 className="h-8 w-8 text-[#8B5CF6]/40" />
+          <p className="text-xs text-muted-foreground">
+            {isAdmin ? "Nenhum formulário publicado ainda." : "Nenhum formulário pendente. 🎉"}
+          </p>
+        </div>
+      )}
+
       {/* Meus formulários pendentes */}
-      {myPending.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Nenhum formulário pendente. 🎉</p>
-      ) : (
+      {myPending.length > 0 && (
         <div className="grid grid-cols-1 gap-3">
           {myPending.map(f => (
             <div key={f.id} className="hover-lift flex flex-col gap-3 p-4 rounded-2xl border border-[#8B5CF6]/20 bg-white/62">
@@ -199,7 +217,7 @@ export default function FormsSection() {
       {/* Gestão (admins): todos os formulários publicados + contagem de respostas */}
       {isAdmin && forms.length > 0 && (
         <div className="mt-4 pt-4 border-t border-border">
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Publicados ({forms.length})</p>
+          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Gerenciar publicados ({forms.length})</p>
           <ul className="space-y-1.5">
             {forms.map(f => (
               <li key={f.id} className="hover-lift flex items-center gap-2 px-3 py-2 rounded-2xl bg-white/58 border border-border/55 min-w-0">
@@ -208,6 +226,15 @@ export default function FormsSection() {
                 <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0">
                   {TargetIcon(f)} {targetLabel(f)}
                 </span>
+                <a
+                  href={safeHref(f.url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Abrir formulário"
+                  className="p-1 rounded text-[#8B5CF6] hover:bg-[#8B5CF6]/10 shrink-0"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                </a>
                 <button
                   onClick={() => setViewResponses(f)}
                   title="Ver quem preencheu e quem falta"
