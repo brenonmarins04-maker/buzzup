@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BuzzUp — A gestão da sua entidade no ritmo certo</title>
+<meta name="description" content="O app que organiza demandas, áreas e engajamento das maiores entidades universitárias do país. Grátis por 90 dias até o final de 2026." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --blue:#2f5cf6;
+    --blue-deep:#2247dd;
+    --blue-3a:#3a66f8;
+    --ink:#0e1730;
+    --muted:#5b6478;
+    --bg:#ffffff;
+    --bg-soft:#f5f9ff;
+    --line:rgba(14,23,48,.08);
+    --radius:16px;
+    --maxw:1120px;
+    --ease:cubic-bezier(.4,0,.2,1);
+    --area-mkt:#F97316; --area-geral:#2563EB; --area-fin:#10B981; --area-ev:#8B5CF6;
+    --green:#16a34a; --green-d:#12833b; --red:#e5322f;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'Instrument Sans',system-ui,-apple-system,sans-serif;
+    color:var(--ink);background:var(--bg);line-height:1.6;
+    -webkit-font-smoothing:antialiased;overflow-x:hidden;
+  }
+  a{color:inherit;text-decoration:none}
+  img{max-width:100%;display:block}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 clamp(20px,5vw,40px)}
+  .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .skip{position:absolute;left:-999px;top:8px;background:#fff;color:var(--blue);padding:8px 14px;border-radius:8px;z-index:100}
+  .skip:focus{left:8px}
+
+  /* ---- Buttons ---- */
+  .btn{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:clamp(14px,1.4vw,15px);
+    padding:14px 26px;border-radius:12px;border:1px solid transparent;cursor:pointer;
+    transition:transform .2s var(--ease),box-shadow .2s var(--ease),background .2s;white-space:nowrap}
+  .btn:hover{transform:translateY(-4px)}
+  .btn:focus-visible{outline:3px solid #fff;outline-offset:2px}
+  .btn-solid{background:var(--blue);color:#fff;box-shadow:0 10px 24px rgba(47,92,246,.28)}
+  .btn-solid:hover{box-shadow:0 18px 34px rgba(47,92,246,.36)}
+  .btn-glass{background:rgba(255,255,255,.18);color:#fff;border-color:rgba(255,255,255,.5);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+  .btn-glass:hover{background:rgba(255,255,255,.28)}
+  .btn-white{background:#fff;color:var(--blue-deep);box-shadow:0 12px 28px rgba(8,18,55,.22)}
+  .btn-ghost{background:rgba(47,92,246,.08);color:var(--blue-deep);border-color:rgba(47,92,246,.28)}
+  .btn-green{background:var(--green);color:#fff;box-shadow:0 10px 24px rgba(22,163,74,.3)}
+  .btn-green:hover{background:var(--green-d)}
+  .pulse{animation:pulseGlow 1s ease-out infinite}
+  @keyframes pulseGlow{0%{box-shadow:0 0 0 0 rgba(22,163,74,.55)}70%{box-shadow:0 0 0 16px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
+  .badge-red{background:var(--red);color:#fff;border:none;font-weight:700;box-shadow:0 8px 20px rgba(229,50,47,.38)}
+  .hero-sub{font-size:14px;color:rgba(255,255,255,.92);font-weight:500;max-width:360px}
+
+  /* ---- Header ---- */
+  .announce{background:var(--blue-deep);color:#fff;text-align:center;font-size:13px;padding:9px 16px}
+  header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.72);
+    backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--line);
+    transition:padding .25s var(--ease)}
+  header.shrink{box-shadow:0 6px 24px rgba(14,23,48,.06)}
+  .nav{display:flex;align-items:center;gap:22px;padding:16px 0;transition:padding .25s var(--ease)}
+  header.shrink .nav{padding:10px 0}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:19px;margin-right:auto}
+  .nav-cta{font-size:14px;padding:10px 18px}
+  .logo{width:32px;height:32px;border-radius:9px;background:var(--blue);color:#fff;display:flex;
+    align-items:center;justify-content:center;font-weight:700;font-size:18px}
+  .nav-links{display:flex;align-items:center;gap:26px}
+  .nav-links a{font-size:14px;color:var(--muted);font-weight:500;transition:color .2s}
+  .nav-links a:hover{color:var(--ink)}
+  .menu-btn{display:none;background:none;border:none;font-size:26px;line-height:1;color:var(--ink);cursor:pointer}
+
+  /* ---- Sections ---- */
+  section{position:relative}
+  .sec-blue{background:linear-gradient(165deg,var(--blue-3a),var(--blue-deep));color:#fff}
+  .sec-soft{background:linear-gradient(180deg,var(--bg-soft),#eaf1ff)}
+  .pad{padding:clamp(56px,9vw,104px) 0}
+  .eyebrow{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;letter-spacing:.04em;
+    text-transform:uppercase;padding:6px 14px;border-radius:20px;margin-bottom:20px}
+  .eyebrow.on-blue{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.28)}
+  .eyebrow.on-light{background:rgba(47,92,246,.1);color:var(--blue-deep)}
+  h1{font-size:clamp(32px,5.6vw,54px);font-weight:700;line-height:1.08;letter-spacing:-.02em}
+  h2{font-size:clamp(24px,3.6vw,38px);font-weight:700;line-height:1.14;letter-spacing:-.015em}
+  h3{font-size:clamp(17px,2vw,20px);font-weight:600}
+  .lead{font-size:clamp(15px,1.8vw,18px);line-height:1.65}
+  .center{text-align:center}
+  .mx{max-width:640px;margin-left:auto;margin-right:auto}
+
+  /* ---- Hero ---- */
+  .hero{background:linear-gradient(165deg,var(--blue-3a),var(--blue-deep));color:#fff;overflow:hidden}
+  .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(32px,5vw,64px);align-items:center}
+  .hero p.lead{color:rgba(255,255,255,.86);max-width:520px}
+  .hero-cta{display:flex;gap:14px;flex-wrap:wrap;margin-top:32px;align-items:center}
+  .hero-note{font-size:13px;color:rgba(255,255,255,.72)}
+  .glass-card{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.24);border-radius:22px;
+    backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 30px 70px rgba(8,18,55,.30);
+    padding:20px}
+  .gc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;font-size:13px;color:rgba(255,255,255,.8)}
+  .demand{background:rgba(255,255,255,.95);border-radius:10px;padding:11px 13px;margin-bottom:10px;
+    border-left:4px solid var(--area-mkt);color:var(--ink)}
+  .demand .cat{font-size:11px;font-weight:600}
+  .demand .ttl{font-size:14px;font-weight:600}
+  .rankbox{background:rgba(255,255,255,.95);border-radius:12px;padding:14px;color:var(--ink)}
+  .rankrow{display:flex;align-items:center;gap:10px;padding:7px 0}
+  .rankrow+.rankrow{border-top:1px solid rgba(14,23,48,.08)}
+  .pos{width:22px;height:22px;border-radius:50%;color:#fff;font-size:12px;font-weight:600;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .pts{font-size:13px;font-weight:600;color:var(--blue-deep)}
+
+  /* ---- App phone (hero: app em uso) ---- */
+  .app-phone{width:min(300px,86vw);margin:0 auto;background:#0e1730;border-radius:40px;padding:10px;
+    box-shadow:0 34px 80px rgba(8,18,55,.42)}
+  .app-screen{background:#eef4ff;border-radius:31px;overflow:hidden}
+  .app-status{display:flex;justify-content:space-between;align-items:center;padding:10px 20px 5px;
+    font-size:11px;font-weight:600;color:var(--ink);background:rgba(255,255,255,.85)}
+  .app-topbar{display:flex;align-items:center;justify-content:space-between;padding:9px 14px;
+    border-bottom:1px solid var(--line);background:rgba(255,255,255,.85)}
+  .app-topbar b{font-size:14px;letter-spacing:-.01em}
+  .app-role{font-size:10px;font-weight:700;color:var(--blue-deep);background:rgba(47,92,246,.1);
+    padding:3px 9px;border-radius:20px}
+  .app-body{padding:12px;display:flex;flex-direction:column;gap:10px}
+  .app-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;
+    box-shadow:0 8px 20px rgba(30,64,175,.06)}
+  .app-card-title{font-size:12px;font-weight:700;margin-bottom:9px;display:flex;align-items:center;gap:6px}
+  .app-demand{border:1px solid rgba(249,115,22,.28);background:rgba(249,115,22,.05);border-radius:12px;padding:10px}
+  .d-area{font-size:10px;font-weight:700;letter-spacing:.05em;color:#F97316}
+  .d-title{font-size:13px;font-weight:600;margin:3px 0 8px;color:var(--ink)}
+  .d-meta{display:flex;gap:6px;align-items:center;margin-bottom:9px}
+  .d-date{font-size:10px;font-weight:600;color:#fff;background:#F97316;padding:2px 8px;border-radius:6px}
+  .d-chip{font-size:10px;font-weight:600;color:#c2570a;background:rgba(249,115,22,.14);padding:2px 8px;border-radius:6px}
+  .d-done{background:#10b981;color:#fff;font-size:11px;font-weight:700;text-align:center;padding:8px;border-radius:9px;
+    box-shadow:0 4px 12px rgba(16,185,129,.3)}
+  .app-rankrow{display:flex;align-items:center;gap:9px;padding:6px 0;font-size:12px;color:var(--ink)}
+  .app-rankrow+.app-rankrow{border-top:1px solid var(--line)}
+  .app-rankrow .pos{width:20px;height:20px;font-size:11px}
+  .app-nav{display:flex;justify-content:space-around;align-items:center;padding:10px 0 14px;
+    border-top:1px solid var(--line);background:#fff;font-size:10px;font-weight:600;color:var(--muted)}
+  .app-nav .on{color:var(--blue-deep)}
+
+  /* ---- Trust ---- */
+  .trust{padding:26px 0;border-bottom:1px solid var(--line);background:#fff}
+  .trust p{text-align:center;color:var(--muted);font-size:14px}
+  .trust .tags{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:14px}
+  .tag{font-size:13px;font-weight:600;color:var(--blue-deep);background:rgba(47,92,246,.08);
+    border:1px solid rgba(47,92,246,.16);padding:7px 15px;border-radius:20px}
+
+  /* ---- Pains ---- */
+  .pain-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;max-width:760px;margin:36px auto 0}
+  .pain{display:flex;align-items:center;gap:13px;background:#fff;border:1px solid var(--line);
+    border-radius:14px;padding:18px 20px;transition:transform .2s var(--ease),box-shadow .2s var(--ease)}
+  .pain:hover{transform:translateY(-5px);box-shadow:0 18px 40px rgba(226,75,74,.12)}
+  .pain .dot{width:9px;height:9px;border-radius:50%;background:#E24B4A;flex-shrink:0}
+  .pain span{font-size:15px;font-weight:500}
+
+  /* ---- Solution ---- */
+  .split{display:grid;grid-template-columns:1fr 340px;gap:clamp(32px,5vw,60px);align-items:center}
+  .split.rev{grid-template-columns:340px 1fr}
+  .phone{width:100%;max-width:300px;margin:0 auto;background:rgba(255,255,255,.1);
+    border:1px solid rgba(255,255,255,.22);border-radius:26px;padding:18px;
+    backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:0 30px 70px rgba(8,18,55,.32)}
+
+  /* ---- Features ---- */
+  .feat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:44px}
+  .feat{background:#fff;border:1px solid var(--line);border-radius:16px;padding:24px;
+    transition:transform .2s var(--ease),box-shadow .2s var(--ease)}
+  .feat:hover{transform:translateY(-6px);box-shadow:0 22px 46px rgba(30,64,175,.12)}
+  .feat .ic{width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;
+    font-size:22px;margin-bottom:16px}
+  .feat h3{margin-bottom:8px}
+  .feat p{font-size:14px;color:var(--muted)}
+
+  /* ---- Ranking on light ---- */
+  .rankcard-light{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;
+    box-shadow:0 20px 44px rgba(30,64,175,.08)}
+
+  /* ---- Referral ---- */
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:40px}
+  .step{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.24);border-radius:16px;
+    padding:26px 22px;text-align:center;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    transition:transform .2s var(--ease),box-shadow .2s var(--ease)}
+  .step:hover{transform:translateY(-6px);box-shadow:0 22px 46px rgba(8,18,55,.28)}
+  .step .ic{font-size:28px;margin-bottom:12px}
+  .step h3{color:#fff;margin-bottom:6px}
+  .step p{font-size:14px;color:rgba(255,255,255,.82)}
+  .step .num{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.2);color:#fff;
+    font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+
+  /* ---- Pricing ---- */
+  .price-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;max-width:760px;margin:40px auto 0}
+  .price{background:#fff;border:1px solid var(--line);border-radius:18px;padding:30px;
+    transition:transform .2s var(--ease),box-shadow .2s var(--ease)}
+  .price:hover{transform:translateY(-6px);box-shadow:0 24px 50px rgba(30,64,175,.14)}
+  .price.feat-price{border:2px solid var(--blue)}
+  .price .k{font-size:13px;color:var(--muted);font-weight:600}
+  .price.feat-price .k{color:var(--blue-deep)}
+  .price .big{font-size:clamp(28px,3.5vw,34px);font-weight:700;margin:8px 0 10px}
+  .price p{font-size:14px;color:var(--muted);margin-bottom:18px}
+  .price .chk{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);font-weight:500}
+
+  /* ---- Final + footer ---- */
+  .final h2{color:#fff}
+  footer{background:#0b1330;color:rgba(255,255,255,.66);padding:40px 0;text-align:center;font-size:13px}
+  .footer-brand{display:inline-flex;align-items:center;gap:9px;color:#fff;font-weight:700;font-size:17px;margin-bottom:10px}
+
+  /* ---- FAQ ---- */
+  .faq{max-width:760px;margin:40px auto 0;text-align:left}
+  .faq details{background:#fff;border:1px solid var(--line);border-radius:14px;padding:0 22px;margin-bottom:12px;transition:box-shadow .2s var(--ease)}
+  .faq details[open]{box-shadow:0 16px 38px rgba(30,64,175,.10)}
+  .faq summary{list-style:none;cursor:pointer;padding:18px 0;font-weight:600;font-size:clamp(15px,1.8vw,16px);
+    display:flex;justify-content:space-between;align-items:center;gap:14px}
+  .faq summary::-webkit-details-marker{display:none}
+  .faq summary .plus{color:var(--blue);font-size:24px;line-height:1;transition:transform .2s var(--ease);flex-shrink:0}
+  .faq details[open] summary .plus{transform:rotate(45deg)}
+  .faq details p{padding:0 0 20px;color:var(--muted);font-size:15px;line-height:1.6}
+
+  /* ---- Reveal ---- */
+  .reveal{opacity:0;transform:translateY(30px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
+  .reveal.in{opacity:1;transform:none}
+
+  /* ---- Responsive ---- */
+  @media (max-width:920px){
+    .feat-grid{grid-template-columns:repeat(2,1fr)}
+  }
+  @media (max-width:760px){
+    .nav-links{position:fixed;inset:0 0 auto 0;top:0;flex-direction:column;background:#fff;
+      padding:90px 24px 30px;gap:18px;transform:translateY(-100%);transition:transform .3s var(--ease);
+      box-shadow:0 20px 50px rgba(14,23,48,.14);align-items:stretch}
+    .nav-links.open{transform:translateY(0)}
+    .nav-links a{font-size:17px;padding:8px 0;border-bottom:1px solid var(--line)}
+    .nav-links .btn{justify-content:center;margin-top:8px}
+    .menu-btn{display:block;z-index:60}
+    .nav-cta{display:none}
+    .hero-grid{grid-template-columns:1fr;text-align:center}
+    .hero p.lead{margin-left:auto;margin-right:auto}
+    .hero-cta{justify-content:center;align-items:center!important}
+    .hero-sub{text-align:center;max-width:none}
+    .app-phone{margin:16px auto 0}
+    .split,.split.rev{grid-template-columns:1fr;text-align:center}
+    .split .phone{order:-1}
+    .pain-grid{grid-template-columns:1fr}
+    .steps{grid-template-columns:1fr}
+    .price-grid{grid-template-columns:1fr}
+    .pain span,.pain{text-align:left}
+  }
+  @media (max-width:480px){
+    .feat-grid{grid-template-columns:1fr}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{scroll-behavior:auto!important}
+    .reveal{opacity:1!important;transform:none!important;transition:none}
+    .btn:hover,.pain:hover,.feat:hover,.step:hover,.price:hover{transform:none}
+    .pulse{animation:none}
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Pular para o conteúdo</a>
+
+<div class="announce">Grátis por 3 meses para toda entidade que entrar até o final de 2026 · Sem cartão</div>
+
+<header id="hdr">
+  <div class="wrap nav">
+    <a class="brand" href="#" aria-label="BuzzUp, início"><span class="logo">B</span>BuzzUp</a>
+    <nav class="nav-links" id="navLinks" aria-label="Principal">
+      <a href="#recursos">Recursos</a>
+      <a href="#ranking">Ranking</a>
+      <a href="#planos">Planos</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="btn btn-green nav-cta" href="#planos">Criar conta grátis</a>
+    <button class="menu-btn" id="menuBtn" aria-label="Abrir menu" aria-expanded="false">&#9776;</button>
+  </div>
+</header>
+
+<main id="main">
+
+  <section class="hero pad">
+    <div class="wrap hero-grid">
+      <div>
+        <span class="eyebrow badge-red reveal">3 meses de graça · sem cartão</span>
+        <h1 class="reveal">Gestão da sua entidade na faculdade no seu celular.</h1>
+        <div class="hero-cta reveal" style="flex-direction:column;align-items:flex-start;gap:12px">
+          <a class="btn btn-green pulse" href="#planos">Criar conta grátis <span aria-hidden="true">&rarr;</span></a>
+          <span class="hero-sub">Crie sua conta, compartilhe seu código e pronto! Fácil assim.</span>
+        </div>
+      </div>
+      <div class="app-phone reveal" aria-hidden="true">
+        <div class="app-screen">
+          <div class="app-status"><span>9:41</span><span>&#9679;&#9679;&#9679;</span></div>
+          <div class="app-topbar"><b>BuzzUp</b><span class="app-role">Owner</span></div>
+          <div class="app-body">
+            <div class="app-card">
+              <div class="app-card-title" style="color:#2563EB">Minhas Demandas</div>
+              <div class="app-demand">
+                <div class="d-area">MARKETING</div>
+                <div class="d-title">Post de recrutamento</div>
+                <div class="d-meta"><span class="d-date">02/07</span><span class="d-chip">&#9679; Em andamento</span></div>
+                <div class="d-done">&#10003; Marcar como concluída</div>
+              </div>
+            </div>
+            <div class="app-card">
+              <div class="app-card-title" style="color:#BA7517">&#127942; Gameficação</div>
+              <div class="app-rankrow"><span class="pos" style="background:#EF9F27">1</span><b style="flex:1">Duda</b><span class="pts">340 pts</span></div>
+              <div class="app-rankrow"><span class="pos" style="background:#B4B2A9">2</span><span style="flex:1">Léo</span><span class="pts" style="color:var(--muted)">290 pts</span></div>
+              <div class="app-rankrow"><span class="pos" style="background:#B45309">3</span><span style="flex:1">Bibi</span><span class="pts" style="color:var(--muted)">275 pts</span></div>
+            </div>
+          </div>
+          <div class="app-nav"><span>Calendário</span><span class="on">Início</span><span>Áreas</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="trust">
+    <div class="wrap">
+      <p class="reveal">Feito sob medida para o ecossistema universitário</p>
+      <div class="tags reveal">
+        <span class="tag">Empresas Juniores</span>
+        <span class="tag">Atléticas</span>
+        <span class="tag">Centros Acadêmicos</span>
+        <span class="tag">Ligas</span>
+      </div>
+    </div>
+  </div>
+
+  <section class="sec-soft pad">
+    <div class="wrap center">
+      <h2 class="reveal mx">Toda gestão começa do zero.</h2>
+      <p class="lead reveal mx" style="color:var(--muted);margin-top:14px">As demandas moram no WhatsApp. O planejamento numa planilha que ninguém abre. Aí chega a reunião semanal e o diretor vira cobrador — não gestor.</p>
+      <div class="pain-grid">
+        <div class="pain reveal"><span class="dot"></span><span>Falta de comunicação entre as áreas</span></div>
+        <div class="pain reveal"><span class="dot"></span><span>Membro é preguiçoso ou não sabe o que fazer</span></div>
+        <div class="pain reveal"><span class="dot"></span><span>Membro desanima de fazer as tarefas fáceis</span></div>
+        <div class="pain reveal"><span class="dot"></span><span>Passagem de conhecimento difícil</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec-blue pad">
+    <div class="wrap split">
+      <div>
+        <span class="eyebrow on-blue reveal">Para a base</span>
+        <h2 class="reveal">Tudo que importa cabe na palma da mão.</h2>
+        <p class="lead reveal" style="color:rgba(255,255,255,.88);margin-top:14px">Seus membros abrem o celular e veem na hora, de forma simples, o que precisam entregar na semana — e onde estão no ranking de quem mais faz acontecer.</p>
+        <p class="lead reveal" style="color:rgba(255,255,255,.88);margin-top:12px">Nada de grupo de WhatsApp caótico ou "não sabia que era comigo". Clareza total para a base e competição saudável para todo mundo.</p>
+      </div>
+      <div class="phone reveal" aria-hidden="true">
+        <div style="font-size:12px;color:rgba(255,255,255,.78);margin-bottom:10px">Minhas demandas</div>
+        <div class="demand" style="border-color:var(--area-mkt)"><div class="cat" style="color:#993C1D">Marketing</div><div class="ttl">Post de recrutamento</div></div>
+        <div class="demand" style="border-color:var(--area-geral)"><div class="cat" style="color:#0C447C">Geral</div><div class="ttl">Ata da reunião</div></div>
+        <div class="demand" style="border-color:var(--area-fin);margin-bottom:0"><div class="cat" style="color:#0F6E56">Financeiro</div><div class="ttl">Fechar caixa</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pad" id="recursos">
+    <div class="wrap center">
+      <span class="eyebrow on-light reveal">Como funciona</span>
+      <h2 class="reveal mx">Uma plataforma. A entidade inteira em sincronia.</h2>
+      <div class="feat-grid">
+        <div class="feat reveal">
+          <div class="ic" style="background:rgba(37,99,235,.1);color:#2563EB">&#9776;</div>
+          <h3>Demandas arrastáveis</h3>
+          <p>A diretoria distribui e reorganiza tarefas entre áreas e pessoas arrastando, direto do computador.</p>
+        </div>
+        <div class="feat reveal">
+          <div class="ic" style="background:rgba(239,159,39,.12);color:#BA7517">&#9733;</div>
+          <h3>Ranking de quem faz mais</h3>
+          <p>Cada tarefa vira ponto. O ranking semanal transforma entrega em competição saudável.</p>
+        </div>
+        <div class="feat reveal">
+          <div class="ic" style="background:rgba(16,185,129,.12);color:#0F6E56">&#9635;</div>
+          <h3>Calendário integrado</h3>
+          <p>Demandas, publicações e eventos de todas as áreas num só calendário visual.</p>
+        </div>
+        <div class="feat reveal">
+          <div class="ic" style="background:rgba(139,92,246,.12);color:#6D28D9">&#9783;</div>
+          <h3>Áreas que se conversam</h3>
+          <p>Marketing, Projetos, Gestão e Financeiro finalmente enxergam o que cada um está fazendo.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec-soft pad" id="ranking">
+    <div class="wrap split rev">
+      <div class="rankcard-light reveal" aria-hidden="true">
+        <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:12px">🏆 Ranking da semana</div>
+        <div class="rankrow"><span class="pos" style="background:#EF9F27">1</span><span style="flex:1;font-size:14px;font-weight:600">Duda</span><span class="pts">340 pts</span></div>
+        <div class="rankrow"><span class="pos" style="background:#B4B2A9">2</span><span style="flex:1;font-size:14px">Léo</span><span class="pts" style="color:var(--muted)">290 pts</span></div>
+        <div class="rankrow"><span class="pos" style="background:#B45309">3</span><span style="flex:1;font-size:14px">Bibi</span><span class="pts" style="color:var(--muted)">275 pts</span></div>
+      </div>
+      <div>
+        <span class="eyebrow on-light reveal">Engajamento</span>
+        <h2 class="reveal">O segredo não é cobrar mais. É fazer sua base querer entregar.</h2>
+        <p class="lead reveal" style="color:var(--muted);margin-top:14px">Cada tarefa concluída vira ponto. Cada ponto vira posição. Toda semana o ranking mostra quem está puxando a entidade pra frente — e transforma tarefa obrigatória em competição saudável. Você para de empurrar; sua base começa a puxar.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec-blue pad">
+    <div class="wrap center">
+      <span class="eyebrow on-blue reveal">Cresçam juntas</span>
+      <h2 class="reveal mx">Recomende uma entidade. Ganhem 30 dias juntas.</h2>
+      <p class="lead reveal mx" style="color:rgba(255,255,255,.86);margin-top:14px">A melhor forma de organizar sua entidade é ter todo mundo dentro. A segunda é fazer isso valer mais 30 dias grátis — pra você e pra quem indicar.</p>
+      <div class="steps">
+        <div class="step reveal"><div class="num">1</div><div class="ic" aria-hidden="true">&#9993;</div><h3>Indique uma entidade</h3><p>Aquela EJ, atlética ou liga amiga.</p></div>
+        <div class="step reveal"><div class="num">2</div><div class="ic" aria-hidden="true">&#128101;</div><h3>Ela ativa 15 membros</h3><p>Time no ar no workspace dela.</p></div>
+        <div class="step reveal"><div class="num">3</div><div class="ic" aria-hidden="true">&#127873;</div><h3>+30 dias pra vocês dois</h3><p>Todo mundo sai no lucro.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pad" id="planos">
+    <div class="wrap center">
+      <span class="eyebrow on-light reveal">Planos</span>
+      <h2 class="reveal mx">Comece grátis. Cresça de graça.</h2>
+      <div class="price-grid">
+        <div class="price feat-price reveal">
+          <div class="k">Plano completo</div>
+          <div class="big">90 dias grátis</div>
+          <p>Tudo liberado, sem cartão. Válido para toda entidade que entrar até o final de 2026.</p>
+          <a class="btn btn-solid" href="#" style="width:100%;justify-content:center">Criar minha entidade</a>
+        </div>
+        <div class="price reveal">
+          <div class="k">Bônus por indicação</div>
+          <div class="big">+30 dias grátis</div>
+          <p>Indique uma entidade. Quando ela tiver 15 membros no workspace dela, vocês dois ganham 30 dias.</p>
+          <div class="chk"><span aria-hidden="true" style="color:#639922">&#10003;</span> Acumulável a cada indicação</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec-soft pad" id="faq">
+    <div class="wrap center">
+      <span class="eyebrow on-light reveal">Dúvidas</span>
+      <h2 class="reveal mx">Perguntas frequentes</h2>
+      <div class="faq">
+        <details class="reveal"><summary>É realmente de graça? <span class="plus" aria-hidden="true">+</span></summary><p>Sim. Toda entidade que entrar até o final de 2026 ganha 3 meses no plano completo, sem cartão de crédito.</p></details>
+        <details class="reveal"><summary>Minha entidade é pequena, vale a pena? <span class="plus" aria-hidden="true">+</span></summary><p>Vale. O BuzzUp funciona pra qualquer tamanho — de um núcleo de 5 pessoas a uma entidade com dezenas de membros e várias áreas.</p></details>
+        <details class="reveal"><summary>Como funcionam os +30 dias grátis? <span class="plus" aria-hidden="true">+</span></summary><p>Indique outra entidade. Quando ela colocar 15 membros no workspace dela, as duas ganham 30 dias grátis. É acumulável a cada indicação.</p></details>
+        <details class="reveal"><summary>Precisa instalar alguma coisa? <span class="plus" aria-hidden="true">+</span></summary><p>Não. Funciona direto no navegador do computador e do celular. A diretoria organiza no PC e a base acompanha pelo celular.</p></details>
+        <details class="reveal"><summary>Meus dados ficam seguros? <span class="plus" aria-hidden="true">+</span></summary><p>Cada entidade tem um espaço isolado. Só quem você convida com o código consegue ver e participar.</p></details>
+        <details class="reveal"><summary>O que acontece quando a gestão troca? <span class="plus" aria-hidden="true">+</span></summary><p>Tudo fica registrado: demandas, áreas, histórico e ranking. A próxima gestão herda um legado organizado — não uma bagunça.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec-blue pad final">
+    <div class="wrap center">
+      <h2 class="reveal mx">Sua próxima gestão pode herdar um legado — não uma bagunça.</h2>
+      <p class="lead reveal mx" style="color:rgba(255,255,255,.86);margin-top:14px">Coloque sua entidade no ritmo certo hoje. Leva 5 minutos e os primeiros 90 dias são por nossa conta.</p>
+      <div class="reveal" style="margin-top:30px">
+        <a class="btn btn-white" href="#">Criar minha entidade grátis <span aria-hidden="true">&rarr;</span></a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="footer-brand"><span class="logo">B</span>BuzzUp</div>
+    <div>© 2026 BuzzUp · Feito por universitários, para universitários</div>
+  </div>
+</footer>
+
+<script>
+  (function(){
+    var hdr=document.getElementById('hdr');
+    var onScroll=function(){ hdr.classList.toggle('shrink', window.scrollY>10); };
+    window.addEventListener('scroll',onScroll,{passive:true}); onScroll();
+
+    var menuBtn=document.getElementById('menuBtn'), links=document.getElementById('navLinks');
+    menuBtn.addEventListener('click',function(){
+      var open=links.classList.toggle('open');
+      menuBtn.setAttribute('aria-expanded',open?'true':'false');
+    });
+    links.addEventListener('click',function(e){ if(e.target.tagName==='A'){ links.classList.remove('open'); menuBtn.setAttribute('aria-expanded','false'); } });
+
+    var els=[].slice.call(document.querySelectorAll('.reveal'));
+    if(!('IntersectionObserver' in window)){ els.forEach(function(el){el.classList.add('in');}); return; }
+    var io=new IntersectionObserver(function(entries){
+      entries.forEach(function(e){
+        if(e.isIntersecting){
+          var el=e.target;
+          var sibs=el.parentNode?[].slice.call(el.parentNode.children).filter(function(c){return c.classList.contains('reveal');}):[el];
+          el.style.transitionDelay=Math.min(Math.max(0,sibs.indexOf(el))*80,320)+'ms';
+          el.classList.add('in'); io.unobserve(el);
+        }
+      });
+    },{threshold:.15,rootMargin:'0px 0px -8% 0px'});
+    els.forEach(function(el){ io.observe(el); });
+  })();
+</script>
+</body>
+</html>

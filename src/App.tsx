@@ -19,6 +19,7 @@ import TeamAreaPage from "./pages/TeamAreaPage";
 import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import WelcomePage from "./pages/WelcomePage";
+import LandingPage from "./pages/LandingPage";
 import NotFound from "./pages/NotFound";
 import AuthLayout from "./layouts/AuthLayout";
 import { AuthTransitionProvider } from "./contexts/AuthTransitionContext";
@@ -64,6 +65,8 @@ const App = () => (
         <AuthTransitionProvider>
         <BrowserRouter>
           <Routes>
+            {/* Landing pública — primeira coisa que o visitante vê (antes de criar conta) */}
+            <Route path="/home" element={<LandingPage />} />
             {/* AuthLayout persiste entre /login e /welcome — painel azul nunca desmonta */}
             <Route element={<AuthLayout />}>
               <Route path="/login" element={<LoginPage />} />

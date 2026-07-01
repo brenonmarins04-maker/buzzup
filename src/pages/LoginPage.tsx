@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,10 @@ import { ArrowRight, Eye, EyeOff, Lock, Mail, User } from "lucide-react";
 export default function LoginPage() {
   const { user, loading, signIn, signUp, resetPassword } = useAuth();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
+  const [searchParams] = useSearchParams();
+  const [mode, setMode] = useState<"login" | "signup" | "forgot">(
+    searchParams.get("mode") === "signup" ? "signup" : "login"
+  );
   const [emailConfirmNeeded, setEmailConfirmNeeded] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

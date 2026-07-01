@@ -13,7 +13,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     );
   }
 
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/home" replace />;
   if (!workspaceId && location.pathname !== "/welcome") {
     return <Navigate to="/welcome" replace />;
   }
