@@ -41,7 +41,7 @@ export type EventType = { id: string; name: string; color: string };
 
 export type AreaNote = { id: string; area: string; name: string; url: string; position: number };
 export type ParkingItemStatus = "in-progress" | "done";
-export type ParkingItem = { id: string; area: string; personId: string | null; title: string; description: string; date: string; position: number; status: ParkingItemStatus; points: number; completedAt?: string | null };
+export type ParkingItem = { id: string; area: string; personId: string | null; title: string; description: string; date: string; position: number; status: ParkingItemStatus; points: number; completedAt?: string | null; completedBy?: string | null };
 
 export type GamificationAction = { id: string; name: string; points: number };
 export type GamificationAward = { id: string; personId: string; actionId: string | null; actionName: string; points: number; awardedAt: string };
@@ -312,7 +312,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setChannels((chRes.data || []).map(c => ({ id: c.id, name: c.name, color: c.color })));
       setEventTypes(((etRes as any)?.data || []).map((e: any) => ({ id: e.id, name: e.name, color: e.color })));
       setAreaNotes(((anRes as any)?.data || []).map((n: any) => ({ id: n.id, area: n.area, name: n.name, url: n.url, position: n.position ?? 0 })));
-      setParkingItems(((piRes as any)?.data || []).map((p: any) => ({ id: p.id, area: p.area, personId: p.person_id ?? null, title: p.title, description: p.description ?? "", date: p.date ?? "", position: p.position ?? 0, status: (p.status as ParkingItemStatus) ?? "in-progress", points: p.points ?? 1, completedAt: p.completed_at ?? null })));
+      setParkingItems(((piRes as any)?.data || []).map((p: any) => ({ id: p.id, area: p.area, personId: p.person_id ?? null, title: p.title, description: p.description ?? "", date: p.date ?? "", position: p.position ?? 0, status: (p.status as ParkingItemStatus) ?? "in-progress", points: p.points ?? 1, completedAt: p.completed_at ?? null, completedBy: p.completed_by ?? null })));
       setGamificationActions(((gaRes as any)?.data || []).map((a: any) => ({ id: a.id, name: a.name, points: a.points ?? 0 })));
       setGamificationAwards(((gwRes as any)?.data || []).map((w: any) => ({ id: w.id, personId: w.person_id, actionId: w.action_id ?? null, actionName: w.action_name, points: w.points ?? 0, awardedAt: w.awarded_at })));
       setLeadThermometer(((ltRes as any)?.data || []).map((l: any) => ({ id: l.id, name: l.name, value: l.value ?? "", areaSize: l.area_size ?? "", type: l.type ?? "", position: l.position ?? 0 })));
@@ -485,7 +485,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     const refetchParkingItems = async () => {
       const { data } = await (supabase.from as any)("parking_items").select("*").eq("workspace_id", wsId);
-      setParkingItems((data || []).map((p: any) => ({ id: p.id, area: p.area, personId: p.person_id ?? null, title: p.title, description: p.description ?? "", date: p.date ?? "", position: p.position ?? 0, status: (p.status as ParkingItemStatus) ?? "in-progress", points: p.points ?? 1, completedAt: p.completed_at ?? null })));
+      setParkingItems((data || []).map((p: any) => ({ id: p.id, area: p.area, personId: p.person_id ?? null, title: p.title, description: p.description ?? "", date: p.date ?? "", position: p.position ?? 0, status: (p.status as ParkingItemStatus) ?? "in-progress", points: p.points ?? 1, completedAt: p.completed_at ?? null, completedBy: p.completed_by ?? null })));
     };
 
     const refetchGamificationActions = async () => {
@@ -1042,11 +1042,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const prev = parkingItems.find(x => x.id === p.id);
     const becomingDone = prev && prev.status !== "done" && p.status === "done";
     const { error } = await (supabase.from("parking_items") as any)
-      .update({ area: p.area, title: p.title, description: p.description, date: p.date, person_id: p.personId, position: p.position, status: p.status, points: p.points, ...(becomingDone ? { completed_at: new Date().toISOString() } : {}) })
+      .update({ area: p.area, title: p.title, description: p.description, date: p.date, person_id: p.personId, position: p.position, status: p.status, points: p.points, ...(becomingDone ? { completed_at: new Date().toISOString(), completed_by: uid } : {}) })
       .eq("id", p.id);
     if (error) { toast.error("Erro ao atualizar"); return; }
     const completedAt = becomingDone ? new Date().toISOString() : p.completedAt ?? prev?.completedAt ?? null;
-    setParkingItems(curr => curr.map(x => x.id === p.id ? { ...p, completedAt } : x));
+    const completedBy = becomingDone ? uid : p.completedBy ?? prev?.completedBy ?? null;
+    setParkingItems(curr => curr.map(x => x.id === p.id ? { ...p, completedAt, completedBy } : x));
     // Award gamification points when transitioning to "done"
     if (workspaceId && becomingDone && p.personId) {
       const pts = Math.max(1, Math.min(3, p.points || 1));

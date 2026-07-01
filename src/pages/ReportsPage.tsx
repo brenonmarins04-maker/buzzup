@@ -222,7 +222,7 @@ export default function ReportsPage() {
   const taskHeatmapDrillData = useMemo(() => {
     if (!taskHeatmapDrill) return [];
     const { day, slot } = taskHeatmapDrill;
-    const items: { name: string; title: string; time: string; ts: number }[] = [];
+    const items: { name: string; clickedByName: string | null; title: string; time: string; ts: number }[] = [];
     parkingItems.forEach(item => {
       if (item.status !== "done" || !item.completedAt) return;
       const date = new Date(item.completedAt);
@@ -230,8 +230,16 @@ export default function ReportsPage() {
       const person = people.find(p => p.id === item.personId);
       const firstName = person?.name.split(" ")[0] ?? "Sem responsável";
       const label = person?.nickname ? `${firstName} (${person.nickname})` : firstName;
+      // Quem clicou para concluir (pode ser diferente do responsável pela demanda)
+      const clicker = item.completedBy ? people.find(p => p.userId === item.completedBy) : null;
+      let clickedByName: string | null = null;
+      if (clicker && clicker.id !== person?.id) {
+        const clickerFirst = clicker.name.split(" ")[0];
+        clickedByName = clicker.nickname ? `${clickerFirst} (${clicker.nickname})` : clickerFirst;
+      }
       items.push({
         name: label,
+        clickedByName,
         title: item.title,
         time: date.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }),
         ts: date.getTime(),
@@ -563,6 +571,9 @@ export default function ReportsPage() {
                   <div className="min-w-0">
                     <p className="text-xs font-medium text-foreground truncate">{item.name}</p>
                     <p className="text-[11px] text-muted-foreground truncate">{item.title}</p>
+                    {item.clickedByName && (
+                      <p className="text-[10px] text-indigo-500 truncate mt-0.5">Concluído por: {item.clickedByName}</p>
+                    )}
                   </div>
                   <span className="text-[11px] text-muted-foreground font-mono shrink-0">{item.time}</span>
                 </li>
