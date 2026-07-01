@@ -22,6 +22,7 @@ import NotificationPanel from "@/components/NotificationPanel";
 import BroadcastBar from "@/components/BroadcastBar";
 import BroadcastModal from "@/components/modals/BroadcastModal";
 import CreateTeamModal from "@/components/modals/CreateTeamModal";
+import PointsEarnedBanner from "@/components/PointsEarnedBanner";
 
 const areaColor = (path: string) => AREAS.find(a => a.path === path)?.color;
 
@@ -172,6 +173,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (isMobile) {
     return (
       <div className="flex flex-col min-h-screen bg-background">
+        <PointsEarnedBanner />
         <header className="h-12 px-4 flex items-center justify-between border-b border-border glass-header shrink-0 sticky top-0 z-30">
           <div className="flex items-center gap-2 min-w-0">
             <span className="font-bold text-foreground tracking-tight text-base shrink-0">BuzzUp</span>
@@ -338,6 +340,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
+      <PointsEarnedBanner />
       <motion.aside
         className={`${collapsed ? "w-16" : "w-60"} login-blue-panel shrink-0 flex flex-col transition-[width] duration-200 overflow-hidden`}
         initial={{ opacity: 0, x: -20 }}

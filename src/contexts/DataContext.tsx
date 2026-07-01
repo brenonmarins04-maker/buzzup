@@ -75,6 +75,8 @@ type DataContextType = {
   broadcasts: Broadcast[];
   forms: WorkspaceForm[]; formCompletions: FormCompletion[];
   loading: boolean; workspaceId: string | null;
+  pointsEarnedNotice: number | null;
+  dismissPointsEarnedNotice: () => void;
 
   addPerson: (name: string) => void;
   updatePerson: (id: string, name: string) => void;
@@ -644,6 +646,41 @@ export function DataProvider({ children }: { children: ReactNode }) {
     })();
     return () => { cancelled = true; };
   }, [uid, workspaceId]);
+
+  // Pontos ganhos desde a última entrada — notificação exibida uma vez por entrada no workspace
+  const [pointsEarnedNotice, setPointsEarnedNotice] = useState<number | null>(null);
+  const pointsCheckRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!uid || !workspaceId || loading) return;
+    const sessionKey = `${uid}:${workspaceId}`;
+    if (pointsCheckRef.current === sessionKey) return;
+    pointsCheckRef.current = sessionKey;
+
+    (async () => {
+      const { data: seen } = await (supabase.from("user_workspace_last_seen") as any)
+        .select("last_seen_at")
+        .eq("workspace_id", workspaceId)
+        .eq("user_id", uid)
+        .maybeSingle();
+
+      const lastSeenAt = seen?.last_seen_at ?? null;
+      if (lastSeenAt) {
+        const person = people.find(p => p.userId === uid);
+        if (person) {
+          const earned = gamificationAwards
+            .filter(a => a.personId === person.id && a.awardedAt > lastSeenAt)
+            .reduce((sum, a) => sum + (a.points || 0), 0);
+          if (earned > 0) setPointsEarnedNotice(earned);
+        }
+      }
+
+      await (supabase.from("user_workspace_last_seen") as any).upsert(
+        { workspace_id: workspaceId, user_id: uid, last_seen_at: new Date().toISOString() },
+        { onConflict: "workspace_id,user_id" }
+      );
+    })();
+  }, [uid, workspaceId, loading, people, gamificationAwards]);
+  const dismissPointsEarnedNotice = useCallback(() => setPointsEarnedNotice(null), []);
 
   // Notifications
   useEffect(() => {
@@ -1284,6 +1321,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   return (
     <DataContext.Provider value={{
       people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, gamificationActions, gamificationAwards, leadThermometer, attendanceSettings, attendanceRecords, broadcasts, forms, formCompletions, loading, workspaceId,
+      pointsEarnedNotice, dismissPointsEarnedNotice,
       addPerson, updatePerson, updatePersonNickname, updatePersonArea, updatePersonAreas, updatePersonLeaderArea, updatePersonLeaderAreas, deletePerson,
       addTask, updateTask, deleteTask,
       addPost, updatePost, deletePost,
