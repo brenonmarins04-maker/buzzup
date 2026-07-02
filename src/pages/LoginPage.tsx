@@ -135,8 +135,8 @@ export default function LoginPage() {
     : "Bem-vindo de volta. Acesse sua conta para continuar.";
 
   return (
-    <div className="h-full flex items-center justify-center px-6 py-10 md:px-12 bg-white overflow-y-auto">
-      <div className="w-full max-w-md">
+    <div className="h-full flex items-center justify-center px-6 py-10 md:px-12 bg-accent lg:bg-white overflow-y-auto">
+      <div className="w-full max-w-md lg:bg-transparent bg-white/70 lg:p-0 p-6 rounded-3xl lg:rounded-none lg:shadow-none shadow-xl shadow-primary/10 border border-primary/10 lg:border-0">
         <div className="mb-9">
           <h2 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">{title}</h2>
           <p className="text-base text-muted-foreground mt-3">{subtitle}</p>

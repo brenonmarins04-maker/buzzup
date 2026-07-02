@@ -97,19 +97,31 @@ export default function AuthLayout() {
       </motion.aside>
 
       {/* ── Área direita — troca com AnimatePresence mode="wait" ───────── */}
-      <div className="flex-1 overflow-hidden relative">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={location.pathname}
-            className="absolute inset-0 overflow-y-auto"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            transition={{ duration: 0.26, ease: "easeOut" }}
+      <div className="flex-1 overflow-hidden flex flex-col">
+        {/* Cabeçalho azul só no mobile — logo clicável leva para a home */}
+        {isLogin && (
+          <Link
+            to="/home"
+            aria-label="Ir para a home do BuzzUp"
+            className="lg:hidden login-blue-panel shrink-0 flex items-center justify-center py-5 transition-opacity active:opacity-90"
           >
-            <Outlet />
-          </motion.div>
-        </AnimatePresence>
+            <BrandLogo markClassName="h-9 w-9" textClassName="text-xl text-white whitespace-nowrap" />
+          </Link>
+        )}
+        <div className="flex-1 relative overflow-hidden">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={location.pathname}
+              className="absolute inset-0 overflow-y-auto"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.26, ease: "easeOut" }}
+            >
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
     </div>
   );
