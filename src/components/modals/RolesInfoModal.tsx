@@ -22,8 +22,8 @@ const ROLES = [
   {
     role: "Diretor",
     icon: Shield,
-    color: "text-blue-600",
-    bgColor: "bg-blue-50 border-blue-200",
+    color: "text-primary",
+    bgColor: "bg-primary/5 border-primary/20",
     permissions: [
       "Criar e gerenciar demandas em todas as áreas",
       "Mover demandas entre pessoas",

@@ -23,6 +23,7 @@ import BroadcastBar from "@/components/BroadcastBar";
 import BroadcastModal from "@/components/modals/BroadcastModal";
 import CreateTeamModal from "@/components/modals/CreateTeamModal";
 import PointsEarnedBanner from "@/components/PointsEarnedBanner";
+import BrandLogo from "@/components/BrandLogo";
 
 const areaColor = (path: string) => AREAS.find(a => a.path === path)?.color;
 
@@ -176,7 +177,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <PointsEarnedBanner />
         <header className="h-12 px-4 flex items-center justify-between border-b border-border glass-header shrink-0 sticky top-0 z-30">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="font-bold text-foreground tracking-tight text-base shrink-0">BuzzUp</span>
+            <BrandLogo markClassName="h-7 w-7" textClassName="text-base text-foreground" />
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <RoleBadge />
@@ -348,7 +349,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
       >
         <div className="h-14 px-4 flex items-center justify-between border-b border-white/10 shrink-0">
-          {!collapsed && <span className="font-bold text-white tracking-tight text-lg">BuzzUp</span>}
+          {!collapsed && <BrandLogo markClassName="h-9 w-9" textClassName="text-lg text-white" />}
           <button onClick={() => setCollapsed(!collapsed)} className="p-1 rounded hover:bg-white/10 transition-colors text-white/60 hover:text-white">
             <ChevronLeft className={`h-4 w-4 transition-transform ${collapsed ? "rotate-180" : ""}`} />
           </button>

@@ -229,7 +229,7 @@ function MembersTab() {
                       {/* Áreas */}
                       {personAreas.length > 0 ? (
                         personAreas.map(areaKey => (
-                          <span key={areaKey} className="text-[10px] font-medium bg-blue-100 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded truncate">
+                          <span key={areaKey} className="text-[10px] font-medium bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded truncate">
                             [{getAreaLabel(areaKey)}]
                           </span>
                         ))

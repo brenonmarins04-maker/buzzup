@@ -3,6 +3,7 @@ import { Link, useLocation, Outlet } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthTransition } from "@/contexts/AuthTransitionContext";
 import { LogOut } from "lucide-react";
+import BrandLogo from "@/components/BrandLogo";
 
 export default function AuthLayout() {
   const location = useLocation();
@@ -32,12 +33,7 @@ export default function AuthLayout() {
         >
           {/* Logo */}
           <Link to="/home" className="flex items-center gap-3 shrink-0 transition-opacity hover:opacity-90" aria-label="Voltar para a home do BuzzUp">
-            <div className="h-11 w-11 rounded-xl bg-white/16 flex items-center justify-center font-extrabold text-2xl shadow-lg shadow-black/10 shrink-0">
-              B
-            </div>
-            <span className="text-2xl font-extrabold tracking-tight text-white whitespace-nowrap">
-              BuzzUp
-            </span>
+            <BrandLogo markClassName="h-12 w-12" textClassName="text-2xl text-white whitespace-nowrap" />
           </Link>
 
           {/* Texto — crossfade entre login e welcome */}

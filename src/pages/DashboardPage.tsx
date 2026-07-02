@@ -219,7 +219,7 @@ export default function DashboardPage() {
       items.push({ id: `t-${t.id}`, type: "task", label: `${r} concluiu a demanda "${t.title}"`, ts: (t as any).created_at ?? new Date().toISOString(), icon: <CheckCircle2 className="h-3.5 w-3.5" />, color: "#10B981" });
     });
     projects.forEach(p => {
-      items.push({ id: `p-${p.id}`, type: "project", label: `Novo projeto "${p.name}" criado`, ts: (p as any).created_at ?? new Date().toISOString(), icon: <FolderPlus className="h-3.5 w-3.5" />, color: "#2563EB" });
+      items.push({ id: `p-${p.id}`, type: "project", label: `Novo projeto "${p.name}" criado`, ts: (p as any).created_at ?? new Date().toISOString(), icon: <FolderPlus className="h-3.5 w-3.5" />, color: "#00B4D8" });
     });
     events.forEach(e => {
       items.push({ id: `e-${e.id}`, type: "event", label: `Evento "${e.title}" agendado`, ts: (e as any).created_at ?? new Date().toISOString(), icon: <CalendarPlus className="h-3.5 w-3.5" />, color: "#F97316" });
@@ -263,7 +263,7 @@ export default function DashboardPage() {
             {/* Minhas Demandas */}
             <div className="order-2 lg:order-2 glass-panel rounded-2xl p-4 md:p-5 h-full flex flex-col">
               <h2 className="text-sm font-semibold text-foreground mb-3 md:mb-4 flex items-center gap-2">
-                <ListChecks className="h-4 w-4 text-[#2563EB]" /> Minhas Demandas
+                <ListChecks className="h-4 w-4 text-primary" /> Minhas Demandas
               </h2>
               {myDemands.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-center gap-2 py-6">

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trackPlatformEvent } from "@/lib/platformAnalytics";
+import BrandLogo from "@/components/BrandLogo";
 import { toast } from "sonner";
 import {
   KeyRound, ArrowRight, ArrowLeft, LogOut, Building2,
@@ -141,7 +142,7 @@ export default function WelcomePage() {
       {/* Mobile header — blue panel is hidden on small screens */}
       <div className="lg:hidden flex items-center justify-between px-5 py-3.5 bg-white border-b border-border/40 sticky top-0 z-10">
         <Link to="/home" className="font-extrabold tracking-tight text-foreground transition-opacity hover:opacity-80" aria-label="Voltar para a home do BuzzUp">
-          BuzzUp
+          <BrandLogo markClassName="h-8 w-8" textClassName="text-base text-foreground" />
         </Link>
         <button onClick={() => signOut()} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
           <LogOut className="h-3.5 w-3.5" /> Sair

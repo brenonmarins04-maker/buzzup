@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackPlatformEvent } from "@/lib/platformAnalytics";
+import BrandLogo from "@/components/BrandLogo";
 import "./LandingPage.css";
 
 const SIGNUP = "/login?mode=signup";
@@ -95,16 +96,15 @@ export default function LandingPage() {
 
       <a className="skip" href="#main">Pular para o conteúdo</a>
 
-      <div className="announce">Grátis por 3 meses para toda entidade que entrar até o final de 2026 · Sem cartão</div>
-
       <header className={scrolled ? "shrink" : ""}>
         <div className="wrap nav">
-          <a className="brand" href="#" onClick={(e) => goTo(e, "main")} aria-label="BuzzUp, início"><span className="logo">B</span>BuzzUp</a>
+          <a className="brand" href="#" onClick={(e) => goTo(e, "main")} aria-label="BuzzUp, início">
+            <BrandLogo markClassName="h-9 w-9" textClassName="text-[19px]" />
+          </a>
           <nav className={`nav-links${menuOpen ? " open" : ""}`} aria-label="Principal">
             <a href="#recursos" onClick={(e) => goTo(e, "recursos")}>Recursos</a>
             <a href="#ranking" onClick={(e) => goTo(e, "ranking")}>Ranking</a>
             <a href="#planos" onClick={(e) => goTo(e, "planos")}>Planos</a>
-            <a href="#faq" onClick={(e) => goTo(e, "faq")}>FAQ</a>
           </nav>
           <Link
             className="btn btn-green nav-cta"
@@ -120,9 +120,11 @@ export default function LandingPage() {
       <main id="main">
 
         <section className="hero pad">
+          <div className="wrap hero-announce-wrap">
+            <PromoMarquee />
+          </div>
           <div className="wrap hero-grid">
             <div>
-              <span className="eyebrow badge-red reveal">3 meses de graça · sem cartão</span>
               <h1 className="reveal">Gestão da sua entidade na faculdade no seu celular.</h1>
               <div className="hero-cta reveal" style={{ flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
                 <Link
@@ -141,7 +143,7 @@ export default function LandingPage() {
                 <div className="app-topbar"><b>BuzzUp</b><span className="app-role">Owner</span></div>
                 <div className="app-body">
                   <div className="app-card">
-                    <div className="app-card-title" style={{ color: "#2563EB" }}>Minhas Demandas</div>
+                    <div className="app-card-title" style={{ color: "#00B4D8" }}>Minhas Demandas</div>
                     <div className="app-demand">
                       <div className="d-area">MARKETING</div>
                       <div className="d-title">Post de recrutamento</div>
@@ -210,7 +212,7 @@ export default function LandingPage() {
             <h2 className="reveal mx">Uma plataforma. A entidade inteira em sincronia.</h2>
             <div className="feat-grid">
               <div className="feat reveal">
-                <div className="ic" style={{ background: "rgba(37,99,235,.1)", color: "#2563EB" }}>☰</div>
+                <div className="ic" style={{ background: "rgba(0,180,216,.12)", color: "#00B4D8" }}>☰</div>
                 <h3>Demandas arrastáveis</h3>
                 <p>A diretoria distribui e reorganiza tarefas entre áreas e pessoas arrastando, direto do computador.</p>
               </div>
@@ -325,10 +327,28 @@ export default function LandingPage() {
 
       <footer>
         <div className="wrap">
-          <div className="footer-brand"><span className="logo">B</span>BuzzUp</div>
+          <div className="footer-brand">
+            <BrandLogo markClassName="h-8 w-8" textClassName="text-[17px] text-white" />
+          </div>
           <div>© 2026 BuzzUp · Feito por universitários, para universitários</div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+function PromoMarquee() {
+  return (
+    <div className="announce" aria-label="3 meses de graça sem cartão">
+      <div className="announce-track">
+        {[0, 1].map((group) => (
+          <div className="announce-group" key={group}>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <span key={`${group}-${i}`}>3 MESES DE GRAÇA - SEM CARTÃO</span>
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -368,7 +388,7 @@ function SignupTransitionOverlay() {
 
       <div className="signup-login-reveal">
         <div className="signup-login-panel">
-          <span className="signup-login-logo">B</span>
+          <BrandLogo showText={false} markClassName="signup-login-logo" />
           <div className="signup-login-copy">
             <strong>Bem-vindo ao BuzzUp</strong>
           </div>

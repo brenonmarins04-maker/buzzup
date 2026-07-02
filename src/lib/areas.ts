@@ -1,7 +1,7 @@
 export type AreaKey = "projetos" | "mercado" | "gg" | "presidencia";
 
 export const AREAS_DEFAULT: { key: AreaKey; label: string; path: string; color: string }[] = [
-  { key: "projetos",    label: "Geral",             path: "/projetos",    color: "#2563EB" },
+  { key: "projetos",    label: "Geral",             path: "/projetos",    color: "#00B4D8" },
   { key: "mercado",     label: "Marketing",          path: "/mercado",     color: "#F97316" },
   { key: "gg",          label: "Financeiro",         path: "/gg",          color: "#10B981" },
   { key: "presidencia", label: "Eventos / Projetos", path: "/presidencia", color: "#8B5CF6" },
@@ -65,8 +65,8 @@ export const AREA_OPTIONS = AREAS_DEFAULT.map(a => ({
 // ─── Team color palette ──────────────────────────────────────────────────────
 const TEAM_PALETTE = [
   "#DB2777", "#0891B2", "#CA8A04", "#DC2626", "#65A30D",
-  "#0D9488", "#BE185D", "#B45309", "#075985", "#7C2D12",
-  "#166534", "#1E3A8A", "#6B21A8", "#9D174D", "#4D7C0F",
+  "#0D9488", "#BE185D", "#B45309", "#008EAD", "#7C2D12",
+  "#166534", "#00B4D8", "#6B21A8", "#9D174D", "#4D7C0F",
   "#831843",
 ];
 

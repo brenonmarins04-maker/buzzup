@@ -190,7 +190,7 @@ export default function MemberEditModal({ open, onOpenChange, person }: Props) {
             <Button type="button" variant="outline" className="rounded-md" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" className="rounded-md bg-blue-600 hover:bg-blue-700">
+            <Button type="submit" className="rounded-md bg-primary hover:bg-primary/90">
               Salvar
             </Button>
           </div>

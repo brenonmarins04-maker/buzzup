@@ -510,7 +510,7 @@ export default function ReportsPage() {
                   Voltar
                 </button>
                 <span className="text-muted-foreground">·</span>
-                <Users className="h-4 w-4 text-blue-500" />
+                <Users className="h-4 w-4 text-primary" />
                 <h2 className="text-sm font-semibold text-foreground">
                   Entradas por Pessoa —{" "}
                   <span style={{ color: getAreaColor(loginDrillArea) }}>
@@ -520,7 +520,7 @@ export default function ReportsPage() {
               </>
             ) : (
               <>
-                <Users className="h-4 w-4 text-blue-500" />
+                <Users className="h-4 w-4 text-primary" />
                 <h2 className="text-sm font-semibold text-foreground">Entradas no BuzzUp por Área</h2>
                 <span className="text-[10px] text-muted-foreground ml-auto">clique numa barra para detalhes</span>
               </>
@@ -705,14 +705,14 @@ export default function ReportsPage() {
                 Voltar
               </button>
               <span className="text-muted-foreground">·</span>
-              <Users className="h-4 w-4 text-blue-500" />
+              <Users className="h-4 w-4 text-primary" />
               <h2 className="text-sm font-semibold text-foreground">
                 Entradas — {DAYS_LABELS[loginHeatmapDrill.day]} · {SLOTS.find(s => s.key === loginHeatmapDrill.slot)?.label}
               </h2>
             </>
           ) : (
             <>
-              <Users className="h-4 w-4 text-blue-500" />
+              <Users className="h-4 w-4 text-primary" />
               <h2 className="text-sm font-semibold text-foreground">Entradas no BuzzUp por Horário</h2>
               {totalLoginHeatItems === 0 ? (
                 <span className="ml-auto text-[10px] bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-full font-medium">
@@ -733,7 +733,7 @@ export default function ReportsPage() {
           ) : (
             <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-[320px] overflow-y-auto pr-1">
               {loginHeatmapDrillData.map((item, i) => (
-                <li key={i} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-blue-500/5 border border-blue-500/15">
+                <li key={i} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/15">
                   <span className="text-xs font-medium text-foreground truncate">{item.name}</span>
                   <span className="text-[11px] text-muted-foreground font-mono shrink-0">{item.time}</span>
                 </li>
@@ -772,7 +772,7 @@ export default function ReportsPage() {
                           <td key={dayIdx} className="text-center">
                             <div
                               onClick={() => count > 0 && setLoginHeatmapDrill({ day: dayIdx, slot: slot.key })}
-                              className={`rounded-lg flex items-center justify-center mx-auto text-[11px] font-semibold transition-all ${count > 0 ? "cursor-pointer hover:ring-2 hover:ring-blue-400/60" : ""}`}
+                              className={`rounded-lg flex items-center justify-center mx-auto text-[11px] font-semibold transition-all ${count > 0 ? "cursor-pointer hover:ring-2 hover:ring-primary/60" : ""}`}
                               style={{ backgroundColor: heatColor(count, maxLoginHeat, "59,130,246"), color: heatTextColor(count, maxLoginHeat), width: "100%", minWidth: 36, height: 40 }}
                               title={`${DAYS_LABELS[dayIdx]} – ${slot.label}: ${count} entrada${count !== 1 ? "s" : ""}`}
                             >

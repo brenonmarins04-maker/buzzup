@@ -354,7 +354,7 @@ export default function SecretAdminPage() {
 
   const statCards = stats
     ? [
-        { key: "workspaces", label: "Workspaces", value: stats.workspaces, icon: Building2, color: "#2563EB" },
+        { key: "workspaces", label: "Workspaces", value: stats.workspaces, icon: Building2, color: "#00B4D8" },
         { key: "users", label: "Usuários", value: stats.usuarios, icon: Users, color: "#8B5CF6", dialog: "users" as DialogKey },
         { key: "members", label: "Membros ativos", value: stats.membros, icon: UserRound, color: "#0891B2" },
         { key: "people", label: "Pessoas cadastradas", value: stats.pessoas, icon: Users, color: "#DB2777" },

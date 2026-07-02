@@ -105,7 +105,7 @@ export default function SummarySection() {
       {/* Header */}
       <div className="flex items-center justify-between gap-2 px-4 pt-4 pb-3">
         <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-          <FileText className="h-4 w-4 text-blue-500" /> Atualizações das Áreas
+          <FileText className="h-4 w-4 text-primary" /> Atualizações das Áreas
         </h2>
         {isAdmin && !editing && !loading && (
           <button
