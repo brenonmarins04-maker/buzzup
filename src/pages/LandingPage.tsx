@@ -11,17 +11,38 @@ export default function LandingPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const rootRef = useRef<HTMLDivElement>(null);
+  const lastScrollYRef = useRef(0);
+  const upwardScrollRef = useRef(0);
   const [scrolled, setScrolled] = useState(false);
+  const [headerHidden, setHeaderHidden] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [signupTransition, setSignupTransition] = useState(false);
 
-  // Header shrink on scroll
+  // Header shrink + hide on scroll down, reveal quickly on scroll up.
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 10);
+    const onScroll = () => {
+      const currentY = Math.max(window.scrollY, 0);
+      const delta = currentY - lastScrollYRef.current;
+
+      setScrolled(currentY > 10);
+
+      if (menuOpen || currentY < 80) {
+        setHeaderHidden(false);
+        upwardScrollRef.current = 0;
+      } else if (delta > 6) {
+        setHeaderHidden(true);
+        upwardScrollRef.current = 0;
+      } else if (delta < -2) {
+        upwardScrollRef.current += Math.abs(delta);
+        if (upwardScrollRef.current >= 10) setHeaderHidden(false);
+      }
+
+      lastScrollYRef.current = currentY;
+    };
     window.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [menuOpen]);
 
   // Reveal-on-scroll (staggered)
   useEffect(() => {
@@ -96,16 +117,19 @@ export default function LandingPage() {
 
       <a className="skip" href="#main">Pular para o conteúdo</a>
 
-      <header className={scrolled ? "shrink" : ""}>
+      <header className={[scrolled ? "shrink" : "", headerHidden ? "nav-hidden" : ""].filter(Boolean).join(" ")}>
         <div className="wrap nav">
           <a className="brand" href="#" onClick={(e) => goTo(e, "main")} aria-label="BuzzUp, início">
             <BrandLogo markClassName="h-9 w-9" textClassName="text-[19px]" />
           </a>
           <nav className={`nav-links${menuOpen ? " open" : ""}`} aria-label="Principal">
-            <a href="#recursos" onClick={(e) => goTo(e, "recursos")}>Recursos</a>
+            <a href="#recursos" onClick={(e) => goTo(e, "recursos")}>Como funciona</a>
             <a href="#ranking" onClick={(e) => goTo(e, "ranking")}>Ranking</a>
             <a href="#planos" onClick={(e) => goTo(e, "planos")}>Planos</a>
           </nav>
+          <Link className="btn btn-login-link nav-login" to="/login">
+            Entrar
+          </Link>
           <Link
             className="btn btn-green nav-cta"
             to={SIGNUP}
@@ -120,20 +144,25 @@ export default function LandingPage() {
       <main id="main">
 
         <section className="hero pad">
-          <div className="wrap hero-announce-wrap">
+          <div className="hero-announce-wrap">
             <PromoMarquee />
           </div>
           <div className="wrap hero-grid">
             <div>
               <h1 className="reveal">Gestão da sua entidade na faculdade no seu celular.</h1>
-              <div className="hero-cta reveal" style={{ flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
-                <Link
-                  className="btn btn-green pulse"
-                  to={SIGNUP}
-                  onClick={(e) => startSignupTransition(e, "landing_hero")}
-                >
-                  Criar conta <span aria-hidden="true">→</span>
-                </Link>
+              <div className="hero-cta reveal">
+                <div className="hero-actions">
+                  <Link
+                    className="btn btn-green pulse"
+                    to={SIGNUP}
+                    onClick={(e) => startSignupTransition(e, "landing_hero")}
+                  >
+                    Criar conta <span aria-hidden="true">→</span>
+                  </Link>
+                  <Link className="btn btn-login-ghost" to="/login">
+                    Entrar
+                  </Link>
+                </div>
                 <span className="hero-sub">Crie sua conta, compartilhe seu código e pronto! Fácil assim.</span>
               </div>
             </div>
@@ -162,11 +191,8 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
-        </section>
-
-        <div className="trust">
-          <div className="wrap">
-            <p className="reveal">Feito sob medida para o ecossistema universitário</p>
+          <div className="wrap hero-trust">
+            <p className="reveal">Feito por universitários, para universitários</p>
             <div className="tags reveal">
               <span className="tag">Empresas Juniores</span>
               <span className="tag">Atléticas</span>
@@ -174,7 +200,7 @@ export default function LandingPage() {
               <span className="tag">Ligas</span>
             </div>
           </div>
-        </div>
+        </section>
 
         <section className="sec-soft pad">
           <div className="wrap center">
