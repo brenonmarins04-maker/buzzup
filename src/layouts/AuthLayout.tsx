@@ -17,7 +17,7 @@ export default function AuthLayout() {
   const panelWidth = leaving ? 240 : isLogin ? "47vw" : 380;
 
   return (
-    <div className="h-screen overflow-hidden flex bg-background">
+    <div className="h-[100dvh] overflow-hidden flex bg-background">
 
       {/* ── Painel azul — montado UMA vez, nunca desmonta ──────────────── */}
       <motion.aside
