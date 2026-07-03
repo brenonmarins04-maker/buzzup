@@ -41,6 +41,22 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 const ACTIVE_WS_KEY = "buzzup.activeWorkspaceId";
 
+function getSignupEndpoint() {
+  if (typeof window === "undefined") return "/api/signup";
+  const isLocalhost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+  return isLocalhost ? "https://buzzup0.vercel.app/api/signup" : "/api/signup";
+}
+
+async function readJsonSafe(response: Response) {
+  const text = await response.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { error: text.slice(0, 200) };
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -205,13 +221,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signUp = async (email: string, password: string, name: string) => {
+    const normalizedEmail = email.trim().toLowerCase();
     try {
-      const r = await fetch("/api/signup", {
+      const r = await fetch(getSignupEndpoint(), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, name }),
+        body: JSON.stringify({ email: normalizedEmail, password, name }),
       });
-      const data = await r.json();
+      const data = await readJsonSafe(r);
       if (!r.ok) {
         const msg = data?.error === "already_exists"
           ? "Este e-mail já está cadastrado. Tente fazer login."

@@ -8,18 +8,26 @@ function cleanJwt(raw: string): string {
 }
 
 const SERVICE_KEY = cleanJwt(process.env.SUPABASE_SERVICE_KEY || "");
-const ANON_KEY = cleanJwt(
-  process.env.SUPABASE_ANON_KEY ||
-  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  ""
-);
 
 // In-memory rate limiter: max 5 signup attempts per IP per minute.
-// Per-instance only (not global across Vercel instances) but still effective
-// against naive automated abuse targeting a single deployment.
+// Per-instance only, but enough to slow down naive automated abuse.
 const rateMap = new Map<string, { count: number; resetAt: number }>();
 const RATE_WINDOW_MS = 60_000;
 const RATE_MAX = 5;
+
+function setCors(req: VercelRequest, res: VercelResponse) {
+  const origin = String(req.headers.origin || "");
+  const allowedOrigin =
+    /^https:\/\/buzzup0\.vercel\.app$/.test(origin) ||
+    /^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)
+      ? origin
+      : "https://buzzup0.vercel.app";
+
+  res.setHeader("Access-Control-Allow-Origin", allowedOrigin);
+  res.setHeader("Vary", "Origin");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+}
 
 function getClientIp(req: VercelRequest): string {
   const forwarded = req.headers["x-forwarded-for"];
@@ -39,8 +47,16 @@ function checkRateLimit(ip: string): boolean {
   return true;
 }
 
+function isAlreadyRegistered(status: number, message: string) {
+  const msg = message.toLowerCase();
+  return status === 422 || msg.includes("already") || msg.includes("registered") || msg.includes("exists");
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   initSentry();
+  setCors(req, res);
+
+  if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
   const ip = getClientIp(req);
@@ -49,79 +65,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const { email, password, name } = req.body || {};
-  if (!email || !password) return res.status(400).json({ error: "email e password obrigatorios" });
+  const emailLower = String(email || "").trim().toLowerCase();
+  if (!emailLower || !password) return res.status(400).json({ error: "email e password obrigatorios" });
   if (!SERVICE_KEY) return res.status(500).json({ error: "Configuracao do servidor incompleta" });
 
   try {
-    let userId: string | null = null;
+    // Use the admin API so signup does not hit public email-rate limits and
+    // the user is confirmed immediately, allowing workspace creation right away.
+    const createRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+      method: "POST",
+      headers: {
+        apikey: SERVICE_KEY,
+        Authorization: `Bearer ${SERVICE_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: emailLower,
+        password,
+        email_confirm: true,
+        user_metadata: { display_name: name || emailLower.split("@")[0] },
+      }),
+    });
 
-    if (ANON_KEY) {
-      const r = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
-        method: "POST",
-        headers: {
-          apikey: ANON_KEY,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          data: { display_name: name || email.split("@")[0] },
-        }),
-      });
-
-      const data = await r.json();
-
-      if (!r.ok) {
-        const msg =
-          data?.msg || data?.message || data?.error_description || "Erro ao criar conta";
-        if (
-          msg.toLowerCase().includes("already") ||
-          msg.toLowerCase().includes("registered") ||
-          r.status === 422
-        ) {
-          return res.status(409).json({ error: "already_exists" });
-        }
-        return res.status(r.status).json({ error: msg });
-      }
-
-      if (Array.isArray(data?.identities) && data.identities.length === 0) {
+    const created = await createRes.json();
+    if (!createRes.ok) {
+      const msg = created?.msg || created?.message || created?.error_description || "Erro ao criar conta";
+      if (isAlreadyRegistered(createRes.status, msg)) {
         return res.status(409).json({ error: "already_exists" });
       }
-
-      userId = data?.id || null;
-    } else {
-      // Fallback when anon key is not available: admin API without email confirmation.
-      const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
-        method: "POST",
-        headers: {
-          apikey: SERVICE_KEY,
-          Authorization: `Bearer ${SERVICE_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          email_confirm: true,
-          user_metadata: { display_name: name || email.split("@")[0] },
-        }),
-      });
-
-      const data = await r.json();
-
-      if (!r.ok) {
-        const msg = data?.msg || data?.message || "Erro ao criar conta";
-        if (msg.toLowerCase().includes("already") || r.status === 422) {
-          return res.status(409).json({ error: "already_exists" });
-        }
-        return res.status(r.status).json({ error: msg });
-      }
-
-      userId = data?.id || null;
+      return res.status(createRes.status).json({ error: msg });
     }
 
-    // Create profile with service key (requires SERVICE_KEY — admin-only operation)
+    const userId = created?.id || null;
     if (userId) {
-      const displayName = name || email.split("@")[0];
+      const displayName = name || emailLower.split("@")[0];
       await fetch(`${SUPABASE_URL}/rest/v1/profiles`, {
         method: "POST",
         headers: {
@@ -130,7 +107,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           "Content-Type": "application/json",
           Prefer: "resolution=merge-duplicates,return=minimal",
         },
-        body: JSON.stringify({ user_id: userId, display_name: displayName, email }),
+        body: JSON.stringify({ user_id: userId, display_name: displayName, email: emailLower }),
       });
     }
 
