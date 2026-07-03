@@ -51,7 +51,9 @@ export default function WelcomePage() {
     // Trigger exit animations on cards + panel morph
     setLeaving(true);
     setGlobalLeaving(true);
-    await new Promise(r => setTimeout(r, 400));
+    // Espera a animação única (encolher + escurecer, 0.45s) terminar antes de
+    // trocar de rota, pra o painel já estar na cor/largura da sidebar.
+    await new Promise(r => setTimeout(r, 460));
     // Reset global leaving after AuthLayout unmounts (no visual effect)
     setTimeout(() => setGlobalLeaving(false), 200);
     flushSync(() => { setActiveWorkspaceId(id); });

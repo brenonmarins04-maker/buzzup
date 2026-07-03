@@ -21,15 +21,24 @@ export default function AuthLayout() {
 
       {/* ── Painel azul — montado UMA vez, nunca desmonta ──────────────── */}
       <motion.aside
-        className="login-blue-panel hidden lg:flex shrink-0 overflow-hidden"
+        className="login-blue-panel relative hidden lg:flex shrink-0 overflow-hidden"
         animate={{ width: panelWidth }}
-        transition={{ duration: leaving ? 0.38 : 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
+        transition={{ duration: leaving ? 0.45 : 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
       >
+        {/* Overlay escuro — entra junto com o encolhimento, virando a cor exata
+            da sidebar do dashboard. Uma animação só: largura + cor. */}
+        <motion.div
+          aria-hidden="true"
+          className="workspace-blue-panel absolute inset-0 pointer-events-none"
+          initial={false}
+          animate={{ opacity: leaving ? 1 : 0 }}
+          transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }}
+        />
         {/* Conteúdo faz fade-out ao encolher para o dashboard */}
         <motion.div
-          className="flex flex-col justify-between h-full w-full p-10"
+          className="relative z-10 flex flex-col justify-between h-full w-full p-10"
           animate={{ opacity: leaving ? 0 : 1 }}
-          transition={{ duration: 0.15, ease: "easeOut" }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
         >
           {/* Logo */}
           <Link to="/home" className="flex items-center gap-3 shrink-0 transition-opacity hover:opacity-90" aria-label="Voltar para a home do BuzzUp">

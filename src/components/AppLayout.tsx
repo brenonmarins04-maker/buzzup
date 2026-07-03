@@ -344,9 +344,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <PointsEarnedBanner />
       <motion.aside
         className={`${collapsed ? "w-16" : "w-60"} workspace-blue-panel shrink-0 flex flex-col transition-[width] duration-200 overflow-hidden`}
-        initial={{ opacity: 0, x: -20 }}
+        initial={false}
         animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
       >
         <div className="h-14 px-4 flex items-center justify-between border-b border-white/10 shrink-0">
           {!collapsed && <BrandLogo markClassName="h-9 w-9" textClassName="text-lg text-white" />}
