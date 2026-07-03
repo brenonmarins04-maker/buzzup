@@ -79,8 +79,18 @@ export function getTeamColor(teamId: string): string {
   return TEAM_PALETTE[Math.abs(hash) % TEAM_PALETTE.length];
 }
 
+export function getTeamIdFromAreaKey(areaKey?: string | null): string | null {
+  if (!areaKey) return null;
+  return /^team_/i.test(areaKey) ? areaKey.slice(5) : null;
+}
+
+export function isTeamAreaKey(areaKey?: string | null): boolean {
+  return !!getTeamIdFromAreaKey(areaKey);
+}
+
 export function getAreaColor(areaKey?: string | null): string {
   if (!areaKey) return "#CBD5E1";
-  if (areaKey.startsWith("team_")) return getTeamColor(areaKey.slice(5));
+  const teamId = getTeamIdFromAreaKey(areaKey);
+  if (teamId) return getTeamColor(teamId);
   return AREAS_DEFAULT.find(a => a.key === areaKey)?.color ?? "#CBD5E1";
 }

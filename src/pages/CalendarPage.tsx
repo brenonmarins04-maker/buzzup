@@ -20,9 +20,19 @@ import { toast } from "sonner";
 import { getNowBrasilia } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useLongPressDrag, type DragDropResult } from "@/hooks/useLongPressDrag";
-import { AREAS, getTeamColor, getAreaColor } from "@/lib/areas";
+import { AREAS, getTeamColor, getAreaColor, getTeamIdFromAreaKey } from "@/lib/areas";
 import { isLeaderOfAny } from "@/lib/leadership";
 import trashBinImg from "@/assets/trash-bin.png";
+
+function sameAreaOrTeam(left?: string | null, right?: string | null) {
+  if (!left || !right) return left === right;
+  const leftTeamId = getTeamIdFromAreaKey(left);
+  const rightTeamId = getTeamIdFromAreaKey(right);
+  if (leftTeamId || rightTeamId) {
+    return !!leftTeamId && !!rightTeamId && leftTeamId.toLowerCase() === rightTeamId.toLowerCase();
+  }
+  return left === right;
+}
 
 export type CalendarItem = {
   id: string; title: string; type: "task" | "post" | "event";
@@ -113,8 +123,12 @@ export default function CalendarPage() {
   };
 
   const activeAreaMeta = filterArea
-    ? (filterArea.startsWith("team_")
-      ? { key: filterArea, label: teams.find(t => `team_${t.id}` === filterArea)?.name || "Time", color: getTeamColor(filterArea.slice(5)) }
+    ? (getTeamIdFromAreaKey(filterArea)
+      ? {
+          key: filterArea,
+          label: teams.find(t => sameAreaOrTeam(`team_${t.id}`, filterArea))?.name || "Time",
+          color: getTeamColor(getTeamIdFromAreaKey(filterArea)!),
+        }
       : AREAS.find(a => a.key === filterArea))
     : null;
   // All ideas without a date — always shown in sidebar regardless of area filter.
@@ -122,8 +136,8 @@ export default function CalendarPage() {
     const ideas = parkingItems.filter(p => !p.date);
     // When a filter is active, sort: matching area/team first, others below
     if (filterArea) {
-      const matching = ideas.filter(p => p.area === filterArea);
-      const others = ideas.filter(p => p.area !== filterArea);
+      const matching = ideas.filter(p => sameAreaOrTeam(p.area, filterArea));
+      const others = ideas.filter(p => !sameAreaOrTeam(p.area, filterArea));
       return [...matching, ...others];
     }
     return ideas;
@@ -233,11 +247,12 @@ export default function CalendarPage() {
     parkingItems.forEach((p) => {
       if (!p.date) return;
       if (p.status === "done") return;
-      if (filterArea && p.area !== filterArea) return;
-      const isTeam = p.area.startsWith("team_");
+      if (filterArea && !sameAreaOrTeam(p.area, filterArea)) return;
+      const teamId = getTeamIdFromAreaKey(p.area);
+      const isTeam = !!teamId;
       const areaMeta = AREAS.find(a => a.key === p.area);
-      const teamObj = isTeam ? teams.find(t => `team_${t.id}` === p.area) : null;
-      const color = isTeam ? getTeamColor(p.area.slice(5)) : (areaMeta?.color || "#CBD5E1");
+      const teamObj = isTeam ? teams.find(t => t.id === teamId || t.id.toLowerCase() === teamId!.toLowerCase()) : null;
+      const color = isTeam ? getTeamColor(teamObj?.id || teamId!) : (areaMeta?.color || "#CBD5E1");
       const label = isTeam ? (teamObj?.name || "Time") : (areaMeta?.label || "Sem área");
       const sig = `${p.area}|||${p.date}|||${p.title}`;
       const isDup = (dupCount.get(sig) || 0) > 1;
@@ -630,12 +645,13 @@ export default function CalendarPage() {
               <div className="overflow-x-auto scrollbar-thin" style={{ overflowY: "visible" }}>
                 <div style={{ display: "grid", gridAutoFlow: "column", gridTemplateRows: "repeat(5, auto)", gap: "3px", width: "max-content" }}>
                   {parkedIdeas.slice(0, 40).map(p => {
-                    const isTeam = p.area?.startsWith("team_");
+                    const teamId = getTeamIdFromAreaKey(p.area);
+                    const isTeam = !!teamId;
                     const areaMeta = AREAS.find(a => a.key === p.area);
-                    const teamObj = isTeam ? teams.find(t => `team_${t.id}` === p.area) : null;
+                    const teamObj = isTeam ? teams.find(t => t.id === teamId || t.id.toLowerCase() === teamId!.toLowerCase()) : null;
                     const color = getAreaColor(p.area);
                     const label = isTeam ? (teamObj?.name || "Time") : (areaMeta?.label || "Sem área");
-                    const dim = filterArea && p.area && p.area !== filterArea;
+                    const dim = filterArea && p.area && !sameAreaOrTeam(p.area, filterArea);
                     return (
                       <div key={p.id} className={`shrink-0 ${dim ? "opacity-40" : ""}`} style={{ width: 118 }}>
                         {renderItemPill({ id: p.id, parkingId: p.id, title: p.title, type: "event", date: "", color, eventTypeName: label })}

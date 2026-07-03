@@ -343,7 +343,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen overflow-hidden bg-background">
       <PointsEarnedBanner />
       <motion.aside
-        className={`${collapsed ? "w-16" : "w-60"} login-blue-panel shrink-0 flex flex-col transition-[width] duration-200 overflow-hidden`}
+        className={`${collapsed ? "w-16" : "w-60"} workspace-blue-panel shrink-0 flex flex-col transition-[width] duration-200 overflow-hidden`}
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}

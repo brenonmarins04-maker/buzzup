@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useData } from "@/contexts/DataContext";
 import type { ParkingItem } from "@/contexts/DataContext";
-import { AREAS, getTeamColor } from "@/lib/areas";
+import { AREAS, getAreaColor, getTeamIdFromAreaKey } from "@/lib/areas";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
@@ -41,9 +41,11 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
     setPoints(item?.points ?? 1);
   }, [open, item, defaultArea, defaultDate]);
 
-  // Check if selected area is a team
-  const isTeamArea = area.startsWith("team_");
-  const selectedTeam = isTeamArea ? teams.find(t => `team_${t.id}` === area) : null;
+  // Check if selected area is a team. Existing items may use TEAM_ or team_.
+  const teamId = getTeamIdFromAreaKey(area);
+  const isTeamArea = !!teamId;
+  const selectedTeam = isTeamArea ? teams.find(t => t.id === teamId || t.id.toLowerCase() === teamId!.toLowerCase()) : null;
+  const selectedColor = area ? getAreaColor(selectedTeam ? `team_${selectedTeam.id}` : area) : "#64748B";
 
   const peopleForArea = useMemo(() => {
     if (!area) return [];
@@ -92,7 +94,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
           style={{
             background: area
               ? (() => {
-                  const c = area.startsWith("team_") ? getTeamColor(area.slice(5)) : (AREAS.find(a => a.key === area)?.color || "#64748B");
+                  const c = selectedColor;
                   return `linear-gradient(160deg, color-mix(in srgb, ${c} 30%, white) 0%, color-mix(in srgb, ${c} 12%, white) 50%, white 100%)`;
                 })()
               : undefined,
@@ -100,7 +102,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
         >
           <div
             className="absolute top-0 left-0 right-0 h-1.5 transition-colors"
-            style={{ background: area ? (area.startsWith("team_") ? getTeamColor(area.slice(5)) : (AREAS.find(a => a.key === area)?.color || "#64748B")) : "hsl(var(--muted))" }}
+            style={{ background: area ? selectedColor : "hsl(var(--muted))" }}
           />
           <DialogHeader>
             <DialogTitle className="text-base">{item ? "Editar ideia" : "Nova ideia"}</DialogTitle>
@@ -190,7 +192,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
                     <div className="flex flex-wrap gap-1.5 max-h-[130px] overflow-y-auto">
                       {peopleForArea.map(p => {
                         const selected = personId === p.id;
-                        const areaColor = AREAS.find(a => a.key === area)?.color || "#64748B";
+                        const areaColor = selectedColor;
                         return (
                           <button key={p.id} type="button" onClick={() => setPersonId(p.id)}
                             className="px-2.5 h-7 rounded-full text-xs font-medium transition-all border"
@@ -226,7 +228,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
                   <div className="flex gap-1.5">
                     {[1, 2, 3].map(n => {
                       const selected = points === n;
-                      const areaColor = AREAS.find(a => a.key === area)?.color || "#64748B";
+                      const areaColor = selectedColor;
                       return (
                         <button key={n} type="button" onClick={() => setPoints(n)}
                           className="flex-1 h-9 rounded-full text-sm font-bold transition-all border"
@@ -257,7 +259,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
               <div className="flex gap-2">
                 <Button type="button" variant="outline" className="rounded-full px-4 h-9" onClick={() => handleClose(false)}>Cancelar</Button>
                 <Button type="submit" className="rounded-full px-4 h-9 text-white border-0 hover:opacity-90"
-                  style={area ? { backgroundColor: AREAS.find(a => a.key === area)?.color } : undefined}
+                  style={area ? { backgroundColor: selectedColor } : undefined}
                 >
                   {requireFull ? "Colocar no calendário" : "Salvar"}
                 </Button>

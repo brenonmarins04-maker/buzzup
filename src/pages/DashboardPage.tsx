@@ -10,7 +10,7 @@ import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import { getNowBrasilia } from "@/lib/utils";
 import { format, endOfWeek, differenceInHours, differenceInDays, subDays, startOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AREAS } from "@/lib/areas";
+import { AREAS, getTeamColor } from "@/lib/areas";
 import FormsSection from "@/components/FormsSection";
 import SummarySection from "@/components/SummarySection";
 
@@ -31,6 +31,29 @@ function pctDelta(curr: number, prev: number) {
   const diff = ((curr - prev) / prev) * 100;
   const rounded = Math.round(diff);
   return { value: Math.abs(rounded), sign: rounded > 0 ? "up" as const : rounded < 0 ? "down" as const : "flat" as const };
+}
+
+type TeamLike = { id: string; name: string };
+
+function getTeamIdFromArea(area?: string | null) {
+  return area && /^team_/i.test(area) ? area.slice(5) : null;
+}
+
+function resolveDemandScope(areaKey: string, teams: TeamLike[]) {
+  const teamId = getTeamIdFromArea(areaKey);
+  if (teamId) {
+    const team = teams.find(t => t.id === teamId || t.id.toLowerCase() === teamId.toLowerCase());
+    return {
+      label: team?.name || "Time",
+      color: getTeamColor(team?.id || teamId),
+    };
+  }
+
+  const area = AREAS.find(a => a.key === areaKey);
+  return {
+    label: area?.label || areaKey,
+    color: area?.color || "#00B4D8",
+  };
 }
 
 type KpiProps = {
@@ -84,7 +107,7 @@ function KpiCard({ title, value, icon, color, delta, spark }: KpiProps) {
 }
 
 export default function DashboardPage() {
-  const { people, tasks, projects, events, posts, broadcasts, gamificationAwards, parkingItems, updateParkingItem, loading } = useData();
+  const { people, tasks, projects, events, posts, broadcasts, gamificationAwards, parkingItems, teams, updateParkingItem, loading } = useData();
   const { user } = useAuth();
   const today = getNowBrasilia();
 
@@ -182,16 +205,16 @@ export default function DashboardPage() {
   const weekDemands = useMemo(() => parkingItems
     .filter(p => p.date && p.date >= todayStr && p.date <= weekEndStr && p.status !== "done")
     .map(p => {
-      const areaInfo = AREAS.find(a => a.key === p.area);
+      const scope = resolveDemandScope(p.area, teams);
       const person = people.find(pe => pe.id === p.personId);
       return {
         id: p.id,
         title: p.title,
-        areaLabel: areaInfo?.label ?? p.area,
-        areaColor: areaInfo?.color ?? "#888",
+        areaLabel: scope.label,
+        areaColor: scope.color,
         responsible: person?.name ?? "Sem responsável",
       };
-    }), [parkingItems, people, todayStr, weekEndStr]);
+    }), [parkingItems, people, teams, todayStr, weekEndStr]);
 
   const [demandIdx, setDemandIdx] = useState(0);
   const [showAllRanking, setShowAllRanking] = useState(false);
@@ -273,17 +296,17 @@ export default function DashboardPage() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {myDemands.map(demand => {
-                    const area = AREAS.find(a => a.key === demand.area);
+                    const scope = resolveDemandScope(demand.area, teams);
                     return (
                       <div
                         key={demand.id}
                         className="demand-hover flex flex-col gap-3 p-4 rounded-2xl border border-border bg-muted/20"
-                        style={{ borderColor: `${area?.color}33`, backgroundColor: `${area?.color}08` }}
+                        style={{ borderColor: `${scope.color}33`, backgroundColor: `${scope.color}08` }}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1">
-                            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: area?.color }}>
-                              {area?.label || demand.area}
+                            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: scope.color }}>
+                              {scope.label}
                             </p>
                             <p className="text-sm font-semibold text-foreground mt-1.5">{demand.title}</p>
                             {demand.description && (
@@ -291,14 +314,14 @@ export default function DashboardPage() {
                             )}
                           </div>
                           {demand.points && (
-                            <span className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-md text-white" style={{ backgroundColor: area?.color }}>
+                            <span className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-md text-white" style={{ backgroundColor: scope.color }}>
                               +{demand.points}p
                             </span>
                           )}
                         </div>
                         <div className="flex items-center gap-2 pt-1">
                           {demand.date && (
-                            <span className="text-[11px] font-medium px-2 py-0.5 rounded-md text-white" style={{ backgroundColor: area?.color }}>
+                            <span className="text-[11px] font-medium px-2 py-0.5 rounded-md text-white" style={{ backgroundColor: scope.color }}>
                               {new Date(demand.date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
                             </span>
                           )}
