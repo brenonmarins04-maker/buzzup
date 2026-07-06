@@ -332,7 +332,10 @@ function AttendanceTab({ area }: { area: AreaKey }) {
                               <p className="text-muted-foreground whitespace-pre-wrap">{rec.justification}</p>
                               {isAdmin && (
                                 <div className="mt-3 flex justify-end">
-                                  <Button size="sm" variant="outline" onClick={() => setJustifyModal({ open: true, personId: m.id, date: d, text: rec.justification })}>Editar</Button>
+                                  <Button size="sm" variant="outline" onClick={() => {
+                                    const next = window.prompt("Editar justificativa:", rec.justification);
+                                    if (next !== null) setAttendance(area, m.id, d, "FJ", next.trim());
+                                  }}>Editar</Button>
                                 </div>
                               )}
                             </PopoverContent>
