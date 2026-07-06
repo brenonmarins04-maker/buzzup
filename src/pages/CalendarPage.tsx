@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect, type DragEvent } from "react";
 import { createPortal } from "react-dom";
-import { ChevronLeft, ChevronRight, Plus, X, ChevronUp, ChevronDown, CalendarDays } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Plus, X, ChevronUp, ChevronDown, CalendarDays } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import type { Task, Post, CalendarEvent } from "@/contexts/DataContext";
@@ -40,6 +40,7 @@ export type CalendarItem = {
   eventTypeName?: string;
   /** Subtype for "event"-rendered parking items so drop logic can detect them. */
   parkingId?: string;
+  isDemand?: boolean;
 };
 
 
@@ -59,6 +60,35 @@ const nextPostStatus = (s?: string) => {
   return POST_STATUS_ORDER[(i + 1) % POST_STATUS_ORDER.length];
 };
 
+function getDemandCalendarVisual(item: CalendarItem, todayStr: string) {
+  if (!item.isDemand) return null;
+  if (item.status === "done") {
+    return { kind: "done" as const, color: "#10B981", label: "Concluída" };
+  }
+  if (item.date && item.date < todayStr) {
+    return { kind: "overdue" as const, color: "#EF4444", label: "Atrasada" };
+  }
+  return { kind: "progress" as const, color: "#F97316", label: "Em andamento" };
+}
+
+function getCalendarOrder(item: CalendarItem, todayStr: string) {
+  const visual = getDemandCalendarVisual(item, todayStr);
+  if (visual?.kind === "overdue") return 0;
+  if (visual?.kind === "progress") return 1;
+  if (visual?.kind === "done") return 2;
+  return 3;
+}
+
+function sortCalendarItems(items: CalendarItem[], todayStr: string) {
+  return [...items].sort((a, b) => {
+    const byStatus = getCalendarOrder(a, todayStr) - getCalendarOrder(b, todayStr);
+    if (byStatus !== 0) return byStatus;
+    const byTime = (a.time || "99:99").localeCompare(b.time || "99:99");
+    if (byTime !== 0) return byTime;
+    return a.title.localeCompare(b.title);
+  });
+}
+
 export default function CalendarPage() {
   const { tasks, posts, events, eventTypes, parkingItems, teams, people, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addParkingItem, updateParkingItem, deleteParkingItem } = useData();
   const { isAdmin: _isAdmin, user } = useAuth();
@@ -73,6 +103,7 @@ export default function CalendarPage() {
   const newIdeaRef = useRef<HTMLInputElement>(null);
   const [showPast, setShowPast] = useState(false);
   const upcomingTopRef = useRef<HTMLDivElement>(null);
+  const calendarTodayStr = format(getNowBrasilia(), "yyyy-MM-dd");
 
   const [taskModal, setTaskModal] = useState<{ open: boolean; task?: Task | null; date?: string }>({ open: false });
   const [postModal, setPostModal] = useState<{ open: boolean; post?: Post | null; date?: string }>({ open: false });
@@ -224,7 +255,7 @@ export default function CalendarPage() {
       if (t.status === "done") return; // demandas concluídas não aparecem no calendário
       if (filterArea && t.area !== filterArea) return;
       const taskColor = t.status === "in-progress" ? "#F59E0B" : t.status === "not-started" ? "#9CA3AF" : TASK_COLOR;
-      items.push({ id: t.id, title: t.title, type: "task", date: t.deadline, color: taskColor, status: t.status });
+      items.push({ id: t.id, title: t.title, type: "task", date: t.deadline, color: taskColor, status: t.status, isDemand: true });
     });
     posts.forEach((p) => {
       if (!p.date) return; // estacionamento
@@ -240,13 +271,12 @@ export default function CalendarPage() {
     // Para essas, o calendário mostra "PrimeiroNome - Título" para diferenciá-las.
     const dupCount = new Map<string, number>();
     parkingItems.forEach((p) => {
-      if (!p.date || p.status === "done") return;
+      if (!p.date) return;
       const sig = `${p.area}|||${p.date}|||${p.title}`;
       dupCount.set(sig, (dupCount.get(sig) || 0) + 1);
     });
     parkingItems.forEach((p) => {
       if (!p.date) return;
-      if (p.status === "done") return;
       if (filterArea && !sameAreaOrTeam(p.area, filterArea)) return;
       const teamId = getTeamIdFromAreaKey(p.area);
       const isTeam = !!teamId;
@@ -259,7 +289,7 @@ export default function CalendarPage() {
       const person = p.personId ? people.find(pe => pe.id === p.personId) : null;
       const firstName = person ? person.name.split(" ")[0] : null;
       const displayTitle = isDup && firstName ? `${firstName} - ${p.title}` : p.title;
-      items.push({ id: p.id, parkingId: p.id, title: displayTitle, type: "event", date: p.date, color, eventTypeName: label });
+      items.push({ id: p.id, parkingId: p.id, title: displayTitle, type: "event", date: p.date, color, status: p.status, eventTypeName: label, isDemand: true });
     });
     return items;
   }, [tasks, posts, events, parkingItems, teams, people, filterArea, eventTypes]);
@@ -391,59 +421,76 @@ export default function CalendarPage() {
 
   const typeLabels: Record<string, string> = { task: "Demanda", post: "Post", event: "Evento" };
 
-  const renderItemPill = (item: CalendarItem) => (
-    <div
-      key={item.id}
-      draggable={isAdmin}
-      onDragStart={(e) => handleDragStart(e, item)}
-      onDragEnd={handleDragEnd}
-      onClick={(e) => { e.stopPropagation(); if (longPress.isActive()) return; handleItemClick(item); }}
-      onPointerDown={(e) => longPress.handlers.onPointerDown(e, { payload: item, label: item.title, color: item.color })}
-      onPointerMove={longPress.handlers.onPointerMove}
-      onPointerUp={longPress.handlers.onPointerUp}
-      onPointerCancel={longPress.handlers.onPointerCancel}
-      onMouseEnter={(e) => {
-        if (!isMobile) setTooltipState({ item, rect: (e.currentTarget as HTMLElement).getBoundingClientRect() });
-      }}
-      onMouseLeave={() => setTooltipState(null)}
-      style={{
-        touchAction: "pan-y",
-        transition: "transform 380ms cubic-bezier(0.4,0,0.2,1), opacity 380ms ease",
-        transform: shrinkingId === item.id ? "scale(0)" : undefined,
-        opacity: shrinkingId === item.id ? 0 : 1,
-        transformOrigin: "bottom right",
-      }}
-      className={`demand-hover relative group/pill flex items-stretch ${isMobile ? "rounded-lg" : "rounded-md"} overflow-hidden shadow-sm ${isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}`}
-    >
-      {item.type === "post" && (
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); if (isAdmin) cyclePostStatus(item.id); }}
-          title={POST_STATUS_META[item.status || "not-started"]?.label}
-          style={{ backgroundColor: POST_STATUS_META[item.status || "not-started"]?.color || "#9CA3AF" }}
-          className={`w-1 shrink-0 ${isAdmin ? "cursor-pointer hover:w-1.5 transition-all" : ""}`}
-        />
-      )}
+  const renderItemPill = (item: CalendarItem) => {
+    const demandVisual = getDemandCalendarVisual(item, calendarTodayStr);
+    return (
       <div
-        style={{ backgroundColor: item.color }}
-        className={`flex-1 min-w-0 text-white font-medium hover:opacity-80 transition-opacity pointer-events-none ${
-          isMobile
-            ? "text-[10px] leading-snug px-1.5 py-1 rounded-md whitespace-normal break-words line-clamp-2"
-            : "text-[9px] sm:text-[10px] leading-tight px-1 sm:px-1.5 py-0.5 whitespace-normal break-words line-clamp-2 pr-4"
-        }`}
+        key={item.id}
+        draggable={isAdmin}
+        onDragStart={(e) => handleDragStart(e, item)}
+        onDragEnd={handleDragEnd}
+        onClick={(e) => { e.stopPropagation(); if (longPress.isActive()) return; handleItemClick(item); }}
+        onPointerDown={(e) => longPress.handlers.onPointerDown(e, { payload: item, label: item.title, color: item.color })}
+        onPointerMove={longPress.handlers.onPointerMove}
+        onPointerUp={longPress.handlers.onPointerUp}
+        onPointerCancel={longPress.handlers.onPointerCancel}
+        onMouseEnter={(e) => {
+          if (!isMobile) setTooltipState({ item, rect: (e.currentTarget as HTMLElement).getBoundingClientRect() });
+        }}
+        onMouseLeave={() => setTooltipState(null)}
+        style={{
+          touchAction: "pan-y",
+          transition: "transform 380ms cubic-bezier(0.4,0,0.2,1), opacity 380ms ease, border-color 160ms ease, box-shadow 160ms ease",
+          transform: shrinkingId === item.id ? "scale(0)" : undefined,
+          opacity: shrinkingId === item.id ? 0 : demandVisual?.kind === "done" ? 0.58 : 1,
+          transformOrigin: "bottom right",
+          borderColor: demandVisual?.color || "transparent",
+          boxShadow: demandVisual ? `0 0 0 1px ${demandVisual.color}88` : undefined,
+        }}
+        className={`demand-hover relative group/pill flex items-stretch border ${isMobile ? "rounded-lg" : "rounded-md"} overflow-hidden shadow-sm ${isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}`}
       >
-        {item.title}
+        {item.type === "post" && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); if (isAdmin) cyclePostStatus(item.id); }}
+            title={POST_STATUS_META[item.status || "not-started"]?.label}
+            style={{ backgroundColor: POST_STATUS_META[item.status || "not-started"]?.color || "#9CA3AF" }}
+            className={`w-1 shrink-0 ${isAdmin ? "cursor-pointer hover:w-1.5 transition-all" : ""}`}
+          />
+        )}
+        {demandVisual && (
+          <span
+            title={demandVisual.label}
+            className="absolute left-0.5 top-0.5 z-10 h-3.5 w-3.5 rounded-full bg-white/95 flex items-center justify-center shadow-sm"
+          >
+            {demandVisual.kind === "overdue" ? (
+              <AlertTriangle className="h-2.5 w-2.5 text-red-500" />
+            ) : (
+              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: demandVisual.color }} />
+            )}
+          </span>
+        )}
+        <div
+          style={{ backgroundColor: item.color }}
+          className={`flex-1 min-w-0 text-white font-medium hover:opacity-80 transition-opacity pointer-events-none ${
+            isMobile
+              ? `text-[10px] leading-snug py-1 rounded-md whitespace-normal break-words line-clamp-2 ${demandVisual ? "pl-5 pr-1.5" : "px-1.5"}`
+              : `text-[9px] sm:text-[10px] leading-tight py-0.5 whitespace-normal break-words line-clamp-2 pr-4 ${demandVisual ? "pl-5" : "px-1 sm:px-1.5"}`
+          }`}
+        >
+          {item.title}
+        </div>
+        <button onClick={(e) => { e.stopPropagation(); setDeleting({ open: true, id: item.id, title: item.title, type: item.type, parkingId: item.parkingId }); }}
+          className="absolute top-0 right-0 h-full px-0.5 flex items-center opacity-0 group-hover/pill:opacity-100 transition-opacity">
+          <X className="h-2.5 w-2.5 text-white hover:text-destructive" />
+        </button>
       </div>
-      <button onClick={(e) => { e.stopPropagation(); setDeleting({ open: true, id: item.id, title: item.title, type: item.type, parkingId: item.parkingId }); }}
-        className="absolute top-0 right-0 h-full px-0.5 flex items-center opacity-0 group-hover/pill:opacity-100 transition-opacity">
-        <X className="h-2.5 w-2.5 text-white hover:text-destructive" />
-      </button>
-    </div>
-  );
+    );
+  };
 
   const renderDayCell = (day: Date, inMonth: boolean) => {
     const dayStr = format(day, "yyyy-MM-dd");
-    const dayItems = allItems.filter((item) => item.date === dayStr);
+    const dayItems = sortCalendarItems(allItems.filter((item) => item.date === dayStr), calendarTodayStr);
     const todayFlag = isToday(day);
     const isDropping = dropTarget === dayStr;
     // Mobile: máx 3; desktop: máx 10 (5 linhas × 2 colunas — excesso no popup)
@@ -494,13 +541,11 @@ export default function CalendarPage() {
     for (let i = 0; i < 7; i++) {
       const d = addDays(today, i);
       const dateStr = format(d, "yyyy-MM-dd");
-      const items = allItems
-        .filter(it => it.date === dateStr)
-        .sort((a, b) => (a.time || "99:99").localeCompare(b.time || "99:99"));
+      const items = sortCalendarItems(allItems.filter(it => it.date === dateStr), calendarTodayStr);
       if (items.length > 0) days.push({ date: d, dateStr, items });
     }
     return days;
-  }, [allItems]);
+  }, [allItems, calendarTodayStr]);
 
   // Past list (mobile-only): previous 14 days, most recent first
   const pastDays = useMemo(() => {
@@ -511,13 +556,11 @@ export default function CalendarPage() {
       const d = subDays(today, i);
       const dateStr = format(d, "yyyy-MM-dd");
       if (dateStr >= todayStr) continue;
-      const items = allItems
-        .filter(it => it.date === dateStr)
-        .sort((a, b) => (a.time || "99:99").localeCompare(b.time || "99:99"));
+      const items = sortCalendarItems(allItems.filter(it => it.date === dateStr), calendarTodayStr);
       if (items.length > 0) days.push({ date: d, dateStr, items });
     }
     return days; // already most-recent-first
-  }, [allItems]);
+  }, [allItems, calendarTodayStr]);
 
   const formatDayHeader = (d: Date) => {
     const today = getNowBrasilia();
@@ -526,20 +569,30 @@ export default function CalendarPage() {
     return format(d, "EEE, d 'de' MMM", { locale: ptBR });
   };
 
-  const renderListItem = (item: CalendarItem, dim = false) => (
-    <button
-      key={item.id}
-      onClick={() => handleItemClick(item)}
-      className={`demand-hover flex items-center gap-2 text-left rounded-xl px-2 py-1.5 hover:bg-accent transition-colors ${dim ? "opacity-60" : ""}`}
-    >
-      <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-      <span className="flex-1 min-w-0 text-xs text-foreground truncate">{item.title}</span>
-      {item.time && <span className="text-[10px] text-muted-foreground tabular-nums">{item.time}</span>}
-      {item.type === "post" && item.status && (
-        <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: POST_STATUS_META[item.status]?.color || "#9CA3AF" }} />
-      )}
-    </button>
-  );
+  const renderListItem = (item: CalendarItem, dim = false) => {
+    const demandVisual = getDemandCalendarVisual(item, calendarTodayStr);
+    return (
+      <button
+        key={item.id}
+        onClick={() => handleItemClick(item)}
+        style={{ borderColor: demandVisual?.color || "transparent" }}
+        className={`demand-hover flex items-center gap-2 text-left rounded-xl border px-2 py-1.5 hover:bg-accent transition-colors ${dim ? "opacity-60" : ""}`}
+      >
+        {demandVisual?.kind === "overdue" ? (
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-500" />
+        ) : demandVisual ? (
+          <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: demandVisual.color }} />
+        ) : (
+          <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+        )}
+        <span className="flex-1 min-w-0 text-xs text-foreground truncate">{item.title}</span>
+        {item.time && <span className="text-[10px] text-muted-foreground tabular-nums">{item.time}</span>}
+        {item.type === "post" && item.status && (
+          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: POST_STATUS_META[item.status]?.color || "#9CA3AF" }} />
+        )}
+      </button>
+    );
+  };
 
   return (
     <div className="animate-fade-in flex flex-col gap-3">
@@ -795,9 +848,7 @@ export default function CalendarPage() {
         <DialogContent className="max-w-sm max-h-[75vh] overflow-y-auto rounded-2xl">
           {(() => {
             const popupItems = dayPopup
-              ? allItems
-                  .filter(i => i.date === dayPopup)
-                  .sort((a, b) => (a.time || "99:99").localeCompare(b.time || "99:99"))
+              ? sortCalendarItems(allItems.filter(i => i.date === dayPopup), calendarTodayStr)
               : [];
             return (
               <>
