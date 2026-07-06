@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useData } from "@/contexts/DataContext";
 import type { ParkingItem } from "@/contexts/DataContext";
-import { AREAS, getAreaColor, getTeamIdFromAreaKey } from "@/lib/areas";
+import { AREAS, getAreaColor, getTeamColor, getTeamIdFromAreaKey } from "@/lib/areas";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
