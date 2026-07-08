@@ -21,6 +21,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import WelcomePage from "./pages/WelcomePage";
 import LandingPage from "./pages/LandingPage";
 import AreasTeamsPage from "./pages/AreasTeamsPage";
+import GamificationAdminPage from "./pages/GamificationAdminPage";
 import SecretAdminPage from "./pages/SecretAdminPage";
 import NotFound from "./pages/NotFound";
 import AuthLayout from "./layouts/AuthLayout";
@@ -78,6 +79,7 @@ const App = () => (
             <Route element={<ProtectedApp />}>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/calendar" element={<CalendarPage />} />
+              <Route path="/gamification" element={<GamificationAdminPage />} />
               <Route path="/people" element={<PeoplePage />} />
               <Route path="/areas-times" element={<AreasTeamsPage />} />
               <Route path="/members" element={<MembersPage />} />

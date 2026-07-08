@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   CalendarDays, Megaphone,
-  FolderKanban, Bell, Search, ChevronLeft, ChevronDown, Plus, Users, LogOut, Eye, Shield, Briefcase, Crown, Sparkles, Home, UsersRound, Pencil, Settings, BarChart2,
+  FolderKanban, Bell, Search, ChevronLeft, ChevronDown, Plus, Users, LogOut, Eye, Shield, Briefcase, Crown, Sparkles, Home, UsersRound, Pencil, Settings, BarChart2, Trophy,
 } from "lucide-react";
 import { useMemo } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -143,7 +143,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Grupo "Configurações" (Pessoas / Relatórios / Acessos) — expansível
   const location = useLocation();
-  const configRoutes = ["/people", "/areas-times", "/reports", "/members"];
+  const configRoutes = ["/gamification", "/people", "/areas-times", "/reports", "/members"];
   const onConfigRoute = configRoutes.includes(location.pathname);
   const [configOpen, setConfigOpen] = useState(onConfigRoute);
   useEffect(() => { if (onConfigRoute) setConfigOpen(true); }, [onConfigRoute]);
@@ -427,6 +427,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {collapsed ? (
             <>
               <div className="border-t border-white/15 my-2" />
+              {isAdmin && (
+                <NavLink to="/gamification" title="Gameficação"
+                  className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center justify-center px-3 py-2 rounded-md transition-all`}>
+                  <Trophy className="h-4 w-4 shrink-0" />
+                </NavLink>
+              )}
               <NavLink to="/people" title="Pessoas"
                 className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center justify-center px-3 py-2 rounded-md transition-all`}>
                 <Users className="h-4 w-4 shrink-0" />
@@ -470,6 +476,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </button>
               {configOpen && (
                 <div className="mt-1 ml-3 pl-2 border-l border-white/10 flex flex-col gap-1">
+                  {isAdmin && (
+                    <NavLink to="/gamification"
+                      className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all`}>
+                      <Trophy className="h-4 w-4 shrink-0" />
+                      <span>Gameficação</span>
+                    </NavLink>
+                  )}
                   <NavLink to="/people"
                     className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all`}>
                     <Users className="h-4 w-4 shrink-0" />

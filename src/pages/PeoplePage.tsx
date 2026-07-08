@@ -10,35 +10,13 @@ import { toast } from "sonner";
 import { AREAS, getAreaLabel, getTeamColor } from "@/lib/areas";
 import MemberEditModal from "@/components/modals/MemberEditModal";
 import RolesInfoModal from "@/components/modals/RolesInfoModal";
-import GamificationAdminPage from "@/pages/GamificationAdminPage";
-
-type Tab = "gamificacao" | "membros";
-
 export default function PeoplePage() {
-  const { isAdmin } = useAuth();
-  const [tab, setTab] = useState<Tab>(isAdmin ? "gamificacao" : "membros");
   const [rolesInfoOpen, setRolesInfoOpen] = useState(false);
-
-  const tabs: { v: Tab; label: string; show: boolean }[] = [
-    { v: "gamificacao", label: "Gameficação", show: isAdmin },
-    { v: "membros",     label: "Assessores",  show: true },
-  ];
 
   return (
     <div className="animate-fade-in space-y-5">
-      <div>
-        <h1 className="text-2xl font-semibold text-foreground tracking-tight">Pessoas</h1>
-      </div>
-
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-1 border-b border-border flex-1">
-          {tabs.filter(t => t.show).map(t => (
-            <button key={t.v} onClick={() => setTab(t.v)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${tab === t.v ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <h1 className="text-2xl font-semibold text-foreground tracking-tight">Pessoas</h1>
         <button
           onClick={() => setRolesInfoOpen(true)}
           title="Ver estrutura de cargos"
@@ -48,8 +26,7 @@ export default function PeoplePage() {
         </button>
       </div>
 
-      {tab === "gamificacao" && isAdmin && <GamificationAdminPage />}
-      {tab === "membros" && <MembersTab />}
+      <MembersTab />
 
       <RolesInfoModal open={rolesInfoOpen} onOpenChange={setRolesInfoOpen} />
     </div>
@@ -108,12 +85,7 @@ function MembersTab() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{filteredPeople.length} de {people.length} assessores</p>
-        {isAdmin && (
-          <Button size="sm" onClick={() => { setAddModal(true); setNewName(""); }}>
-            <Plus className="h-4 w-4 mr-1" /> Novo assessor
-          </Button>
-        )}
+        <p className="text-sm text-muted-foreground">{filteredPeople.length} de {people.length} pessoas</p>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
