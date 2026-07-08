@@ -26,6 +26,7 @@ import SecretAdminPage from "./pages/SecretAdminPage";
 import NotFound from "./pages/NotFound";
 import AuthLayout from "./layouts/AuthLayout";
 import { AuthTransitionProvider } from "./contexts/AuthTransitionContext";
+import GeneralShortcutsSettings from "@/components/GeneralShortcutsSettings";
 
 const queryClient = new QueryClient();
 
@@ -84,6 +85,7 @@ const App = () => (
               <Route path="/areas-times" element={<AreasTeamsPage />} />
               <Route path="/members" element={<MembersPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/shortcuts" element={<GeneralShortcutsSettings />} />
               <Route path="/reports" element={<ReportsPage />} />
               <Route path="/time/:teamId" element={<TeamAreaPage />} />
               <Route path="/:area" element={<AreaRoute />} />

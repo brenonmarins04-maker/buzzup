@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   CalendarDays, Megaphone,
-  FolderKanban, Bell, Search, ChevronLeft, ChevronDown, Plus, Users, LogOut, Eye, Shield, Briefcase, Crown, Sparkles, Home, UsersRound, Pencil, Settings, BarChart2, Trophy,
+  FolderKanban, Bell, Search, ChevronLeft, ChevronDown, Plus, Users, LogOut, Eye, Shield, Briefcase, Crown, Sparkles, Home, UsersRound, Pencil, Settings, BarChart2, Trophy, ExternalLink,
 } from "lucide-react";
 import { useMemo } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -143,7 +143,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Grupo "Configurações" (Pessoas / Relatórios / Acessos) — expansível
   const location = useLocation();
-  const configRoutes = ["/gamification", "/people", "/areas-times", "/reports", "/members"];
+  const configRoutes = ["/gamification", "/people", "/areas-times", "/reports", "/members", "/shortcuts", "/settings"];
   const onConfigRoute = configRoutes.includes(location.pathname);
   const [configOpen, setConfigOpen] = useState(onConfigRoute);
   useEffect(() => { if (onConfigRoute) setConfigOpen(true); }, [onConfigRoute]);
@@ -442,6 +442,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <FolderKanban className="h-4 w-4 shrink-0" />
               </NavLink>
               {isAdmin && (
+                <NavLink to="/shortcuts" title="Atalhos gerais"
+                  className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center justify-center px-3 py-2 rounded-md transition-all`}>
+                  <ExternalLink className="h-4 w-4 shrink-0" />
+                </NavLink>
+              )}
+              {isAdmin && (
                 <NavLink to="/reports" title="Relatórios"
                   className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center justify-center px-3 py-2 rounded-md transition-all`}>
                   <BarChart2 className="h-4 w-4 shrink-0" />
@@ -493,6 +499,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     <FolderKanban className="h-4 w-4 shrink-0" />
                     <span>Áreas e Times</span>
                   </NavLink>
+                  {isAdmin && (
+                    <NavLink to="/shortcuts"
+                      className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all`}>
+                      <ExternalLink className="h-4 w-4 shrink-0" />
+                      <span>Atalhos gerais</span>
+                    </NavLink>
+                  )}
                   {isAdmin && (
                     <NavLink to="/reports"
                       className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all`}>

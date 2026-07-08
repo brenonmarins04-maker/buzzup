@@ -1,9 +1,10 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Database } from "@/integrations/supabase/types";
 import { getNowBrasilia, getTodayBrasilia } from "@/lib/utils";
 import { toast } from "sonner";
+import { GENERAL_SHORTCUTS_PREFIX, parseGeneralShortcuts, serializeGeneralShortcuts } from "@/lib/generalShortcuts";
 
 type Json = Database["public"]["Tables"]["tasks"]["Row"]["checklist"];
 
@@ -53,6 +54,7 @@ export type AttendanceSetting = { id: string; area: string; intervalDays: number
 export type AttendanceRecord = { id: string; area: string; personId: string; date: string; status: AttendanceStatus; justification: string };
 
 export type Broadcast = { id: string; message: string; durationDays: number; createdAt: string; expiresAt: string; createdBy: string | null };
+export type GeneralShortcut = { id: string; label: string; url: string; icon: string };
 
 export type WorkspaceFormTarget = "all" | "area" | "team";
 export type WorkspaceForm = { id: string; title: string; description: string; url: string; targetType: WorkspaceFormTarget; targetValue: string | null; createdBy: string | null; createdAt: string };
@@ -73,6 +75,7 @@ type DataContextType = {
   attendanceSettings: AttendanceSetting[];
   attendanceRecords: AttendanceRecord[];
   broadcasts: Broadcast[];
+  generalShortcuts: GeneralShortcut[];
   forms: WorkspaceForm[]; formCompletions: FormCompletion[];
   loading: boolean; workspaceId: string | null;
   pointsEarnedNotice: number | null;
@@ -149,6 +152,7 @@ type DataContextType = {
 
   addBroadcast: (message: string, durationDays: number) => Promise<void>;
   deleteBroadcast: (id: string) => Promise<void>;
+  saveGeneralShortcuts: (shortcuts: GeneralShortcut[]) => Promise<void>;
 
   addForm: (title: string, url: string, targetType: WorkspaceFormTarget, targetValue: string | null, description?: string) => Promise<void>;
   deleteForm: (id: string) => Promise<void>;
@@ -159,7 +163,7 @@ type DataContextType = {
 const DataContext = createContext<DataContextType | null>(null);
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const { user, workspaceId: authWorkspaceId } = useAuth();
+  const { user, workspaceId: authWorkspaceId, isAdmin, isOwner } = useAuth();
   const uid = user?.id;
   const workspaceId = authWorkspaceId;
   const [people, setPeople] = useState<Person[]>([]);
@@ -185,6 +189,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [categoriesRaw, setCategoriesRaw] = useState<{ id: string; name: string }[]>([]);
   const pplMapRef = useRef<Map<string, Person>>(new Map());
+  const generalShortcuts = useMemo(() => parseGeneralShortcuts(broadcasts), [broadcasts]);
 
   // Fetch workspace + all data
   useEffect(() => {
@@ -1265,6 +1270,47 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setBroadcasts(prev => prev.filter(b => b.id !== id));
   }, []);
 
+  // === GENERAL SHORTCUTS ===
+  const saveGeneralShortcuts = useCallback(async (shortcuts: GeneralShortcut[]) => {
+    if (!workspaceId) return;
+    if (!isAdmin && !isOwner) {
+      toast.error("Apenas diretores podem editar atalhos");
+      return;
+    }
+    const message = serializeGeneralShortcuts(shortcuts);
+    const expiresAt = new Date(Date.now() + 36500 * 24 * 60 * 60 * 1000).toISOString();
+    const existingIds = broadcasts
+      .filter(b => b.message.startsWith(GENERAL_SHORTCUTS_PREFIX))
+      .map(b => b.id);
+
+    if (existingIds.length > 0) {
+      const { error } = await (supabase.from("broadcasts") as any).delete().in("id", existingIds);
+      if (error) { toast.error("Erro ao atualizar atalhos"); return; }
+    }
+
+    const { data, error } = await (supabase.from("broadcasts") as any)
+      .insert({ workspace_id: workspaceId, message, duration_days: 36500, expires_at: expiresAt, created_by: uid })
+      .select()
+      .single();
+
+    if (error) { toast.error("Erro ao salvar atalhos"); return; }
+    if (data) {
+      const nextBroadcast: Broadcast = {
+        id: data.id,
+        message: data.message,
+        durationDays: data.duration_days ?? 36500,
+        createdAt: data.created_at,
+        expiresAt: data.expires_at,
+        createdBy: data.created_by ?? null,
+      };
+      setBroadcasts(prev => [
+        nextBroadcast,
+        ...prev.filter(b => !b.message.startsWith(GENERAL_SHORTCUTS_PREFIX)),
+      ]);
+      toast.success("Atalhos salvos");
+    }
+  }, [workspaceId, uid, broadcasts, isAdmin, isOwner]);
+
   // === FORMS (Formulários do workspace) ===
   const addForm = useCallback(async (title: string, url: string, targetType: WorkspaceFormTarget, targetValue: string | null, description = "") => {
     if (!workspaceId) return;
@@ -1320,7 +1366,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   return (
     <DataContext.Provider value={{
-      people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, gamificationActions, gamificationAwards, leadThermometer, attendanceSettings, attendanceRecords, broadcasts, forms, formCompletions, loading, workspaceId,
+      people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, gamificationActions, gamificationAwards, leadThermometer, attendanceSettings, attendanceRecords, broadcasts, generalShortcuts, forms, formCompletions, loading, workspaceId,
       pointsEarnedNotice, dismissPointsEarnedNotice,
       addPerson, updatePerson, updatePersonNickname, updatePersonArea, updatePersonAreas, updatePersonLeaderArea, updatePersonLeaderAreas, deletePerson,
       addTask, updateTask, deleteTask,
@@ -1338,7 +1384,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       awardGamificationPoints, awardPointsForDemandCompletion, deleteGamificationAward,
       addLeadThermometer, updateLeadThermometer, deleteLeadThermometer,
       upsertAttendanceSetting, setAttendance, clearAttendance,
-      addBroadcast, deleteBroadcast,
+      addBroadcast, deleteBroadcast, saveGeneralShortcuts,
       addForm, deleteForm, markFormCompleted, unmarkFormCompleted,
     }}>
       {children}

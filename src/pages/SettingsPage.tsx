@@ -1,8 +1,9 @@
 import { useState } from "react";
 import PeoplePage from "./PeoplePage";
 import MembersPage from "./MembersPage";
+import GeneralShortcutsSettings from "@/components/GeneralShortcutsSettings";
 
-type Tab = "pessoas" | "acessos";
+type Tab = "pessoas" | "acessos" | "atalhos";
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>("pessoas");
@@ -10,6 +11,7 @@ export default function SettingsPage() {
   const tabs: { v: Tab; label: string }[] = [
     { v: "pessoas", label: "Pessoas" },
     { v: "acessos", label: "Acessos" },
+    { v: "atalhos", label: "Atalhos gerais" },
   ];
 
   return (
@@ -30,7 +32,7 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      {tab === "pessoas" ? <PeoplePage /> : <MembersPage />}
+      {tab === "pessoas" ? <PeoplePage /> : tab === "acessos" ? <MembersPage /> : <GeneralShortcutsSettings />}
     </div>
   );
 }

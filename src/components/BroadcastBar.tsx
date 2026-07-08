@@ -19,7 +19,7 @@ export default function BroadcastBar() {
     return () => clearInterval(id);
   }, []);
 
-  const userBroadcasts = broadcasts.filter(b => !b.message.startsWith("__AREA_NAMES__:"));
+  const userBroadcasts = broadcasts.filter(b => !b.message.startsWith("__"));
   const visible = userBroadcasts.filter(b => !dismissed[b.id]);
   if (visible.length === 0) return null;
 

@@ -12,7 +12,7 @@ import { format, endOfWeek, differenceInHours, differenceInDays, subDays, startO
 import { ptBR } from "date-fns/locale";
 import { AREAS, getTeamColor } from "@/lib/areas";
 import FormsSection from "@/components/FormsSection";
-import SummarySection from "@/components/SummarySection";
+import GeneralShortcutsSection from "@/components/GeneralShortcutsSection";
 
 function timeAgo(iso: string) {
   const d = new Date(iso);
@@ -247,7 +247,7 @@ export default function DashboardPage() {
     events.forEach(e => {
       items.push({ id: `e-${e.id}`, type: "event", label: `Evento "${e.title}" agendado`, ts: (e as any).created_at ?? new Date().toISOString(), icon: <CalendarPlus className="h-3.5 w-3.5" />, color: "#F97316" });
     });
-    broadcasts.forEach(b => {
+    broadcasts.filter(b => !b.message.startsWith("__")).forEach(b => {
       items.push({ id: `b-${b.id}`, type: "broadcast", label: `Comunicado publicado: "${b.message.slice(0, 60)}${b.message.length > 60 ? "…" : ""}"`, ts: b.createdAt, icon: <Megaphone className="h-3.5 w-3.5" />, color: "#8B5CF6" });
     });
     gamificationAwards.forEach(a => {
@@ -486,8 +486,8 @@ export default function DashboardPage() {
         })()}
       </div>
 
-      {/* Atualizações das Áreas */}
-      <div style={fadeUp(2)}><SummarySection /></div>
+      {/* Atalhos gerais */}
+      <div style={fadeUp(2)}><GeneralShortcutsSection /></div>
 
       {/* 2 columns */}
       <div className="hidden md:grid grid-cols-1 lg:grid-cols-2 gap-4" style={fadeUp(3)}>

@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect, type DragEvent, type KeyboardEven
 import { useData, type ParkingItem, type ParkingItemStatus, type AttendanceStatus } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { AREAS, type AreaKey, getAreaLabel } from "@/lib/areas";
-import { leadsKey } from "@/lib/leadership";
+import { isLeaderOfAny } from "@/lib/leadership";
 import { Plus, ExternalLink, Pencil, Trash2, X, Settings, ChevronDown, ChevronUp, Circle, CheckCircle2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -155,9 +155,8 @@ function addDaysISO(iso: string, days: number) {
 
 function AttendanceTab({ area }: { area: AreaKey }) {
   const { people, attendanceSettings, attendanceRecords, upsertAttendanceSetting, setAttendance, clearAttendance } = useData();
-  const { isAdmin: _isAdmin, user } = useAuth();
-  // Líder da área também gerencia presenças da área
-  const isAdmin = _isAdmin || leadsKey(people, user?.id, area);
+  // Presenças são só de diretores/owner — líder não gerencia presença.
+  const { isAdmin } = useAuth();
 
   // Apenas Admin/líder pode acessar a aba de presenças
   if (!isAdmin) {
@@ -379,7 +378,8 @@ function KanbanTab({ area }: { area: AreaKey }) {
   const items = useMemo(() => parkingItems.filter(p => p.area === area), [parkingItems, area]);
 
   // Verificar se o usuário atual é líder desta área (liderança vem do banco/leaderAreas)
-  const isAreaLeader = useMemo(() => leadsKey(people, user?.id, area), [people, user, area]);
+  // Líder é global: gerencia demandas de qualquer área.
+  const isAreaLeader = useMemo(() => isLeaderOfAny(people, user?.id), [people, user]);
 
   // Verificar se pode mover (admin ou líder da área)
   const canManage = isAdmin || isAreaLeader;

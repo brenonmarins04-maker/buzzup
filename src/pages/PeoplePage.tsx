@@ -58,6 +58,27 @@ function MembersTab() {
       });
   }, [activeWorkspaceId, isAdmin]);
 
+  // Cargo por conta vinculada (owner/admin=diretor) + liderança global (leader_areas)
+  const [memberRoles, setMemberRoles] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!activeWorkspaceId || !isAdmin) return;
+    (supabase.rpc as any)("list_workspace_members", { _ws_id: activeWorkspaceId }).then(({ data }: { data: any[] | null }) => {
+      const map: Record<string, string> = {};
+      (data || []).forEach((m: any) => { if (m.user_id) map[m.user_id] = m.role; });
+      setMemberRoles(map);
+    });
+  }, [activeWorkspaceId, isAdmin]);
+
+  const roleOf = (p: Person): { label: string; color: string } | null => {
+    if (!p.userId) return null;
+    const r = memberRoles[p.userId];
+    if (r === "owner") return { label: "Owner", color: "#EF9F27" };
+    if (r === "admin") return { label: "Diretor", color: "#00B4D8" };
+    const hasLeader = (p.leaderAreas && p.leaderAreas.length > 0) || !!p.leaderArea;
+    if (hasLeader) return { label: "Líder", color: "#8B5CF6" };
+    return { label: "Assessor", color: "#10B981" };
+  };
+
   const filteredPeople = useMemo(() => {
     return people.filter(person => {
       const matchesSearch = person.name.toLowerCase().includes(searchText.toLowerCase());
@@ -120,28 +141,27 @@ function MembersTab() {
                 {person.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
               </div>
               <div className="flex flex-col min-w-0">
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-sm font-medium text-foreground truncate">{person.name}</span>
                   {person.userId && (
                     <span title="Conta vinculada">
                       <Link2 className="h-3 w-3 text-primary shrink-0" />
                     </span>
                   )}
+                  {(() => {
+                    const rb = roleOf(person);
+                    return rb ? (
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ color: rb.color, backgroundColor: `${rb.color}18`, border: `1px solid ${rb.color}40` }}>
+                        {rb.label}
+                      </span>
+                    ) : null;
+                  })()}
                 </div>
                 {(() => {
-                  const leaderList = person.leaderAreas || (person.leaderArea ? [person.leaderArea] : []);
                   const personTeams = teams.filter(t => t.memberIds.includes(person.id));
                   const personAreas = person.areas && person.areas.length > 0 ? person.areas : (person.area ? [person.area] : []);
-
-                  // Split leader list into areas and teams
-                  const leaderAreas = leaderList.filter(k => !k.startsWith("team_"));
-                  const leaderTeams = leaderList.filter(k => k.startsWith("team_")).map(k => k.slice(5));
-                  const leaderAreaLabels = leaderAreas.map(getAreaLabel).filter(Boolean);
-                  const leaderTeamLabels = leaderTeams.map(id => teams.find(t => t.id === id)?.name || "").filter(Boolean);
-
                   return (
                     <div className="flex flex-wrap items-center gap-1 mt-0.5">
-                      {/* Áreas */}
                       {personAreas.length > 0 ? (
                         personAreas.map(areaKey => (
                           <span key={areaKey} className="text-[10px] font-medium bg-primary/10 text-primary border border-primary/20 px-1.5 py-0.5 rounded truncate">
@@ -151,43 +171,13 @@ function MembersTab() {
                       ) : (
                         <span className="text-[10px] text-muted-foreground/50 truncate italic">Sem área</span>
                       )}
-
-                      {/* Times */}
                       {personTeams.map(t => (
                         <span
                           key={t.id}
                           className="text-[10px] font-medium px-1.5 py-0.5 rounded truncate border"
-                          style={{
-                            color: getTeamColor(t.id),
-                            borderColor: `${getTeamColor(t.id)}40`,
-                            backgroundColor: `${getTeamColor(t.id)}15`,
-                          }}
+                          style={{ color: getTeamColor(t.id), borderColor: `${getTeamColor(t.id)}40`, backgroundColor: `${getTeamColor(t.id)}15` }}
                         >
                           [{t.name}]
-                        </span>
-                      ))}
-
-                      {/* Líderes de áreas */}
-                      {leaderAreaLabels.map(lbl => (
-                        <span
-                          key={`la-${lbl}`}
-                          title={`Líder da área ${lbl}`}
-                          className="inline-flex items-center gap-0.5 text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-300 px-1.5 py-0.5 rounded"
-                        >
-                          <Zap className="h-2.5 w-2.5" />
-                          [{lbl} Líder]
-                        </span>
-                      ))}
-
-                      {/* Líderes de times */}
-                      {leaderTeamLabels.map(lbl => (
-                        <span
-                          key={`lt-${lbl}`}
-                          title={`Líder do time ${lbl}`}
-                          className="inline-flex items-center gap-0.5 text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-300 px-1.5 py-0.5 rounded"
-                        >
-                          <Zap className="h-2.5 w-2.5" />
-                          [{lbl} Líder]
                         </span>
                       ))}
                     </div>
