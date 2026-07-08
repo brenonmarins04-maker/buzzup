@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   CalendarDays, Megaphone,
-  FolderKanban, Bell, Search, ChevronLeft, Plus, Users, LogOut, Eye, Shield, Briefcase, Crown, Sparkles, Home, UsersRound, Pencil, Settings, BarChart2,
+  FolderKanban, Bell, Search, ChevronLeft, ChevronDown, Plus, Users, LogOut, Eye, Shield, Briefcase, Crown, Sparkles, Home, UsersRound, Pencil, Settings, BarChart2,
 } from "lucide-react";
 import { useMemo } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -38,13 +38,7 @@ function getNavItems() {
   return [
     { to: "/",         icon: Home,         label: "Início" },
     { to: "/calendar", icon: CalendarDays, label: "Calendário" },
-    { to: "/people",   icon: Users,        label: "Pessoas" },
-    ...AREAS.map(a => ({ to: a.path, icon: areaIcons[a.key] || FolderKanban, label: getAreaLabel(a.key), color: a.color })),
   ];
-}
-
-function getAccessItem() {
-  return { to: "/members", icon: Shield, label: "Acessos" };
 }
 
 function getAreaItems() {
@@ -146,6 +140,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const t = setTimeout(() => setNavIn(true), 200);
     return () => clearTimeout(t);
   }, []);
+
+  // Grupo "Configurações" (Pessoas / Relatórios / Acessos) — expansível
+  const location = useLocation();
+  const configRoutes = ["/people", "/reports", "/members"];
+  const onConfigRoute = configRoutes.includes(location.pathname);
+  const [configOpen, setConfigOpen] = useState(onConfigRoute);
+  useEffect(() => { if (onConfigRoute) setConfigOpen(true); }, [onConfigRoute]);
 
   // Load custom area names per workspace — version triggers re-render of nav items
   const { version: areaNamesVersion } = useAreaNames();
@@ -370,6 +371,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           ))}
 
+          {/* ── Áreas ── */}
+          {!collapsed && (
+            <div className="px-3 pt-3 pb-1">
+              <span className="text-[10px] font-semibold text-white/50 uppercase tracking-wider">Áreas</span>
+            </div>
+          )}
+          {collapsed && <div className="border-t border-white/15 my-2" />}
+          {getAreaItems().map(item => (
+            <NavLink key={item.to} to={item.to}
+              style={({ isActive }) => isActive
+                ? { boxShadow: `inset 3px 0 0 ${item.color}` }
+                : { boxShadow: `inset 3px 0 0 ${item.color}66` }}
+              className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all ${collapsed ? "justify-center" : ""}`}>
+              <item.icon className="h-4 w-4 shrink-0" />
+              {!collapsed && <span>{item.label}</span>}
+            </NavLink>
+          ))}
+
           {/* ── Times (sempre visível para admin/owner; visível para members que têm time) ── */}
           {(isAdmin || myTeams.length > 0) && (
             <>
@@ -404,41 +423,76 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </>
           )}
 
-          {/* ── Acessos (sempre por último) ── */}
-          {(() => {
-            const item = getAccessItem();
-            return (
-              <NavLink to={item.to}
-                className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all ${collapsed ? "justify-center" : ""}`}>
+          {/* ── Configurações (Pessoas / Relatórios / Acessos) — permissões inalteradas ── */}
+          {collapsed ? (
+            <>
+              <div className="border-t border-white/15 my-2" />
+              <NavLink to="/people" title="Pessoas"
+                className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center justify-center px-3 py-2 rounded-md transition-all`}>
+                <Users className="h-4 w-4 shrink-0" />
+              </NavLink>
+              {isAdmin && (
+                <NavLink to="/reports" title="Relatórios"
+                  className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center justify-center px-3 py-2 rounded-md transition-all`}>
+                  <BarChart2 className="h-4 w-4 shrink-0" />
+                </NavLink>
+              )}
+              <NavLink to="/members" title="Acessos"
+                className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center justify-center px-3 py-2 rounded-md transition-all`}>
                 <div className="relative">
-                  <item.icon className="h-4 w-4 shrink-0" />
-                  {pendingJoinCount > 0 && collapsed && (
+                  <Shield className="h-4 w-4 shrink-0" />
+                  {pendingJoinCount > 0 && (
                     <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-3.5 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
                       {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
                     </span>
                   )}
                 </div>
-                {!collapsed && (
-                  <span className="flex-1 flex items-center justify-between">
-                    <span>{item.label}</span>
-                    {pendingJoinCount > 0 && (
-                      <span className="h-5 min-w-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
-                        {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
-                      </span>
-                    )}
+              </NavLink>
+            </>
+          ) : (
+            <div className="pt-3">
+              <button
+                onClick={() => setConfigOpen(o => !o)}
+                className={`sidebar-glass-link ${onConfigRoute ? "sidebar-glass-link-active" : ""} w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all`}
+              >
+                <Settings className="h-4 w-4 shrink-0" />
+                <span className="flex-1 text-left">Configurações</span>
+                {!configOpen && pendingJoinCount > 0 && (
+                  <span className="h-5 min-w-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                    {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
                   </span>
                 )}
-              </NavLink>
-            );
-          })()}
-
-          {/* ── Relatórios (apenas admins/owners, desktop only) ── */}
-          {isAdmin && (
-            <NavLink to="/reports"
-              className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all ${collapsed ? "justify-center" : ""}`}>
-              <BarChart2 className="h-4 w-4 shrink-0" />
-              {!collapsed && <span>Relatórios</span>}
-            </NavLink>
+                <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${configOpen ? "rotate-180" : ""}`} />
+              </button>
+              {configOpen && (
+                <div className="mt-1 ml-3 pl-2 border-l border-white/10 flex flex-col gap-1">
+                  <NavLink to="/people"
+                    className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all`}>
+                    <Users className="h-4 w-4 shrink-0" />
+                    <span>Pessoas</span>
+                  </NavLink>
+                  {isAdmin && (
+                    <NavLink to="/reports"
+                      className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all`}>
+                      <BarChart2 className="h-4 w-4 shrink-0" />
+                      <span>Relatórios</span>
+                    </NavLink>
+                  )}
+                  <NavLink to="/members"
+                    className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all`}>
+                    <Shield className="h-4 w-4 shrink-0" />
+                    <span className="flex-1 flex items-center justify-between">
+                      <span>Acessos</span>
+                      {pendingJoinCount > 0 && (
+                        <span className="h-5 min-w-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                          {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
+                        </span>
+                      )}
+                    </span>
+                  </NavLink>
+                </div>
+              )}
+            </div>
           )}
         </nav>
         <div className="p-3 border-t border-white/10 shrink-0">
