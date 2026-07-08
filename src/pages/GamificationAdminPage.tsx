@@ -4,12 +4,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Navigate } from "react-router-dom";
-import { Trophy, Search, Plus, Pencil, Trash2, Check } from "lucide-react";
+import { Trophy, Search, Plus, Pencil, Trash2, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AREAS_DEFAULT, getAreaLabel } from "@/lib/areas";
 
-type Sub = "pontuar" | "acoes" | "apelidos";
+type Sub = "pontuar" | "acoes" | "apelidos" | "historico";
 
 export default function GamificationAdminPage() {
   const { isAdmin } = useAuth();
@@ -18,8 +18,9 @@ export default function GamificationAdminPage() {
   const [sub, setSub] = useState<Sub>("pontuar");
   const subs: { v: Sub; label: string }[] = [
     { v: "pontuar", label: "Pontuar" },
-    { v: "acoes", label: "Ações" },
     { v: "apelidos", label: "Apelidos" },
+    { v: "acoes", label: "Ações rápidas" },
+    { v: "historico", label: "Histórico" },
   ];
 
   return (
@@ -40,6 +41,59 @@ export default function GamificationAdminPage() {
       {sub === "pontuar" && <PontuarTab />}
       {sub === "acoes" && <AcoesTab />}
       {sub === "apelidos" && <ApelidosTab />}
+      {sub === "historico" && <HistoricoTab />}
+    </div>
+  );
+}
+
+function HistoricoTab() {
+  const { gamificationAwards, people, deleteGamificationAward } = useData();
+  const groups = useMemo(() => {
+    const map = new Map<string, typeof gamificationAwards>();
+    [...gamificationAwards]
+      .sort((a, b) => b.awardedAt.localeCompare(a.awardedAt))
+      .forEach(a => {
+        const day = new Date(a.awardedAt).toISOString().slice(0, 10);
+        const arr = map.get(day) || [];
+        arr.push(a); map.set(day, arr);
+      });
+    return Array.from(map.entries());
+  }, [gamificationAwards]);
+  const personName = (id: string) => people.find(p => p.id === id)?.name || "—";
+
+  if (gamificationAwards.length === 0) {
+    return <p className="text-sm text-muted-foreground text-center py-12">Nenhuma pontuação registrada ainda.</p>;
+  }
+
+  return (
+    <div className="space-y-5">
+      {groups.map(([day, items]) => {
+        const total = items.reduce((s, i) => s + i.points, 0);
+        return (
+          <div key={day}>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-foreground">
+                {new Date(day + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
+              </h3>
+              <span className="text-xs text-muted-foreground">{items.length} registros · {total} pts</span>
+            </div>
+            <div className="bg-card border border-border rounded-lg divide-y divide-border">
+              {items.map(a => (
+                <div key={a.id} className="flex items-center gap-3 px-3 py-2 group">
+                  <span className="text-xs text-muted-foreground w-12 shrink-0">{new Date(a.awardedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
+                  <span className="text-sm font-medium text-foreground flex-1 truncate">{personName(a.personId)}</span>
+                  <span className="text-sm text-muted-foreground truncate hidden sm:block flex-1">{a.actionName}</span>
+                  <span className="text-sm font-semibold text-primary">+{a.points}</span>
+                  <button onClick={() => { deleteGamificationAward(a.id); toast.success("Removido"); }}
+                    className="p-1 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

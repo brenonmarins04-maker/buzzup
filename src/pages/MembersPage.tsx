@@ -2,18 +2,14 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Trash2, ArrowUp, ArrowDown, Shield, Crown, Eye, Check, X, Copy } from "lucide-react";
+import { Check, X, Copy, MailPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
-type Role = "owner" | "admin" | "member";
-type Member = { user_id: string; role: Role; created_at: string; display_name: string };
 type JoinReq = { id: string; user_id: string; display_name: string; email: string; status: string; requested_at: string };
 
 export default function MembersPage() {
-  const { user, workspaceId, role: myRole, myWorkspaces } = useAuth();
-  const [tab, setTab] = useState<"members" | "requests">("members");
-  const [members, setMembers] = useState<Member[]>([]);
+  const { workspaceId, role: myRole, myWorkspaces } = useAuth();
   const [requests, setRequests] = useState<JoinReq[]>([]);
   const [loading, setLoading] = useState(true);
   const [approveFor, setApproveFor] = useState<JoinReq | null>(null);
@@ -21,48 +17,36 @@ export default function MembersPage() {
   const [confirm, setConfirm] = useState<null | { title: string; description: string; onConfirm: () => void | Promise<void> }>(null);
 
   const isOwner = myRole === "owner";
-  const isAdmin = myRole === "admin";
   const wsCode = myWorkspaces.find(w => w.workspace_id === workspaceId)?.code || "";
 
   const load = useCallback(async () => {
-    if (!workspaceId) return;
+    if (!workspaceId || !isOwner) { setRequests([]); setLoading(false); return; }
     setLoading(true);
-    const [mRes, rRes] = await Promise.all([
-      (supabase.rpc as any)("list_workspace_members", { _ws_id: workspaceId }),
-      isOwner
-        ? (supabase.rpc as any)("list_workspace_join_requests", { _ws_id: workspaceId })
-        : Promise.resolve({ data: [] as any[] }),
-    ]);
-    setMembers(((mRes.data as any[]) || []).map((m: any) => ({
-      user_id: m.user_id, role: m.role, created_at: m.created_at,
-      display_name: m.display_name || m.email || "Usuário",
-    })));
-    setRequests(((rRes.data as any[]) || []) as JoinReq[]);
+    const { data } = await (supabase.rpc as any)("list_workspace_join_requests", { _ws_id: workspaceId });
+    setRequests(((data as any[]) || []) as JoinReq[]);
     setLoading(false);
   }, [workspaceId, isOwner]);
 
   useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
-    if (!workspaceId) return;
+    if (!workspaceId || !isOwner) return;
     let initialLoadDone = false;
-    // Wait for the first load() call to complete before we start toasting
     load().then(() => { initialLoadDone = true; });
 
     let ch: ReturnType<typeof supabase.channel> | null = null;
     try {
       ch = supabase
-        .channel(`members-${workspaceId}-${Math.random().toString(36).slice(2)}`)
+        .channel(`convites-${workspaceId}-${Math.random().toString(36).slice(2)}`)
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "workspace_join_requests", filter: `workspace_id=eq.${workspaceId}` }, (payload) => {
-          if (initialLoadDone && isOwner) {
+          if (initialLoadDone) {
             const name = (payload.new as any)?.display_name || "Alguém";
-            toast.info(`Novo pedido de ${name}`, { description: "Aprovação pendente nesta página.", duration: 5000 });
+            toast.info(`Novo convite de ${name}`, { description: "Aprovação pendente em Convites.", duration: 5000 });
           }
           load();
         })
         .on("postgres_changes", { event: "UPDATE", schema: "public", table: "workspace_join_requests", filter: `workspace_id=eq.${workspaceId}` }, () => load())
         .on("postgres_changes", { event: "DELETE", schema: "public", table: "workspace_join_requests", filter: `workspace_id=eq.${workspaceId}` }, () => load())
-        .on("postgres_changes", { event: "*", schema: "public", table: "workspace_members", filter: `workspace_id=eq.${workspaceId}` }, () => load())
         .subscribe();
     } catch { ch = null; }
     return () => { if (ch) supabase.removeChannel(ch); };
@@ -78,50 +62,16 @@ export default function MembersPage() {
     if (!approveFor) return;
     const { error } = await (supabase.rpc as any)("approve_join_request", { _req_id: approveFor.id, _role: approveRole });
     if (error) { toast.error("Falha ao aprovar."); return; }
-    toast.success("Pedido aprovado!");
+    toast.success("Convite aprovado!");
     setApproveFor(null);
     await load();
   };
 
   const reject = async (r: JoinReq) => {
     const { error } = await (supabase.rpc as any)("reject_join_request", { _req_id: r.id });
-    if (error) { toast.error("Falha ao rejeitar."); return; }
-    toast.success("Pedido rejeitado.");
+    if (error) { toast.error("Falha ao recusar."); return; }
+    toast.success("Convite recusado.");
     await load();
-  };
-
-  const updateRole = async (m: Member, newRole: "admin" | "member") => {
-    if (!workspaceId) return;
-    const { error } = await (supabase.rpc as any)("update_member_role", {
-      _ws_id: workspaceId, _target: m.user_id, _new_role: newRole,
-    });
-    if (error) { toast.error("Falha ao alterar cargo."); return; }
-    toast.success(newRole === "admin" ? "Promovido a Diretor." : "Rebaixado para Assessor.");
-    await load();
-  };
-
-  const removeMember = async (m: Member) => {
-    if (!workspaceId) return;
-    const { error } = await (supabase.rpc as any)("remove_workspace_member", {
-      _ws_id: workspaceId, _target: m.user_id,
-    });
-    if (error) { toast.error("Falha ao remover."); return; }
-    toast.success("Assessor removido.");
-    await load();
-  };
-
-  const roleBadge = (r: Role) => {
-    const Icon = r === "owner" ? Crown : r === "admin" ? Shield : Eye;
-    const label = r === "owner" ? "Owner" : r === "admin" ? "Diretor" : "Assessor";
-    const cls = r === "owner"
-      ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
-      : r === "admin" ? "bg-primary/10 text-primary border-primary/20"
-      : "bg-muted text-muted-foreground border-border";
-    return (
-      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${cls}`}>
-        <Icon className="h-3 w-3" /> {label}
-      </span>
-    );
   };
 
   const fmtDate = (s: string) => new Date(s).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
@@ -130,87 +80,28 @@ export default function MembersPage() {
     <div className="animate-fade-in space-y-5">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground tracking-tight">Assessores e Convites</h1>
-          <p className="text-sm text-muted-foreground">Gerencie quem tem acesso ao workspace.</p>
+          <h1 className="text-2xl font-semibold text-foreground tracking-tight">Convites</h1>
+          <p className="text-sm text-muted-foreground">Pedidos de entrada no workspace — aprove ou recuse.</p>
         </div>
         {wsCode && (
-          <Button variant="outline" onClick={copyCode}>
+          <Button variant="outline" onClick={copyCode} title="Código de convite do workspace">
             <Copy className="h-4 w-4 mr-1" /> {wsCode}
           </Button>
         )}
       </div>
 
-      <div className="flex items-center gap-1 border-b border-border">
-        {[
-          { v: "members" as const, label: `Assessores (${members.length})` },
-          ...(isOwner ? [{ v: "requests" as const, label: `Pedidos (${requests.length})` }] : []),
-        ].map(t => (
-          <button key={t.v} onClick={() => setTab(t.v)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${tab === t.v ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
-            {t.label}
-          </button>
-        ))}
-      </div>
-
       {loading ? (
         <p className="text-sm text-muted-foreground">Carregando…</p>
-      ) : tab === "members" ? (
-        <div className="bg-card border border-border rounded-lg divide-y divide-border">
-          {members.map(m => {
-            const isMe = m.user_id === user?.id;
-            const canActOnMember = isOwner && m.role !== "owner";
-            const canRemoveAsAdmin = isAdmin && !isOwner && m.role === "member";
-            const canPromote = isOwner && m.role === "member";
-            const canDemote = isOwner && m.role === "admin";
-            const canRemove = canActOnMember || canRemoveAsAdmin;
-            return (
-              <div key={m.user_id} className="flex items-center gap-3 px-4 py-3">
-                <div className="h-9 w-9 rounded-full bg-accent flex items-center justify-center text-xs font-semibold shrink-0">
-                  {(m.display_name || "?").split(" ").map(s => s[0]).join("").slice(0, 2).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium text-foreground truncate">
-                      {m.display_name}{isMe && <span className="text-muted-foreground"> (você)</span>}
-                    </span>
-                    {roleBadge(m.role)}
-                  </div>
-                  <span className="text-[11px] text-muted-foreground">Entrou em {fmtDate(m.created_at)}</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  {canPromote && (
-                    <Button size="sm" variant="outline" onClick={() => setConfirm({
-                      title: "Promover a Diretor?",
-                      description: `${m.display_name} terá acesso administrativo.`,
-                      onConfirm: () => updateRole(m, "admin"),
-                    })}>
-                      <ArrowUp className="h-3.5 w-3.5 mr-1" /> Promover
-                    </Button>
-                  )}
-                  {canDemote && (
-                    <Button size="sm" variant="outline" onClick={() => setConfirm({
-                      title: "Rebaixar para Assessor?",
-                      description: `${m.display_name} perderá acesso administrativo.`,
-                      onConfirm: () => updateRole(m, "member"),
-                    })}>
-                      <ArrowDown className="h-3.5 w-3.5 mr-1" /> Rebaixar
-                    </Button>
-                  )}
-                  {canRemove && !isMe && (
-                    <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive"
-                      onClick={() => setConfirm({
-                        title: "Remover do workspace?",
-                        description: `${m.display_name} perderá acesso a todos os dados.`,
-                        onConfirm: () => removeMember(m),
-                      })}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-          {members.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">Nenhum assessor.</p>}
+      ) : !isOwner ? (
+        <div className="bg-card border border-border rounded-lg p-10 text-center">
+          <MailPlus className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">Só o owner do workspace vê e aprova os convites de entrada.</p>
+        </div>
+      ) : requests.length === 0 ? (
+        <div className="bg-card border border-border rounded-lg p-10 text-center">
+          <MailPlus className="h-8 w-8 text-muted-foreground/30 mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground">Nenhum convite pendente.</p>
+          <p className="text-xs text-muted-foreground/70 mt-1">Aparece aqui quando alguém pede para entrar com o código do workspace.</p>
         </div>
       ) : (
         <div className="bg-card border border-border rounded-lg divide-y divide-border">
@@ -225,7 +116,7 @@ export default function MembersPage() {
               </Button>
               <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive"
                 onClick={() => setConfirm({
-                  title: "Rejeitar pedido?",
+                  title: "Recusar convite?",
                   description: `${r.display_name} não terá acesso ao workspace.`,
                   onConfirm: () => reject(r),
                 })}>
@@ -233,7 +124,6 @@ export default function MembersPage() {
               </Button>
             </div>
           ))}
-          {requests.length === 0 && <p className="text-sm text-muted-foreground text-center py-8">Nenhum pedido pendente.</p>}
         </div>
       )}
 

@@ -1,8 +1,8 @@
 import { useState, useRef, useMemo, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
 import { useData, type Person } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Trash2, Link2, HelpCircle, X, Zap } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Plus, Trash2, Link2, HelpCircle, X, Zap, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -10,36 +10,18 @@ import { toast } from "sonner";
 import { AREAS, getAreaLabel, getTeamColor } from "@/lib/areas";
 import MemberEditModal from "@/components/modals/MemberEditModal";
 import RolesInfoModal from "@/components/modals/RolesInfoModal";
-import TeamsPage from "@/pages/TeamsPage";
 import GamificationAdminPage from "@/pages/GamificationAdminPage";
 
-type Tab = "gamificacao" | "historico" | "equipes" | "membros";
+type Tab = "gamificacao" | "membros";
 
 export default function PeoplePage() {
   const { isAdmin } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const [tab, setTab] = useState<Tab>(() => {
-    const p = searchParams.get("tab");
-    if (p === "equipes") return "equipes";
-    return isAdmin ? "gamificacao" : "membros";
-  });
+  const [tab, setTab] = useState<Tab>(isAdmin ? "gamificacao" : "membros");
   const [rolesInfoOpen, setRolesInfoOpen] = useState(false);
-
-  // Sync tab with URL param on first load
-  useEffect(() => {
-    const p = searchParams.get("tab");
-    if (p === "equipes") {
-      setTab("equipes");
-      // Remove param from URL so browser Back still works cleanly
-      setSearchParams({}, { replace: true });
-    }
-  }, []);
 
   const tabs: { v: Tab; label: string; show: boolean }[] = [
     { v: "gamificacao", label: "Gameficação", show: isAdmin },
-    { v: "historico",   label: "Histórico",   show: isAdmin },
-    { v: "equipes",     label: "Times",     show: true },
-    { v: "membros",     label: "Assessores",     show: true },
+    { v: "membros",     label: "Assessores",  show: true },
   ];
 
   return (
@@ -67,8 +49,6 @@ export default function PeoplePage() {
       </div>
 
       {tab === "gamificacao" && isAdmin && <GamificationAdminPage />}
-      {tab === "historico" && isAdmin && <HistoricoTab />}
-      {tab === "equipes" && <TeamsPage />}
       {tab === "membros" && <MembersTab />}
 
       <RolesInfoModal open={rolesInfoOpen} onOpenChange={setRolesInfoOpen} />
@@ -76,67 +56,30 @@ export default function PeoplePage() {
   );
 }
 
-function HistoricoTab() {
-  const { gamificationAwards, people, deleteGamificationAward } = useData();
-  const groups = useMemo(() => {
-    const map = new Map<string, typeof gamificationAwards>();
-    [...gamificationAwards]
-      .sort((a, b) => b.awardedAt.localeCompare(a.awardedAt))
-      .forEach(a => {
-        const day = new Date(a.awardedAt).toISOString().slice(0, 10);
-        const arr = map.get(day) || [];
-        arr.push(a); map.set(day, arr);
-      });
-    return Array.from(map.entries());
-  }, [gamificationAwards]);
-  const personName = (id: string) => people.find(p => p.id === id)?.name || "—";
-
-  if (gamificationAwards.length === 0) {
-    return <p className="text-sm text-muted-foreground text-center py-12">Nenhuma pontuação registrada ainda.</p>;
-  }
-
-  return (
-    <div className="space-y-5">
-      {groups.map(([day, items]) => {
-        const total = items.reduce((s, i) => s + i.points, 0);
-        return (
-          <div key={day}>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold text-foreground">
-                {new Date(day + "T12:00:00").toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })}
-              </h3>
-              <span className="text-xs text-muted-foreground">{items.length} registros · {total} pts</span>
-            </div>
-            <div className="bg-card border border-border rounded-lg divide-y divide-border">
-              {items.map(a => (
-                <div key={a.id} className="flex items-center gap-3 px-3 py-2 group">
-                  <span className="text-xs text-muted-foreground w-12 shrink-0">{new Date(a.awardedAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
-                  <span className="text-sm font-medium text-foreground flex-1 truncate">{personName(a.personId)}</span>
-                  <span className="text-sm text-muted-foreground truncate hidden sm:block flex-1">{a.actionName}</span>
-                  <span className="text-sm font-semibold text-primary">+{a.points}</span>
-                  <button onClick={() => { deleteGamificationAward(a.id); toast.success("Removido"); }}
-                    className="p-1 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive">
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 function MembersTab() {
   const { people, teams, addPerson, deletePerson } = useData();
-  const { isAdmin } = useAuth();
+  const { isAdmin, activeWorkspaceId } = useAuth();
   const [addModal, setAddModal] = useState(false);
   const [newName, setNewName] = useState("");
   const [editing, setEditing] = useState<Person | null>(null);
   const [searchText, setSearchText] = useState("");
   const [filterArea, setFilterArea] = useState<string>("");
   const addRef = useRef<HTMLInputElement>(null);
+
+  // Último dia de acesso por usuário (visível a diretores/owners via RLS)
+  const [lastAccess, setLastAccess] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!activeWorkspaceId || !isAdmin) return;
+    (supabase.from("user_daily_logins") as any)
+      .select("user_id, created_at")
+      .eq("workspace_id", activeWorkspaceId)
+      .order("created_at", { ascending: false })
+      .then(({ data }: { data: { user_id: string; created_at: string }[] | null }) => {
+        const map: Record<string, string> = {};
+        (data || []).forEach(r => { if (!map[r.user_id]) map[r.user_id] = r.created_at; });
+        setLastAccess(map);
+      });
+  }, [activeWorkspaceId, isAdmin]);
 
   const filteredPeople = useMemo(() => {
     return people.filter(person => {
@@ -278,6 +221,11 @@ function MembersTab() {
                     </div>
                   );
                 })()}
+                {person.userId && lastAccess[person.userId] && (
+                  <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground mt-1">
+                    <Clock className="h-2.5 w-2.5" /> Último acesso: {new Date(lastAccess[person.userId]).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" })}
+                  </span>
+                )}
               </div>
             </button>
             {isAdmin && !person.userId && (

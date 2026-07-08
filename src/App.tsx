@@ -20,6 +20,7 @@ import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import WelcomePage from "./pages/WelcomePage";
 import LandingPage from "./pages/LandingPage";
+import AreasTeamsPage from "./pages/AreasTeamsPage";
 import SecretAdminPage from "./pages/SecretAdminPage";
 import NotFound from "./pages/NotFound";
 import AuthLayout from "./layouts/AuthLayout";
@@ -78,6 +79,7 @@ const App = () => (
               <Route path="/" element={<DashboardPage />} />
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/people" element={<PeoplePage />} />
+              <Route path="/areas-times" element={<AreasTeamsPage />} />
               <Route path="/members" element={<MembersPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/reports" element={<ReportsPage />} />

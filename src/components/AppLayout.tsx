@@ -143,7 +143,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Grupo "Configurações" (Pessoas / Relatórios / Acessos) — expansível
   const location = useLocation();
-  const configRoutes = ["/people", "/reports", "/members"];
+  const configRoutes = ["/people", "/areas-times", "/reports", "/members"];
   const onConfigRoute = configRoutes.includes(location.pathname);
   const [configOpen, setConfigOpen] = useState(onConfigRoute);
   useEffect(() => { if (onConfigRoute) setConfigOpen(true); }, [onConfigRoute]);
@@ -431,13 +431,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center justify-center px-3 py-2 rounded-md transition-all`}>
                 <Users className="h-4 w-4 shrink-0" />
               </NavLink>
+              <NavLink to="/areas-times" title="Áreas e Times"
+                className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center justify-center px-3 py-2 rounded-md transition-all`}>
+                <FolderKanban className="h-4 w-4 shrink-0" />
+              </NavLink>
               {isAdmin && (
                 <NavLink to="/reports" title="Relatórios"
                   className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center justify-center px-3 py-2 rounded-md transition-all`}>
                   <BarChart2 className="h-4 w-4 shrink-0" />
                 </NavLink>
               )}
-              <NavLink to="/members" title="Acessos"
+              <NavLink to="/members" title="Convites"
                 className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center justify-center px-3 py-2 rounded-md transition-all`}>
                 <div className="relative">
                   <Shield className="h-4 w-4 shrink-0" />
@@ -471,6 +475,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     <Users className="h-4 w-4 shrink-0" />
                     <span>Pessoas</span>
                   </NavLink>
+                  <NavLink to="/areas-times"
+                    className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all`}>
+                    <FolderKanban className="h-4 w-4 shrink-0" />
+                    <span>Áreas e Times</span>
+                  </NavLink>
                   {isAdmin && (
                     <NavLink to="/reports"
                       className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all`}>
@@ -482,7 +491,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all`}>
                     <Shield className="h-4 w-4 shrink-0" />
                     <span className="flex-1 flex items-center justify-between">
-                      <span>Acessos</span>
+                      <span>Convites</span>
                       {pendingJoinCount > 0 && (
                         <span className="h-5 min-w-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
                           {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
