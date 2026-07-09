@@ -1349,6 +1349,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
       return;
     }
     if (data) setFormCompletions(prev => prev.map(c => c.id === tempId ? { id: data.id, formId: data.form_id, userId: data.user_id, completedAt: data.completed_at } : c));
+
+    // +1 ponto na gamificação (uma vez por formulário). O ponto é concedido por
+    // uma função SECURITY DEFINER porque membros não escrevem em awards direto.
+    const { data: aw } = await (supabase.rpc as any)("award_form_completion_point", { _form_id: formId });
+    if (aw && aw.id) {
+      setGamificationAwards(curr => [{ id: aw.id, personId: aw.person_id, actionId: aw.action_id ?? null, actionName: aw.action_name, points: aw.points ?? 0, awardedAt: aw.awarded_at }, ...curr]);
+      toast.success("+1 ponto na gamificação! 🎉");
+    } else {
+      toast.success("Formulário marcado como preenchido!");
+    }
   }, [workspaceId, uid]);
 
   const unmarkFormCompleted = useCallback(async (formId: string) => {
@@ -1364,8 +1374,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (error) {
       toast.error("Erro ao desfazer preenchimento");
       setFormCompletions(prev => [...prev, ...removed]);
+      return;
     }
-  }, [workspaceId, uid]);
+    // Remove o ponto concedido pelo preenchimento
+    await (supabase.rpc as any)("revoke_form_completion_point", { _form_id: formId });
+    const myPersonIds = new Set(people.filter(p => p.userId === uid).map(p => p.id));
+    setGamificationAwards(curr => curr.filter(a => !(a.actionId === formId && myPersonIds.has(a.personId))));
+  }, [workspaceId, uid, people]);
 
   return (
     <DataContext.Provider value={{

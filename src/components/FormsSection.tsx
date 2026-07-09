@@ -158,7 +158,7 @@ export default function FormsSection() {
                   <ExternalLink className="h-3 w-3" /> Abrir formulário
                 </a>
                 <button
-                  onClick={() => { markFormCompleted(f.id); toast.success("Formulário marcado como preenchido!"); }}
+                  onClick={() => { markFormCompleted(f.id); }}
                   className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-md bg-red-500/15 text-red-600 hover:bg-red-500/25 border border-red-300 transition-all"
                 >
                   <span aria-hidden="true">⚠️</span> Preencher
