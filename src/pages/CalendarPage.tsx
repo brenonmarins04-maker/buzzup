@@ -646,7 +646,9 @@ export default function CalendarPage() {
               </p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 md:gap-3">
+            <CalToggle active={onlyMine} onClick={() => setOnlyMine(v => !v)} icon={User} label="Minhas demandas" />
+            <CalToggle active={showDone} onClick={() => setShowDone(v => !v)} icon={CheckCircle2} label="Mostrar concluídas" activeColor="#10B981" />
             <div className="flex items-center gap-1 bg-white/70 border border-border/70 rounded-2xl p-0.5 backdrop-blur-sm">
               <button onClick={navigatePrev} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground"><ChevronLeft className="h-4 w-4" /></button>
               <span className="text-sm font-semibold text-foreground min-w-[140px] sm:min-w-[180px] text-center capitalize">{headerLabel()}</span>
@@ -702,15 +704,6 @@ export default function CalendarPage() {
                   <X className="h-3 w-3" /> Limpar filtro
                 </button>
               )}
-
-              {/* Organização de demandas */}
-              <div className="border-t border-border/60 pt-2 mt-0.5">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Organização</span>
-                <div className="flex flex-wrap gap-1.5 mt-1.5">
-                  <CalToggle active={onlyMine} onClick={() => setOnlyMine(v => !v)} icon={User} label="Minhas demandas" />
-                  <CalToggle active={showDone} onClick={() => setShowDone(v => !v)} icon={CheckCircle2} label="Mostrar concluídas" activeColor="#10B981" />
-                </div>
-              </div>
             </div>
           </div>
 
@@ -789,10 +782,6 @@ export default function CalendarPage() {
               </button>
             );
           })}
-          <div className="basis-full flex flex-wrap gap-1.5 mt-1">
-            <CalToggle active={onlyMine} onClick={() => setOnlyMine(v => !v)} icon={User} label="Minhas demandas" />
-            <CalToggle active={showDone} onClick={() => setShowDone(v => !v)} icon={CheckCircle2} label="Mostrar concluídas" activeColor="#10B981" />
-          </div>
         </div>
       )}
 
