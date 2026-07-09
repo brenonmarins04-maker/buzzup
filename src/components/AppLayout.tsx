@@ -12,8 +12,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { AREAS, getAreaLabel, getTeamColor } from "@/lib/areas";
 import { getLeaderKeys } from "@/lib/leadership";
+import { getTodayBrasilia } from "@/lib/utils";
 import { toast } from "sonner";
-import QuickCreateMenu from "@/components/modals/QuickCreateMenu";
 import EditAreaNamesModal from "@/components/modals/EditAreaNamesModal";
 import { useAreaNames } from "@/hooks/useAreaNames";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -24,8 +24,6 @@ import BroadcastModal from "@/components/modals/BroadcastModal";
 import CreateTeamModal from "@/components/modals/CreateTeamModal";
 import PointsEarnedBanner from "@/components/PointsEarnedBanner";
 import BrandLogo from "@/components/BrandLogo";
-
-const areaColor = (path: string) => AREAS.find(a => a.path === path)?.color;
 
 const areaIcons: Record<string, any> = {
   projetos: FolderKanban,
@@ -42,7 +40,17 @@ function getNavItems() {
 }
 
 function getAreaItems() {
-  return AREAS.map(a => ({ to: a.path, icon: areaIcons[a.key] || FolderKanban, label: getAreaLabel(a.key), color: a.color }));
+  return AREAS.map(a => ({ key: a.key, to: a.path, icon: areaIcons[a.key] || FolderKanban, label: getAreaLabel(a.key), color: a.color }));
+}
+
+// Badge vermelho com a quantidade de demandas atrasadas: (1), (2)...
+function OverdueBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="ml-auto text-[11px] font-bold text-red-400 shrink-0" title={`${count} demanda${count > 1 ? "s" : ""} atrasada${count > 1 ? "s" : ""}`}>
+      ({count})
+    </span>
+  );
 }
 
 const mobileNavItems = [
@@ -54,7 +62,18 @@ const mobileNavItems = [
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const isMobile = useIsMobile();
-  const { notifications, teams, people } = useData();
+  const { notifications, teams, people, parkingItems } = useData();
+
+  // Demandas atrasadas por área/time — badge vermelho na sidebar: (1), (2)...
+  const overdueByScope = useMemo(() => {
+    const today = getTodayBrasilia();
+    const map: Record<string, number> = {};
+    parkingItems.forEach(p => {
+      if (p.status === "done" || !p.date || p.date >= today) return;
+      map[p.area] = (map[p.area] || 0) + 1;
+    });
+    return map;
+  }, [parkingItems]);
   // `teams` = todos os times do workspace (para detectar workspace sem times)
   const { displayName, signOut, isAdmin, isOwner, role, user, myWorkspaces, activeWorkspaceId } = useAuth();
 
@@ -282,6 +301,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                         <div className="px-3 pt-1.5 pb-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Times</div>
                         {myTeams.map(team => {
                           const tc = getTeamColor(team.id);
+                          const overdue = overdueByScope[`team_${team.id}`] || 0;
                           return (
                             <NavLink key={team.id} to={`/time/${team.id}`}
                               style={({ isActive }) => isActive
@@ -289,7 +309,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                                 : { color: tc }}
                               className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold hover:bg-accent/50">
                               <UsersRound className="h-4 w-4 shrink-0" />
-                              <span className="truncate">{team.name}</span>
+                              <span className="truncate flex-1">{team.name}</span>
+                              {overdue > 0 && <span className="text-[11px] font-bold text-red-500 shrink-0">({overdue})</span>}
                             </NavLink>
                           );
                         })}
@@ -297,16 +318,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                         <div className="px-3 pt-1 pb-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Áreas</div>
                       </>
                     )}
-                    {getAreaItems().map((a) => (
-                      <NavLink key={a.to} to={a.to}
-                        style={({ isActive }) => isActive
-                          ? { backgroundColor: `${a.color}1F`, color: a.color }
-                          : { color: a.color }}
-                        className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold hover:bg-accent/50">
-                        <a.icon className="h-4 w-4" />
-                        <span>{a.label}</span>
-                      </NavLink>
-                    ))}
+                    {getAreaItems().map((a) => {
+                      const overdue = overdueByScope[a.key] || 0;
+                      return (
+                        <NavLink key={a.to} to={a.to}
+                          style={({ isActive }) => isActive
+                            ? { backgroundColor: `${a.color}1F`, color: a.color }
+                            : { color: a.color }}
+                          className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold hover:bg-accent/50">
+                          <a.icon className="h-4 w-4" />
+                          <span className="flex-1">{a.label}</span>
+                          {overdue > 0 && <span className="text-[11px] font-bold text-red-500 shrink-0">({overdue})</span>}
+                        </NavLink>
+                      );
+                    })}
                   </PopoverContent>
                 </Popover>
               );
@@ -378,16 +403,27 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           )}
           {collapsed && <div className="border-t border-white/15 my-2" />}
-          {getAreaItems().map(item => (
-            <NavLink key={item.to} to={item.to}
-              style={({ isActive }) => isActive
-                ? { boxShadow: `inset 3px 0 0 ${item.color}` }
-                : { boxShadow: `inset 3px 0 0 ${item.color}66` }}
-              className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all ${collapsed ? "justify-center" : ""}`}>
-              <item.icon className="h-4 w-4 shrink-0" />
-              {!collapsed && <span>{item.label}</span>}
-            </NavLink>
-          ))}
+          {getAreaItems().map(item => {
+            const overdue = overdueByScope[item.key] || 0;
+            return (
+              <NavLink key={item.to} to={item.to}
+                style={({ isActive }) => isActive
+                  ? { boxShadow: `inset 3px 0 0 ${item.color}` }
+                  : { boxShadow: `inset 3px 0 0 ${item.color}66` }}
+                className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all ${collapsed ? "justify-center" : ""}`}>
+                <div className="relative shrink-0">
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  {collapsed && overdue > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-3.5 px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                      {overdue > 9 ? "9+" : overdue}
+                    </span>
+                  )}
+                </div>
+                {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+                {!collapsed && <OverdueBadge count={overdue} />}
+              </NavLink>
+            );
+          })}
 
           {/* ── Times (sempre visível para admin/owner; visível para members que têm time) ── */}
           {(isAdmin || myTeams.length > 0) && (
@@ -409,14 +445,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               {collapsed && <div className="border-t border-white/15 my-2" />}
               {myTeams.map(team => {
                 const tc = getTeamColor(team.id);
+                const overdue = overdueByScope[`team_${team.id}`] || 0;
                 return (
                   <NavLink key={team.id} to={`/time/${team.id}`}
                     style={({ isActive }) => isActive
                       ? { boxShadow: `inset 3px 0 0 ${tc}` }
                       : { boxShadow: `inset 3px 0 0 ${tc}66` }}
                     className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all ${collapsed ? "justify-center" : ""}`}>
-                    <UsersRound className="h-4 w-4 shrink-0" />
-                    {!collapsed && <span className="truncate">{team.name}</span>}
+                    <div className="relative shrink-0">
+                      <UsersRound className="h-4 w-4 shrink-0" />
+                      {collapsed && overdue > 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-3.5 px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                          {overdue > 9 ? "9+" : overdue}
+                        </span>
+                      )}
+                    </div>
+                    {!collapsed && <span className="flex-1 truncate">{team.name}</span>}
+                    {!collapsed && <OverdueBadge count={overdue} />}
                   </NavLink>
                 );
               })}

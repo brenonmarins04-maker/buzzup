@@ -1,9 +1,11 @@
-import { useState, useMemo, useRef, useEffect, type DragEvent, type KeyboardEvent } from "react";
+import { useState, useMemo, type DragEvent } from "react";
 import { useData, type ParkingItem, type ParkingItemStatus, type AttendanceStatus } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { AREAS, type AreaKey, getAreaLabel } from "@/lib/areas";
 import { isLeaderOfAny } from "@/lib/leadership";
-import { Plus, ExternalLink, Pencil, Trash2, X, Settings, ChevronDown, ChevronUp, Circle, CheckCircle2 } from "lucide-react";
+import { isDemandOverdue } from "@/lib/demandStatus";
+import { getTodayBrasilia } from "@/lib/utils";
+import { Plus, ExternalLink, Pencil, Trash2, X, Settings, ChevronDown, ChevronUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -229,7 +231,7 @@ function AttendanceTab({ area }: { area: AreaKey }) {
   };
 
   const fmtDate = (iso: string) => {
-    const [y, m, d] = iso.split("-");
+    const [, m, d] = iso.split("-");
     return `${d}/${m}`;
   };
 
@@ -472,11 +474,16 @@ function KanbanTab({ area }: { area: AreaKey }) {
   const canMarkDone = (item: ParkingItem) =>
     canManage || (item.personId !== null && myPersonIds.has(item.personId));
 
+  const todayStr = getTodayBrasilia();
+
   const renderCard = (item: ParkingItem) => {
     const isDone = item.status === "done";
     const isCompleting = completing.has(item.id) && !isDone;
-    const tint = isDone || isCompleting ? "#10B981" : "#F59E0B"; // green / orange
+    const isOverdue = !isCompleting && isDemandOverdue(item, todayStr);
+    // verde (concluída) / vermelho (atrasada) / laranja (em andamento)
+    const tint = isDone || isCompleting ? "#10B981" : isOverdue ? "#EF4444" : "#F59E0B";
     const memberCanDone = !canManage && canMarkDone(item);
+    const completedByPerson = isDone && item.completedBy ? people.find(p => p.userId === item.completedBy) : null;
     return (
       <div
         key={item.id}
@@ -549,23 +556,42 @@ function KanbanTab({ area }: { area: AreaKey }) {
             ) : null}
           </div>
           {item.description && <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2 break-words">{item.description}</p>}
-          {item.date && (
-            <div
-              className="mt-1.5 inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded text-white"
-              style={{ backgroundColor: tint }}
-            >
-              {new Date(item.date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
-            </div>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1">
+            {item.date && (
+              <span
+                className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded text-white"
+                style={{ backgroundColor: tint }}
+              >
+                {new Date(item.date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+              </span>
+            )}
+            {/* Aviso de status — visível para todos */}
+            {!isDone && !isCompleting && (
+              <span
+                className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                style={{ color: tint, backgroundColor: `${tint}1c`, border: `1px solid ${tint}55` }}
+              >
+                {isOverdue ? "Atrasada" : "Em andamento"}
+              </span>
+            )}
+          </div>
+          {/* Histórico: quem apertou para concluir */}
+          {isDone && completedByPerson && (
+            <p className="text-[10px] text-muted-foreground mt-1.5">
+              ✓ Concluída por <span className="font-semibold text-foreground">{completedByPerson.name.split(" ")[0]}</span>
+              {item.completedAt && (
+                <> em {new Date(item.completedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</>
+              )}
+            </p>
           )}
         </div>
       </div>
     );
   };
 
-  const Column = ({ personId, title: colTitle, accent }: { personId: string | null; title: string; accent?: boolean }) => {
+  const Column = ({ personId, title: colTitle }: { personId: string | null; title: string }) => {
     const colKey = personId ?? "__park";
     const colItems = columnItems(personId);
-    const isDemandsCol = accent;
     return (
       <div
         onDragOver={(e) => onDragOver(e, colKey)}
@@ -573,46 +599,13 @@ function KanbanTab({ area }: { area: AreaKey }) {
         onDrop={(e) => onDrop(e, personId)}
         className={`w-full min-w-[130px] sm:min-w-[148px] flex flex-col rounded-xl border ${overCol === colKey ? "border-primary bg-primary/5" : "border-border glass-panel-soft"} transition-colors overflow-hidden`}
       >
-        <div className={`px-3 py-2 border-b ${accent ? "bg-white/70 border-primary/30" : "border-border/70"} flex items-center justify-between`}>
+        <div className="px-3 py-2 border-b border-border/70 flex items-center justify-between">
           <span className="text-xs font-semibold text-foreground truncate min-w-0">{colTitle}</span>
           <span className="text-[11px] text-muted-foreground ml-1 shrink-0">{colItems.length}</span>
         </div>
         <div className="flex-1 p-2 flex flex-col gap-2 min-h-[100px]">
-          {accent && canManage && (
-            <button
-              onClick={openCreate}
-              className="w-full flex items-center justify-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-primary/50 rounded-xl py-1.5 transition-colors bg-white/45 hover:bg-white/80"
-            >
-              <Plus className="h-3 w-3" /> nova demanda
-            </button>
-          )}
           {colItems.map(item => renderCard(item))}
         </div>
-        {/* Concluídas — só aparece dentro da coluna "Demandas" */}
-        {isDemandsCol && (
-          <div className="border-t border-border bg-card/40 rounded-b-lg">
-            <button
-              type="button"
-              onClick={() => setDoneOpen(o => !o)}
-              className="w-full px-2 py-1.5 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <span className="flex items-center gap-1">
-                {doneOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                Concluídas
-              </span>
-              <span className="text-[10px] bg-muted rounded-full px-1.5 py-0.5">{doneItems.length}</span>
-            </button>
-            {doneOpen && (
-              <div className="p-2 pt-0 flex flex-col gap-1.5">
-                {doneItems.length === 0 ? (
-                  <div className="text-[11px] text-muted-foreground/70 text-center py-2">Nenhuma demanda concluída</div>
-                ) : (
-                  doneItems.map(item => renderCard(item))
-                )}
-              </div>
-            )}
-          </div>
-        )}
       </div>
     );
   };
@@ -646,30 +639,33 @@ function KanbanTab({ area }: { area: AreaKey }) {
             <p className="text-[11px] text-muted-foreground text-center py-3">Nenhuma demanda pendente</p>
           )}
         </div>
-        <div className="border-t border-border bg-card/40">
-          <button
-            type="button"
-            onClick={() => setDoneOpen(o => !o)}
-            className="w-full px-2 py-1.5 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <span className="flex items-center gap-1">
-              {doneOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-              Concluídas
-            </span>
-            <span className="text-[10px] bg-muted rounded-full px-1.5 py-0.5">{doneItems.length}</span>
-          </button>
-          {doneOpen && (
-            <div className="p-2 pt-0">
-              {doneItems.length === 0 ? (
-                <div className="text-[11px] text-muted-foreground/70 text-center py-2">Nenhuma demanda concluída</div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
-                  {doneItems.map(item => renderCard(item))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        {/* Histórico de demandas concluídas — visível só para diretores e líderes */}
+        {canManage && (
+          <div className="border-t border-border bg-card/40">
+            <button
+              type="button"
+              onClick={() => setDoneOpen(o => !o)}
+              className="w-full px-2 py-1.5 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <span className="flex items-center gap-1">
+                {doneOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                Concluídas
+              </span>
+              <span className="text-[10px] bg-muted rounded-full px-1.5 py-0.5">{doneItems.length}</span>
+            </button>
+            {doneOpen && (
+              <div className="p-2 pt-0">
+                {doneItems.length === 0 ? (
+                  <div className="text-[11px] text-muted-foreground/70 text-center py-2">Nenhuma demanda concluída</div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+                    {doneItems.map(item => renderCard(item))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Pessoas — grid, máximo 5 por linha ── */}

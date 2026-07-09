@@ -1,6 +1,7 @@
 import { ExternalLink } from "lucide-react";
 import { useData } from "@/contexts/DataContext";
 import { getShortcutIcon } from "@/lib/generalShortcuts";
+import { safeHref } from "@/lib/urlValidation";
 
 export default function GeneralShortcutsSection() {
   const { generalShortcuts } = useData();
@@ -26,9 +27,9 @@ export default function GeneralShortcutsSection() {
             return (
               <a
                 key={shortcut.id}
-                href={shortcut.url}
+                href={safeHref(shortcut.url)}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="hover-lift group rounded-2xl border border-border/70 bg-white/65 px-3 py-4 min-h-[104px] flex flex-col justify-between gap-3 transition-all hover:border-primary/35 hover:bg-white/85 hover:shadow-lg hover:shadow-primary/10"
               >
                 <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">

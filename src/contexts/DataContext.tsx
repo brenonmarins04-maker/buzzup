@@ -332,7 +332,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
       // Sync: migrate tasks with deadlines into parkingItems so they appear in Quadro CB
       try {
-        const existingParkingIds = new Set(((piRes as any)?.data || []).map((p: any) => p.id));
         const taskList: any[] = tkRes.data || [];
         const parkingList: any[] = (piRes as any)?.data || [];
         // Track which tasks already have a matching parking item (by title+date)
@@ -346,7 +345,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         if (toMigrate.length > 0 && !cancelled) {
           const inserts = toMigrate.map(t => ({
             workspace_id: wsId,
-            area: t.area || "projetos",
+            // Demanda de time fica no quadro do time (team_<id>); só cai em área se a task tiver área.
+            area: t.area || (t.team_id ? `team_${t.team_id}` : "projetos"),
             title: t.title,
             description: t.description || "",
             date: t.deadline,

@@ -1,5 +1,4 @@
 import { useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Search, Copy, Check } from "lucide-react";
@@ -16,7 +15,6 @@ interface CreateTeamModalProps {
 export default function CreateTeamModal({ open, onOpenChange }: CreateTeamModalProps) {
   const { people, addTeam } = useData();
   const { myWorkspaces, activeWorkspaceId } = useAuth();
-  const navigate = useNavigate();
 
   const workspaceCode = myWorkspaces.find(w => w.workspace_id === activeWorkspaceId)?.code ?? "";
 

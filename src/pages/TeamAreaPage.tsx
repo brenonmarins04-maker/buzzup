@@ -5,9 +5,6 @@ import { UsersRound } from "lucide-react";
 import { getTeamColor } from "@/lib/areas";
 import { safeHref } from "@/lib/urlValidation";
 
-// Reuse the existing tabs from AreaPage but scoped to a team
-import AreaPage from "@/pages/AreaPage";
-
 export default function TeamAreaPage() {
   const { teamId } = useParams<{ teamId: string }>();
   const { teams, people } = useData();
@@ -41,7 +38,7 @@ export default function TeamAreaPage() {
         </div>
       </div>
 
-      <TeamTabs teamId={team.id} teamName={team.name} />
+      <TeamTabs teamId={team.id} />
     </div>
   );
 }
@@ -50,15 +47,17 @@ export default function TeamAreaPage() {
 // These use a virtual "area" key based on team id so data is isolated per team
 import { useAuth } from "@/contexts/AuthContext";
 import { isLeaderOfAny } from "@/lib/leadership";
-import { type ParkingItem, type ParkingItemStatus, type AttendanceStatus } from "@/contexts/DataContext";
-import { Plus, ExternalLink, Pencil, Trash2, X, Settings, ChevronDown, ChevronUp } from "lucide-react";
+import { isDemandOverdue } from "@/lib/demandStatus";
+import { getTodayBrasilia } from "@/lib/utils";
+import { type ParkingItem, type AttendanceStatus } from "@/contexts/DataContext";
+import { Plus, ExternalLink, Pencil, Trash2, X, ChevronDown, ChevronUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 
-function TeamTabs({ teamId, teamName }: { teamId: string; teamName: string }) {
+function TeamTabs({ teamId }: { teamId: string }) {
   type Tab = "quadro" | "notas" | "presencas";
   const [tab, setTab] = useState<Tab>("quadro");
 
@@ -268,12 +267,17 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
     setModal({ open: false });
   };
 
+  const todayStr = getTodayBrasilia();
+
   // ── Card renderer ──
   const renderCard = (item: ParkingItem) => {
     const isDone = item.status === "done";
     const isCompleting = completing.has(item.id) && !isDone;
-    const tint = isDone || isCompleting ? "#10B981" : "#F59E0B";
+    const isOverdue = !isCompleting && isDemandOverdue(item, todayStr);
+    // verde (concluída) / vermelho (atrasada) / laranja (em andamento)
+    const tint = isDone || isCompleting ? "#10B981" : isOverdue ? "#EF4444" : "#F59E0B";
     const memberCanDone = !isAdmin && item.personId !== null && myPersonIds.has(item.personId);
+    const completedByPerson = isDone && item.completedBy ? people.find(p => p.userId === item.completedBy) : null;
 
     return (
       <div
@@ -340,10 +344,30 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
             ) : null}
           </div>
           {item.description && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-3 break-words">{item.description}</p>}
-          {item.date && (
-            <div className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md text-white" style={{ backgroundColor: tint }}>
-              {new Date(item.date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
-            </div>
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            {item.date && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md text-white" style={{ backgroundColor: tint }}>
+                {new Date(item.date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+              </span>
+            )}
+            {/* Aviso de status — visível para todos */}
+            {!isDone && !isCompleting && (
+              <span
+                className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-md"
+                style={{ color: tint, backgroundColor: `${tint}1c`, border: `1px solid ${tint}55` }}
+              >
+                {isOverdue ? "Atrasada" : "Em andamento"}
+              </span>
+            )}
+          </div>
+          {/* Histórico: quem apertou para concluir */}
+          {isDone && completedByPerson && (
+            <p className="text-[11px] text-muted-foreground mt-2">
+              ✓ Concluída por <span className="font-semibold text-foreground">{completedByPerson.name.split(" ")[0]}</span>
+              {item.completedAt && (
+                <> em {new Date(item.completedAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</>
+              )}
+            </p>
           )}
         </div>
       </div>
@@ -351,7 +375,7 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
   };
 
   // ── Column renderer ──
-  const renderColumn = (colPersonId: string | null, colTitle: string, accent?: boolean) => {
+  const renderColumn = (colPersonId: string | null, colTitle: string) => {
     const colKey = colPersonId ?? "__park";
     const isOver = overCol === colKey;
     return (
@@ -362,43 +386,13 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
         onDragLeave={() => setOverCol(null)}
         onDrop={(e) => onDrop(e, colPersonId)}
       >
-        <div className={`px-4 py-3 border-b flex items-center justify-between ${accent ? "bg-white/70 border-primary/30" : "border-border/70"}`}>
+        <div className="px-4 py-3 border-b flex items-center justify-between border-border/70">
           <span className="text-sm font-semibold text-foreground truncate min-w-0">{colTitle}</span>
           <span className="text-xs text-muted-foreground">{columnItems(colPersonId).length}</span>
         </div>
         <div className="flex-1 p-3 flex flex-col gap-3 min-h-[160px]">
-          {colPersonId === null && isAdmin && (
-            <button onClick={openCreate}
-              className="w-full flex items-center justify-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-primary/50 rounded-2xl py-2 transition-colors bg-white/45 hover:bg-white/80">
-              <Plus className="h-3.5 w-3.5" /> nova demanda
-            </button>
-          )}
           {columnItems(colPersonId).map(item => renderCard(item))}
         </div>
-        {/* Concluídas accordion — only in Demandas column */}
-        {colPersonId === null && (
-          <div className="border-t border-border bg-white/45">
-            <button type="button" onClick={() => setDoneOpen(o => !o)}
-              className="w-full px-3 py-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground">
-              <span className="flex items-center gap-1.5">
-                {doneOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                Concluídas
-              </span>
-              <span className="text-[10px] bg-muted rounded-full px-1.5 py-0.5">{doneItems.length}</span>
-            </button>
-            {doneOpen && (
-              <div className="p-3 pt-0 flex flex-col gap-2">
-                {doneItems.length === 0 ? (
-                  <div className="text-[11px] text-muted-foreground/70 text-center py-3">Nenhuma demanda concluída</div>
-                ) : doneItems.map(item => (
-                  <div key={item.id} className="demand-hover bg-white/70 border rounded-2xl p-3 text-sm" style={{ borderColor: "#10B98166", backgroundColor: "#10B98110" }}>
-                    <p className="font-semibold text-muted-foreground line-through break-words">{item.title}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
       </div>
     );
   };
@@ -432,30 +426,33 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
             <p className="text-xs text-muted-foreground text-center py-4">Nenhuma demanda pendente</p>
           )}
         </div>
-        <div className="border-t border-border bg-card/40">
-          <button
-            type="button"
-            onClick={() => setDoneOpen(o => !o)}
-            className="w-full px-3 py-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <span className="flex items-center gap-1.5">
-              {doneOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              Concluídas
-            </span>
-            <span className="text-[10px] bg-muted rounded-full px-1.5 py-0.5">{doneItems.length}</span>
-          </button>
-          {doneOpen && (
-            <div className="p-3 pt-0">
-              {doneItems.length === 0 ? (
-                <div className="text-[11px] text-muted-foreground/70 text-center py-3">Nenhuma demanda concluída</div>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                  {doneItems.map(item => renderCard(item))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        {/* Histórico de demandas concluídas — visível só para diretores e líderes */}
+        {isAdmin && (
+          <div className="border-t border-border bg-card/40">
+            <button
+              type="button"
+              onClick={() => setDoneOpen(o => !o)}
+              className="w-full px-3 py-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <span className="flex items-center gap-1.5">
+                {doneOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                Concluídas
+              </span>
+              <span className="text-[10px] bg-muted rounded-full px-1.5 py-0.5">{doneItems.length}</span>
+            </button>
+            {doneOpen && (
+              <div className="p-3 pt-0">
+                {doneItems.length === 0 ? (
+                  <div className="text-[11px] text-muted-foreground/70 text-center py-3">Nenhuma demanda concluída</div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                    {doneItems.map(item => renderCard(item))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Pessoas — grid, máximo 5 por linha ── */}
@@ -529,7 +526,7 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
 }
 
 function TeamAttendanceTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: string }) {
-  const { people, teams, attendanceSettings, attendanceRecords, upsertAttendanceSetting, setAttendance, clearAttendance } = useData();
+  const { people, teams, attendanceSettings, attendanceRecords, setAttendance, clearAttendance } = useData();
   // Presenças são só de diretores/owner — líder não gerencia presença.
   const { isAdmin } = useAuth();
 

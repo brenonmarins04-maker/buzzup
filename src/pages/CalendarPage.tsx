@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect, type DragEvent } from "react";
+import { useState, useMemo, useRef, type DragEvent } from "react";
 import { createPortal } from "react-dom";
 import { AlertTriangle, ChevronLeft, ChevronRight, Plus, X, ChevronUp, ChevronDown, CalendarDays } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -294,16 +294,6 @@ export default function CalendarPage() {
     return items;
   }, [tasks, posts, events, parkingItems, teams, people, filterArea, eventTypes]);
 
-  const upcomingPendingPosts = useMemo(() => {
-    const today = getNowBrasilia();
-    const todayStr = format(today, "yyyy-MM-dd");
-    return posts.filter(p => {
-      if (!p.date) return false;
-      if (p.status === "published") return false;
-      return p.date >= todayStr;
-    });
-  }, [posts]);
-
   const handleDragStart = (e: DragEvent, item: CalendarItem) => {
     if (!isAdmin) { e.preventDefault(); return; }
     setDragItem(item); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", JSON.stringify(item));
@@ -398,7 +388,6 @@ export default function CalendarPage() {
   const headerLabel = () => format(currentDate, "MMMM yyyy", { locale: ptBR });
 
   const weekDays = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
-  const hours = Array.from({ length: 14 }, (_, i) => i + 7);
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
   const calStart = startOfWeek(monthStart, { weekStartsOn: 0 });

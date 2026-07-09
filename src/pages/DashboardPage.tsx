@@ -3,13 +3,11 @@ import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Trophy, Medal, ListChecks, Megaphone,
-  CheckCircle2, FolderPlus, CalendarPlus, TrendingUp, TrendingDown, Minus,
+  CheckCircle2, FolderPlus, CalendarPlus,
   Sparkles, BarChart2, Star, ClipboardList, Circle, CheckCircle,
 } from "lucide-react";
-import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import { getNowBrasilia } from "@/lib/utils";
-import { format, endOfWeek, differenceInHours, differenceInDays, subDays, startOfWeek } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { format, endOfWeek, differenceInHours, differenceInDays } from "date-fns";
 import { AREAS, getTeamColor } from "@/lib/areas";
 import FormsSection from "@/components/FormsSection";
 import GeneralShortcutsSection from "@/components/GeneralShortcutsSection";
@@ -23,14 +21,6 @@ function timeAgo(iso: string) {
   const days = differenceInDays(now, d);
   if (days < 7) return `Há ${days} dia${days > 1 ? "s" : ""}`;
   return format(d, "dd/MM");
-}
-
-function pctDelta(curr: number, prev: number) {
-  if (prev === 0 && curr === 0) return { value: 0, sign: "flat" as const };
-  if (prev === 0) return { value: 100, sign: "up" as const };
-  const diff = ((curr - prev) / prev) * 100;
-  const rounded = Math.round(diff);
-  return { value: Math.abs(rounded), sign: rounded > 0 ? "up" as const : rounded < 0 ? "down" as const : "flat" as const };
 }
 
 type TeamLike = { id: string; name: string };
@@ -56,58 +46,8 @@ function resolveDemandScope(areaKey: string, teams: TeamLike[]) {
   };
 }
 
-type KpiProps = {
-  title: string;
-  value: number;
-  icon: React.ReactNode;
-  color: string;
-  delta: { value: number; sign: "up" | "down" | "flat" };
-  spark: { v: number }[];
-};
-function KpiCard({ title, value, icon, color, delta, spark }: KpiProps) {
-  const TrendIcon = delta.sign === "up" ? TrendingUp : delta.sign === "down" ? TrendingDown : Minus;
-  const trendColor = delta.sign === "up" ? "text-emerald-600" : delta.sign === "down" ? "text-red-600" : "text-muted-foreground";
-  const gradId = `g-${title.replace(/\s+/g, "")}`;
-  return (
-    <div className="relative overflow-hidden bg-card border border-border rounded-xl p-4">
-      <div className="flex items-center gap-3">
-        <div
-          className="h-10 w-10 rounded-lg flex items-center justify-center shrink-0"
-          style={{ backgroundColor: `${color}1F`, color }}
-        >
-          {icon}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-[11px] font-medium text-muted-foreground truncate">{title}</p>
-          <p className="text-2xl font-bold text-foreground leading-tight">{value}</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-1 mt-2">
-        <TrendIcon className={`h-3.5 w-3.5 ${trendColor}`} />
-        <span className={`text-[11px] font-semibold ${trendColor}`}>
-          {delta.sign === "flat" ? "estável" : `${delta.sign === "up" ? "+" : "-"}${delta.value}%`}
-        </span>
-        <span className="text-[11px] text-muted-foreground">vs. semana anterior</span>
-      </div>
-      <div className="absolute right-0 bottom-0 w-24 h-12 opacity-70 pointer-events-none">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={spark}>
-            <defs>
-              <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={color} stopOpacity={0.35} />
-                <stop offset="100%" stopColor={color} stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <Area type="monotone" dataKey="v" stroke={color} strokeWidth={1.5} fill={`url(#${gradId})`} />
-          </AreaChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  );
-}
-
 export default function DashboardPage() {
-  const { people, tasks, projects, events, posts, broadcasts, gamificationAwards, parkingItems, teams, updateParkingItem, loading } = useData();
+  const { people, tasks, projects, events, broadcasts, gamificationAwards, parkingItems, teams, updateParkingItem, loading } = useData();
   const { user } = useAuth();
   const today = getNowBrasilia();
 
@@ -130,41 +70,9 @@ export default function DashboardPage() {
         return 0;
       });
   }, [currentPerson, parkingItems]);
-  const weekStart = startOfWeek(today, { weekStartsOn: 0 });
   const weekEnd = endOfWeek(today, { weekStartsOn: 0 });
-  const sevenDaysAgo = subDays(today, 7);
-  const fourteenDaysAgo = subDays(today, 14);
-  const prevWeekStart = subDays(weekStart, 7);
-  const prevWeekEnd = subDays(weekEnd, 7);
-
   const todayStr = format(today, "yyyy-MM-dd");
   const weekEndStr = format(weekEnd, "yyyy-MM-dd");
-  const prevWeekStartStr = format(prevWeekStart, "yyyy-MM-dd");
-  const prevWeekEndStr = format(prevWeekEnd, "yyyy-MM-dd");
-  const sevenAgoStr = format(sevenDaysAgo, "yyyy-MM-dd");
-
-  // KPIs current
-  const tasksInProgress = tasks.filter(t => t.status === "in-progress" || t.status === "not-started").length;
-  const projectsActive = projects.filter(p => p.status === "active").length;
-  const eventsThisWeek = events.filter(e => e.date && e.date >= todayStr && e.date <= weekEndStr).length;
-  const postsScheduled = posts.filter(p => p.status === "scheduled" || (p.date && p.date >= todayStr)).length;
-
-  // KPIs 7 days ago (snapshot)
-  const tasksInProgress7 = tasks.filter(t => new Date((t as any).created_at ?? 0).getTime() <= sevenDaysAgo.getTime() && t.status !== "done").length;
-  const projectsActive7 = projects.filter(p => p.status === "active").length; // no historical state; approximate
-  const eventsPrevWeek = events.filter(e => e.date && e.date >= prevWeekStartStr && e.date <= prevWeekEndStr).length;
-  const postsScheduled7 = posts.filter(p => p.date && p.date >= sevenAgoStr && p.date < todayStr).length;
-
-  // Sparkline data
-  const spark = (curr: number, prev: number) => {
-    const arr: { v: number }[] = [];
-    const steps = 7;
-    for (let i = 0; i < steps; i++) {
-      const t = i / (steps - 1);
-      arr.push({ v: prev + (curr - prev) * t + (Math.sin(i) * Math.max(curr, prev, 1)) * 0.05 });
-    }
-    return arr;
-  };
 
   // Ranking — soma TODOS os pontos da gamificação (demandas concluídas + ações manuais)
   const allRanking = useMemo(() => {
@@ -297,6 +205,7 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {myDemands.map(demand => {
                     const scope = resolveDemandScope(demand.area, teams);
+                    const isOverdue = !!demand.date && demand.date < todayStr;
                     return (
                       <div
                         key={demand.id}
@@ -325,10 +234,16 @@ export default function DashboardPage() {
                               {new Date(demand.date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
                             </span>
                           )}
-                          {/* Status é sempre "em andamento" enquanto a demanda estiver nesta lista — informativo, não é uma ação */}
-                          <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-orange-500/15 text-orange-600 flex items-center gap-1">
-                            <Circle className="h-2.5 w-2.5 fill-current" /> Em andamento
-                          </span>
+                          {/* Aviso de status — atrasada (vermelho) ou em andamento (laranja) */}
+                          {isOverdue ? (
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-red-500/15 text-red-600 flex items-center gap-1">
+                              <Circle className="h-2.5 w-2.5 fill-current" /> Atrasada
+                            </span>
+                          ) : (
+                            <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-orange-500/15 text-orange-600 flex items-center gap-1">
+                              <Circle className="h-2.5 w-2.5 fill-current" /> Em andamento
+                            </span>
+                          )}
                         </div>
                         <div className="pt-2 border-t border-border/30">
                           <button

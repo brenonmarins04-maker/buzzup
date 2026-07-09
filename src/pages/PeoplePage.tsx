@@ -1,11 +1,9 @@
-import { useState, useRef, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useData, type Person } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Trash2, Link2, HelpCircle, X, Zap, Clock } from "lucide-react";
+import { Trash2, Link2, HelpCircle, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { AREAS, getAreaLabel, getTeamColor } from "@/lib/areas";
 import MemberEditModal from "@/components/modals/MemberEditModal";

@@ -207,7 +207,6 @@ function ProjectRow({ project, people, canEdit, onChange, onDelete }: {
   onChange: (p: Project) => void; onDelete: () => void;
 }) {
   const memberCount = (project.managerId ? 1 : 0) + project.members.length;
-  const status = pipelineMeta(project.pipelineStatus);
 
   return (
     <tr className="hover:bg-accent/30">
