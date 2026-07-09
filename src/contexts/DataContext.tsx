@@ -1355,7 +1355,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const { data: aw } = await (supabase.rpc as any)("award_form_completion_point", { _form_id: formId });
     if (aw && aw.id) {
       setGamificationAwards(curr => [{ id: aw.id, personId: aw.person_id, actionId: aw.action_id ?? null, actionName: aw.action_name, points: aw.points ?? 0, awardedAt: aw.awarded_at }, ...curr]);
-      toast.success("+1 ponto na gamificação! 🎉");
+      toast.success("+1 ponto para a gamificação");
     } else {
       toast.success("Formulário marcado como preenchido!");
     }

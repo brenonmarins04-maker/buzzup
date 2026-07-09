@@ -159,9 +159,10 @@ export default function FormsSection() {
                 </a>
                 <button
                   onClick={() => { markFormCompleted(f.id); }}
-                  className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-md bg-red-500/15 text-red-600 hover:bg-red-500/25 border border-red-300 transition-all"
+                  title="Depois de preencher o formulário, clique aqui para marcar como concluído"
+                  className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold py-2 rounded-md bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 border border-emerald-400/60 transition-all"
                 >
-                  <span aria-hidden="true">⚠️</span> Preencher
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Já preenchi
                 </button>
               </div>
             </div>
