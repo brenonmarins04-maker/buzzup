@@ -1096,9 +1096,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
     // Award gamification points when transitioning to "done"
     if (workspaceId && becomingDone && p.personId) {
       const pts = Math.max(1, Math.min(3, p.points || 1));
-      const { data: aw } = await (supabase.from("gamification_awards") as any)
+      let { data: aw } = await (supabase.from("gamification_awards") as any)
         .insert({ workspace_id: workspaceId, person_id: p.personId, action_id: null, action_name: `Demanda: ${p.title}`, points: pts, awarded_by: uid })
         .select().single();
+      if (!aw) {
+        // Membro comum não escreve em awards (RLS) — fallback via função
+        // SECURITY DEFINER que valida a demanda e concede o ponto.
+        const { data: rpcAw } = await (supabase.rpc as any)("award_demand_completion_point", { _item_id: p.id });
+        aw = rpcAw && rpcAw.id ? rpcAw : null;
+      }
       if (aw) {
         setGamificationAwards(curr => [{ id: aw.id, personId: aw.person_id, actionId: aw.action_id ?? null, actionName: aw.action_name, points: aw.points ?? 0, awardedAt: aw.awarded_at }, ...curr]);
         toast.success(`+${pts} ponto${pts > 1 ? "s" : ""} para a gamificação`);
@@ -1358,9 +1364,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const already = gamificationAwards.some(a => a.actionId === formId && a.personId === myPerson.id);
       if (!already) {
         const formTitle = forms.find(f => f.id === formId)?.title || "Formulário";
-        const { data: aw } = await (supabase.from("gamification_awards") as any)
+        let { data: aw } = await (supabase.from("gamification_awards") as any)
           .insert({ workspace_id: workspaceId, person_id: myPerson.id, action_id: formId, action_name: `Formulário: ${formTitle}`, points: 1, awarded_by: uid })
           .select().single();
+        if (!aw) {
+          // RLS bloqueia membros de escrever em awards — fallback via função
+          // SECURITY DEFINER (gamification-points-setup.sql) que valida e concede.
+          const { data: rpcAw } = await (supabase.rpc as any)("award_form_completion_point", { _form_id: formId });
+          aw = rpcAw && rpcAw.id ? rpcAw : null;
+        }
         if (aw) {
           setGamificationAwards(curr => [{ id: aw.id, personId: aw.person_id, actionId: aw.action_id ?? null, actionName: aw.action_name, points: aw.points ?? 0, awardedAt: aw.awarded_at }, ...curr]);
           toast.success("+1 ponto para a gamificação");
@@ -1386,12 +1398,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setFormCompletions(prev => [...prev, ...removed]);
       return;
     }
-    // Remove o ponto concedido pelo preenchimento (mesmo caminho direto)
+    // Remove o ponto concedido pelo preenchimento (mesmo caminho direto;
+    // para membros a RLS bloqueia o delete — fallback via função no banco)
     const myPersonIds = new Set(people.filter(p => p.userId === uid).map(p => p.id));
     const myPerson = people.find(p => p.userId === uid);
     if (myPerson) {
       await (supabase.from("gamification_awards") as any)
         .delete().eq("workspace_id", workspaceId).eq("person_id", myPerson.id).eq("action_id", formId);
+      await (supabase.rpc as any)("revoke_form_completion_point", { _form_id: formId });
     }
     setGamificationAwards(curr => curr.filter(a => !(a.actionId === formId && myPersonIds.has(a.personId))));
   }, [workspaceId, uid, people]);
