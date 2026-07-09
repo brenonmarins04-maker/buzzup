@@ -1346,12 +1346,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const { data, error } = await (supabase.from("form_completions") as any)
       .insert({ form_id: formId, workspace_id: workspaceId, user_id: uid, completed_at: completedAt })
       .select().single();
-    if (error) {
-      // 23505 = já marcado (unique) — mantém otimista; outros erros revertem
-      if (!String(error.code) .includes("23505")) {
-        toast.error("Erro ao marcar como preenchido");
-        setFormCompletions(prev => prev.filter(c => c.id !== tempId));
-      }
+    if (error && !String(error.code).includes("23505")) {
+      // erro real (23505 = já estava marcado — segue em frente e tenta o ponto)
+      toast.error("Erro ao marcar como preenchido");
+      setFormCompletions(prev => prev.filter(c => c.id !== tempId));
       return;
     }
     if (data) setFormCompletions(prev => prev.map(c => c.id === tempId ? { id: data.id, formId: data.form_id, userId: data.user_id, completedAt: data.completed_at } : c));
@@ -1360,27 +1358,35 @@ export function DataProvider({ children }: { children: ReactNode }) {
     // insere direto em gamification_awards (action_id guarda o id do formulário
     // para não conceder duas vezes e permitir remover ao desmarcar).
     const myPerson = people.find(p => p.userId === uid);
-    if (myPerson) {
-      const already = gamificationAwards.some(a => a.actionId === formId && a.personId === myPerson.id);
-      if (!already) {
-        const formTitle = forms.find(f => f.id === formId)?.title || "Formulário";
-        let { data: aw } = await (supabase.from("gamification_awards") as any)
-          .insert({ workspace_id: workspaceId, person_id: myPerson.id, action_id: formId, action_name: `Formulário: ${formTitle}`, points: 1, awarded_by: uid })
-          .select().single();
-        if (!aw) {
-          // RLS bloqueia membros de escrever em awards — fallback via função
-          // SECURITY DEFINER (gamification-points-setup.sql) que valida e concede.
-          const { data: rpcAw } = await (supabase.rpc as any)("award_form_completion_point", { _form_id: formId });
-          aw = rpcAw && rpcAw.id ? rpcAw : null;
-        }
-        if (aw) {
-          setGamificationAwards(curr => [{ id: aw.id, personId: aw.person_id, actionId: aw.action_id ?? null, actionName: aw.action_name, points: aw.points ?? 0, awardedAt: aw.awarded_at }, ...curr]);
-          toast.success("+1 ponto para a gamificação");
-          return;
-        }
-      }
+    if (!myPerson) {
+      toast.success("Formulário marcado como preenchido!");
+      return;
     }
-    toast.success("Formulário marcado como preenchido!");
+    const already = gamificationAwards.some(a => a.actionId === formId && a.personId === myPerson.id);
+    if (already) {
+      // já tinha ganhado o ponto desse formulário antes — não duplica
+      toast.success("Preenchido! Ponto deste formulário já contabilizado ✔");
+      return;
+    }
+    const formTitle = forms.find(f => f.id === formId)?.title || "Formulário";
+    const direct = await (supabase.from("gamification_awards") as any)
+      .insert({ workspace_id: workspaceId, person_id: myPerson.id, action_id: formId, action_name: `Formulário: ${formTitle}`, points: 1, awarded_by: uid })
+      .select().single();
+    let aw = direct.data;
+    if (!aw) {
+      // RLS bloqueia membros de escrever em awards — fallback via função
+      // SECURITY DEFINER (gamification-points-setup.sql) que valida e concede.
+      const rpc = await (supabase.rpc as any)("award_form_completion_point", { _form_id: formId });
+      aw = rpc.data && rpc.data.id ? rpc.data : null;
+      if (!aw) console.error("[gamificação] ponto do formulário falhou", { direct: direct.error, rpc: rpc.error });
+    }
+    if (aw) {
+      setGamificationAwards(curr => [{ id: aw.id, personId: aw.person_id, actionId: aw.action_id ?? null, actionName: aw.action_name, points: aw.points ?? 0, awardedAt: aw.awarded_at }, ...curr]);
+      toast.success("Você ganhou +1 ponto na gamificação! 🏆");
+    } else {
+      // preencheu, mas o ponto não entrou — avisa em vez de esconder
+      toast.warning("Preenchido! Mas o ponto não pôde ser registrado. Avise um diretor (SQL de gamificação pendente).");
+    }
   }, [workspaceId, uid, people, gamificationAwards, forms]);
 
   const unmarkFormCompleted = useCallback(async (formId: string) => {
