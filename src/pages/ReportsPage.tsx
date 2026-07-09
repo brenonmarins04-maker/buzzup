@@ -30,6 +30,19 @@ const PRESETS: { key: Preset; label: string }[] = [
 function toDateStr(d: Date) {
   return d.toISOString().split("T")[0];
 }
+// Data local (sem shift de fuso) — usada pelas chaves de semana
+function toLocalStr(d: Date) {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+// Segunda-feira (00:00 local) da semana que contém `d`
+function mondayOf(d: Date) {
+  const x = new Date(d);
+  const dow = (x.getDay() + 6) % 7; // Seg=0 ... Dom=6
+  x.setDate(x.getDate() - dow);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
 function fromPreset(preset: Preset): { start: string; end: string } {
   const end = toDateStr(new Date());
   const s = new Date();
@@ -93,6 +106,38 @@ export default function ReportsPage() {
       setDateRange({ start: customStart, end: customEnd });
     }
   };
+
+  // Filtro de semana — recorta as tarefas concluídas e as entradas por semana.
+  // "" = todas as semanas do período selecionado acima.
+  const [weekFilter, setWeekFilter] = useState<string>("");
+  useEffect(() => { setWeekFilter(""); }, [dateRange]);
+
+  // Semanas (Seg–Dom) que se sobrepõem ao período, mais recentes primeiro
+  const availableWeeks = useMemo(() => {
+    const min = mondayOf(new Date(dateRange.start + "T00:00:00"));
+    let cur = mondayOf(new Date(dateRange.end + "T00:00:00"));
+    const weeks: { key: string; label: string }[] = [];
+    while (cur >= min && weeks.length < 27) {
+      const end = new Date(cur); end.setDate(end.getDate() + 6);
+      const fmt = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+      weeks.push({ key: toLocalStr(cur), label: `${fmt(cur)} – ${fmt(end)}` });
+      cur = new Date(cur); cur.setDate(cur.getDate() - 7);
+    }
+    return weeks;
+  }, [dateRange]);
+
+  // Janela efetiva dos heatmaps: semana selecionada, senão o período inteiro
+  const inHeatWindow = useMemo(() => {
+    let start: Date, endExcl: Date;
+    if (weekFilter) {
+      start = new Date(weekFilter + "T00:00:00");
+      endExcl = new Date(start); endExcl.setDate(endExcl.getDate() + 7);
+    } else {
+      start = new Date(dateRange.start + "T00:00:00");
+      endExcl = new Date(dateRange.end + "T00:00:00"); endExcl.setDate(endExcl.getDate() + 1);
+    }
+    return (d: Date) => d >= start && d < endExcl;
+  }, [weekFilter, dateRange]);
 
   // Logins (entradas) state — linhas brutas, agregadas por área/pessoa/horário via useMemo
   const [loginRows, setLoginRows] = useState<{ user_id: string; created_at: string }[]>([]);
@@ -169,6 +214,7 @@ export default function ReportsPage() {
     const byArea: Record<string, number> = {};
     AREAS_DEFAULT.forEach(a => { byArea[a.key] = 0; });
     loginRows.forEach(row => {
+      if (row.created_at && !inHeatWindow(new Date(row.created_at))) return;
       const person = people.find(p => p.userId === row.user_id);
       if (!person) return;
       const areas = person.areas?.length ? person.areas : (person.area ? [person.area] : []);
@@ -180,13 +226,14 @@ export default function ReportsPage() {
       entradas: byArea[a.key] || 0,
       color: getAreaColor(a.key),
     }));
-  }, [loginRows, people]);
+  }, [loginRows, people, inHeatWindow]);
 
   // Drill-down: entradas por pessoa na área selecionada (filtered)
   const loginDrillData = useMemo(() => {
     if (!loginDrillArea) return [];
     const byPerson: Record<string, { name: string; entradas: number }> = {};
     loginRows.forEach(row => {
+      if (row.created_at && !inHeatWindow(new Date(row.created_at))) return;
       const person = people.find(p => p.userId === row.user_id);
       if (!person) return;
       const areas = person.areas?.length ? person.areas : (person.area ? [person.area] : []);
@@ -199,7 +246,7 @@ export default function ReportsPage() {
       byPerson[person.id].entradas += 1;
     });
     return Object.values(byPerson).sort((a, b) => b.entradas - a.entradas);
-  }, [loginDrillArea, loginRows, people]);
+  }, [loginDrillArea, loginRows, people, inHeatWindow]);
 
   // Heatmap
   const heatmap = useMemo(() => {
@@ -210,11 +257,12 @@ export default function ReportsPage() {
     parkingItems.forEach(item => {
       if (item.status !== "done" || !item.completedAt) return;
       const date = new Date(item.completedAt);
+      if (!inHeatWindow(date)) return;
       grid[`${date.getDay()}-${getTimeSlot(date.getHours())}`] =
         (grid[`${date.getDay()}-${getTimeSlot(date.getHours())}`] || 0) + 1;
     });
     return grid;
-  }, [parkingItems]);
+  }, [parkingItems, inHeatWindow]);
 
   const maxHeat = Math.max(0, ...Object.values(heatmap));
   const totalHeatItems = Object.values(heatmap).reduce((a, b) => a + b, 0);
@@ -227,6 +275,7 @@ export default function ReportsPage() {
     parkingItems.forEach(item => {
       if (item.status !== "done" || !item.completedAt) return;
       const date = new Date(item.completedAt);
+      if (!inHeatWindow(date)) return;
       if (date.getDay() !== day || getTimeSlot(date.getHours()) !== slot) return;
       const person = people.find(p => p.id === item.personId);
       const firstName = person?.name.split(" ")[0] ?? "Sem responsável";
@@ -247,7 +296,7 @@ export default function ReportsPage() {
       });
     });
     return items.sort((a, b) => b.ts - a.ts);
-  }, [taskHeatmapDrill, parkingItems, people]);
+  }, [taskHeatmapDrill, parkingItems, people, inHeatWindow]);
 
   // Heatmap de entradas no BuzzUp por dia/horário
   const loginHeatmap = useMemo(() => {
@@ -258,11 +307,12 @@ export default function ReportsPage() {
     loginRows.forEach(row => {
       if (!row.created_at) return;
       const date = new Date(row.created_at);
+      if (!inHeatWindow(date)) return;
       const key = `${date.getDay()}-${getTimeSlot(date.getHours())}`;
       grid[key] = (grid[key] || 0) + 1;
     });
     return grid;
-  }, [loginRows]);
+  }, [loginRows, inHeatWindow]);
 
   const maxLoginHeat = Math.max(0, ...Object.values(loginHeatmap));
   const totalLoginHeatItems = Object.values(loginHeatmap).reduce((a, b) => a + b, 0);
@@ -275,6 +325,7 @@ export default function ReportsPage() {
     loginRows.forEach(row => {
       if (!row.created_at) return;
       const date = new Date(row.created_at);
+      if (!inHeatWindow(date)) return;
       if (date.getDay() !== day || getTimeSlot(date.getHours()) !== slot) return;
       const person = people.find(p => p.userId === row.user_id);
       const firstName = person?.name.split(" ")[0] ?? "Desconhecido";
@@ -286,7 +337,7 @@ export default function ReportsPage() {
       });
     });
     return items.sort((a, b) => b.ts - a.ts);
-  }, [loginHeatmapDrill, loginRows, people]);
+  }, [loginHeatmapDrill, loginRows, people, inHeatWindow]);
 
   // Formulários publicados — resumo para o diretor acessar/gerenciar direto dos Relatórios
   const formsSummary = useMemo(() => {
@@ -371,6 +422,35 @@ export default function ReportsPage() {
             {dateRange.start} → {dateRange.end}
           </span>
         )}
+
+        {/* Filtro de semana — recorta tarefas concluídas e entradas por semana */}
+        <div className="basis-full flex items-center gap-2 pt-3 mt-1 border-t border-border/60">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground shrink-0">
+            <CalendarDays className="h-3.5 w-3.5" />
+            Semana:
+          </div>
+          <select
+            value={weekFilter}
+            onChange={e => setWeekFilter(e.target.value)}
+            className="h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+          >
+            <option value="">Todas as semanas do período</option>
+            {availableWeeks.map(w => (
+              <option key={w.key} value={w.key}>Semana de {w.label}</option>
+            ))}
+          </select>
+          {weekFilter && (
+            <button
+              onClick={() => setWeekFilter("")}
+              className="text-[11px] text-primary hover:underline"
+            >
+              limpar
+            </button>
+          )}
+          <span className="text-[11px] text-muted-foreground/70 ml-auto hidden sm:inline">
+            aplica-se às Tarefas Concluídas e às Entradas
+          </span>
+        </div>
       </div>
 
       {/* Formulários — acesso rápido para o diretor abrir e acompanhar respostas */}

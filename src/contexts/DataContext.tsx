@@ -623,30 +623,32 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return () => { cancelled = true; };
   }, [uid, workspaceId]);
 
-  // Click tracking — registra uma "entrada" no BuzzUp por usuário/workspace.
-  // Só conta uma nova entrada se passaram pelo menos 15 minutos desde a última,
-  // evitando inflar o contador com reloads/navegações rápidas.
+  // Entrada por PERÍODO: no máximo 1 por manhã/tarde/noite por dia.
+  // - 8h e 9h contam como 1 (mesma manhã); manhã + tarde contam como 2.
+  // - Só registra ao ENTRAR de fato no workspace (montagem do DataProvider);
+  //   aba aberta parada NÃO conta (o efeito não roda de novo sozinho), e
+  //   reentradas no mesmo período do dia não duplicam.
   useEffect(() => {
     if (!uid || !workspaceId) return;
     let cancelled = false;
+    const periodOf = (h: number) => (h >= 6 && h < 12 ? "m" : h >= 12 && h < 19 ? "t" : "n");
     (async () => {
-      const { data: last } = await (supabase.from("user_daily_logins") as any)
+      const today = getTodayBrasilia();
+      const { data: rows } = await (supabase.from("user_daily_logins") as any)
         .select("created_at")
         .eq("workspace_id", workspaceId)
         .eq("user_id", uid)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .eq("login_date", today);
       if (cancelled) return;
 
-      const FIFTEEN_MIN_MS = 15 * 60 * 1000;
-      const lastClickMs = last?.created_at ? new Date(last.created_at).getTime() : 0;
-      if (Date.now() - lastClickMs < FIFTEEN_MIN_MS) return;
+      const curPeriod = periodOf(new Date().getHours());
+      const already = new Set((rows || []).map((r: any) => periodOf(new Date(r.created_at).getHours())));
+      if (already.has(curPeriod)) return; // esse período de hoje já foi contado
 
       await (supabase.from("user_daily_logins") as any).insert({
         workspace_id: workspaceId,
         user_id: uid,
-        login_date: getTodayBrasilia(),
+        login_date: today,
       });
     })();
     return () => { cancelled = true; };
