@@ -18,6 +18,7 @@ import IdeaModal from "@/components/modals/IdeaModal";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import { toast } from "sonner";
 import { getNowBrasilia } from "@/lib/utils";
+import { normalizeToISODate } from "@/lib/demandStatus";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useLongPressDrag, type DragDropResult } from "@/hooks/useLongPressDrag";
 import { AREAS, getTeamColor, getAreaColor, getTeamIdFromAreaKey } from "@/lib/areas";
@@ -65,7 +66,8 @@ function getDemandCalendarVisual(item: CalendarItem, todayStr: string) {
   if (item.status === "done") {
     return { kind: "done" as const, color: "#10B981", label: "Concluída" };
   }
-  if (item.date && item.date < todayStr) {
+  const iso = normalizeToISODate(item.date);
+  if (iso && iso < todayStr) {
     return { kind: "overdue" as const, color: "#EF4444", label: "Atrasada" };
   }
   return { kind: "progress" as const, color: "#F97316", label: "Em andamento" };

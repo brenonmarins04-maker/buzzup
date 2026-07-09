@@ -47,7 +47,7 @@ export default function TeamAreaPage() {
 // These use a virtual "area" key based on team id so data is isolated per team
 import { useAuth } from "@/contexts/AuthContext";
 import { isLeaderOfAny } from "@/lib/leadership";
-import { isDemandOverdue } from "@/lib/demandStatus";
+import { isDemandOverdue, formatDemandDayMonth } from "@/lib/demandStatus";
 import { getTodayBrasilia } from "@/lib/utils";
 import { type ParkingItem, type AttendanceStatus } from "@/contexts/DataContext";
 import { Plus, ExternalLink, Pencil, Trash2, X, ChevronDown, ChevronUp } from "lucide-react";
@@ -345,9 +345,9 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
           </div>
           {item.description && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-3 break-words">{item.description}</p>}
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            {item.date && (
+            {formatDemandDayMonth(item.date) && (
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md text-white" style={{ backgroundColor: tint }}>
-                {new Date(item.date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+                {formatDemandDayMonth(item.date)}
               </span>
             )}
             {/* Aviso de status — visível para todos */}

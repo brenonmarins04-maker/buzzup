@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AREAS, getAreaLabel, getTeamColor } from "@/lib/areas";
 import { getLeaderKeys } from "@/lib/leadership";
 import { getTodayBrasilia } from "@/lib/utils";
+import { isDemandOverdue } from "@/lib/demandStatus";
 import { toast } from "sonner";
 import EditAreaNamesModal from "@/components/modals/EditAreaNamesModal";
 import { useAreaNames } from "@/hooks/useAreaNames";
@@ -69,7 +70,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     const today = getTodayBrasilia();
     const map: Record<string, number> = {};
     parkingItems.forEach(p => {
-      if (p.status === "done" || !p.date || p.date >= today) return;
+      if (!isDemandOverdue(p, today)) return;
       map[p.area] = (map[p.area] || 0) + 1;
     });
     return map;

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Database } from "@/integrations/supabase/types";
 import { getNowBrasilia, getTodayBrasilia } from "@/lib/utils";
+import { normalizeToISODate } from "@/lib/demandStatus";
 import { toast } from "sonner";
 import { GENERAL_SHORTCUTS_PREFIX, parseGeneralShortcuts, serializeGeneralShortcuts } from "@/lib/generalShortcuts";
 
@@ -319,7 +320,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setChannels((chRes.data || []).map(c => ({ id: c.id, name: c.name, color: c.color })));
       setEventTypes(((etRes as any)?.data || []).map((e: any) => ({ id: e.id, name: e.name, color: e.color })));
       setAreaNotes(((anRes as any)?.data || []).map((n: any) => ({ id: n.id, area: n.area, name: n.name, url: n.url, position: n.position ?? 0 })));
-      setParkingItems(((piRes as any)?.data || []).map((p: any) => ({ id: p.id, area: p.area, personId: p.person_id ?? null, title: p.title, description: p.description ?? "", date: p.date ?? "", position: p.position ?? 0, status: (p.status as ParkingItemStatus) ?? "in-progress", points: p.points ?? 1, completedAt: p.completed_at ?? null, completedBy: p.completed_by ?? null })));
+      setParkingItems(((piRes as any)?.data || []).map((p: any) => ({ id: p.id, area: p.area, personId: p.person_id ?? null, title: p.title, description: p.description ?? "", date: normalizeToISODate(p.date) ?? "", position: p.position ?? 0, status: (p.status as ParkingItemStatus) ?? "in-progress", points: p.points ?? 1, completedAt: p.completed_at ?? null, completedBy: p.completed_by ?? null })));
       setGamificationActions(((gaRes as any)?.data || []).map((a: any) => ({ id: a.id, name: a.name, points: a.points ?? 0 })));
       setGamificationAwards(((gwRes as any)?.data || []).map((w: any) => ({ id: w.id, personId: w.person_id, actionId: w.action_id ?? null, actionName: w.action_name, points: w.points ?? 0, awardedAt: w.awarded_at })));
       setLeadThermometer(((ltRes as any)?.data || []).map((l: any) => ({ id: l.id, name: l.name, value: l.value ?? "", areaSize: l.area_size ?? "", type: l.type ?? "", position: l.position ?? 0 })));
@@ -359,7 +360,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           if (created && !cancelled) {
             const newItems: ParkingItem[] = created.map((p: any) => ({
               id: p.id, area: p.area, personId: p.person_id ?? null, title: p.title,
-              description: p.description ?? "", date: p.date ?? "", position: p.position ?? 0,
+              description: p.description ?? "", date: normalizeToISODate(p.date) ?? "", position: p.position ?? 0,
               status: (p.status as ParkingItemStatus) ?? "in-progress", points: p.points ?? 1,
             }));
             setParkingItems(prev => [...prev, ...newItems]);
@@ -492,7 +493,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     const refetchParkingItems = async () => {
       const { data } = await (supabase.from as any)("parking_items").select("*").eq("workspace_id", wsId);
-      setParkingItems((data || []).map((p: any) => ({ id: p.id, area: p.area, personId: p.person_id ?? null, title: p.title, description: p.description ?? "", date: p.date ?? "", position: p.position ?? 0, status: (p.status as ParkingItemStatus) ?? "in-progress", points: p.points ?? 1, completedAt: p.completed_at ?? null, completedBy: p.completed_by ?? null })));
+      setParkingItems((data || []).map((p: any) => ({ id: p.id, area: p.area, personId: p.person_id ?? null, title: p.title, description: p.description ?? "", date: normalizeToISODate(p.date) ?? "", position: p.position ?? 0, status: (p.status as ParkingItemStatus) ?? "in-progress", points: p.points ?? 1, completedAt: p.completed_at ?? null, completedBy: p.completed_by ?? null })));
     };
 
     const refetchGamificationActions = async () => {
@@ -1079,7 +1080,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       .insert({ workspace_id: workspaceId, area, title, description, date, points: pts, person_id: pid, position: parkingItems.filter(p => p.area === area && p.personId === pid).length })
       .select().single();
     if (error) { toast.error("Erro ao criar card"); return; }
-    if (data) setParkingItems(prev => [...prev, { id: data.id, area: data.area, personId: data.person_id ?? null, title: data.title, description: data.description ?? "", date: data.date ?? "", position: data.position ?? 0, status: (data.status as ParkingItemStatus) ?? "in-progress", points: data.points ?? pts }]);
+    if (data) setParkingItems(prev => [...prev, { id: data.id, area: data.area, personId: data.person_id ?? null, title: data.title, description: data.description ?? "", date: normalizeToISODate(data.date) ?? "", position: data.position ?? 0, status: (data.status as ParkingItemStatus) ?? "in-progress", points: data.points ?? pts }]);
   }, [workspaceId, parkingItems]);
 
   const updateParkingItem = useCallback(async (p: ParkingItem) => {

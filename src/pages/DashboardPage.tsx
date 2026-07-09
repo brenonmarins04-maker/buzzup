@@ -9,6 +9,7 @@ import {
 import { getNowBrasilia } from "@/lib/utils";
 import { format, endOfWeek, differenceInHours, differenceInDays } from "date-fns";
 import { AREAS, getTeamColor } from "@/lib/areas";
+import { isDemandOverdue, formatDemandDayMonth } from "@/lib/demandStatus";
 import FormsSection from "@/components/FormsSection";
 import GeneralShortcutsSection from "@/components/GeneralShortcutsSection";
 
@@ -205,7 +206,8 @@ export default function DashboardPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {myDemands.map(demand => {
                     const scope = resolveDemandScope(demand.area, teams);
-                    const isOverdue = !!demand.date && demand.date < todayStr;
+                    const isOverdue = isDemandOverdue(demand, todayStr);
+                    const dayMonth = formatDemandDayMonth(demand.date);
                     return (
                       <div
                         key={demand.id}
@@ -229,9 +231,9 @@ export default function DashboardPage() {
                           )}
                         </div>
                         <div className="flex items-center gap-2 pt-1">
-                          {demand.date && (
+                          {dayMonth && (
                             <span className="text-[11px] font-medium px-2 py-0.5 rounded-md text-white" style={{ backgroundColor: scope.color }}>
-                              {new Date(demand.date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+                              {dayMonth}
                             </span>
                           )}
                           {/* Aviso de status — atrasada (vermelho) ou em andamento (laranja) */}

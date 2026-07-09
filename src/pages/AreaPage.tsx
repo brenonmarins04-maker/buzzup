@@ -3,7 +3,7 @@ import { useData, type ParkingItem, type ParkingItemStatus, type AttendanceStatu
 import { useAuth } from "@/contexts/AuthContext";
 import { AREAS, type AreaKey, getAreaLabel } from "@/lib/areas";
 import { isLeaderOfAny } from "@/lib/leadership";
-import { isDemandOverdue } from "@/lib/demandStatus";
+import { isDemandOverdue, formatDemandDayMonth } from "@/lib/demandStatus";
 import { getTodayBrasilia } from "@/lib/utils";
 import { Plus, ExternalLink, Pencil, Trash2, X, Settings, ChevronDown, ChevronUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -557,12 +557,12 @@ function KanbanTab({ area }: { area: AreaKey }) {
           </div>
           {item.description && <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2 break-words">{item.description}</p>}
           <div className="mt-1.5 flex flex-wrap items-center gap-1">
-            {item.date && (
+            {formatDemandDayMonth(item.date) && (
               <span
                 className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded text-white"
                 style={{ backgroundColor: tint }}
               >
-                {new Date(item.date + "T00:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+                {formatDemandDayMonth(item.date)}
               </span>
             )}
             {/* Aviso de status — visível para todos */}
