@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, type DragEvent } from "react";
 import { createPortal } from "react-dom";
-import { AlertTriangle, ChevronLeft, ChevronRight, Plus, X, ChevronUp, ChevronDown, CalendarDays } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Plus, X, ChevronUp, ChevronDown, CalendarDays, User, CheckCircle2, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import type { Task, Post, CalendarEvent } from "@/contexts/DataContext";
@@ -91,6 +91,31 @@ function sortCalendarItems(items: CalendarItem[], todayStr: string) {
   });
 }
 
+// Toggle estilo switch usado na organização de demandas (Minhas demandas / Concluídas)
+function CalToggle({ active, onClick, icon: Icon, label, activeColor = "#00B4D8" }: {
+  active: boolean; onClick: () => void; icon: LucideIcon; label: string; activeColor?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      role="switch"
+      aria-checked={active}
+      title={label}
+      className={`flex items-center gap-1.5 pl-2.5 pr-1.5 py-1.5 rounded-xl border text-xs font-medium transition-all ${
+        active ? "text-white shadow-sm" : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground/30"
+      }`}
+      style={active ? { backgroundColor: activeColor, borderColor: activeColor } : undefined}
+    >
+      <Icon className="h-3.5 w-3.5 shrink-0" />
+      <span className="whitespace-nowrap">{label}</span>
+      <span className={`ml-0.5 h-4 w-7 rounded-full flex items-center p-0.5 transition-colors ${active ? "bg-white/30" : "bg-muted"}`}>
+        <span className={`h-3 w-3 rounded-full bg-white shadow transition-transform ${active ? "translate-x-3" : ""}`} />
+      </span>
+    </button>
+  );
+}
+
 export default function CalendarPage() {
   const { tasks, posts, events, eventTypes, parkingItems, teams, people, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addParkingItem, updateParkingItem, deleteParkingItem } = useData();
   const { isAdmin: _isAdmin, user } = useAuth();
@@ -104,8 +129,19 @@ export default function CalendarPage() {
   const [parkingDropActive, setParkingDropActive] = useState(false);
   const newIdeaRef = useRef<HTMLInputElement>(null);
   const [showPast, setShowPast] = useState(false);
+  // Organização de demandas: "Minhas demandas" e "Mostrar concluídas"
+  const [onlyMine, setOnlyMine] = useState(false);
+  const [showDone, setShowDone] = useState(true);
   const upcomingTopRef = useRef<HTMLDivElement>(null);
   const calendarTodayStr = format(getNowBrasilia(), "yyyy-MM-dd");
+
+  // IDs das pessoas vinculadas ao usuário logado (uma conta pode ter mais de um registro)
+  const myPersonIds = useMemo(() => {
+    if (!user) return new Set<string>();
+    return new Set(people.filter(p => p.userId === user.id).map(p => p.id));
+  }, [user, people]);
+  const isMineTask = (t: Task) => t.responsible?.some(r => myPersonIds.has(r.id));
+  const isMineParking = (personId: string | null) => !!personId && myPersonIds.has(personId);
 
   const [taskModal, setTaskModal] = useState<{ open: boolean; task?: Task | null; date?: string }>({ open: false });
   const [postModal, setPostModal] = useState<{ open: boolean; post?: Post | null; date?: string }>({ open: false });
@@ -166,7 +202,8 @@ export default function CalendarPage() {
     : null;
   // All ideas without a date — always shown in sidebar regardless of area filter.
   const parkedIdeas = useMemo(() => {
-    const ideas = parkingItems.filter(p => !p.date);
+    let ideas = parkingItems.filter(p => !p.date);
+    if (onlyMine) ideas = ideas.filter(p => isMineParking(p.personId)); // "Minhas demandas"
     // When a filter is active, sort: matching area/team first, others below
     if (filterArea) {
       const matching = ideas.filter(p => sameAreaOrTeam(p.area, filterArea));
@@ -174,7 +211,8 @@ export default function CalendarPage() {
       return [...matching, ...others];
     }
     return ideas;
-  }, [parkingItems, filterArea]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parkingItems, filterArea, onlyMine, myPersonIds]);
 
   const applyDrop = (item: CalendarItem, target: DragDropResult) => {
     if (!isAdmin) { toast.error("Apenas diretores podem alterar datas"); return; }
@@ -256,15 +294,19 @@ export default function CalendarPage() {
     tasks.forEach((t) => {
       if (t.status === "done") return; // demandas concluídas não aparecem no calendário
       if (filterArea && t.area !== filterArea) return;
+      if (onlyMine && !isMineTask(t)) return; // "Minhas demandas"
       const taskColor = t.status === "in-progress" ? "#F59E0B" : t.status === "not-started" ? "#9CA3AF" : TASK_COLOR;
       items.push({ id: t.id, title: t.title, type: "task", date: t.deadline, color: taskColor, status: t.status, isDemand: true });
     });
+    // "Minhas demandas" foca só nas suas demandas — publicações e eventos ficam ocultos
     posts.forEach((p) => {
+      if (onlyMine) return;
       if (!p.date) return; // estacionamento
       if (filterArea) return;
       items.push({ id: p.id, title: p.title, type: "post", date: p.date, time: p.time, color: POST_COLOR, status: p.status });
     });
     events.forEach((e) => {
+      if (onlyMine) return;
       if (filterArea) return;
       const et = eventTypes.find(t => t.name === e.type);
       items.push({ id: e.id, title: e.title, type: "event", date: e.date, color: et?.color || EVENT_FALLBACK_COLOR, eventTypeName: e.type });
@@ -279,6 +321,8 @@ export default function CalendarPage() {
     });
     parkingItems.forEach((p) => {
       if (!p.date) return;
+      if (!showDone && p.status === "done") return; // "Mostrar concluídas" desligado
+      if (onlyMine && !isMineParking(p.personId)) return; // "Minhas demandas"
       if (filterArea && !sameAreaOrTeam(p.area, filterArea)) return;
       const teamId = getTeamIdFromAreaKey(p.area);
       const isTeam = !!teamId;
@@ -294,7 +338,8 @@ export default function CalendarPage() {
       items.push({ id: p.id, parkingId: p.id, title: displayTitle, type: "event", date: p.date, color, status: p.status, eventTypeName: label, isDemand: true });
     });
     return items;
-  }, [tasks, posts, events, parkingItems, teams, people, filterArea, eventTypes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks, posts, events, parkingItems, teams, people, filterArea, eventTypes, onlyMine, showDone, myPersonIds]);
 
   const handleDragStart = (e: DragEvent, item: CalendarItem) => {
     if (!isAdmin) { e.preventDefault(); return; }
@@ -657,6 +702,15 @@ export default function CalendarPage() {
                   <X className="h-3 w-3" /> Limpar filtro
                 </button>
               )}
+
+              {/* Organização de demandas */}
+              <div className="border-t border-border/60 pt-2 mt-0.5">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Organização</span>
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  <CalToggle active={onlyMine} onClick={() => setOnlyMine(v => !v)} icon={User} label="Minhas demandas" />
+                  <CalToggle active={showDone} onClick={() => setShowDone(v => !v)} icon={CheckCircle2} label="Mostrar concluídas" activeColor="#10B981" />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -735,6 +789,10 @@ export default function CalendarPage() {
               </button>
             );
           })}
+          <div className="basis-full flex flex-wrap gap-1.5 mt-1">
+            <CalToggle active={onlyMine} onClick={() => setOnlyMine(v => !v)} icon={User} label="Minhas demandas" />
+            <CalToggle active={showDone} onClick={() => setShowDone(v => !v)} icon={CheckCircle2} label="Mostrar concluídas" activeColor="#10B981" />
+          </div>
         </div>
       )}
 
