@@ -1,11 +1,29 @@
--- Pontos de gamificação em tempo real para TODOS os cargos.
--- A RLS de gamification_awards ("gw_w") só deixa diretores/owner escrever.
--- Ou seja: quando um ASSESSOR marca "Já preenchi" num formulário ou conclui a
--- própria demanda, o insert do ponto é bloqueado e ele fica sem o +1.
--- Estas funções SECURITY DEFINER validam e concedem o ponto com segurança.
--- Rode uma vez no SQL Editor do Supabase.
+-- ===== Pontos de gamificação automáticos (formulário "Já preenchi" + demanda) =====
+-- Rode este arquivo INTEIRO no SQL Editor do Supabase, uma vez.
 
--- 1) +1 ponto ao marcar formulário como preenchido (idempotente por formulário)
+-- 0) Remove a chave estrangeira de action_id, se existir.
+--    O app grava em action_id o id do formulário/demanda como marcador
+--    (para não duplicar ponto e poder remover ao desfazer). Se houver FK
+--    para gamification_actions, o banco rejeita e ninguém ganha o ponto.
+do $$
+declare
+  _c record;
+begin
+  for _c in
+    select tc.constraint_name
+    from information_schema.table_constraints tc
+    join information_schema.key_column_usage kcu
+      on kcu.constraint_name = tc.constraint_name and kcu.table_schema = tc.table_schema
+    where tc.table_schema = 'public'
+      and tc.table_name = 'gamification_awards'
+      and tc.constraint_type = 'FOREIGN KEY'
+      and kcu.column_name = 'action_id'
+  loop
+    execute format('alter table public.gamification_awards drop constraint %I', _c.constraint_name);
+  end loop;
+end $$;
+
+-- 1) +1 ponto ao marcar formulário como preenchido (1 ponto por formulário)
 create or replace function public.award_form_completion_point(_form_id uuid)
 returns public.gamification_awards
 language plpgsql
@@ -33,7 +51,7 @@ begin
   select id into _person from public.people where workspace_id = _ws and user_id = _uid limit 1;
   if _person is null then return null; end if;
 
-  -- 1 ponto por formulário, no máximo
+  -- não duplica: 1 ponto por formulário
   if exists (
     select 1 from public.gamification_awards
     where workspace_id = _ws and person_id = _person and action_id = _form_id
@@ -68,8 +86,7 @@ begin
 end;
 $$;
 
--- 3) Pontos ao concluir a PRÓPRIA demanda (assessor). Valida que a demanda está
---    concluída e pertence a uma pessoa vinculada ao usuário. Idempotente por demanda.
+-- 3) Pontos ao concluir a PRÓPRIA demanda (assessor). Idempotente por demanda.
 create or replace function public.award_demand_completion_point(_item_id uuid)
 returns public.gamification_awards
 language plpgsql
@@ -99,7 +116,7 @@ begin
     select 1 from public.people where id = _person and workspace_id = _ws and user_id = _uid
   ) then return null; end if;
 
-  -- 1 award por demanda, no máximo (evita farm marcando/desmarcando)
+  -- 1 award por demanda (evita farm marcando/desmarcando)
   if exists (
     select 1 from public.gamification_awards
     where workspace_id = _ws and person_id = _person and action_id = _item_id
@@ -116,7 +133,7 @@ grant execute on function public.award_form_completion_point(uuid) to authentica
 grant execute on function public.revoke_form_completion_point(uuid) to authenticated;
 grant execute on function public.award_demand_completion_point(uuid) to authenticated;
 
--- Tempo real: garante que awards está na publicação do Realtime
+-- 4) Tempo real: garante que awards está na publicação do Realtime
 do $$ begin
   alter publication supabase_realtime add table public.gamification_awards;
 exception when duplicate_object then null; end $$;
