@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trackPlatformEvent } from "@/lib/platformAnalytics";
+import { supabase } from "@/integrations/supabase/client";
 import BrandLogo from "@/components/BrandLogo";
 import { toast } from "sonner";
 import {
@@ -40,7 +41,16 @@ export default function WelcomePage() {
   }, []);
 
   useEffect(() => {
-    if (!loading && !user) navigate("/login", { replace: true });
+    if (loading || user) return;
+
+    let cancelled = false;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!cancelled && !data.session?.user) {
+        navigate("/login", { replace: true });
+      }
+    });
+
+    return () => { cancelled = true; };
   }, [loading, user, navigate]);
 
   const enterWorkspace = async (id: string) => {

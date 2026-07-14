@@ -33,8 +33,8 @@ export default function LoginPage() {
 
   if (loading) return null;
 
-  // Already logged in (page refresh) → redirect instantly
-  if (user) return <Navigate to="/" replace />;
+  // Already logged in (page refresh) → continue through the workspace hub.
+  if (user) return <Navigate to="/welcome" replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

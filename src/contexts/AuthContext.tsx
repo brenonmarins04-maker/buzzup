@@ -258,10 +258,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email: email.trim().toLowerCase(),
       password,
     });
+    if (!error && data.session) {
+      const signedInUser = data.session.user;
+      setSession(data.session);
+      setUser(signedInUser);
+      currentUserIdRef.current = signedInUser.id;
+      setDisplayName(signedInUser.email ? signedInUser.email.split("@")[0] : "Usuário");
+      setTimeout(() => {
+        fetchDisplayName(signedInUser.id);
+        fetchHub();
+      }, 0);
+    }
     return { error: error as Error | null };
   };
 
