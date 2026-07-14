@@ -206,10 +206,10 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-4 md:space-y-5">
+    <div className="flex flex-col gap-4 md:block md:space-y-5">
       {/* Resumo pessoal, pendências e Gameficação em ordem dinâmica */}
       <div
-        className="grid grid-cols-1 lg:grid-cols-[240px_1fr_minmax(280px,0.6fr)] gap-3 md:gap-4 items-stretch"
+        className="contents md:grid md:grid-cols-1 lg:grid-cols-[240px_1fr_minmax(280px,0.6fr)] md:gap-4 md:items-stretch"
         style={fadeUp(0)}
       >
       {currentPerson && (() => {
@@ -223,7 +223,7 @@ export default function DashboardPage() {
         return (
           <>
             {/* Minhas Demandas */}
-            <div className={`${myDemands.length > 0 ? "order-2" : "order-5"} lg:order-2 glass-panel rounded-2xl p-4 md:p-5 h-full flex flex-col`}>
+            <div className={`${myDemands.length > 0 ? "order-2" : "order-[50]"} md:order-2 glass-panel rounded-2xl p-4 md:p-5 h-full flex flex-col`}>
               <h2 className="text-sm font-semibold text-foreground mb-3 md:mb-4 flex items-center gap-2">
                 <ListChecks className="h-4 w-4 text-primary" /> Minhas Demandas
               </h2>
@@ -293,7 +293,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Formulários */}
-            <div className={`${hasPendingForms ? "order-3" : "order-6"} lg:order-3 h-full`}>
+            <div className={`${hasPendingForms ? "order-3" : "order-[51]"} md:order-3 h-full`}>
               <FormsSection />
             </div>
 
@@ -434,7 +434,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Atalhos gerais */}
-      <div style={fadeUp(2)}><GeneralShortcutsSection /></div>
+      <div className="order-5" style={fadeUp(2)}><GeneralShortcutsSection /></div>
 
       {/* 2 columns */}
       <div className="hidden md:grid grid-cols-1 lg:grid-cols-2 gap-4" style={fadeUp(3)}>

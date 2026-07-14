@@ -30,32 +30,17 @@ type AuthContextType = {
   createWorkspace: (name: string) => Promise<{ ok: boolean; error?: string; workspace?: { id: string; name: string; code: string } }>;
   trashWorkspace: (workspaceId: string) => Promise<{ ok: boolean; error?: string }>;
   restoreWorkspace: (workspaceId: string) => Promise<{ ok: boolean; error?: string }>;
-  signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null; needsConfirmation?: boolean }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   updatePassword: (password: string) => Promise<{ error: Error | null }>;
+  resendConfirmation: (email: string) => Promise<{ error: Error | null }>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 const ACTIVE_WS_KEY = "buzzup.activeWorkspaceId";
-
-function getSignupEndpoint() {
-  if (typeof window === "undefined") return "/api/signup";
-  const isLocalhost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
-  return isLocalhost ? "https://buzzup0.vercel.app/api/signup" : "/api/signup";
-}
-
-async function readJsonSafe(response: Response) {
-  const text = await response.text();
-  if (!text) return {};
-  try {
-    return JSON.parse(text);
-  } catch {
-    return { error: text.slice(0, 200) };
-  }
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -222,24 +207,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string, name: string) => {
     const normalizedEmail = email.trim().toLowerCase();
-    try {
-      const r = await fetch(getSignupEndpoint(), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: normalizedEmail, password, name }),
-      });
-      const data = await readJsonSafe(r);
-      if (!r.ok) {
-        const msg = data?.error === "already_exists"
-          ? "Este e-mail já está cadastrado. Tente fazer login."
-          : (data?.error || "Erro ao criar conta");
-        return { error: new Error(msg) };
+    // Cadastro nativo do Supabase: com "Confirm email" ativo no projeto, o
+    // usuário recebe o link de confirmação (remetente/template configurados
+    // no painel — ver email-setup-buzzup.md) e só entra depois de confirmar.
+    const { data, error } = await supabase.auth.signUp({
+      email: normalizedEmail,
+      password,
+      options: {
+        data: { display_name: name || normalizedEmail.split("@")[0] },
+        emailRedirectTo: `${window.location.origin}/welcome`,
+      },
+    });
+    if (error) {
+      const msg = (error.message || "").toLowerCase();
+      if (msg.includes("already registered") || msg.includes("already exists")) {
+        return { error: new Error("Este e-mail já está cadastrado. Tente fazer login.") };
       }
-      return { error: null };
-    } catch (e: any) {
-      return { error: new Error(e.message || "Erro de conexão") };
+      return { error: error as Error };
     }
+    // Com confirmação ativa, e-mail repetido volta um usuário "fantasma" sem
+    // identities — tratamos como conta existente em vez de reenviar o e-mail.
+    if (data.user && (data.user.identities?.length ?? 0) === 0) {
+      return { error: new Error("Este e-mail já está cadastrado. Tente fazer login.") };
+    }
+    // Sem sessão = precisa confirmar o e-mail antes de entrar
+    return { error: null, needsConfirmation: !data.session };
+  };
 
+  const resendConfirmation = async (email: string) => {
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: email.trim().toLowerCase(),
+      options: { emailRedirectTo: `${window.location.origin}/welcome` },
+    });
+    return { error: error as Error | null };
   };
 
   const signIn = async (email: string, password: string) => {
@@ -349,7 +350,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isOwner: role === "owner",
       isLeader: role === "leader",
       refreshMembership, requestJoinWorkspace, cancelJoinRequest, createWorkspace, trashWorkspace, restoreWorkspace,
-      signUp, signIn, signOut, resetPassword, updatePassword,
+      signUp, signIn, signOut, resetPassword, updatePassword, resendConfirmation,
     }}>
       {children}
     </AuthContext.Provider>

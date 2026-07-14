@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { ArrowRight, Eye, EyeOff, Lock, Mail, User } from "lucide-react";
 
 export default function LoginPage() {
-  const { user, loading, signIn, signUp, resetPassword } = useAuth();
+  const { user, loading, signIn, signUp, resetPassword, resendConfirmation } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [mode, setMode] = useState<"login" | "signup" | "forgot">(
@@ -18,6 +18,7 @@ export default function LoginPage() {
   const [emailConfirmNeeded, setEmailConfirmNeeded] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -42,8 +43,9 @@ export default function LoginPage() {
     if (mode === "signup") {
       if (!name.trim()) { toast.error("Informe seu nome completo"); setSubmitting(false); return; }
       if (password.length < 6) { toast.error("A senha deve ter pelo menos 6 caracteres"); setSubmitting(false); return; }
+      if (password !== confirmPassword) { toast.error("As senhas não coincidem"); setSubmitting(false); return; }
 
-      const { error } = await signUp(email, password, name.trim());
+      const { error, needsConfirmation } = await signUp(email, password, name.trim());
       if (error) {
         const msg = error.message.toLowerCase();
         if (msg.includes("já está cadastrado") || msg.includes("already")) {
@@ -61,16 +63,19 @@ export default function LoginPage() {
         },
       });
 
+      if (needsConfirmation) {
+        // Conta criada — falta confirmar o e-mail antes de entrar
+        setEmailConfirmNeeded(true);
+        setSubmitting(false);
+        return;
+      }
+
+      // Confirmação de e-mail desativada no projeto — entra direto
       const { error: loginErr } = await signIn(email, password);
       if (!loginErr) {
         navigate("/welcome", { replace: true });
       } else {
-        const msg = (loginErr.message || "").toLowerCase();
-        if (msg.includes("email not confirmed") || msg.includes("not_confirmed")) {
-          setEmailConfirmNeeded(true);
-        } else {
-          toast.success("Conta criada! Faça login."); setMode("login");
-        }
+        toast.success("Conta criada! Faça login."); setMode("login");
         setSubmitting(false);
       }
       return;
@@ -108,18 +113,29 @@ export default function LoginPage() {
             <h1 className="text-2xl font-bold text-foreground">Confirme seu e-mail</h1>
             <p className="text-sm text-muted-foreground">
               Enviamos um link de confirmação para <strong>{email}</strong>.
+              Abra o e-mail e clique no botão para ativar sua conta.
+            </p>
+            <p className="text-xs text-muted-foreground/80">
+              Não chegou? Confira a caixa de spam ou reenvie abaixo.
             </p>
           </div>
           <div className="space-y-2">
             <Button variant="outline" className="w-full rounded-2xl" onClick={async () => {
               setSubmitting(true);
-              await signIn(email, password);
-              toast.info("Verifique sua caixa de entrada ou spam.");
+              const { error } = await resendConfirmation(email);
+              if (error) {
+                const m = (error.message || "").toLowerCase();
+                toast.error(m.includes("rate") || m.includes("limit") || m.includes("second")
+                  ? "Aguarde um pouco antes de reenviar de novo."
+                  : "Não foi possível reenviar. Tente novamente.");
+              } else {
+                toast.success("E-mail de confirmação reenviado!");
+              }
               setSubmitting(false);
             }} disabled={submitting}>
               Reenviar e-mail
             </Button>
-            <Button variant="ghost" className="w-full rounded-2xl" onClick={() => { setEmailConfirmNeeded(false); setMode("login"); }}>
+            <Button variant="ghost" className="w-full rounded-2xl" onClick={() => { setEmailConfirmNeeded(false); setMode("login"); setPassword(""); setConfirmPassword(""); }}>
               Voltar ao login
             </Button>
           </div>
@@ -182,6 +198,28 @@ export default function LoginPage() {
             </div>
           )}
 
+          {mode === "signup" && (
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password" className="font-semibold">Confirmar senha</Label>
+              <div className="relative">
+                <Lock className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                  id="confirm-password"
+                  type={showPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className={`h-16 rounded-2xl pl-14 pr-12 text-base bg-[#f5f5f3] ${confirmPassword && confirmPassword !== password ? "border-red-400 focus-visible:ring-red-300" : ""}`}
+                  minLength={6}
+                  required
+                />
+              </div>
+              {confirmPassword && confirmPassword !== password && (
+                <p className="text-[11px] font-medium text-red-500">As senhas não coincidem</p>
+              )}
+            </div>
+          )}
+
           <Button type="submit" className="w-full h-16 rounded-2xl text-base font-bold shadow-2xl shadow-primary/20 hover:-translate-y-0.5 transition-all" disabled={submitting}>
             {submitting ? "Aguarde..."
               : mode === "forgot" ? "Enviar link de recuperação"
@@ -200,6 +238,7 @@ export default function LoginPage() {
                   trackPlatformEvent("signup_cta_click", { metadata: { source: "login_switch" } });
                   setMode("signup");
                   setPassword("");
+                  setConfirmPassword("");
                 }}
                 className="text-primary hover:text-primary/80 font-bold transition-colors"
               >
@@ -208,7 +247,7 @@ export default function LoginPage() {
             </p>
           )}
           {mode === "signup" && (
-            <button onClick={() => { setMode("login"); setPassword(""); }} className="text-muted-foreground hover:text-foreground transition-colors">
+            <button onClick={() => { setMode("login"); setPassword(""); setConfirmPassword(""); }} className="text-muted-foreground hover:text-foreground transition-colors">
               Já tenho conta — entrar
             </button>
           )}
