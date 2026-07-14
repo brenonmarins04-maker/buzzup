@@ -1,61 +1,136 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { CheckCircle2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import {
+  clearStoredRecoverySession,
+  consumeRecoveryResume,
+  refreshStoredRecoverySession,
+  registerRecoveryLinkUse,
+  type RecoveryResumeResult,
+} from "@/lib/recoverySession";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
-import { CheckCircle2 } from "lucide-react";
 
-// Captura o hash do link ANTES de qualquer navegação/limpeza consumir os tokens.
-// (o link de recuperação chega como #access_token=...&refresh_token=...&type=recovery)
+// Captured before Supabase removes the recovery tokens from the URL.
 const INITIAL_HASH = typeof window !== "undefined" ? window.location.hash : "";
+
+type RecoveryStatus = "checking" | "ready" | "invalid" | "expired" | "exhausted";
 
 function tokensFromHash(hash: string) {
   const raw = hash.startsWith("#") ? hash.slice(1) : hash;
-  const p = new URLSearchParams(raw);
+  const params = new URLSearchParams(raw);
   return {
-    access_token: p.get("access_token"),
-    refresh_token: p.get("refresh_token"),
-    type: p.get("type"),
+    accessToken: params.get("access_token"),
+    refreshToken: params.get("refresh_token"),
+    type: params.get("type"),
   };
 }
 
+function isRecoveryAccessToken(token: string) {
+  try {
+    const encoded = token.split(".")[1];
+    if (!encoded) return false;
+    const base64 = encoded.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
+    const bytes = Uint8Array.from(atob(padded), (char) => char.charCodeAt(0));
+    const claims = JSON.parse(new TextDecoder().decode(bytes)) as {
+      amr?: Array<{ method?: string }>;
+    };
+    return claims.amr?.some((entry) => entry.method === "recovery") === true;
+  } catch {
+    return false;
+  }
+}
+
+function statusFromResume(result: RecoveryResumeResult): RecoveryStatus {
+  if (result.status === "available") return "ready";
+  if (result.status === "expired") return "expired";
+  if (result.status === "exhausted") return "exhausted";
+  return "invalid";
+}
+
 export default function ResetPasswordPage() {
-  const { updatePassword, isRecovering, endRecovery, user } = useAuth();
+  const { updatePassword, endRecovery, isRecovering } = useAuth();
   const navigate = useNavigate();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [ready, setReady] = useState(false);
+  const [status, setStatus] = useState<RecoveryStatus>("checking");
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    // Fixa a sessão de recuperação a partir dos tokens do link, de forma
-    // determinística — evita "link expirado" por corrida com a limpeza do hash.
-    const { access_token, refresh_token } = tokensFromHash(INITIAL_HASH);
-    if (access_token && refresh_token) {
-      supabase.auth.setSession({ access_token, refresh_token }).finally(() => setReady(true));
-      return;
-    }
+    let active = true;
 
-    // Sem tokens no hash: pode já ter sido consumido pelo client — confia na
-    // flag global / sessão existente.
-    if (isRecovering || user) { setReady(true); return; }
+    const setActiveStatus = (nextStatus: RecoveryStatus) => {
+      if (active) setStatus(nextStatus);
+    };
 
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("type") === "recovery") { setReady(true); return; }
+    const prepareRecovery = async () => {
+      const hashTokens = tokensFromHash(window.location.hash || INITIAL_HASH);
 
-    // Backup: o client dispara PASSWORD_RECOVERY ao validar o token do hash.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") setReady(true);
-    });
-    return () => subscription.unsubscribe();
-  }, [isRecovering, user]);
+      if (
+        hashTokens.type === "recovery" &&
+        hashTokens.accessToken &&
+        hashTokens.refreshToken
+      ) {
+        const { data, error } = await supabase.auth.setSession({
+          access_token: hashTokens.accessToken,
+          refresh_token: hashTokens.refreshToken,
+        });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+        if (!error && data.session) {
+          const registered = registerRecoveryLinkUse(
+            data.session,
+            hashTokens.refreshToken,
+          );
+          setActiveStatus(statusFromResume(registered));
+          return;
+        }
+      }
+
+      const resume = consumeRecoveryResume();
+      if (resume.status === "available") {
+        const { data, error } = await supabase.auth.setSession({
+          access_token: resume.accessToken,
+          refresh_token: resume.refreshToken,
+        });
+        if (!error && data.session) {
+          refreshStoredRecoverySession(data.session);
+          setActiveStatus("ready");
+          return;
+        }
+        setActiveStatus("invalid");
+        return;
+      }
+      if (resume.status !== "missing") {
+        setActiveStatus(statusFromResume(resume));
+        return;
+      }
+
+      // Supabase may have consumed the URL before this page mounted. In that
+      // case, accept only a session whose verified JWT identifies recovery.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && isRecoveryAccessToken(session.access_token)) {
+        const registered = registerRecoveryLinkUse(session, session.refresh_token);
+        setActiveStatus(statusFromResume(registered));
+        return;
+      }
+
+      setActiveStatus("invalid");
+    };
+
+    void prepareRecovery();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     if (password.length < 6) {
       toast.error("A senha deve ter pelo menos 6 caracteres");
       return;
@@ -64,31 +139,35 @@ export default function ResetPasswordPage() {
       toast.error("As senhas não coincidem");
       return;
     }
+
     setSubmitting(true);
-    // Garante que há uma sessão de recuperação ativa antes de atualizar. Se o
-    // client ainda não fixou, tenta com os tokens do link.
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) {
-      const { access_token, refresh_token } = tokensFromHash(INITIAL_HASH);
-      if (access_token && refresh_token) {
-        await supabase.auth.setSession({ access_token, refresh_token });
-      }
-    }
-    const { error } = await updatePassword(password);
-    if (error) {
-      toast.error("Não foi possível atualizar a senha. Peça um novo link de redefinição — cada link vale por 1 hora e só pode ser usado uma vez.");
+      toast.error("A sessão de recuperação não está mais disponível. Solicite um novo link.");
       setSubmitting(false);
       return;
     }
-    // Senha salva no banco. Desloga a sessão temporária do link e mostra a
-    // confirmação — o usuário volta e faz login normalmente com a nova senha.
+
+    const { error } = await updatePassword(password);
+    if (error) {
+      toast.error("Não foi possível atualizar a senha. Solicite um novo link e tente novamente.");
+      setSubmitting(false);
+      return;
+    }
+
+    clearStoredRecoverySession();
     toast.success("Senha redefinida com sucesso!");
     await endRecovery();
     setDone(true);
     setSubmitting(false);
   };
 
-  // Tela final: senha redefinida, sem ir para lugar nenhum automaticamente
+  const returnToLogin = async () => {
+    clearStoredRecoverySession();
+    if (isRecovering) await endRecovery();
+    navigate("/login", { replace: true });
+  };
+
   if (done) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -99,7 +178,7 @@ export default function ResetPasswordPage() {
           <div className="space-y-2">
             <h1 className="text-2xl font-bold text-foreground tracking-tight">Senha redefinida!</h1>
             <p className="text-sm text-muted-foreground">
-              Sua nova senha já está salva. Volte ao login e entre normalmente com ela.
+              Sua senha já está salva. Volte ao login e entre normalmente com ela.
             </p>
           </div>
           <Button className="w-full rounded-2xl" onClick={() => navigate("/login", { replace: true })}>
@@ -110,15 +189,30 @@ export default function ResetPasswordPage() {
     );
   }
 
-  if (!ready) {
+  if (status === "checking") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <div className="text-center space-y-4">
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          Validando sua recuperação...
+        </div>
+      </div>
+    );
+  }
+
+  if (status !== "ready") {
+    const message = status === "exhausted"
+      ? "Esta recuperação já foi retomada 10 vezes neste navegador. Solicite um novo link."
+      : status === "expired"
+        ? "Esta recuperação expirou. Solicite um novo link para continuar."
+        : "Use o link mais recente enviado por e-mail para redefinir sua senha.";
+
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="w-full max-w-sm text-center space-y-4">
           <h1 className="text-xl font-bold text-foreground">Link inválido ou expirado</h1>
-          <p className="text-sm text-muted-foreground">
-            Use o link enviado por e-mail para redefinir sua senha. Links expiram em 1 hora.
-          </p>
-          <Button onClick={() => navigate("/login")}>Voltar ao login</Button>
+          <p className="text-sm text-muted-foreground">{message}</p>
+          <Button onClick={() => void returnToLogin()}>Voltar ao login</Button>
         </div>
       </div>
     );
@@ -138,8 +232,9 @@ export default function ResetPasswordPage() {
               id="password"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(event) => setPassword(event.target.value)}
               placeholder="Mínimo 6 caracteres"
+              autoComplete="new-password"
               required
               minLength={6}
             />
@@ -150,8 +245,9 @@ export default function ResetPasswordPage() {
               id="confirm"
               type="password"
               value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
+              onChange={(event) => setConfirm(event.target.value)}
               placeholder="Repita a nova senha"
+              autoComplete="new-password"
               required
               minLength={6}
             />
@@ -160,6 +256,10 @@ export default function ResetPasswordPage() {
             {submitting ? "Aguarde..." : "Atualizar senha"}
           </Button>
         </form>
+        <p className="text-center text-xs leading-relaxed text-muted-foreground">
+          Após o primeiro acesso, esta recuperação pode ser retomada até 10 vezes neste navegador,
+          dentro do prazo de 1 hora.
+        </p>
       </div>
     </div>
   );

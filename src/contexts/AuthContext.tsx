@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useRef, type ReactNode 
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
+import { hasStoredRecoverySession } from "@/lib/recoverySession";
 
 export type WorkspaceRole = "owner" | "admin" | "leader" | "member";
 export type MyWorkspace = { workspace_id: string; name: string; code: string; role: WorkspaceRole; created_at: string };
@@ -56,7 +57,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (typeof window === "undefined") return false;
     const hash = window.location.hash || "";
     const query = window.location.search || "";
-    return hash.includes("type=recovery") || new URLSearchParams(query).get("type") === "recovery";
+    return hash.includes("type=recovery") ||
+      new URLSearchParams(query).get("type") === "recovery" ||
+      hasStoredRecoverySession();
   });
   const currentUserIdRef = useRef<string | null>(null);
   const [myWorkspaces, setMyWorkspaces] = useState<MyWorkspace[]>([]);
@@ -289,15 +292,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const updatePassword = async (password: string) => {
+    const { data: { session: recoverySession } } = await supabase.auth.getSession();
     const { error } = await supabase.auth.updateUser({ password });
-    return { error: error as Error | null };
+    if (!error) return { error: null };
+
+    const authError = error as Error & { code?: string };
+    const isSamePassword =
+      authError.code === "same_password" ||
+      authError.message.toLowerCase().includes("different from the old password");
+    if (!isSamePassword || !recoverySession?.access_token) {
+      return { error: authError };
+    }
+
+    try {
+      const response = await fetch("/api/reset-password", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${recoverySession.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ password }),
+      });
+      if (!response.ok) {
+        return { error: new Error("Não foi possível regravar a senha atual.") };
+      }
+      return { error: null };
+    } catch {
+      return { error: new Error("Não foi possível conectar ao serviço de redefinição.") };
+    }
   };
 
   // Encerra o fluxo de recuperação: desloga a sessão temporária do link e
   // limpa a flag, para o usuário fazer login normalmente com a senha nova.
   const endRecovery = async () => {
     setIsRecovering(false);
-    await supabase.auth.signOut();
+    setActiveWorkspaceId(null);
+    await supabase.auth.signOut({ scope: "local" });
+    setSession(null);
+    setUser(null);
+    currentUserIdRef.current = null;
   };
 
   const refreshMembership = async () => { await fetchHub(); };
