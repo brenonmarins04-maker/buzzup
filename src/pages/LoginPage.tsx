@@ -7,9 +7,15 @@ import { Label } from "@/components/ui/label";
 import { trackPlatformEvent } from "@/lib/platformAnalytics";
 import { toast } from "sonner";
 import { ArrowRight, Eye, EyeOff, Lock, Mail, User } from "lucide-react";
+import SocialAuthButtons from "@/components/auth/SocialAuthButtons";
+import {
+  SOCIAL_AUTH_LABELS,
+  SocialAuthProviderDisabledError,
+  type SocialAuthProvider,
+} from "@/lib/socialAuth";
 
 export default function LoginPage() {
-  const { user, loading, signIn, signUp, resetPassword, resendConfirmation } = useAuth();
+  const { user, loading, signIn, signInWithProvider, signUp, resetPassword, resendConfirmation } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [mode, setMode] = useState<"login" | "signup" | "forgot">(
@@ -22,6 +28,7 @@ export default function LoginPage() {
   const [name, setName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [oauthProvider, setOauthProvider] = useState<SocialAuthProvider | null>(null);
   // Contagem regressiva (em tempo real) para liberar o reenvio do e-mail
   const [resendIn, setResendIn] = useState(0);
 
@@ -35,6 +42,27 @@ export default function LoginPage() {
 
   // Already logged in (page refresh) → continue through the workspace hub.
   if (user) return <Navigate to="/welcome" replace />;
+
+  const handleSocialSignIn = async (provider: SocialAuthProvider) => {
+    if (oauthProvider || submitting) return;
+    setOauthProvider(provider);
+    void trackPlatformEvent("social_auth_started", {
+      metadata: { provider, mode },
+    });
+
+    const { error } = await signInWithProvider(provider);
+    if (!error) return;
+
+    const providerName = SOCIAL_AUTH_LABELS[provider];
+    const message = error.message.toLowerCase();
+    if (error instanceof SocialAuthProviderDisabledError
+      || (message.includes("provider") && (message.includes("enabled") || message.includes("unsupported")))) {
+      toast.error(`Entrar com ${providerName} ainda precisa ser ativado no Supabase.`);
+    } else {
+      toast.error(`Não foi possível entrar com ${providerName}. Tente novamente.`);
+    }
+    setOauthProvider(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -187,12 +215,23 @@ export default function LoginPage() {
     : "Bem-vindo de volta. Acesse sua conta para continuar.";
 
   return (
-    <div className="h-full flex items-center justify-center px-6 py-10 md:px-12 bg-accent lg:bg-white overflow-y-auto">
+    <div className="h-full flex items-start lg:items-center justify-center px-6 py-10 md:px-12 bg-accent lg:bg-white overflow-y-auto">
       <div className="w-full max-w-md lg:bg-transparent bg-white/70 lg:p-0 p-6 rounded-3xl lg:rounded-none lg:shadow-none shadow-xl shadow-primary/10 border border-primary/10 lg:border-0">
         <div className="mb-9">
           <h2 className="text-3xl md:text-4xl font-extrabold text-foreground tracking-tight">{title}</h2>
           <p className="text-base text-muted-foreground mt-3">{subtitle}</p>
         </div>
+
+        {mode !== "forgot" && (
+          <div className="mb-5">
+            <SocialAuthButtons
+              action={mode === "signup" ? "signup" : "login"}
+              disabled={submitting}
+              loadingProvider={oauthProvider}
+              onSelect={(provider) => void handleSocialSignIn(provider)}
+            />
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           {mode === "signup" && (
@@ -256,7 +295,7 @@ export default function LoginPage() {
             </div>
           )}
 
-          <Button type="submit" className="w-full h-16 rounded-2xl text-base font-bold shadow-2xl shadow-primary/20 hover:-translate-y-0.5 transition-all" disabled={submitting}>
+          <Button type="submit" className="w-full h-16 rounded-2xl text-base font-bold shadow-2xl shadow-primary/20 hover:-translate-y-0.5 transition-all" disabled={submitting || oauthProvider !== null}>
             {submitting ? "Aguarde..."
               : mode === "forgot" ? "Enviar link de recuperação"
               : mode === "signup" ? "Criar conta"

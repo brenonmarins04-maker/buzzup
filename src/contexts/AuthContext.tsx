@@ -8,6 +8,11 @@ import {
   loadAuthHubSnapshot,
   type HubRpcClient,
 } from "@/lib/authHub";
+import {
+  ensureSocialAuthProviderEnabled,
+  getSocialAuthRedirectUrl,
+  type SocialAuthProvider,
+} from "@/lib/socialAuth";
 
 export type WorkspaceRole = "owner" | "admin" | "leader" | "member";
 export type MyWorkspace = { workspace_id: string; name: string; code: string; role: WorkspaceRole; created_at: string };
@@ -41,6 +46,7 @@ type AuthContextType = {
   restoreWorkspace: (workspaceId: string) => Promise<{ ok: boolean; error?: string }>;
   signUp: (email: string, password: string, name: string) => Promise<{ error: Error | null; needsConfirmation?: boolean }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signInWithProvider: (provider: SocialAuthProvider) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   updatePassword: (password: string) => Promise<{ error: Error | null }>;
@@ -60,7 +66,10 @@ type UntypedRpc = (
   name: string,
   args?: Record<string, unknown>,
 ) => PromiseLike<UntypedRpcResult>;
-const untypedRpc = supabase.rpc as unknown as UntypedRpc;
+// Keep the Supabase client as the method receiver. Detaching `supabase.rpc`
+// makes the SDK lose `this.rest`, breaking every authenticated hub request.
+const untypedRpc: UntypedRpc = (name, args) =>
+  supabase.rpc(name as never, args as never) as unknown as PromiseLike<UntypedRpcResult>;
 const authHubClient: HubRpcClient = {
   rpc: (name) => untypedRpc(name),
 };
@@ -295,9 +304,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // otherwise fall back to the email prefix so stale placeholders like "teste" don't appear.
     const { data: { user: authUser } } = await supabase.auth.getUser();
     const metadata = authUser?.user_metadata as Record<string, unknown> | undefined;
-    const metaName = typeof metadata?.display_name === "string"
-      ? metadata.display_name.trim()
-      : undefined;
+    const metaName = [metadata?.display_name, metadata?.full_name, metadata?.name]
+      .find((value): value is string => typeof value === "string" && value.trim().length > 0)
+      ?.trim();
     const email = authUser?.email || "";
     const isPlaceholderName = !!metaName && /^(teste|test|usu[aá]rio|user)$/i.test(metaName);
     const finalName = metaName && !isPlaceholderName ? metaName : (email ? email.split("@")[0] : "Usuário");
@@ -373,6 +382,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       void fetchDisplayName(signedInUser.id);
       await fetchHub(signedInUser.id);
     }
+    return { error: error as Error | null };
+  };
+
+  const signInWithProvider = async (provider: SocialAuthProvider) => {
+    try {
+      await ensureSocialAuthProviderEnabled(provider);
+    } catch (error) {
+      return { error: error as Error };
+    }
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: getSocialAuthRedirectUrl(window.location.origin),
+      },
+    });
     return { error: error as Error | null };
   };
 
@@ -512,7 +537,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isOwner: role === "owner",
       isLeader: role === "leader",
       refreshMembership, requestJoinWorkspace, cancelJoinRequest, createWorkspace, trashWorkspace, restoreWorkspace,
-      signUp, signIn, signOut, resetPassword, updatePassword, resendConfirmation,
+      signUp, signIn, signInWithProvider, signOut, resetPassword, updatePassword, resendConfirmation,
       isRecovering, endRecovery,
     }}>
       {children}
