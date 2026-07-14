@@ -13,13 +13,14 @@ import { toast } from "sonner";
 import {
   KeyRound, ArrowRight, ArrowLeft, LogOut, Building2,
   Clock, CheckCircle2, XCircle, Crown, Shield, User as UserIcon,
-  Plus, X, Trash2, RotateCcw,
+  Plus, X, Trash2, RotateCcw, Loader2, AlertCircle, RefreshCw,
 } from "lucide-react";
 
 export default function WelcomePage() {
   const {
     user, loading, displayName,
     myWorkspaces, trashedWorkspaces, myJoinRequests,
+    hubStatus, hubError, refreshHub,
     setActiveWorkspaceId,
     createWorkspace, requestJoinWorkspace, cancelJoinRequest,
     trashWorkspace, restoreWorkspace,
@@ -52,6 +53,10 @@ export default function WelcomePage() {
 
     return () => { cancelled = true; };
   }, [loading, user, navigate]);
+
+  useEffect(() => {
+    if (!loading && user && hubStatus === "idle") void refreshHub();
+  }, [hubStatus, loading, refreshHub, user]);
 
   const enterWorkspace = async (id: string) => {
     trackPlatformEvent("workspace_entered", {
@@ -181,12 +186,27 @@ export default function WelcomePage() {
                 Meus Workspaces
               </h2>
               <span className="text-[10px] text-muted-foreground bg-muted rounded-full px-2 py-0.5 leading-none font-semibold">
-                {myWorkspaces.length}
+                {hubStatus === "ready" ? myWorkspaces.length : "—"}
               </span>
             </div>
 
             {/* Workspace cards */}
-            {myWorkspaces.length === 0 ? (
+            {hubStatus === "loading" || hubStatus === "idle" ? (
+              <div style={fadeUp(1)} className="rounded-3xl border border-border bg-white p-10 text-center">
+                <Loader2 className="h-8 w-8 text-primary mx-auto mb-3 animate-spin" />
+                <p className="text-sm font-medium text-foreground">Carregando seus workspaces...</p>
+                <p className="text-xs text-muted-foreground mt-1">Estamos validando sua sessão com segurança.</p>
+              </div>
+            ) : hubStatus === "error" ? (
+              <div style={fadeUp(1)} className="rounded-3xl border border-amber-200 bg-amber-50 p-8 text-center">
+                <AlertCircle className="h-9 w-9 text-amber-600 mx-auto mb-3" />
+                <p className="text-sm font-semibold text-foreground">Não conseguimos carregar seus workspaces agora.</p>
+                <p className="text-xs text-muted-foreground mt-1.5">{hubError}</p>
+                <Button type="button" variant="outline" className="mt-4 rounded-xl" onClick={() => void refreshHub()}>
+                  <RefreshCw className="h-4 w-4 mr-2" /> Tentar novamente
+                </Button>
+              </div>
+            ) : myWorkspaces.length === 0 ? (
               <div style={fadeUp(1)} className="rounded-3xl border border-dashed border-border bg-white p-10 text-center">
                 <Building2 className="h-10 w-10 text-muted-foreground/25 mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">Você ainda não participa de nenhum workspace.</p>
