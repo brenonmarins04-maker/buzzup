@@ -153,6 +153,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [broadcastModal, setBroadcastModal] = useState(false);
   const [editAreasModal, setEditAreasModal] = useState(false);
   const [createTeamModal, setCreateTeamModal] = useState(false);
+  const [areasMenuOpen, setAreasMenuOpen] = useState(false);
 
   // Nav items stagger: triggers after sidebar entrance animation is mostly done
   const [navIn, setNavIn] = useState(false);
@@ -286,7 +287,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             }
             if (item.to === "areas") {
               return (
-                <Popover key="areas">
+                <Popover key="areas" open={areasMenuOpen} onOpenChange={setAreasMenuOpen}>
                   <PopoverTrigger asChild>
                     <button className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-md text-[10px] font-medium transition-colors min-w-0 text-muted-foreground">
                       <item.icon className="h-5 w-5 shrink-0" />
@@ -303,6 +304,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                           const overdue = overdueByScope[`team_${team.id}`] || 0;
                           return (
                             <NavLink key={team.id} to={`/time/${team.id}`}
+                              onClick={() => setAreasMenuOpen(false)}
                               style={({ isActive }) => isActive
                                 ? { backgroundColor: `${tc}1F`, color: tc }
                                 : { color: tc }}
@@ -321,6 +323,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       const overdue = overdueByScope[a.key] || 0;
                       return (
                         <NavLink key={a.to} to={a.to}
+                          onClick={() => setAreasMenuOpen(false)}
                           style={({ isActive }) => isActive
                             ? { backgroundColor: `${a.color}1F`, color: a.color }
                             : { color: a.color }}
