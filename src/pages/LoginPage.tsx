@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,14 @@ export default function LoginPage() {
   const [name, setName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  // Contagem regressiva (em tempo real) para liberar o reenvio do e-mail
+  const [resendIn, setResendIn] = useState(0);
+
+  useEffect(() => {
+    if (!emailConfirmNeeded || resendIn <= 0) return;
+    const t = setTimeout(() => setResendIn(s => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [emailConfirmNeeded, resendIn]);
 
   if (loading) return null;
 
@@ -64,8 +72,10 @@ export default function LoginPage() {
       });
 
       if (needsConfirmation) {
-        // Conta criada — falta confirmar o e-mail antes de entrar
+        // Conta criada — falta confirmar o e-mail antes de entrar.
+        // O cadastro acabou de disparar um e-mail, então o reenvio começa travado.
         setEmailConfirmNeeded(true);
+        setResendIn(60);
         setSubmitting(false);
         return;
       }
@@ -86,6 +96,7 @@ export default function LoginPage() {
       const msg = error.message.toLowerCase();
       if (msg.includes("email not confirmed")) {
         setEmailConfirmNeeded(true);
+        setResendIn(0); // aqui não acabamos de enviar nada — pode reenviar já
         toast.error("Confirme seu e-mail antes de entrar.");
       } else if (msg.includes("invalid") || msg.includes("wrong") || msg.includes("credentials")) {
         toast.error("E-mail ou senha incorretos.");
@@ -113,27 +124,52 @@ export default function LoginPage() {
             <h1 className="text-2xl font-bold text-foreground">Confirme seu e-mail</h1>
             <p className="text-sm text-muted-foreground">
               Enviamos um link de confirmação para <strong>{email}</strong>.
-              Abra o e-mail e clique no botão para ativar sua conta.
+              Abra o e-mail, clique no link e depois volte aqui e toque em
+              <strong> "Confirmei meu e-mail"</strong>.
             </p>
             <p className="text-xs text-muted-foreground/80">
               Não chegou? Confira a caixa de spam ou reenvie abaixo.
             </p>
           </div>
           <div className="space-y-2">
+            {/* Já cliquei no link do e-mail → verifica e entra na conta */}
+            <Button className="w-full rounded-2xl h-12 font-bold" onClick={async () => {
+              setSubmitting(true);
+              const { error } = await signIn(email, password);
+              if (!error) {
+                navigate("/welcome", { replace: true });
+                return;
+              }
+              const m = (error.message || "").toLowerCase();
+              if (m.includes("not confirmed")) {
+                toast.info("Ainda não identificamos a confirmação. Abra o e-mail e clique no link primeiro.");
+              } else if (m.includes("invalid") || m.includes("credentials")) {
+                toast.error("Não deu para entrar automaticamente. Volte ao login e entre com seu e-mail e senha.");
+              } else {
+                toast.error("Erro ao verificar. Tente novamente.");
+              }
+              setSubmitting(false);
+            }} disabled={submitting}>
+              Confirmei meu e-mail
+            </Button>
             <Button variant="outline" className="w-full rounded-2xl" onClick={async () => {
               setSubmitting(true);
               const { error } = await resendConfirmation(email);
               if (error) {
                 const m = (error.message || "").toLowerCase();
-                toast.error(m.includes("rate") || m.includes("limit") || m.includes("second")
-                  ? "Aguarde um pouco antes de reenviar de novo."
-                  : "Não foi possível reenviar. Tente novamente.");
+                if (m.includes("rate") || m.includes("limit") || m.includes("second")) {
+                  toast.error("Aguarde um pouco antes de reenviar de novo.");
+                  setResendIn(60);
+                } else {
+                  toast.error("Não foi possível reenviar. Tente novamente.");
+                }
               } else {
                 toast.success("E-mail de confirmação reenviado!");
+                setResendIn(60);
               }
               setSubmitting(false);
-            }} disabled={submitting}>
-              Reenviar e-mail
+            }} disabled={submitting || resendIn > 0}>
+              {resendIn > 0 ? `Reenviar e-mail em ${resendIn}s` : "Reenviar e-mail"}
             </Button>
             <Button variant="ghost" className="w-full rounded-2xl" onClick={() => { setEmailConfirmNeeded(false); setMode("login"); setPassword(""); setConfirmPassword(""); }}>
               Voltar ao login

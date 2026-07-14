@@ -19,6 +19,7 @@ import AreaPage from "./pages/AreaPage";
 import TeamAreaPage from "./pages/TeamAreaPage";
 import LoginPage from "./pages/LoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import EmailConfirmedPage from "./pages/EmailConfirmedPage";
 import WelcomePage from "./pages/WelcomePage";
 import LandingPage from "./pages/LandingPage";
 import AreasTeamsPage from "./pages/AreasTeamsPage";
@@ -93,6 +94,8 @@ const App = () => (
               <Route path="/welcome" element={<WelcomePage />} />
             </Route>
             <Route path="/reset-password" element={<ResetPasswordPage />} />
+            {/* Destino do link de confirmação de e-mail do cadastro */}
+            <Route path="/email-confirmado" element={<EmailConfirmedPage />} />
             <Route element={<ProtectedApp />}>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/calendar" element={<CalendarPage />} />

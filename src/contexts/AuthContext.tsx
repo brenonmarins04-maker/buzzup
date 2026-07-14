@@ -227,7 +227,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       options: {
         data: { display_name: name || normalizedEmail.split("@")[0] },
-        emailRedirectTo: `${window.location.origin}/welcome`,
+        // O link do e-mail abre a página "E-mail confirmado" (não entra direto
+        // no app) — de lá a pessoa vai ao login ou volta ao outro dispositivo.
+        emailRedirectTo: `${window.location.origin}/email-confirmado`,
       },
     });
     if (error) {
@@ -250,7 +252,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.resend({
       type: "signup",
       email: email.trim().toLowerCase(),
-      options: { emailRedirectTo: `${window.location.origin}/welcome` },
+      options: { emailRedirectTo: `${window.location.origin}/email-confirmado` },
     });
     return { error: error as Error | null };
   };

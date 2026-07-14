@@ -52,9 +52,13 @@ Nunca deixe abaixo de 600.
 
 **Authentication → URL Configuration**:
 - Site URL: `https://buzzup0.vercel.app`
-- Redirect URLs (adicionar):
+- Redirect URLs (adicionar TODAS — sem a de `/email-confirmado` o link de
+  confirmação cai na raiz e entra direto no app, em vez de mostrar a tela
+  "E-mail confirmado"):
+  - `https://buzzup0.vercel.app/email-confirmado`
   - `https://buzzup0.vercel.app/welcome`
   - `https://buzzup0.vercel.app/reset-password`
+  - `http://localhost:8080/email-confirmado`
   - `http://localhost:8080/welcome`
   - `http://localhost:8080/reset-password`
 
