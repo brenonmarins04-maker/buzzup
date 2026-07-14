@@ -8,6 +8,20 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { CheckCircle2 } from "lucide-react";
 
+// Captura o hash do link ANTES de qualquer navegação/limpeza consumir os tokens.
+// (o link de recuperação chega como #access_token=...&refresh_token=...&type=recovery)
+const INITIAL_HASH = typeof window !== "undefined" ? window.location.hash : "";
+
+function tokensFromHash(hash: string) {
+  const raw = hash.startsWith("#") ? hash.slice(1) : hash;
+  const p = new URLSearchParams(raw);
+  return {
+    access_token: p.get("access_token"),
+    refresh_token: p.get("refresh_token"),
+    type: p.get("type"),
+  };
+}
+
 export default function ResetPasswordPage() {
   const { updatePassword, isRecovering, endRecovery, user } = useAuth();
   const navigate = useNavigate();
@@ -18,16 +32,20 @@ export default function ResetPasswordPage() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    // A flag global já captura o type=recovery de forma síncrona; se há sessão
-    // de recuperação ou usuário logado via link, libera o formulário.
-    if (isRecovering || user) { setReady(true); return; }
-
-    const hash = window.location.hash;
-    const params = new URLSearchParams(window.location.search);
-    if (hash.includes("type=recovery") || params.get("type") === "recovery") {
-      setReady(true);
+    // Fixa a sessão de recuperação a partir dos tokens do link, de forma
+    // determinística — evita "link expirado" por corrida com a limpeza do hash.
+    const { access_token, refresh_token } = tokensFromHash(INITIAL_HASH);
+    if (access_token && refresh_token) {
+      supabase.auth.setSession({ access_token, refresh_token }).finally(() => setReady(true));
       return;
     }
+
+    // Sem tokens no hash: pode já ter sido consumido pelo client — confia na
+    // flag global / sessão existente.
+    if (isRecovering || user) { setReady(true); return; }
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("type") === "recovery") { setReady(true); return; }
 
     // Backup: o client dispara PASSWORD_RECOVERY ao validar o token do hash.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
@@ -47,9 +65,18 @@ export default function ResetPasswordPage() {
       return;
     }
     setSubmitting(true);
+    // Garante que há uma sessão de recuperação ativa antes de atualizar. Se o
+    // client ainda não fixou, tenta com os tokens do link.
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      const { access_token, refresh_token } = tokensFromHash(INITIAL_HASH);
+      if (access_token && refresh_token) {
+        await supabase.auth.setSession({ access_token, refresh_token });
+      }
+    }
     const { error } = await updatePassword(password);
     if (error) {
-      toast.error("Não foi possível atualizar a senha. O link pode ter expirado.");
+      toast.error("Não foi possível atualizar a senha. Peça um novo link de redefinição — cada link vale por 1 hora e só pode ser usado uma vez.");
       setSubmitting(false);
       return;
     }

@@ -68,7 +68,9 @@ const RecoveryGate = () => {
   const { isRecovering } = useAuth();
   const location = useLocation();
   if (isRecovering && location.pathname !== "/reset-password") {
-    return <Navigate to="/reset-password" replace />;
+    // Preserva o hash/query (onde vêm os tokens do link) ao redirecionar, para
+    // a sessão de recuperação não se perder se o link cair na raiz.
+    return <Navigate to={`/reset-password${location.search}${location.hash}`} replace />;
   }
   return null;
 };

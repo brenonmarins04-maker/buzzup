@@ -32,6 +32,22 @@ Recomendação: **Resend** (grátis até 3.000 e-mails/mês) ou Brevo.
 > está lendo isso depois do push) e o SMTP configurado — senão o e-mail sai do
 > remetente padrão do Supabase.
 
+## 2b) Tempo de validade do link (deixe em pelo menos 10 minutos)
+
+O link de confirmação/redefinição vale pelo tempo do **Email OTP Expiration**.
+Em **Authentication → Sign In / Providers → Email** (role até "Email OTP
+Expiration"), deixe **3600** (1 hora, padrão) ou no mínimo **600** (10 min).
+Nunca deixe abaixo de 600.
+
+> Se aparecer "link expirado" mesmo com tempo alto, quase sempre é uma destas
+> causas — e não o tempo:
+> - **O link já foi usado.** Cada link vale UMA vez. Peça um novo "esqueci a
+>   senha"; use sempre o e-mail mais recente.
+> - **Antivírus/varredura de e-mail abriu o link antes de você** (comum em
+>   e-mail corporativo/Outlook), consumindo o token. Abra o link num navegador
+>   normal, ou peça um novo e clique rápido.
+> - Você testou com um link antigo de antes do último deploy.
+
 ## 3) URLs de redirecionamento
 
 **Authentication → URL Configuration**:
