@@ -20,13 +20,13 @@ export default function PointsEarnedBanner() {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: -80, opacity: 0 }}
           transition={{ duration: 0.35, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="fixed top-3 left-1/2 -translate-x-1/2 z-[100] w-[calc(100%-1.5rem)] max-w-sm px-2"
+          className="fixed inset-x-3 top-[calc(env(safe-area-inset-top)+0.75rem)] z-[100] mx-auto max-w-sm"
         >
           <div className="flex items-center gap-3 rounded-2xl bg-primary text-primary-foreground shadow-2xl shadow-primary/30 px-4 py-3">
             <div className="h-9 w-9 rounded-full bg-white/20 flex items-center justify-center shrink-0">
               <Trophy className="h-4 w-4" />
             </div>
-            <p className="flex-1 text-sm font-medium leading-snug">
+            <p className="min-w-0 flex-1 text-sm font-medium leading-snug">
               Desde a última vez que entrou por aqui, você ganhou{" "}
               <span className="font-extrabold">{pointsEarnedNotice} ponto{pointsEarnedNotice > 1 ? "s" : ""}</span>! Parabéns! 🎉
             </p>
@@ -34,6 +34,7 @@ export default function PointsEarnedBanner() {
               onClick={dismissPointsEarnedNotice}
               className="shrink-0 p-1 rounded-full hover:bg-white/15 transition-colors"
               title="Fechar"
+              aria-label="Fechar notificação de pontos"
             >
               <X className="h-4 w-4" />
             </button>

@@ -57,10 +57,10 @@ export default function AuthLayout() {
                 transition={{ duration: 0.22, ease: "easeOut" }}
               >
                 <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight leading-[0.98] text-white">
-                  Gestão de times,<br />sem nenhum ruído.
+                  Gestão fácil,<br />sem dor de cabeça.
                 </h1>
                 <p className="mt-6 text-lg leading-relaxed text-white/84">
-                  Workspaces, pedidos e demandas em um só lugar, feito para assessores e diretores que precisam de clareza.
+                  Organizador, Gameficação automática, visualizador de demandas, tudo bonitinho e fácil de ver.
                 </p>
               </motion.div>
             ) : (

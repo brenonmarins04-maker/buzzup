@@ -131,7 +131,7 @@ export default function LoginPage() {
   const title = mode === "forgot" ? "Recuperar senha" : mode === "signup" ? "Criar conta" : "Entrar";
   const subtitle = mode === "forgot"
     ? "Informe seu e-mail para receber o link de recuperação."
-    : mode === "signup" ? "Crie sua conta para entrar no workspace."
+    : mode === "signup" ? "Crie sua conta para criar ou entrar em um workspace."
     : "Bem-vindo de volta. Acesse sua conta para continuar.";
 
   return (

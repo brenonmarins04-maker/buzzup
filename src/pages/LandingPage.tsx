@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackPlatformEvent } from "@/lib/platformAnalytics";
 import BrandLogo from "@/components/BrandLogo";
@@ -48,7 +48,9 @@ export default function LandingPage() {
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
-    const els = Array.from(root.querySelectorAll<HTMLElement>(".reveal"));
+    const els = Array.from(root.querySelectorAll<HTMLElement>(".reveal")).filter(
+      (el) => el.classList.contains("section-slide") || !el.closest(".section-slide")
+    );
     if (!("IntersectionObserver" in window)) {
       els.forEach((el) => el.classList.add("in"));
       return;
@@ -94,9 +96,6 @@ export default function LandingPage() {
     };
   }, [navigate, signupTransition]);
 
-  // Logged-in users skip the landing
-  if (!loading && user) return <Navigate to="/" replace />;
-
   const goTo = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     setMenuOpen(false);
@@ -124,8 +123,8 @@ export default function LandingPage() {
           </a>
           <nav className={`nav-links${menuOpen ? " open" : ""}`} aria-label="Principal">
             <a href="#recursos" onClick={(e) => goTo(e, "recursos")}>Como funciona</a>
-            <a href="#ranking" onClick={(e) => goTo(e, "ranking")}>Ranking</a>
-            <a href="#planos" onClick={(e) => goTo(e, "planos")}>Planos</a>
+            <a href="#ranking" onClick={(e) => goTo(e, "ranking")}>Gameficação</a>
+            <a href="#planos" onClick={(e) => goTo(e, "planos")}>Grátis vitalício</a>
           </nav>
           <Link className="btn btn-login-link nav-login" to="/login">
             Entrar
@@ -175,7 +174,7 @@ export default function LandingPage() {
                     <div className="app-card-title" style={{ color: "#00B4D8" }}>Minhas Demandas</div>
                     <div className="app-demand">
                       <div className="d-area">MARKETING</div>
-                      <div className="d-title">Post de recrutamento</div>
+                      <div className="d-title">Post no insta</div>
                       <div className="d-meta"><span className="d-date">02/07</span><span className="d-chip">● Em andamento</span></div>
                       <div className="d-done">✓ Marcar como concluída</div>
                     </div>
@@ -203,7 +202,7 @@ export default function LandingPage() {
         </section>
 
         <section className="sec-soft pad">
-          <div className="wrap center">
+          <div className="wrap center reveal section-slide slide-right">
             <h2 className="reveal mx">Toda gestão começa do zero.</h2>
             <p className="lead reveal mx" style={{ color: "var(--muted)", marginTop: 14 }}>As demandas moram no WhatsApp. O planejamento numa planilha que ninguém abre. Aí chega a reunião semanal e o diretor vira cobrador — não gestor.</p>
             <div className="pain-grid">
@@ -216,53 +215,53 @@ export default function LandingPage() {
         </section>
 
         <section className="sec-blue pad">
-          <div className="wrap split">
+          <div className="wrap split reveal section-slide slide-left">
             <div>
-              <span className="eyebrow on-blue reveal">Para a base</span>
-              <h2 className="reveal">Tudo que importa cabe na palma da mão.</h2>
-              <p className="lead reveal" style={{ color: "rgba(255,255,255,.88)", marginTop: 14 }}>Seus membros abrem o celular e veem na hora, de forma simples, o que precisam entregar na semana — e onde estão no ranking de quem mais faz acontecer.</p>
-              <p className="lead reveal" style={{ color: "rgba(255,255,255,.88)", marginTop: 12 }}>Nada de grupo de WhatsApp caótico ou "não sabia que era comigo". Clareza total para a base e competição saudável para todo mundo.</p>
+              <span className="eyebrow on-blue reveal">Feito para sua gestão</span>
+              <h2 className="reveal">Tudo que importa, de um jeito fácil de ver.</h2>
+              <p className="lead reveal" style={{ color: "rgba(255,255,255,.88)", marginTop: 14 }}>Seus membros <strong>abrem o celular</strong> e veem <strong>na hora</strong>, de forma simples, o que precisam entregar na semana.</p>
+              <p className="lead reveal" style={{ color: "rgba(255,255,255,.88)", marginTop: 12 }}>Nada de grupo de WhatsApp caótico ou "não sabia que tinha que fazer", como não? Estava no BuzzUp!</p>
             </div>
             <div className="phone reveal" aria-hidden="true">
               <div style={{ fontSize: 12, color: "rgba(255,255,255,.78)", marginBottom: 10 }}>Minhas demandas</div>
-              <div className="demand" style={{ borderColor: "var(--area-mkt)" }}><div className="cat" style={{ color: "#993C1D" }}>Marketing</div><div className="ttl">Post de recrutamento</div></div>
-              <div className="demand" style={{ borderColor: "var(--area-geral)" }}><div className="cat" style={{ color: "#0C447C" }}>Geral</div><div className="ttl">Ata da reunião</div></div>
-              <div className="demand" style={{ borderColor: "var(--area-fin)", marginBottom: 0 }}><div className="cat" style={{ color: "#0F6E56" }}>Financeiro</div><div className="ttl">Fechar caixa</div></div>
+              <div className="demand" style={{ borderColor: "var(--area-mkt)" }}><div className="cat" style={{ color: "#993C1D" }}>Marketing</div><div className="ttl">Post no insta</div></div>
+              <div className="demand" style={{ borderColor: "var(--area-geral)" }}><div className="cat" style={{ color: "#0C447C" }}>Geral</div><div className="ttl">Terminar ata</div></div>
+              <div className="demand" style={{ borderColor: "var(--area-fin)", marginBottom: 0 }}><div className="cat" style={{ color: "#0F6E56" }}>Financeiro</div><div className="ttl">fechar fluxo de caixa</div></div>
             </div>
           </div>
         </section>
 
         <section className="pad" id="recursos">
-          <div className="wrap center">
+          <div className="wrap center reveal section-slide slide-right">
             <span className="eyebrow on-light reveal">Como funciona</span>
             <h2 className="reveal mx">Uma plataforma. A entidade inteira em sincronia.</h2>
             <div className="feat-grid">
               <div className="feat reveal">
-                <div className="ic" style={{ background: "rgba(0,180,216,.12)", color: "#00B4D8" }}>☰</div>
-                <h3>Demandas arrastáveis</h3>
-                <p>A diretoria distribui e reorganiza tarefas entre áreas e pessoas arrastando, direto do computador.</p>
-              </div>
-              <div className="feat reveal">
                 <div className="ic" style={{ background: "rgba(239,159,39,.12)", color: "#BA7517" }}>★</div>
-                <h3>Ranking de quem faz mais</h3>
-                <p>Cada tarefa vira ponto. O ranking semanal transforma entrega em competição saudável.</p>
+                <h3>Gameficação automática</h3>
+                <p>Cada demanda vira ponto. O ranking da empresa mostra quem realmente faz.</p>
               </div>
               <div className="feat reveal">
                 <div className="ic" style={{ background: "rgba(16,185,129,.12)", color: "#0F6E56" }}>▣</div>
                 <h3>Calendário integrado</h3>
-                <p>Demandas, publicações e eventos de todas as áreas num só calendário visual.</p>
+                <p>Calendário do marketing, reuniões marcadas, todo mundo vê, mais organização visual.</p>
+              </div>
+              <div className="feat reveal">
+                <div className="ic" style={{ background: "rgba(0,180,216,.12)", color: "#00B4D8" }}>☰</div>
+                <h3>Demandas arrastáveis</h3>
+                <p>Visualize a sobrecarga da sua equipe, balanceie as tarefas.</p>
               </div>
               <div className="feat reveal">
                 <div className="ic" style={{ background: "rgba(139,92,246,.12)", color: "#6D28D9" }}>▧</div>
-                <h3>Áreas que se conversam</h3>
-                <p>Marketing, Projetos, Gestão e Financeiro finalmente enxergam o que cada um está fazendo.</p>
+                <h3>Conexão entre áreas.</h3>
+                <p>As áreas da sua entidade vão se conectar ao perceber quais são as demandas da empresa.</p>
               </div>
             </div>
           </div>
         </section>
 
         <section className="sec-soft pad" id="ranking">
-          <div className="wrap split rev">
+          <div className="wrap split rev reveal section-slide slide-left">
             <div className="rankcard-light reveal" aria-hidden="true">
               <div style={{ fontSize: 12, color: "var(--muted)", fontWeight: 600, marginBottom: 12 }}>🏆 Ranking da semana</div>
               <div className="rankrow"><span className="pos" style={{ background: "#EF9F27" }}>1</span><span style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>Duda</span><span className="pts">340 pts</span></div>
@@ -277,73 +276,49 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section className="sec-blue pad">
-          <div className="wrap center">
-            <span className="eyebrow on-blue reveal">Cresçam juntas</span>
-            <h2 className="reveal mx">Recomende uma entidade. Ganhem 30 dias juntas.</h2>
-            <p className="lead reveal mx" style={{ color: "rgba(255,255,255,.86)", marginTop: 14 }}>A melhor forma de organizar sua entidade é ter todo mundo dentro. A segunda é fazer isso valer mais 30 dias grátis — pra você e pra quem indicar.</p>
+        <section className="sec-blue pad" id="planos">
+          <div className="wrap center reveal section-slide slide-right">
+            <span className="eyebrow on-blue reveal">Free forever</span>
+            <h2 className="reveal mx">Entre até 30 de setembro. Use o BuzzUp para sempre.</h2>
+            <p className="lead reveal mx" style={{ color: "rgba(255,255,255,.86)", marginTop: 14 }}>Estamos abrindo o BuzzUp para as entidades que querem organizar a gestão de verdade. Quem chegar primeiro entra sem pagar e permanece com tudo liberado.</p>
             <div className="steps">
-              <div className="step reveal"><div className="num">1</div><div className="ic" aria-hidden="true">✉</div><h3>Indique uma entidade</h3><p>Aquela EJ, atlética ou liga amiga.</p></div>
-              <div className="step reveal"><div className="num">2</div><div className="ic" aria-hidden="true">👥</div><h3>Ela ativa 15 membros</h3><p>Time no ar no workspace dela.</p></div>
-              <div className="step reveal"><div className="num">3</div><div className="ic" aria-hidden="true">🎁</div><h3>+30 dias pra vocês dois</h3><p>Todo mundo sai no lucro.</p></div>
+              <div className="step reveal"><div className="num">1</div><div className="ic" aria-hidden="true">⏱</div><h3>Crie sua conta até 30/09</h3><p>O prazo termina em 30 de setembro de 2026, às 23:59.</p></div>
+              <div className="step reveal"><div className="num">2</div><div className="ic" aria-hidden="true">∞</div><h3>Garanta acesso vitalício</h3><p>Todas as funcionalidades do BuzzUp, sem mensalidade e sem cartão.</p></div>
+              <div className="step reveal"><div className="num">3</div><div className="ic" aria-hidden="true">→</div><h3>Depois de 1º de outubro</h3><p>Novas contas terão limites. Quem chegou antes continua com tudo liberado.</p></div>
             </div>
-          </div>
-        </section>
-
-        <section className="pad" id="planos">
-          <div className="wrap center">
-            <span className="eyebrow on-light reveal">Planos</span>
-            <h2 className="reveal mx">Comece grátis. Cresça de graça.</h2>
-            <div className="price-grid">
-              <div className="price feat-price reveal">
-                <div className="k">Plano completo</div>
-                <div className="big">3 meses grátis</div>
-                <p>Tudo liberado, sem cartão. Válido para toda entidade que entrar até o final de 2026.</p>
-                <Link
-                  className="btn btn-solid"
-                  to={SIGNUP}
-                  onClick={(e) => startSignupTransition(e, "landing_pricing")}
-                  style={{ width: "100%", justifyContent: "center" }}
-                >
-                  Criar minha entidade
-                </Link>
-              </div>
-              <div className="price reveal">
-                <div className="k">Bônus por indicação</div>
-                <div className="big">+30 dias grátis</div>
-                <p>Indique uma entidade. Quando ela tiver 15 membros no workspace dela, vocês dois ganham 30 dias.</p>
-                <div className="chk"><span aria-hidden="true" style={{ color: "#639922" }}>✓</span> Acumulável a cada indicação</div>
-              </div>
+            <div className="reveal" style={{ marginTop: 30 }}>
+              <Link className="btn btn-white pulse" to={SIGNUP} onClick={(e) => startSignupTransition(e, "landing_lifetime")}>
+                Garantir acesso vitalício <span aria-hidden="true">→</span>
+              </Link>
             </div>
           </div>
         </section>
 
         <section className="sec-soft pad" id="faq">
-          <div className="wrap center">
+          <div className="wrap center reveal section-slide slide-left">
             <span className="eyebrow on-light reveal">Dúvidas</span>
             <h2 className="reveal mx">Perguntas frequentes</h2>
             <div className="faq">
-              <details className="reveal"><summary>É realmente de graça? <span className="plus" aria-hidden="true">+</span></summary><p>Sim. Toda entidade que entrar até o final de 2026 ganha 3 meses no plano completo, sem cartão de crédito.</p></details>
-              <details className="reveal"><summary>Minha entidade é pequena, vale a pena? <span className="plus" aria-hidden="true">+</span></summary><p>Vale. O BuzzUp funciona pra qualquer tamanho — de um núcleo de 5 pessoas a uma entidade com dezenas de membros e várias áreas.</p></details>
-              <details className="reveal"><summary>Como funcionam os +30 dias grátis? <span className="plus" aria-hidden="true">+</span></summary><p>Indique outra entidade. Quando ela colocar 15 membros no workspace dela, as duas ganham 30 dias grátis. É acumulável a cada indicação.</p></details>
-              <details className="reveal"><summary>Precisa instalar alguma coisa? <span className="plus" aria-hidden="true">+</span></summary><p>Não. Funciona direto no navegador do computador e do celular. A diretoria organiza no PC e a base acompanha pelo celular.</p></details>
+              <details className="reveal"><summary>É realmente de graça? <span className="plus" aria-hidden="true">+</span></summary><p>Sim, você não paga absolutamente nada se criar uma conta até 30 de setembro de 2026, às 23:59. Se você criar uma conta até esse horário, terá acesso vitalício ao BuzzUp e a todas as funcionalidades.</p></details>
+              <details className="reveal"><summary>Quantas pessoas o BuzzUp consegue organizar? <span className="plus" aria-hidden="true">+</span></summary><p>O recomendado é para entidades de 10 até 50 membros. Menos que isso é exagero de organização e, mais que isso, vira bagunça.</p></details>
+              <details className="reveal"><summary>Precisa instalar alguma coisa? <span className="plus" aria-hidden="true">+</span></summary><p>Não. Funciona direto no navegador do computador e do celular. A diretoria organiza no PC e a gestão acompanha pelo celular.</p></details>
               <details className="reveal"><summary>Meus dados ficam seguros? <span className="plus" aria-hidden="true">+</span></summary><p>Cada entidade tem um espaço isolado. Só quem você convida com o código consegue ver e participar.</p></details>
-              <details className="reveal"><summary>O que acontece quando a gestão troca? <span className="plus" aria-hidden="true">+</span></summary><p>Tudo fica registrado: demandas, áreas, histórico e ranking. A próxima gestão herda um legado organizado — não uma bagunça.</p></details>
+              <details className="reveal"><summary>O que acontece quando a gestão troca? <span className="plus" aria-hidden="true">+</span></summary><p>Tudo fica registrado: demandas, áreas, histórico e ranking. A próxima gestão herdará organização, não bagunça.</p></details>
             </div>
           </div>
         </section>
 
         <section className="sec-blue pad final">
-          <div className="wrap center">
+          <div className="wrap center reveal section-slide slide-right">
             <h2 className="reveal mx">Sua próxima gestão pode herdar um legado — não uma bagunça.</h2>
-            <p className="lead reveal mx" style={{ color: "rgba(255,255,255,.86)", marginTop: 14 }}>Coloque sua entidade no ritmo certo hoje. Leva 5 minutos e os primeiros 3 meses são por nossa conta.</p>
+            <p className="lead reveal mx" style={{ color: "rgba(255,255,255,.86)", marginTop: 14 }}>Crie sua conta até 30 de setembro de 2026, às 23:59, e garanta acesso vitalício ao BuzzUp.</p>
             <div className="reveal" style={{ marginTop: 30 }}>
               <Link
-                className="btn btn-white"
+                className="btn btn-white pulse"
                 to={SIGNUP}
                 onClick={(e) => startSignupTransition(e, "landing_final")}
               >
-                Criar minha entidade grátis <span aria-hidden="true">→</span>
+                Garantir acesso vitalício <span aria-hidden="true">→</span>
               </Link>
             </div>
           </div>
@@ -365,12 +340,12 @@ export default function LandingPage() {
 
 function PromoMarquee() {
   return (
-    <div className="announce" aria-label="3 meses de graça sem cartão">
+    <div className="announce" aria-label="Free forever">
       <div className="announce-track">
         {[0, 1].map((group) => (
           <div className="announce-group" key={group}>
             {Array.from({ length: 6 }).map((_, i) => (
-              <span key={`${group}-${i}`}>3 MESES DE GRAÇA - SEM CARTÃO</span>
+              <span key={`${group}-${i}`}>FREE FOREVER</span>
             ))}
           </div>
         ))}
@@ -392,7 +367,7 @@ function SignupTransitionOverlay() {
                 <p className="signup-mini-label">Minhas Demandas</p>
                 <div className="signup-mini-task">
                   <span>MARKETING</span>
-                  <strong>Post de recrutamento</strong>
+                  <strong>Post no insta</strong>
                   <small>02/07</small>
                 </div>
               </div>

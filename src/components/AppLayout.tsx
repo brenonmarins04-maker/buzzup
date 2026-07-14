@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { NavLink, useNavigate, useLocation } from "react-router-dom";
+import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   CalendarDays, Megaphone,
-  FolderKanban, Bell, Search, ChevronLeft, ChevronDown, Plus, Users, LogOut, Eye, Shield, Briefcase, Crown, Sparkles, Home, UsersRound, Pencil, Settings, BarChart2, Trophy, ExternalLink,
+  FolderKanban, Bell, Search, ChevronLeft, ChevronDown, Plus, Users, Eye, Shield, Briefcase, Crown, Sparkles, Home, UsersRound, Pencil, Settings, BarChart2, Trophy, ExternalLink,
 } from "lucide-react";
 import { useMemo } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -76,7 +76,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return map;
   }, [parkingItems]);
   // `teams` = todos os times do workspace (para detectar workspace sem times)
-  const { displayName, signOut, isAdmin, isOwner, role, user, myWorkspaces, activeWorkspaceId } = useAuth();
+  const { displayName, isAdmin, isOwner, role, user, myWorkspaces, activeWorkspaceId } = useAuth();
 
   // Find teams the current user belongs to
   // Uses ALL person records linked to this user (guards against duplicate person rows)
@@ -194,17 +194,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (isMobile) {
     return (
-      <div className="flex flex-col min-h-screen bg-background">
+      <div className="workspace-app-background flex flex-col min-h-screen">
         <PointsEarnedBanner />
         <header className="h-12 px-4 flex items-center justify-between border-b border-border glass-header shrink-0 sticky top-0 z-30">
-          <div className="flex items-center gap-2 min-w-0">
+          <Link
+            to="/welcome"
+            className="flex items-center gap-2 min-w-0 transition-opacity hover:opacity-80"
+            aria-label="Voltar para a seleção de workspaces"
+          >
             <BrandLogo markClassName="h-7 w-7" textClassName="text-base text-foreground" />
-          </div>
+          </Link>
           <div className="flex items-center gap-1.5 shrink-0">
             <RoleBadge />
-            <button onClick={() => navigate("/welcome")} title="Trocar workspace" className="p-2 rounded-md hover:bg-accent text-muted-foreground">
-              <Home className="h-4 w-4" />
-            </button>
             <button onClick={() => navigate("/settings")} title="Menu" className="relative p-2 rounded-md hover:bg-accent text-muted-foreground">
               <Settings className="h-4 w-4" />
               {pendingJoinCount > 0 && (
@@ -212,9 +213,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
                 </span>
               )}
-            </button>
-            <button onClick={() => signOut()} className="p-2 rounded-md hover:bg-accent text-muted-foreground">
-              <LogOut className="h-4 w-4" />
             </button>
           </div>
         </header>
@@ -367,7 +365,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   });
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="workspace-app-background flex h-screen overflow-hidden">
       <PointsEarnedBanner />
       <motion.aside
         className={`${collapsed ? "w-16" : "w-60"} workspace-blue-panel shrink-0 flex flex-col transition-[width] duration-200 overflow-hidden`}
@@ -375,7 +373,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         animate={{ opacity: 1, x: 0 }}
       >
         <div className="h-14 px-4 flex items-center justify-between border-b border-white/10 shrink-0">
-          {!collapsed && <BrandLogo markClassName="h-9 w-9" textClassName="text-lg text-white" />}
+          {!collapsed && (
+            <Link
+              to="/welcome"
+              className="transition-opacity hover:opacity-80"
+              aria-label="Voltar para a seleção de workspaces"
+            >
+              <BrandLogo markClassName="h-9 w-9" textClassName="text-lg text-white" />
+            </Link>
+          )}
           <button onClick={() => setCollapsed(!collapsed)} className="p-1 rounded hover:bg-white/10 transition-colors text-white/60 hover:text-white">
             <ChevronLeft className={`h-4 w-4 transition-transform ${collapsed ? "rotate-180" : ""}`} />
           </button>
@@ -603,16 +609,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <div className="flex flex-col min-w-0 flex-1">
                 <span className="text-sm font-medium text-white truncate">{fullName}</span>
               </div>
-            )}
-            {!collapsed && (
-              <>
-                <button onClick={() => navigate("/welcome")} className="p-1 rounded hover:bg-white/10 text-white/60 hover:text-white transition-colors" title="Trocar workspace">
-                  <Home className="h-4 w-4" />
-                </button>
-                <button onClick={() => signOut()} className="p-1 rounded hover:bg-white/10 text-white/60 hover:text-white transition-colors" title="Sair">
-                  <LogOut className="h-4 w-4" />
-                </button>
-              </>
             )}
           </div>
         </div>

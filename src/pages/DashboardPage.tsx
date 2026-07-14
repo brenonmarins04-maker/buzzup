@@ -48,7 +48,7 @@ function resolveDemandScope(areaKey: string, teams: TeamLike[]) {
 }
 
 export default function DashboardPage() {
-  const { people, tasks, projects, events, broadcasts, gamificationAwards, parkingItems, teams, updateParkingItem, loading } = useData();
+  const { people, tasks, projects, events, broadcasts, gamificationAwards, parkingItems, teams, forms, formCompletions, updateParkingItem, loading } = useData();
   const { user } = useAuth();
   const today = getNowBrasilia();
 
@@ -71,6 +71,33 @@ export default function DashboardPage() {
         return 0;
       });
   }, [currentPerson, parkingItems]);
+
+  const hasPendingForms = useMemo(() => {
+    if (!user) return false;
+
+    const myPersonIds = new Set(people.filter(person => person.userId === user.id).map(person => person.id));
+    const myAreas = new Set<string>();
+    people
+      .filter(person => myPersonIds.has(person.id))
+      .forEach(person => (person.areas || []).forEach(area => myAreas.add(area)));
+    const myTeamIds = new Set(
+      teams
+        .filter(team => team.memberIds.some(personId => myPersonIds.has(personId)))
+        .map(team => team.id),
+    );
+    const completedFormIds = new Set(
+      formCompletions
+        .filter(completion => completion.userId === user.id)
+        .map(completion => completion.formId),
+    );
+
+    return forms.some(form => {
+      const isEligible = form.targetType === "all"
+        || (form.targetType === "area" && !!form.targetValue && myAreas.has(form.targetValue))
+        || (form.targetType === "team" && !!form.targetValue && myTeamIds.has(form.targetValue));
+      return isEligible && !completedFormIds.has(form.id);
+    });
+  }, [formCompletions, forms, people, teams, user]);
   const weekEnd = endOfWeek(today, { weekStartsOn: 0 });
   const todayStr = format(today, "yyyy-MM-dd");
   const weekEndStr = format(weekEnd, "yyyy-MM-dd");
@@ -180,8 +207,11 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-4 md:space-y-5">
-      {/* Minhas Demandas + Meus Pontos */}
-      <div style={fadeUp(0)}>
+      {/* Resumo pessoal, pendências e Gameficação em ordem dinâmica */}
+      <div
+        className="grid grid-cols-1 lg:grid-cols-[240px_1fr_minmax(280px,0.6fr)] gap-3 md:gap-4 items-stretch"
+        style={fadeUp(0)}
+      >
       {currentPerson && (() => {
         const myNickname = (currentPerson.nickname && currentPerson.nickname.trim())
           ? currentPerson.nickname.trim()
@@ -191,9 +221,9 @@ export default function DashboardPage() {
         const myRankLabel = myRankPos === 0 ? "🥇 1º lugar" : myRankPos === 1 ? "🥈 2º lugar" : myRankPos === 2 ? "🥉 3º lugar" : myRankPos >= 0 ? `${myRankPos + 1}º lugar` : "—";
 
         return (
-          <div className="grid grid-cols-1 lg:grid-cols-[240px_1fr_minmax(280px,0.6fr)] gap-3 md:gap-4 items-stretch">
+          <>
             {/* Minhas Demandas */}
-            <div className="order-2 lg:order-2 glass-panel rounded-2xl p-4 md:p-5 h-full flex flex-col">
+            <div className={`${myDemands.length > 0 ? "order-2" : "order-5"} lg:order-2 glass-panel rounded-2xl p-4 md:p-5 h-full flex flex-col`}>
               <h2 className="text-sm font-semibold text-foreground mb-3 md:mb-4 flex items-center gap-2">
                 <ListChecks className="h-4 w-4 text-primary" /> Minhas Demandas
               </h2>
@@ -263,12 +293,12 @@ export default function DashboardPage() {
             </div>
 
             {/* Formulários */}
-            <div className="order-3 lg:order-3 h-full">
+            <div className={`${hasPendingForms ? "order-3" : "order-6"} lg:order-3 h-full`}>
               <FormsSection />
             </div>
 
             {/* Meus Pontos (Gameficação) */}
-            <div className="order-1 lg:order-1 glass-panel rounded-2xl p-4 md:p-5 h-full flex flex-col justify-center gap-3 md:gap-4">
+            <div className="order-1 glass-panel rounded-2xl p-4 md:p-5 h-full flex flex-col justify-center gap-3 md:gap-4">
               {/* Trophy icon */}
               <div className="flex items-center gap-3 md:flex-col md:text-center">
                 <div className="h-12 w-12 md:h-14 md:w-14 rounded-full flex items-center justify-center bg-gradient-to-br from-yellow-400/30 to-orange-400/20 border-2 border-yellow-400/40 shrink-0">
@@ -298,13 +328,12 @@ export default function DashboardPage() {
               {/* Rank */}
               <p className="hidden md:block text-xs font-semibold text-muted-foreground text-center">{myRankLabel} no ranking</p>
             </div>
-          </div>
+          </>
         );
       })()}
-      </div>
 
       {/* Ranking */}
-      <div className="glass-panel rounded-2xl p-5" style={fadeUp(1)}>
+      <div className="order-4 lg:order-4 lg:col-span-3 glass-panel rounded-2xl p-5">
         <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
           <Trophy className="h-4 w-4 text-[#F97316]" /> Gameficação
         </h2>
@@ -401,6 +430,7 @@ export default function DashboardPage() {
             </div>
           );
         })()}
+      </div>
       </div>
 
       {/* Atalhos gerais */}
