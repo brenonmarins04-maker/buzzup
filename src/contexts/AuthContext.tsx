@@ -112,13 +112,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!hubLoadedRef.current) setHubStatus("loading");
     setHubError(null);
 
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    // Sessões recém-criadas (link de confirmação, login logo após confirmar)
+    // podem demorar alguns instantes para o client persistir — tenta algumas
+    // vezes antes de acusar sessão inválida, senão conta nova vê erro à toa.
+    let sessionValid = false;
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (
+        requestId !== hubRequestIdRef.current
+        || currentUserIdRef.current !== expectedUserId
+      ) return false;
+      if (!sessionError && sessionData.session?.user.id === expectedUserId) {
+        sessionValid = true;
+        break;
+      }
+      await new Promise(r => setTimeout(r, 250));
+    }
     if (
       requestId !== hubRequestIdRef.current
       || currentUserIdRef.current !== expectedUserId
     ) return false;
 
-    if (sessionError || sessionData.session?.user.id !== expectedUserId) {
+    if (!sessionValid) {
       if (!hubLoadedRef.current) setHubStatus("error");
       setHubError("Sua sessão não pôde ser validada. Tente carregar novamente.");
       return false;

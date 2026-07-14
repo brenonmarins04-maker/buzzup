@@ -22,44 +22,38 @@ function hashInfo(hash: string) {
 export default function EmailConfirmedPage() {
   const navigate = useNavigate();
   const [{ hasToken, error }] = useState(() => hashInfo(INITIAL_HASH));
-  const [status, setStatus] = useState<"checking" | "ok" | "error">(error ? "error" : "checking");
   const [leaving, setLeaving] = useState(false);
+  // Ao abrir o link, o e-mail JÁ foi confirmado no servidor. A sessão criada
+  // pelo link fica viva nesta aba — ela só é usada se a pessoa clicar em
+  // "Entrar na sua conta". Ninguém é redirecionado automaticamente.
+  const ok = hasToken && !error;
 
+  // Se o usuário já tinha sessão (ex.: hash consumido antes do mount), ainda
+  // consideramos confirmado — o servidor não gera sessão sem confirmar.
+  const [sessionOk, setSessionOk] = useState(false);
   useEffect(() => {
-    if (error) { setStatus("error"); return; }
-    let cancelled = false;
-    (async () => {
-      // Ao abrir o link, o e-mail JÁ foi confirmado no servidor do Supabase.
-      // Aguardamos o token virar sessão e então DESLOGAMOS essa sessão criada
-      // automaticamente — assim a pessoa não entra sozinha; ela precisa voltar
-      // ao login e digitar a senha. Deslogar não desfaz a confirmação.
-      for (let i = 0; i < 8; i++) {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) break;
-        await new Promise(r => setTimeout(r, 250));
-      }
-      try { await supabase.auth.signOut(); } catch { /* ignore */ }
-      if (!cancelled) setStatus(hasToken ? "ok" : "error");
-    })();
-    return () => { cancelled = true; };
-  }, [hasToken, error]);
+    if (ok || error) return;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setSessionOk(true);
+    });
+  }, [ok, error]);
 
-  // Botão verde: garante o logout mais uma vez e leva ao login (entrada manual)
-  const goToLogin = async () => {
+  const confirmed = ok || sessionOk;
+
+  // Botão verde: entra na conta usando a sessão do link → seleção de workspaces.
+  const enterAccount = async () => {
     setLeaving(true);
-    try { await supabase.auth.signOut(); } catch { /* ignore */ }
+    // Aguarda o client terminar de fixar a sessão do link (alguns instantes)
+    for (let i = 0; i < 10; i++) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) { navigate("/welcome", { replace: true }); return; }
+      await new Promise(r => setTimeout(r, 250));
+    }
+    // Sem sessão (link antigo/consumido) — segue para o login manual
     navigate("/login", { replace: true });
   };
 
-  if (status === "checking") {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
-      </div>
-    );
-  }
-
-  if (status === "error") {
+  if (!confirmed) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="w-full max-w-sm text-center space-y-5">
@@ -93,16 +87,16 @@ export default function EmailConfirmedPage() {
         <div className="space-y-2">
           <h1 className="text-2xl font-bold text-foreground tracking-tight">E-mail confirmado! ✅</h1>
           <p className="text-sm text-muted-foreground">
-            Sua conta está ativa. Agora é só voltar para a tela de login e entrar
-            com o seu e-mail e a sua senha.
+            Sua conta está ativa. Entre por aqui — ou volte para a tela onde
+            estava criando a conta e toque em <strong>"Confirmei meu e-mail"</strong>.
           </p>
         </div>
         <Button
-          onClick={goToLogin}
+          onClick={enterAccount}
           disabled={leaving}
           className="w-full rounded-2xl h-12 font-bold bg-emerald-500 hover:bg-emerald-600 text-white border-0"
         >
-          {leaving ? "Aguarde…" : "Voltar para o login"}
+          {leaving ? "Entrando…" : "Entrar na sua conta"}
         </Button>
       </div>
     </div>

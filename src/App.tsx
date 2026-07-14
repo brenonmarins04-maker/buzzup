@@ -76,6 +76,23 @@ const RecoveryGate = () => {
   return null;
 };
 
+// Hash capturado no boot do app — antes de o client do Supabase processar os
+// tokens e limpar a URL. Se o link de confirmação de cadastro cair em qualquer
+// rota (ex.: raiz, quando o redirect_to não está na allow-list), este gate
+// leva para a página "E-mail confirmado" em vez de entrar direto no app.
+const BOOT_HASH = typeof window !== "undefined" ? window.location.hash : "";
+const isSignupLanding = BOOT_HASH.includes("access_token") && BOOT_HASH.includes("type=signup");
+let signupLandingHandled = false;
+
+const SignupConfirmGate = () => {
+  const location = useLocation();
+  if (isSignupLanding && !signupLandingHandled && location.pathname !== "/email-confirmado") {
+    signupLandingHandled = true;
+    return <Navigate to={`/email-confirmado${BOOT_HASH}`} replace />;
+  }
+  return null;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -85,6 +102,7 @@ const App = () => (
         <AuthTransitionProvider>
         <BrowserRouter>
           <RecoveryGate />
+          <SignupConfirmGate />
           <Routes>
             {/* Landing pública — primeira coisa que o visitante vê (antes de criar conta) */}
             <Route path="/home" element={<LandingPage />} />
