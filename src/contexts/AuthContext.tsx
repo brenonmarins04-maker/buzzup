@@ -36,6 +36,8 @@ type AuthContextType = {
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   updatePassword: (password: string) => Promise<{ error: Error | null }>;
   resendConfirmation: (email: string) => Promise<{ error: Error | null }>;
+  isRecovering: boolean;
+  endRecovery: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -47,6 +49,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [displayName, setDisplayName] = useState("");
+  // Fluxo de recuperação de senha: capturado de forma síncrona no primeiro
+  // render (antes do client do Supabase limpar o hash da URL). Enquanto true,
+  // o app força a tela /reset-password e NÃO leva o usuário para o workspace.
+  const [isRecovering, setIsRecovering] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    const hash = window.location.hash || "";
+    const query = window.location.search || "";
+    return hash.includes("type=recovery") || new URLSearchParams(query).get("type") === "recovery";
+  });
   const currentUserIdRef = useRef<string | null>(null);
   const [myWorkspaces, setMyWorkspaces] = useState<MyWorkspace[]>([]);
   const [trashedWorkspaces, setTrashedWorkspaces] = useState<MyTrashedWorkspace[]>([]);
@@ -129,6 +140,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (_event === "PASSWORD_RECOVERY") setIsRecovering(true);
       setSession(session);
       setUser(session?.user ?? null);
       currentUserIdRef.current = session?.user?.id ?? null;
@@ -268,6 +280,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   };
 
+  // Encerra o fluxo de recuperação: desloga a sessão temporária do link e
+  // limpa a flag, para o usuário fazer login normalmente com a senha nova.
+  const endRecovery = async () => {
+    setIsRecovering(false);
+    await supabase.auth.signOut();
+  };
+
   const refreshMembership = async () => { await fetchHub(); };
   const refreshHub = async () => { await fetchHub(); };
 
@@ -351,6 +370,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isLeader: role === "leader",
       refreshMembership, requestJoinWorkspace, cancelJoinRequest, createWorkspace, trashWorkspace, restoreWorkspace,
       signUp, signIn, signOut, resetPassword, updatePassword, resendConfirmation,
+      isRecovering, endRecovery,
     }}>
       {children}
     </AuthContext.Provider>

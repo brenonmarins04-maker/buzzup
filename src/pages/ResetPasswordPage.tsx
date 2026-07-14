@@ -6,17 +6,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { CheckCircle2 } from "lucide-react";
 
 export default function ResetPasswordPage() {
-  const { updatePassword } = useAuth();
+  const { updatePassword, isRecovering, endRecovery, user } = useAuth();
   const navigate = useNavigate();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [ready, setReady] = useState(false);
+  const [done, setDone] = useState(false);
 
   useEffect(() => {
-    // Check URL immediately (hash-based flow)
+    // A flag global já captura o type=recovery de forma síncrona; se há sessão
+    // de recuperação ou usuário logado via link, libera o formulário.
+    if (isRecovering || user) { setReady(true); return; }
+
     const hash = window.location.hash;
     const params = new URLSearchParams(window.location.search);
     if (hash.includes("type=recovery") || params.get("type") === "recovery") {
@@ -24,16 +29,12 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    // Listen for the PASSWORD_RECOVERY event — the Supabase client parses
-    // the URL hash and fires this when the recovery token is valid.
+    // Backup: o client dispara PASSWORD_RECOVERY ao validar o token do hash.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
-        setReady(true);
-      }
+      if (event === "PASSWORD_RECOVERY") setReady(true);
     });
-
     return () => subscription.unsubscribe();
-  }, []);
+  }, [isRecovering, user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,12 +50,38 @@ export default function ResetPasswordPage() {
     const { error } = await updatePassword(password);
     if (error) {
       toast.error("Não foi possível atualizar a senha. O link pode ter expirado.");
-    } else {
-      toast.success("Senha atualizada com sucesso!");
-      navigate("/");
+      setSubmitting(false);
+      return;
     }
+    // Senha salva no banco. Desloga a sessão temporária do link e mostra a
+    // confirmação — o usuário volta e faz login normalmente com a nova senha.
+    toast.success("Senha redefinida com sucesso!");
+    await endRecovery();
+    setDone(true);
     setSubmitting(false);
   };
+
+  // Tela final: senha redefinida, sem ir para lugar nenhum automaticamente
+  if (done) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="w-full max-w-sm text-center space-y-5">
+          <div className="h-16 w-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center mx-auto">
+            <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">Senha redefinida!</h1>
+            <p className="text-sm text-muted-foreground">
+              Sua nova senha já está salva. Volte ao login e entre normalmente com ela.
+            </p>
+          </div>
+          <Button className="w-full rounded-2xl" onClick={() => navigate("/login", { replace: true })}>
+            Ir para o login
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (!ready) {
     return (

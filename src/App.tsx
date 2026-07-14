@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Outlet, useParams } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Outlet, Navigate, useParams, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -60,6 +61,18 @@ const AreaRoute = () => {
   return <AreaPage key={area} area={area as AreaSlug} />;
 };
 
+// Durante a recuperação de senha o link do e-mail cria uma sessão temporária.
+// Sem este guard, o app trataria como login normal e levaria ao workspace.
+// Ele força a tela de redefinição até a senha ser trocada.
+const RecoveryGate = () => {
+  const { isRecovering } = useAuth();
+  const location = useLocation();
+  if (isRecovering && location.pathname !== "/reset-password") {
+    return <Navigate to="/reset-password" replace />;
+  }
+  return null;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -68,6 +81,7 @@ const App = () => (
         <ResponsiveSonner />
         <AuthTransitionProvider>
         <BrowserRouter>
+          <RecoveryGate />
           <Routes>
             {/* Landing pública — primeira coisa que o visitante vê (antes de criar conta) */}
             <Route path="/home" element={<LandingPage />} />
