@@ -1,11 +1,8 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import LoginPage from "@/pages/LoginPage";
-import {
-  getSocialAuthRedirectUrl,
-  SocialAuthProviderDisabledError,
-} from "@/lib/socialAuth";
+import { getSocialAuthRedirectUrl } from "@/lib/socialAuth";
 
 const mocks = vi.hoisted(() => ({
   signInWithProvider: vi.fn(async () => ({ error: null as Error | null })),
@@ -52,50 +49,34 @@ describe("social authentication", () => {
       .toBe("https://usebuzzup.com.br/welcome");
   });
 
-  it("starts Google login from the login screen", async () => {
+  it("mostra só o Google no login e dispara o OAuth ao clicar", () => {
     render(
       <MemoryRouter initialEntries={["/login"]}>
         <LoginPage />
       </MemoryRouter>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Entrar com Google" }));
+    const googleButton = screen.getByRole("button", { name: /Entrar com Google/ });
+    expect(googleButton).toBeEnabled();
+    expect(screen.queryByText(/Apple/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Manutenção/)).not.toBeInTheDocument();
 
-    await waitFor(() => {
-      expect(mocks.signInWithProvider).toHaveBeenCalledWith("google");
-    });
-    expect(mocks.signUp).not.toHaveBeenCalled();
+    fireEvent.click(googleButton);
+    expect(mocks.signInWithProvider).toHaveBeenCalledWith("google");
   });
 
-  it("offers Google and Apple directly on the create-account screen", () => {
+  it("mostra só o Google na tela de criar conta", () => {
     render(
       <MemoryRouter initialEntries={["/login?mode=signup"]}>
         <LoginPage />
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole("button", { name: "Criar conta com Google" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Criar conta com Apple" })).toBeInTheDocument();
-    expect(screen.queryByText("Confirme seu e-mail")).not.toBeInTheDocument();
-  });
+    const googleButton = screen.getByRole("button", { name: /Criar conta com Google/ });
+    expect(googleButton).toBeEnabled();
+    expect(screen.queryByText(/Apple/)).not.toBeInTheDocument();
 
-  it("explains when a provider still needs Supabase configuration", async () => {
-    mocks.signInWithProvider.mockResolvedValue({
-      error: new SocialAuthProviderDisabledError("apple"),
-    });
-
-    render(
-      <MemoryRouter initialEntries={["/login"]}>
-        <LoginPage />
-      </MemoryRouter>,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Entrar com Apple" }));
-
-    await waitFor(() => {
-      expect(mocks.toastError).toHaveBeenCalledWith(
-        "Entrar com Apple ainda precisa ser ativado no Supabase.",
-      );
-    });
+    fireEvent.click(googleButton);
+    expect(mocks.signInWithProvider).toHaveBeenCalledWith("google");
   });
 });

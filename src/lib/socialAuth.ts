@@ -3,13 +3,14 @@ import {
   SUPABASE_URL,
 } from "@/integrations/supabase/client";
 
-export const SOCIAL_AUTH_PROVIDERS = ["google", "apple"] as const;
+// Login social: apenas Google. Contas OAuth chegam com e-mail já verificado
+// pelo provedor, então o Supabase não exige confirmação de e-mail.
+export const SOCIAL_AUTH_PROVIDERS = ["google"] as const;
 
 export type SocialAuthProvider = typeof SOCIAL_AUTH_PROVIDERS[number];
 
 export const SOCIAL_AUTH_LABELS: Record<SocialAuthProvider, string> = {
   google: "Google",
-  apple: "Apple",
 };
 
 export function getSocialAuthRedirectUrl(origin: string) {
