@@ -8,14 +8,21 @@ import { Trophy, Search, Plus, Pencil, Trash2, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AREAS_DEFAULT, getAreaLabel } from "@/lib/areas";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type Sub = "pontuar" | "acoes" | "apelidos" | "historico";
 
 export default function GamificationAdminPage() {
-  const { isAdmin } = useAuth();
-  if (!isAdmin) return <Navigate to="/" replace />;
-
+  const { isAdmin, hubStatus } = useAuth();
   const [sub, setSub] = useState<Sub>("pontuar");
+  if (hubStatus === "idle" || hubStatus === "loading") {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+  if (!isAdmin) return <Navigate to="/" replace />;
   const subs: { v: Sub; label: string }[] = [
     { v: "pontuar", label: "Pontuar" },
     { v: "apelidos", label: "Apelidos" },
@@ -30,10 +37,10 @@ export default function GamificationAdminPage() {
           <Trophy className="h-5 w-5 text-primary" /> Gamificação
         </h2>
       </div>
-      <div className="flex items-center gap-1 border-b border-border">
+      <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted/40 p-1 sm:flex sm:items-center sm:gap-1 sm:rounded-none sm:border-b sm:border-border sm:bg-transparent sm:p-0">
         {subs.map(s => (
           <button key={s.v} onClick={() => setSub(s.v)}
-            className={`px-3 py-1.5 text-sm font-medium border-b-2 transition-colors -mb-px ${sub === s.v ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+            className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors sm:-mb-px sm:rounded-none sm:border-b-2 sm:py-1.5 sm:text-sm ${sub === s.v ? "bg-background text-foreground shadow-sm sm:border-primary sm:bg-transparent sm:shadow-none" : "text-muted-foreground hover:text-foreground sm:border-transparent"}`}>
             {s.label}
           </button>
         ))}
@@ -100,70 +107,132 @@ function HistoricoTab() {
 
 function PontuarTab() {
   const { people, gamificationActions, awardGamificationPoints, gamificationAwards, deleteGamificationAward } = useData();
+  const isMobile = useIsMobile();
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [awardingActionId, setAwardingActionId] = useState<string | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const actionsRef = useRef<HTMLDivElement>(null);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return people.filter(p => !q || p.name.toLowerCase().includes(q) || (p.nickname || "").toLowerCase().includes(q));
   }, [people, query]);
+  const visiblePeople = isMobile && !query.trim() ? [] : filtered;
   const selected = people.find(p => p.id === selectedId) || null;
   const recent = useMemo(() => selected ? gamificationAwards.filter(a => a.personId === selected.id).slice(0, 5) : [], [gamificationAwards, selected]);
   const totalSelected = useMemo(() => selected ? gamificationAwards.filter(a => a.personId === selected.id).reduce((s, a) => s + a.points, 0) : 0, [gamificationAwards, selected]);
 
+  const focusAndSelectSearch = () => {
+    requestAnimationFrame(() => {
+      searchRef.current?.focus({ preventScroll: true });
+      searchRef.current?.select();
+    });
+  };
+
+  const selectPerson = (personId: string) => {
+    const person = people.find(item => item.id === personId);
+    if (!person) return;
+    setSelectedId(person.id);
+    setQuery(person.name);
+    focusAndSelectSearch();
+    if (isMobile) {
+      setTimeout(() => actionsRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" }), 80);
+    }
+  };
+
+  const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    if (filtered.length > 0) selectPerson(filtered[0].id);
+  };
+
   const give = async (action: GamificationAction) => {
     if (!selected) return;
-    await awardGamificationPoints(selected.id, action);
-    toast.success(`+${action.points} pts para ${selected.name}`);
+    setAwardingActionId(action.id);
+    try {
+      await awardGamificationPoints(selected.id, action);
+      toast.success(`+${action.points} pts para ${selected.name}`);
+      setQuery(selected.name);
+      focusAndSelectSearch();
+    } finally {
+      setAwardingActionId(null);
+    }
   };
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-4">
-      <div className="bg-card border border-border rounded-lg flex flex-col overflow-hidden">
-        <div className="p-2 border-b border-border">
+      <div className="glass-panel-soft rounded-2xl flex flex-col overflow-hidden">
+        <div className="p-3 border-b border-border">
+          {isMobile && <label htmlFor="gamification-person-search" className="mb-2 block text-xs font-semibold text-foreground">Quem você quer pontuar?</label>}
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar pessoa…" className="h-9 pl-8" autoFocus />
+            <Input
+              id="gamification-person-search"
+              ref={searchRef}
+              value={query}
+              onChange={event => {
+                setQuery(event.target.value);
+                if (selectedId) setSelectedId(null);
+              }}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Digite o nome e aperte Enter"
+              className="h-11 pl-8 text-base md:h-9 md:text-sm"
+              autoFocus
+              autoComplete="off"
+            />
           </div>
+          {isMobile && (
+            <p className="mt-1.5 text-[11px] text-muted-foreground">
+              Enter seleciona a primeira pessoa encontrada.
+            </p>
+          )}
         </div>
-        <div className="max-h-[480px] overflow-y-auto">
-          {filtered.map(p => (
-            <button key={p.id} onClick={() => setSelectedId(p.id)}
-              className={`w-full text-left px-3 py-2 flex items-center gap-2 border-b border-border last:border-0 hover:bg-accent transition-colors ${selectedId === p.id ? "bg-accent" : ""}`}>
+        <div className={`${isMobile ? "max-h-60" : "max-h-[480px]"} overflow-y-auto`}>
+          {visiblePeople.map(p => (
+            <button key={p.id} onClick={() => selectPerson(p.id)}
+              className={`w-full text-left px-3 py-2.5 flex items-center gap-2 border-b border-border last:border-0 hover:bg-accent transition-colors ${selectedId === p.id ? "bg-primary/10" : ""}`}>
               <div className="h-7 w-7 rounded-full bg-muted flex items-center justify-center text-[10px] font-semibold">
                 {p.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
               </div>
               <span className="text-sm text-foreground truncate flex-1">{p.name}</span>
+              {p.nickname && <span className="text-[10px] text-muted-foreground truncate">{p.nickname}</span>}
             </button>
           ))}
-          {filtered.length === 0 && <p className="text-xs text-muted-foreground text-center py-6">Nenhuma pessoa.</p>}
+          {query.trim() && visiblePeople.length === 0 && <p className="text-xs text-muted-foreground text-center py-6">Nenhuma pessoa encontrada.</p>}
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-lg p-4">
+      <div ref={actionsRef} className="glass-panel-soft scroll-mt-16 rounded-2xl p-4">
         {!selected ? (
-          <p className="text-sm text-muted-foreground text-center py-12">Selecione uma pessoa para pontuar.</p>
+          <div className="py-10 text-center">
+            <Search className="mx-auto mb-2 h-7 w-7 text-primary/50" />
+            <p className="text-sm font-medium text-foreground">Pesquise e aperte Enter</p>
+            <p className="mt-1 text-xs text-muted-foreground">As ações de pontuação aparecerão aqui.</p>
+          </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-primary">Pessoa selecionada</p>
                 <p className="text-base font-semibold text-foreground">{selected.name}</p>
                 <p className="text-xs text-muted-foreground">{totalSelected} pontos no total</p>
               </div>
+              <Check className="h-5 w-5 shrink-0 text-primary" />
             </div>
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-2">Aplicar ação</p>
+              <p className="text-xs font-semibold text-foreground mb-2">Escolha uma ação</p>
               {gamificationActions.length === 0 ? (
                 <p className="text-xs text-muted-foreground">Nenhuma ação cadastrada — vá para a aba <strong>Ações</strong>.</p>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {gamificationActions.map(a => (
-                    <button key={a.id} onClick={() => give(a)}
-                      className="group flex items-center justify-between gap-2 bg-background border border-border hover:border-primary rounded-lg px-3 py-2 text-left transition-colors">
+                    <button key={a.id} onClick={() => give(a)} disabled={awardingActionId === a.id}
+                      className="group flex min-h-12 items-center justify-between gap-2 bg-background border border-border hover:border-primary rounded-xl px-3 py-2.5 text-left transition-colors disabled:opacity-60">
                       <div className="flex flex-col min-w-0">
-                        <span className="text-sm font-medium text-foreground truncate">{a.name}</span>
-                        <span className="text-[11px] text-muted-foreground">+{a.points} pts</span>
+                        <span className="text-sm font-semibold text-foreground break-words">{a.name}</span>
+                        <span className="text-xs font-semibold text-primary">+{a.points} pts</span>
                       </div>
-                      <Check className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
+                      <Plus className="h-4 w-4 shrink-0 text-muted-foreground group-hover:text-primary" />
                     </button>
                   ))}
                 </div>
