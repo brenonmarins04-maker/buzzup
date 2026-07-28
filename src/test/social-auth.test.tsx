@@ -49,39 +49,35 @@ describe("social authentication", () => {
       .toBe("https://usebuzzup.com.br/welcome");
   });
 
-  it("mantém Google e Apple desativados no login durante a manutenção", () => {
+  it("mostra somente o Google no login e inicia o OAuth", () => {
     render(
       <MemoryRouter initialEntries={["/login"]}>
         <LoginPage />
       </MemoryRouter>,
     );
 
-    const googleButton = screen.getByRole("button", { name: /Google indisponível/i });
-    const appleButton = screen.getByRole("button", { name: /Apple indisponível/i });
-    expect(googleButton).toBeDisabled();
-    expect(appleButton).toBeDisabled();
-    expect(screen.getAllByText("Manutenção")).toHaveLength(2);
+    const googleButton = screen.getByRole("button", { name: "Entrar com Google" });
+    expect(googleButton).toBeEnabled();
+    expect(screen.queryByText(/Apple/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Manutenção/i)).not.toBeInTheDocument();
 
     fireEvent.click(googleButton);
-    fireEvent.click(appleButton);
-    expect(mocks.signInWithProvider).not.toHaveBeenCalled();
+    expect(mocks.signInWithProvider).toHaveBeenCalledWith("google");
   });
 
-  it("mantém Google e Apple desativados na tela de criar conta", () => {
+  it("mostra somente o Google no cadastro e inicia o OAuth", () => {
     render(
       <MemoryRouter initialEntries={["/login?mode=signup"]}>
         <LoginPage />
       </MemoryRouter>,
     );
 
-    const googleButton = screen.getByRole("button", { name: /Google indisponível/i });
-    const appleButton = screen.getByRole("button", { name: /Apple indisponível/i });
-    expect(googleButton).toBeDisabled();
-    expect(appleButton).toBeDisabled();
-    expect(screen.getAllByText("Manutenção")).toHaveLength(2);
+    const googleButton = screen.getByRole("button", { name: "Criar conta com Google" });
+    expect(googleButton).toBeEnabled();
+    expect(screen.queryByText(/Apple/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Manutenção/i)).not.toBeInTheDocument();
 
     fireEvent.click(googleButton);
-    fireEvent.click(appleButton);
-    expect(mocks.signInWithProvider).not.toHaveBeenCalled();
+    expect(mocks.signInWithProvider).toHaveBeenCalledWith("google");
   });
 });

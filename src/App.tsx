@@ -23,6 +23,7 @@ import EmailConfirmedPage from "./pages/EmailConfirmedPage";
 import WelcomePage from "./pages/WelcomePage";
 import LandingPage from "./pages/LandingPage";
 import AreasTeamsPage from "./pages/AreasTeamsPage";
+import ConfigHubPage from "./pages/ConfigHubPage";
 import GamificationAdminPage from "./pages/GamificationAdminPage";
 import SecretAdminPage from "./pages/SecretAdminPage";
 import NotFound from "./pages/NotFound";
@@ -118,6 +119,7 @@ const App = () => (
               <Route path="/" element={<DashboardPage />} />
               <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/gamification" element={<GamificationAdminPage />} />
+              <Route path="/configuracoes" element={<ConfigHubPage />} />
               <Route path="/people" element={<PeoplePage />} />
               <Route path="/areas-times" element={<AreasTeamsPage />} />
               <Route path="/members" element={<MembersPage />} />

@@ -1,6 +1,6 @@
-import { useState, useMemo, useRef, type DragEvent } from "react";
+import { useState, useMemo, useRef, useEffect, type DragEvent } from "react";
 import { createPortal } from "react-dom";
-import { AlertTriangle, ChevronLeft, ChevronRight, Plus, X, ChevronUp, ChevronDown, CalendarDays, User, CheckCircle2, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Plus, X, ChevronUp, ChevronDown, CalendarDays, User, CheckCircle2, SlidersHorizontal, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import type { Task, Post, CalendarEvent } from "@/contexts/DataContext";
@@ -39,6 +39,8 @@ export type CalendarItem = {
   id: string; title: string; type: "task" | "post" | "event";
   date: string; time?: string; color: string; status?: string;
   eventTypeName?: string;
+  scopeLabel?: string;
+  responsibleName?: string;
   /** Subtype for "event"-rendered parking items so drop logic can detect them. */
   parkingId?: string;
   isDemand?: boolean;
@@ -56,8 +58,13 @@ const POST_STATUS_META: Record<string, { label: string; color: string }> = {
   "done":        { label: "Pronto",        color: "#10B981" },
   "published":   { label: "Publicado",     color: "#3B82F6" },
 };
+const CALENDAR_FILTER_PREFERENCES_PREFIX = "buzzup.calendar.filters";
+
 const nextPostStatus = (s?: string) => {
-  const i = POST_STATUS_ORDER.indexOf((s as any) ?? "not-started");
+  const current = POST_STATUS_ORDER.includes(s as (typeof POST_STATUS_ORDER)[number])
+    ? s as (typeof POST_STATUS_ORDER)[number]
+    : "not-started";
+  const i = POST_STATUS_ORDER.indexOf(current);
   return POST_STATUS_ORDER[(i + 1) % POST_STATUS_ORDER.length];
 };
 
@@ -118,7 +125,7 @@ function CalToggle({ active, onClick, icon: Icon, label, activeColor = "#00B4D8"
 
 export default function CalendarPage() {
   const { tasks, posts, events, eventTypes, parkingItems, teams, people, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addParkingItem, updateParkingItem, deleteParkingItem } = useData();
-  const { isAdmin: _isAdmin, user } = useAuth();
+  const { isAdmin: _isAdmin, user, activeWorkspaceId } = useAuth();
   // No calendário, líderes de qualquer área/time podem editar (mover, criar, status).
   // Sombreamos isAdmin para que todas as checagens existentes incluam líderes.
   const isAdmin = _isAdmin || isLeaderOfAny(people, user?.id);
@@ -132,6 +139,42 @@ export default function CalendarPage() {
   // Organização de demandas: "Minhas demandas" e "Mostrar concluídas"
   const [onlyMine, setOnlyMine] = useState(false);
   const [showDone, setShowDone] = useState(true);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [loadedPreferenceKey, setLoadedPreferenceKey] = useState<string | null>(null);
+  const calendarPreferenceKey = user?.id && activeWorkspaceId
+    ? `${CALENDAR_FILTER_PREFERENCES_PREFIX}.${activeWorkspaceId}.${user.id}`
+    : null;
+
+  useEffect(() => {
+    setLoadedPreferenceKey(null);
+    if (!calendarPreferenceKey) return;
+
+    let nextOnlyMine = false;
+    let nextShowDone = true;
+    try {
+      const stored = localStorage.getItem(calendarPreferenceKey);
+      if (stored) {
+        const preferences = JSON.parse(stored) as { onlyMine?: unknown; showDone?: unknown };
+        if (typeof preferences.onlyMine === "boolean") nextOnlyMine = preferences.onlyMine;
+        if (typeof preferences.showDone === "boolean") nextShowDone = preferences.showDone;
+      }
+    } catch {
+      // Preferências inválidas ou armazenamento indisponível: usa os padrões seguros.
+    }
+
+    setOnlyMine(nextOnlyMine);
+    setShowDone(nextShowDone);
+    setLoadedPreferenceKey(calendarPreferenceKey);
+  }, [calendarPreferenceKey]);
+
+  useEffect(() => {
+    if (!calendarPreferenceKey || loadedPreferenceKey !== calendarPreferenceKey) return;
+    try {
+      localStorage.setItem(calendarPreferenceKey, JSON.stringify({ onlyMine, showDone }));
+    } catch {
+      // O calendário continua funcional mesmo se o navegador bloquear o armazenamento.
+    }
+  }, [calendarPreferenceKey, loadedPreferenceKey, onlyMine, showDone]);
   const upcomingTopRef = useRef<HTMLDivElement>(null);
   const calendarTodayStr = format(getNowBrasilia(), "yyyy-MM-dd");
 
@@ -296,20 +339,35 @@ export default function CalendarPage() {
       if (filterArea && t.area !== filterArea) return;
       if (onlyMine && !isMineTask(t)) return; // "Minhas demandas"
       const taskColor = t.status === "in-progress" ? "#F59E0B" : t.status === "not-started" ? "#9CA3AF" : TASK_COLOR;
-      items.push({ id: t.id, title: t.title, type: "task", date: t.deadline, color: taskColor, status: t.status, isDemand: true });
+      const taskTeamId = getTeamIdFromAreaKey(t.area);
+      const taskScope = taskTeamId
+        ? teams.find(team => team.id.toLowerCase() === taskTeamId.toLowerCase())?.name || "Time"
+        : AREAS.find(area => area.key === t.area)?.label || "Sem área";
+      const taskResponsible = t.responsible?.map(person => person.name).filter(Boolean).join(", ") || "Sem responsável";
+      items.push({
+        id: t.id,
+        title: t.title,
+        type: "task",
+        date: t.deadline,
+        color: taskColor,
+        status: t.status,
+        isDemand: true,
+        scopeLabel: taskScope,
+        responsibleName: taskResponsible,
+      });
     });
     // "Minhas demandas" foca só nas suas demandas — publicações e eventos ficam ocultos
     posts.forEach((p) => {
       if (onlyMine) return;
       if (!p.date) return; // estacionamento
       if (filterArea) return;
-      items.push({ id: p.id, title: p.title, type: "post", date: p.date, time: p.time, color: POST_COLOR, status: p.status });
+      items.push({ id: p.id, title: p.title, type: "post", date: p.date, time: p.time, color: POST_COLOR, status: p.status, scopeLabel: "Publicação" });
     });
     events.forEach((e) => {
       if (onlyMine) return;
       if (filterArea) return;
       const et = eventTypes.find(t => t.name === e.type);
-      items.push({ id: e.id, title: e.title, type: "event", date: e.date, color: et?.color || EVENT_FALLBACK_COLOR, eventTypeName: e.type });
+      items.push({ id: e.id, title: e.title, type: "event", date: e.date, color: et?.color || EVENT_FALLBACK_COLOR, eventTypeName: e.type, scopeLabel: e.type || "Evento" });
     });
     // Detecta demandas copiadas entre pessoas (mesmo título + data + área).
     // Para essas, o calendário mostra "PrimeiroNome - Título" para diferenciá-las.
@@ -335,7 +393,19 @@ export default function CalendarPage() {
       const person = p.personId ? people.find(pe => pe.id === p.personId) : null;
       const firstName = person ? person.name.split(" ")[0] : null;
       const displayTitle = isDup && firstName ? `${firstName} - ${p.title}` : p.title;
-      items.push({ id: p.id, parkingId: p.id, title: displayTitle, type: "event", date: p.date, color, status: p.status, eventTypeName: label, isDemand: true });
+      items.push({
+        id: p.id,
+        parkingId: p.id,
+        title: displayTitle,
+        type: "event",
+        date: p.date,
+        color,
+        status: p.status,
+        eventTypeName: label,
+        scopeLabel: label,
+        responsibleName: person?.name || "Sem responsável",
+        isDemand: true,
+      });
     });
     return items;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -441,6 +511,29 @@ export default function CalendarPage() {
   const calEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
   const monthDays = eachDayOfInterval({ start: calStart, end: calEnd });
 
+  const mobileMonthDays = useMemo(() => {
+    const firstDay = format(startOfMonth(currentDate), "yyyy-MM-dd");
+    const lastDay = format(endOfMonth(currentDate), "yyyy-MM-dd");
+    const grouped = new Map<string, CalendarItem[]>();
+
+    allItems.forEach(item => {
+      if (!item.date || item.date < firstDay || item.date > lastDay) return;
+      const current = grouped.get(item.date) || [];
+      current.push(item);
+      grouped.set(item.date, current);
+    });
+
+    return [...grouped.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([dateStr, items]) => ({
+        dateStr,
+        date: new Date(`${dateStr}T00:00:00`),
+        items: sortCalendarItems(items, calendarTodayStr),
+      }));
+  }, [allItems, currentDate, calendarTodayStr]);
+  const mobileMonthTotal = mobileMonthDays.reduce((total, day) => total + day.items.length, 0);
+  const mobileFilterCount = Number(onlyMine) + Number(!showDone) + Number(!!filterArea);
+
   // Dynamic cell height: compact when few demands, grows with content
   const maxItemsInDay = useMemo(() => {
     let max = 0;
@@ -516,10 +609,12 @@ export default function CalendarPage() {
         >
           {item.title}
         </div>
-        <button onClick={(e) => { e.stopPropagation(); setDeleting({ open: true, id: item.id, title: item.title, type: item.type, parkingId: item.parkingId }); }}
-          className="absolute top-0 right-0 h-full px-0.5 flex items-center opacity-0 group-hover/pill:opacity-100 transition-opacity">
-          <X className="h-2.5 w-2.5 text-white hover:text-destructive" />
-        </button>
+        {!isMobile && (
+          <button onClick={(e) => { e.stopPropagation(); setDeleting({ open: true, id: item.id, title: item.title, type: item.type, parkingId: item.parkingId }); }}
+            className="absolute top-0 right-0 h-full px-0.5 flex items-center opacity-0 group-hover/pill:opacity-100 transition-opacity">
+            <X className="h-2.5 w-2.5 text-white hover:text-destructive" />
+          </button>
+        )}
       </div>
     );
   };
@@ -529,8 +624,49 @@ export default function CalendarPage() {
     const dayItems = sortCalendarItems(allItems.filter((item) => item.date === dayStr), calendarTodayStr);
     const todayFlag = isToday(day);
     const isDropping = dropTarget === dayStr;
-    // Mobile: máx 3; desktop: máx 10 (5 linhas × 2 colunas — excesso no popup)
-    const maxVisible = isMobile ? 3 : 10;
+    if (isMobile) {
+      const statusColors = dayItems.slice(0, 4).map(item => getDemandCalendarVisual(item, calendarTodayStr)?.color || item.color);
+      return (
+        <div
+          key={dayStr}
+          data-drop-day={dayStr}
+          onDragOver={(e) => handleDragOver(e, dayStr)}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => isAdmin && handleDrop(e, dayStr)}
+          onClick={() => { if (dayItems.length > 0) setDayPopup(dayStr); }}
+          onKeyDown={(event) => {
+            if (dayItems.length > 0 && (event.key === "Enter" || event.key === " ")) {
+              event.preventDefault();
+              setDayPopup(dayStr);
+            }
+          }}
+          role={dayItems.length > 0 ? "button" : undefined}
+          tabIndex={dayItems.length > 0 ? 0 : undefined}
+          className={`h-full min-h-[58px] border-b border-r border-border p-1.5 transition-colors flex flex-col ${!inMonth ? "bg-muted/30" : ""} ${todayFlag ? "bg-accent/50" : ""} ${isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""} ${dayItems.length > 0 ? "active:bg-accent/60 cursor-pointer" : ""}`}
+          aria-label={dayItems.length > 0 ? `${format(day, "d 'de' MMMM", { locale: ptBR })}: ${dayItems.length} itens` : undefined}
+        >
+          <div className="flex items-center justify-between gap-1">
+            <span className={`text-[11px] font-semibold ${todayFlag ? "bg-primary text-primary-foreground h-5 w-5 rounded-full flex items-center justify-center" : inMonth ? "text-foreground" : "text-muted-foreground/50"}`}>
+              {format(day, "d")}
+            </span>
+            {dayItems.length > 0 && (
+              <span className="min-w-5 rounded-full bg-primary/10 px-1.5 py-0.5 text-center text-[9px] font-bold text-primary">
+                {dayItems.length}
+              </span>
+            )}
+          </div>
+          {statusColors.length > 0 && (
+            <div className="mt-auto flex flex-wrap gap-1 pt-1.5" aria-hidden="true">
+              {statusColors.map((color, index) => (
+                <span key={`${dayStr}-${index}`} className="h-1.5 flex-1 min-w-1.5 rounded-full" style={{ backgroundColor: color }} />
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+    // Desktop: máx 10 (5 linhas × 2 colunas — excesso no popup)
+    const maxVisible = 10;
     const visibleItems = dayItems.slice(0, maxVisible);
     const hiddenCount = dayItems.length - visibleItems.length;
     return (
@@ -607,12 +743,14 @@ export default function CalendarPage() {
 
   const renderListItem = (item: CalendarItem, dim = false) => {
     const demandVisual = getDemandCalendarVisual(item, calendarTodayStr);
+    const detailLabel = item.scopeLabel || item.eventTypeName || typeLabels[item.type];
+    const statusLabel = demandVisual?.label || (item.type === "post" && item.status ? POST_STATUS_META[item.status]?.label : null);
     return (
       <button
         key={item.id}
         onClick={() => handleItemClick(item)}
         style={{ borderColor: demandVisual?.color || "transparent" }}
-        className={`demand-hover flex items-center gap-2 text-left rounded-xl border px-2 py-1.5 hover:bg-accent transition-colors ${dim ? "opacity-60" : ""}`}
+        className={`demand-hover flex w-full items-start gap-2 text-left rounded-xl border bg-background/70 px-3 py-2.5 hover:bg-accent transition-colors ${dim ? "opacity-60" : ""}`}
       >
         {demandVisual?.kind === "overdue" ? (
           <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-500" />
@@ -621,11 +759,15 @@ export default function CalendarPage() {
         ) : (
           <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
         )}
-        <span className="flex-1 min-w-0 text-xs text-foreground truncate">{item.title}</span>
-        {item.time && <span className="text-[10px] text-muted-foreground tabular-nums">{item.time}</span>}
-        {item.type === "post" && item.status && (
-          <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: POST_STATUS_META[item.status]?.color || "#9CA3AF" }} />
-        )}
+        <span className="flex-1 min-w-0">
+          <span className="block text-sm font-semibold leading-snug text-foreground break-words">{item.title}</span>
+          <span className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] text-muted-foreground">
+            <span>{detailLabel}</span>
+            {item.responsibleName && <span>• {item.responsibleName}</span>}
+            {statusLabel && <span style={{ color: demandVisual?.color }}>• {statusLabel}</span>}
+          </span>
+        </span>
+        {item.time && <span className="shrink-0 text-[10px] font-semibold text-muted-foreground tabular-nums">{item.time}</span>}
       </button>
     );
   };
@@ -633,7 +775,7 @@ export default function CalendarPage() {
   return (
     <div className="animate-fade-in flex flex-col gap-3">
       {/* Hero (mesma identidade visual do Início) */}
-      <div className="page-hero relative overflow-hidden rounded-2xl p-5 md:p-6">
+      <div className="page-hero relative overflow-hidden rounded-2xl p-4 md:p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 rounded-2xl bg-white/72 border border-border/70 backdrop-blur-sm flex items-center justify-center shrink-0 shadow-sm">
@@ -647,11 +789,15 @@ export default function CalendarPage() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 md:gap-3">
-            <CalToggle active={onlyMine} onClick={() => setOnlyMine(v => !v)} icon={User} label="Minhas demandas" />
-            <CalToggle active={showDone} onClick={() => setShowDone(v => !v)} icon={CheckCircle2} label="Mostrar concluídas" activeColor="#10B981" />
-            <div className="flex items-center gap-1 bg-white/70 border border-border/70 rounded-2xl p-0.5 backdrop-blur-sm">
+            {!isMobile && (
+              <>
+                <CalToggle active={onlyMine} onClick={() => setOnlyMine(v => !v)} icon={User} label="Minhas demandas" />
+                <CalToggle active={showDone} onClick={() => setShowDone(v => !v)} icon={CheckCircle2} label="Mostrar concluídas" activeColor="#10B981" />
+              </>
+            )}
+            <div className={`flex items-center gap-1 bg-white/70 border border-border/70 rounded-2xl p-0.5 backdrop-blur-sm ${isMobile ? "w-full" : ""}`}>
               <button onClick={navigatePrev} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground"><ChevronLeft className="h-4 w-4" /></button>
-              <span className="text-sm font-semibold text-foreground min-w-[140px] sm:min-w-[180px] text-center capitalize">{headerLabel()}</span>
+              <span className="text-sm font-semibold text-foreground min-w-0 flex-1 sm:min-w-[180px] text-center capitalize">{headerLabel()}</span>
               <button onClick={navigateNext} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground"><ChevronRight className="h-4 w-4" /></button>
             </div>
           </div>
@@ -756,37 +902,134 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* Filtros — mobile: pills horizontais */}
       {isMobile && (
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Áreas:</span>
-          {AREAS.map(a => {
-            const active = filterArea === a.key;
-            return (
-              <button key={a.key} onClick={() => setFilterArea(active ? null : a.key)}
-                style={active ? { backgroundColor: a.color, borderColor: a.color, color: "#fff" } : undefined}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${active ? "" : "bg-background text-muted-foreground border-border"}`}>
-                {a.label}
+        <section className="glass-panel overflow-hidden rounded-2xl">
+          <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+            <div className="min-w-0">
+              <h2 className="text-sm font-bold text-foreground">
+                {onlyMine ? "Minhas demandas do mês" : filterArea && activeAreaMeta ? `Agenda de ${activeAreaMeta.label}` : "Agenda da empresa"}
+              </h2>
+              <p className="mt-0.5 truncate text-[10px] capitalize text-muted-foreground">
+                {headerLabel()}{mobileFilterCount > 0 && activeAreaMeta ? ` • ${activeAreaMeta.label}` : ""}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
+                {mobileMonthTotal}
+              </span>
+              <button
+                type="button"
+                onClick={() => setMobileFiltersOpen(open => !open)}
+                aria-expanded={mobileFiltersOpen}
+                aria-controls="mobile-calendar-filters"
+                className={`flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition-colors ${mobileFiltersOpen || mobileFilterCount > 0 ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground"}`}
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                <span>Filtros</span>
+                {mobileFilterCount > 0 && (
+                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground">
+                    {mobileFilterCount}
+                  </span>
+                )}
+                {mobileFiltersOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
               </button>
-            );
-          })}
-          {teams.map(t => {
-            const teamKey = `team_${t.id}`;
-            const active = filterArea === teamKey;
-            const teamColor = getTeamColor(t.id);
-            return (
-              <button key={teamKey} onClick={() => setFilterArea(active ? null : teamKey)}
-                style={active ? { backgroundColor: teamColor, borderColor: teamColor, color: "#fff" } : { borderColor: `${teamColor}40`, color: teamColor }}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors border ${active ? "" : "bg-background"}`}>
-                {t.name}
-              </button>
-            );
-          })}
-        </div>
+            </div>
+          </div>
+          {mobileFiltersOpen && (
+            <div id="mobile-calendar-filters" className="space-y-3 border-b border-border bg-muted/20 px-3 py-3">
+              <div className="flex flex-wrap gap-2">
+                <CalToggle active={onlyMine} onClick={() => setOnlyMine(value => !value)} icon={User} label="Minhas demandas" />
+                <CalToggle active={showDone} onClick={() => setShowDone(value => !value)} icon={CheckCircle2} label="Mostrar concluídas" activeColor="#10B981" />
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 border-t border-border/70 pt-2.5">
+                <span className="w-full text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Áreas</span>
+                {AREAS.map(area => {
+                  const active = filterArea === area.key;
+                  return (
+                    <button
+                      key={area.key}
+                      onClick={() => {
+                        setFilterArea(active ? null : area.key);
+                        setMobileFiltersOpen(false);
+                      }}
+                      style={active ? { backgroundColor: area.color, borderColor: area.color, color: "#fff" } : undefined}
+                      className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${active ? "" : "border-border bg-background text-muted-foreground"}`}
+                    >
+                      {area.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {teams.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 border-t border-border/70 pt-2.5">
+                  <span className="w-full text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Times</span>
+                  {teams.map(team => {
+                    const teamKey = `team_${team.id}`;
+                    const active = filterArea === teamKey;
+                    const teamColor = getTeamColor(team.id);
+                    return (
+                      <button
+                        key={teamKey}
+                        onClick={() => {
+                          setFilterArea(active ? null : teamKey);
+                          setMobileFiltersOpen(false);
+                        }}
+                        style={active ? { backgroundColor: teamColor, borderColor: teamColor, color: "#fff" } : { borderColor: `${teamColor}40`, color: teamColor }}
+                        className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${active ? "" : "bg-background"}`}
+                      >
+                        {team.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {mobileFilterCount > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOnlyMine(false);
+                    setShowDone(true);
+                    setFilterArea(null);
+                    setMobileFiltersOpen(false);
+                  }}
+                  className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" /> Limpar filtros
+                </button>
+              )}
+            </div>
+          )}
+          {mobileMonthDays.length === 0 ? (
+            <div className="px-4 py-8 text-center text-sm text-muted-foreground">Nenhum item agendado neste mês.</div>
+          ) : (
+            <div className="divide-y divide-border">
+              {mobileMonthDays.map(({ date, dateStr, items }) => (
+                <div key={dateStr} className="flex items-start gap-3 px-3 py-3">
+                  <div className={`w-11 shrink-0 rounded-xl border px-1 py-1.5 text-center ${isToday(date) ? "border-primary bg-primary text-primary-foreground" : "border-border bg-muted/45 text-foreground"}`}>
+                    <span className="block text-[9px] font-bold uppercase leading-none">{format(date, "EEE", { locale: ptBR }).replace(".", "")}</span>
+                    <span className="mt-1 block text-lg font-bold leading-none">{format(date, "d")}</span>
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-2">
+                    {items.map(item => renderListItem(item))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       )}
 
       {/* Calendário full width — dias quadrados no desktop */}
       <div className="glass-panel rounded-2xl cal-grid">
+        {isMobile && (
+          <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
+            <div>
+              <div className="text-xs font-bold text-foreground">Visão do mês</div>
+              <div className="text-[10px] text-muted-foreground">Toque em um dia para abrir os detalhes</div>
+            </div>
+            <CalendarDays className="h-4 w-4 text-primary" />
+          </div>
+        )}
         <div className="grid grid-cols-7 border-b border-border">
           {weekDays.map(d => (
             <div key={d} className={`text-center font-medium text-muted-foreground uppercase tracking-wider ${isMobile ? "py-1.5 text-[10px]" : "py-2 text-xs"}`}>

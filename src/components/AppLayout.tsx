@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   CalendarDays, Megaphone,
-  FolderKanban, Bell, Search, ChevronLeft, ChevronDown, Plus, Users, Eye, Shield, Briefcase, Crown, Sparkles, Home, UsersRound, Pencil, Settings, BarChart2, Trophy, ExternalLink,
+  FolderKanban, Bell, Search, ChevronLeft, Plus, Eye, Shield, Briefcase, Crown, Sparkles, Home, UsersRound, Pencil, Settings,
 } from "lucide-react";
 import { useMemo } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -57,7 +57,7 @@ function OverdueBadge({ count }: { count: number }) {
 const mobileNavItems = [
   { to: "/calendar", icon: CalendarDays, label: "Calendário" },
   { to: "/",         icon: Home,         label: "Início" },
-  { to: "areas",     icon: FolderKanban, label: "Áreas" },
+  { to: "/areas-times", icon: FolderKanban, label: "Áreas" },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -153,7 +153,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [broadcastModal, setBroadcastModal] = useState(false);
   const [editAreasModal, setEditAreasModal] = useState(false);
   const [createTeamModal, setCreateTeamModal] = useState(false);
-  const [areasMenuOpen, setAreasMenuOpen] = useState(false);
 
   // Nav items stagger: triggers after sidebar entrance animation is mostly done
   const [navIn, setNavIn] = useState(false);
@@ -162,12 +161,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(t);
   }, []);
 
-  // Grupo "Configurações" (Pessoas / Relatórios / Acessos) — expansível
+  // Grupo "Configurações" — abre a página hub com os cards (menu selecionável)
   const location = useLocation();
-  const configRoutes = ["/gamification", "/people", "/areas-times", "/reports", "/members", "/shortcuts", "/settings"];
+  const configRoutes = ["/configuracoes", "/gamification", "/people", "/areas-times", "/reports", "/members", "/shortcuts", "/settings"];
   const onConfigRoute = configRoutes.includes(location.pathname);
-  const [configOpen, setConfigOpen] = useState(onConfigRoute);
-  useEffect(() => { if (onConfigRoute) setConfigOpen(true); }, [onConfigRoute]);
 
   // Load custom area names per workspace — version triggers re-render of nav items
   const { version: areaNamesVersion } = useAreaNames();
@@ -207,7 +204,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </Link>
           <div className="flex items-center gap-1.5 shrink-0">
             <RoleBadge />
-            <button onClick={() => navigate("/settings")} title="Menu" className="relative p-2 rounded-md hover:bg-accent text-muted-foreground">
+            <button onClick={() => navigate("/configuracoes")} title="Configurações" className="relative p-2 rounded-md hover:bg-accent text-muted-foreground">
               <Settings className="h-4 w-4" />
               {pendingJoinCount > 0 && (
                 <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
@@ -278,59 +275,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                           className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold hover:bg-accent/50">
                           <AreaIcon className="h-4 w-4" />
                           <span>{getAreaLabel(area.key)}</span>
-                        </NavLink>
-                      );
-                    })}
-                  </PopoverContent>
-                </Popover>
-              );
-            }
-            if (item.to === "areas") {
-              return (
-                <Popover key="areas" open={areasMenuOpen} onOpenChange={setAreasMenuOpen}>
-                  <PopoverTrigger asChild>
-                    <button className="flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-md text-[10px] font-medium transition-colors min-w-0 text-muted-foreground">
-                      <item.icon className="h-5 w-5 shrink-0" />
-                      <span className="truncate">{item.label}</span>
-                    </button>
-                  </PopoverTrigger>
-                  <PopoverContent side="top" align="center" className="w-52 p-1 max-h-[60vh] overflow-y-auto">
-                    {/* Times do usuário — aparecem em cima das áreas */}
-                    {myTeams.length > 0 && (
-                      <>
-                        <div className="px-3 pt-1.5 pb-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Times</div>
-                        {myTeams.map(team => {
-                          const tc = getTeamColor(team.id);
-                          const overdue = overdueByScope[`team_${team.id}`] || 0;
-                          return (
-                            <NavLink key={team.id} to={`/time/${team.id}`}
-                              onClick={() => setAreasMenuOpen(false)}
-                              style={({ isActive }) => isActive
-                                ? { backgroundColor: `${tc}1F`, color: tc }
-                                : { color: tc }}
-                              className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold hover:bg-accent/50">
-                              <UsersRound className="h-4 w-4 shrink-0" />
-                              <span className="truncate flex-1">{team.name}</span>
-                              {overdue > 0 && <span className="text-[11px] font-bold text-red-500 shrink-0">({overdue})</span>}
-                            </NavLink>
-                          );
-                        })}
-                        <div className="border-t border-border my-1" />
-                        <div className="px-3 pt-1 pb-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Áreas</div>
-                      </>
-                    )}
-                    {getAreaItems().map((a) => {
-                      const overdue = overdueByScope[a.key] || 0;
-                      return (
-                        <NavLink key={a.to} to={a.to}
-                          onClick={() => setAreasMenuOpen(false)}
-                          style={({ isActive }) => isActive
-                            ? { backgroundColor: `${a.color}1F`, color: a.color }
-                            : { color: a.color }}
-                          className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold hover:bg-accent/50">
-                          <a.icon className="h-4 w-4" />
-                          <span className="flex-1">{a.label}</span>
-                          {overdue > 0 && <span className="text-[11px] font-bold text-red-500 shrink-0">({overdue})</span>}
                         </NavLink>
                       );
                     })}
@@ -478,40 +422,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </>
           )}
 
-          {/* ── Configurações (Pessoas / Relatórios / Acessos) — permissões inalteradas ── */}
+          {/* ── Configurações — leva ao hub de cards (menu selecionável) ── */}
           {collapsed ? (
             <>
               <div className="border-t border-white/15 my-2" />
-              {isAdmin && (
-                <NavLink to="/gamification" title="Gameficação"
-                  className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center justify-center px-3 py-2 rounded-md transition-all`}>
-                  <Trophy className="h-4 w-4 shrink-0" />
-                </NavLink>
-              )}
-              <NavLink to="/people" title="Pessoas"
-                className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center justify-center px-3 py-2 rounded-md transition-all`}>
-                <Users className="h-4 w-4 shrink-0" />
-              </NavLink>
-              <NavLink to="/areas-times" title="Áreas e Times"
-                className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center justify-center px-3 py-2 rounded-md transition-all`}>
-                <FolderKanban className="h-4 w-4 shrink-0" />
-              </NavLink>
-              {isAdmin && (
-                <NavLink to="/shortcuts" title="Atalhos gerais"
-                  className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center justify-center px-3 py-2 rounded-md transition-all`}>
-                  <ExternalLink className="h-4 w-4 shrink-0" />
-                </NavLink>
-              )}
-              {isAdmin && (
-                <NavLink to="/reports" title="Relatórios"
-                  className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center justify-center px-3 py-2 rounded-md transition-all`}>
-                  <BarChart2 className="h-4 w-4 shrink-0" />
-                </NavLink>
-              )}
-              <NavLink to="/members" title="Convites"
-                className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center justify-center px-3 py-2 rounded-md transition-all`}>
+              <NavLink to="/configuracoes" title="Configurações"
+                className={`sidebar-glass-link ${onConfigRoute ? "sidebar-glass-link-active" : ""} flex items-center justify-center px-3 py-2 rounded-md transition-all`}>
                 <div className="relative">
-                  <Shield className="h-4 w-4 shrink-0" />
+                  <Settings className="h-4 w-4 shrink-0" />
                   {pendingJoinCount > 0 && (
                     <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-3.5 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
                       {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
@@ -522,66 +440,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </>
           ) : (
             <div className="pt-3">
-              <button
-                onClick={() => setConfigOpen(o => !o)}
+              <NavLink
+                to="/configuracoes"
                 className={`sidebar-glass-link ${onConfigRoute ? "sidebar-glass-link-active" : ""} w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all`}
               >
                 <Settings className="h-4 w-4 shrink-0" />
                 <span className="flex-1 text-left">Configurações</span>
-                {!configOpen && pendingJoinCount > 0 && (
+                {pendingJoinCount > 0 && (
                   <span className="h-5 min-w-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
                     {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
                   </span>
                 )}
-                <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${configOpen ? "rotate-180" : ""}`} />
-              </button>
-              {configOpen && (
-                <div className="mt-1 ml-3 pl-2 border-l border-white/10 flex flex-col gap-1">
-                  {isAdmin && (
-                    <NavLink to="/gamification"
-                      className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all`}>
-                      <Trophy className="h-4 w-4 shrink-0" />
-                      <span>Gameficação</span>
-                    </NavLink>
-                  )}
-                  <NavLink to="/people"
-                    className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all`}>
-                    <Users className="h-4 w-4 shrink-0" />
-                    <span>Pessoas</span>
-                  </NavLink>
-                  <NavLink to="/areas-times"
-                    className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all`}>
-                    <FolderKanban className="h-4 w-4 shrink-0" />
-                    <span>Áreas e Times</span>
-                  </NavLink>
-                  {isAdmin && (
-                    <NavLink to="/shortcuts"
-                      className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all`}>
-                      <ExternalLink className="h-4 w-4 shrink-0" />
-                      <span>Atalhos gerais</span>
-                    </NavLink>
-                  )}
-                  {isAdmin && (
-                    <NavLink to="/reports"
-                      className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all`}>
-                      <BarChart2 className="h-4 w-4 shrink-0" />
-                      <span>Relatórios</span>
-                    </NavLink>
-                  )}
-                  <NavLink to="/members"
-                    className={({ isActive }) => `sidebar-glass-link ${isActive ? "sidebar-glass-link-active" : ""} flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold transition-all`}>
-                    <Shield className="h-4 w-4 shrink-0" />
-                    <span className="flex-1 flex items-center justify-between">
-                      <span>Convites</span>
-                      {pendingJoinCount > 0 && (
-                        <span className="h-5 min-w-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
-                          {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
-                        </span>
-                      )}
-                    </span>
-                  </NavLink>
-                </div>
-              )}
+              </NavLink>
             </div>
           )}
         </nav>

@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { render } from "@testing-library/react";
+import { beforeEach, describe, it, expect, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 // ── Mock data representativo de um workspace real ──────────────────────────
@@ -23,7 +23,8 @@ const events = [{ id: "e1", title: "Evento 1", date: "2026-07-02", type: "Reuni�
 const eventTypes = [{ id: "et1", name: "Reunião", color: "#123456" }];
 
 const noop = () => {};
-const dataValue: any = {
+const mobileMode = vi.hoisted(() => ({ value: false }));
+const dataValue = {
   tasks, posts, events, eventTypes, parkingItems, teams: [team], people,
   channels: [], categories: [], projects: [], notifications: [],
   updateTask: noop, updatePost: noop, updateEvent: noop,
@@ -37,15 +38,20 @@ vi.mock("@/contexts/DataContext", () => ({
   useData: () => dataValue,
 }));
 vi.mock("@/contexts/AuthContext", () => ({
-  useAuth: () => ({ isAdmin: true, isOwner: true, isLeader: false, role: "owner", user: { id: "u1", email: "a@b.com" } }),
+  useAuth: () => ({ isAdmin: true, isOwner: true, isLeader: false, role: "owner", activeWorkspaceId: "w1", user: { id: "u1", email: "a@b.com" } }),
 }));
 vi.mock("@/hooks/use-mobile", () => ({
-  useIsMobile: () => false,
+  useIsMobile: () => mobileMode.value,
 }));
 
 import CalendarPage from "@/pages/CalendarPage";
 
 describe("CalendarPage render", () => {
+  beforeEach(() => {
+    mobileMode.value = false;
+    localStorage.clear();
+  });
+
   it("renderiza sem lançar erro", () => {
     expect(() =>
       render(
@@ -54,5 +60,46 @@ describe("CalendarPage render", () => {
         </MemoryRouter>
       )
     ).not.toThrow();
+  });
+
+  it("mostra títulos completos na agenda mensal do celular", () => {
+    mobileMode.value = true;
+
+    render(
+      <MemoryRouter>
+        <CalendarPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText("Agenda da empresa")).toBeInTheDocument();
+    expect(screen.getByText("Ideia mercado")).toBeInTheDocument();
+    expect(screen.getAllByText("Julia Calixto", { exact: false }).length).toBeGreaterThan(0);
+    expect(screen.getByText("Visão do mês")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Filtros/ })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("switch", { name: "Minhas demandas" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Filtros/ }));
+
+    expect(screen.getByRole("button", { name: /Filtros/ })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("switch", { name: "Minhas demandas" })).toBeInTheDocument();
+  });
+
+  it("restaura as preferências de demandas do usuário no workspace", () => {
+    mobileMode.value = true;
+    localStorage.setItem(
+      "buzzup.calendar.filters.w1.u1",
+      JSON.stringify({ onlyMine: true, showDone: false }),
+    );
+
+    render(
+      <MemoryRouter>
+        <CalendarPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Filtros/ }));
+
+    expect(screen.getByRole("switch", { name: "Minhas demandas" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("switch", { name: "Mostrar concluídas" })).toHaveAttribute("aria-checked", "false");
   });
 });

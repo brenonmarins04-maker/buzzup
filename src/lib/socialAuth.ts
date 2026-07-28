@@ -3,16 +3,13 @@ import {
   SUPABASE_URL,
 } from "@/integrations/supabase/client";
 
-export const SOCIAL_AUTH_PROVIDERS = ["google", "apple"] as const;
-
-// Mantém os provedores visíveis enquanto a configuração do OAuth é finalizada.
-export const SOCIAL_AUTH_MAINTENANCE = true;
+// Contas OAuth chegam com o e-mail verificado pelo próprio Google.
+export const SOCIAL_AUTH_PROVIDERS = ["google"] as const;
 
 export type SocialAuthProvider = typeof SOCIAL_AUTH_PROVIDERS[number];
 
 export const SOCIAL_AUTH_LABELS: Record<SocialAuthProvider, string> = {
   google: "Google",
-  apple: "Apple",
 };
 
 export function getSocialAuthRedirectUrl(origin: string) {

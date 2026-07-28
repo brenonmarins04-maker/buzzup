@@ -1,7 +1,9 @@
 import { useState, useRef } from "react";
 import { useData, type Team } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Plus, Pencil, Trash2, UsersRound, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, UsersRound, Search, ChevronRight } from "lucide-react";
+import { Link } from "react-router-dom";
+import { getTeamColor } from "@/lib/areas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -55,21 +57,17 @@ export default function TeamsPage() {
   }
 
   return (
-    <div className="animate-fade-in space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground tracking-tight">Times</h1>
-          <p className="text-sm text-muted-foreground mt-1">Gerencie seus times e membros</p>
-        </div>
-        {isAdmin && (
+    <div className="space-y-3">
+      {isAdmin && (
+        <div className="flex justify-end">
           <Button onClick={() => setCreateModalOpen(true)} size="sm">
-            <Plus className="h-4 w-4 mr-1" /> Novo Time
+            <Plus className="h-4 w-4 mr-1" /> Novo time
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       {teams.length === 0 ? (
-        <div className="bg-card border border-border rounded-lg p-10 text-center">
+        <div className="glass-panel-soft rounded-2xl p-10 text-center">
           <UsersRound className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">Nenhum time criado ainda.</p>
           {isAdmin && (
@@ -79,26 +77,35 @@ export default function TeamsPage() {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {teams.map(team => {
             const members = people.filter(p => team.memberIds.includes(p.id));
+            const color = getTeamColor(team.id);
             return (
-              <div key={team.id} className="bg-card border border-border rounded-lg p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-foreground">{team.name}</h3>
+              <div key={team.id} className="group hover-lift glass-panel-soft rounded-2xl p-4 transition-all" style={{ borderColor: `${color}40` }}>
+                <div className="flex items-start gap-3">
+                  <Link to={`/time/${team.id}`} className="flex flex-1 min-w-0 items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-md">
+                    <div className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: `${color}1A`, color }}>
+                      <UsersRound className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-semibold text-foreground truncate">{team.name}</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">{members.length} {members.length === 1 ? "assessor" : "assessores"}</p>
+                    </div>
+                    {!isAdmin && <ChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-primary shrink-0 transition-colors" />}
+                  </Link>
                   {isAdmin && (
-                    <div className="flex gap-1">
-                      <button onClick={() => openEdit(team)} className="p-1.5 rounded hover:bg-accent text-muted-foreground">
+                    <div className="flex gap-0.5 shrink-0">
+                      <button onClick={() => openEdit(team)} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground" title={`Editar ${team.name}`}>
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
-                      <button onClick={() => setDeleteId(team.id)} className="p-1.5 rounded hover:bg-accent text-muted-foreground">
+                      <button onClick={() => setDeleteId(team.id)} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground" title={`Excluir ${team.name}`}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground mb-2">{members.length} assessor(es)</p>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-1.5 mt-3">
                   {members.map(m => (
                     <span key={m.id} className="text-xs bg-accent text-foreground px-2 py-0.5 rounded-full">
                       {m.name}
