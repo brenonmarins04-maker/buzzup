@@ -1,5 +1,7 @@
 import { Button } from "@/components/ui/button";
 import {
+  SOCIAL_AUTH_LABELS,
+  SOCIAL_AUTH_MAINTENANCE,
   SOCIAL_AUTH_PROVIDERS,
   type SocialAuthProvider,
 } from "@/lib/socialAuth";
@@ -22,32 +24,52 @@ function GoogleMark() {
   );
 }
 
+function AppleMark() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5 shrink-0 fill-current">
+      <path d="M16.7 12.77c-.02-2.28 1.86-3.39 1.95-3.44a4.18 4.18 0 0 0-3.29-1.78c-1.38-.15-2.72.83-3.42.83-.72 0-1.81-.82-2.98-.8a4.36 4.36 0 0 0-3.67 2.24c-1.59 2.75-.4 6.8 1.12 9.02.76 1.09 1.64 2.3 2.81 2.25 1.15-.05 1.58-.72 2.97-.72 1.37 0 1.77.72 2.97.69 1.23-.02 2.01-1.09 2.74-2.19a8.9 8.9 0 0 0 1.26-2.57 3.93 3.93 0 0 1-2.46-3.53Zm-2.24-6.69A4.02 4.02 0 0 0 15.38 3a4.1 4.1 0 0 0-2.84 1.47 3.84 3.84 0 0 0-.95 3 3.39 3.39 0 0 0 2.87-1.39Z" />
+    </svg>
+  );
+}
+
 export default function SocialAuthButtons({
   action,
   disabled = false,
   loadingProvider,
   onSelect,
 }: SocialAuthButtonsProps) {
-  const actionLabel = action === "signup" ? "Criar conta com" : "Entrar com";
+  const actionLabel = action === "signup" ? "Criar conta" : "Entrar";
 
   return (
     <div className="space-y-4">
-      {SOCIAL_AUTH_PROVIDERS.map((provider) => {
-        const loading = loadingProvider === provider;
-        return (
-          <Button
-            key={provider}
-            type="button"
-            variant="outline"
-            className="h-14 w-full justify-center gap-3 rounded-2xl border-border bg-white px-4 text-base font-semibold text-foreground shadow-sm hover:bg-accent/50"
-            disabled={disabled || loadingProvider !== null}
-            onClick={() => onSelect(provider)}
-          >
-            <GoogleMark />
-            <span>{loading ? "Conectando..." : `${actionLabel} Google`}</span>
-          </Button>
-        );
-      })}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {SOCIAL_AUTH_PROVIDERS.map((provider) => {
+          const loading = loadingProvider === provider;
+          const providerLabel = SOCIAL_AUTH_LABELS[provider];
+          return (
+            <Button
+              key={provider}
+              type="button"
+              variant="outline"
+              aria-label={`${actionLabel} com ${providerLabel} indisponível: em manutenção`}
+              className="h-14 justify-start gap-2 rounded-2xl border-amber-200/80 bg-amber-50/60 px-3 text-sm font-semibold text-foreground shadow-sm disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-100"
+              disabled={SOCIAL_AUTH_MAINTENANCE || disabled || loadingProvider !== null}
+              onClick={() => {
+                if (!SOCIAL_AUTH_MAINTENANCE) onSelect(provider);
+              }}
+            >
+              {provider === "google" ? <GoogleMark /> : <AppleMark />}
+              <span className="min-w-0 flex-1 text-left">
+                <span className="block truncate">{loading ? "Conectando..." : providerLabel}</span>
+                <span className="block text-[10px] font-medium text-muted-foreground">{actionLabel}</span>
+              </span>
+              <span className="shrink-0 rounded-full border border-amber-200 bg-amber-100 px-1.5 py-1 text-[8px] font-bold uppercase leading-none text-amber-700">
+                Manutenção
+              </span>
+            </Button>
+          );
+        })}
+      </div>
 
       <div className="flex items-center gap-3" aria-hidden="true">
         <span className="h-px flex-1 bg-border/70" />
