@@ -614,6 +614,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
     <div className="space-y-4">
       {/* ── Demandas — faixa full-width no topo ── */}
       <div
+        data-tour="area-demands"
         onDragOver={(e) => onDragOver(e, "__park")}
         onDragLeave={() => setOverCol(null)}
         onDrop={(e) => onDrop(e, null)}

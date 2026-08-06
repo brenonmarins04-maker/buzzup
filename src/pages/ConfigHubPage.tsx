@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePendingJoinCount } from "@/hooks/usePendingJoinCount";
 import {
-  Settings, Trophy, Users, FolderKanban, ExternalLink, BarChart2, Shield, ChevronRight,
+  Settings, Trophy, Users, FolderKanban, ExternalLink, BarChart2, Shield, ChevronRight, Compass,
   type LucideIcon,
 } from "lucide-react";
 
@@ -76,6 +76,27 @@ export default function ConfigHubPage() {
             <ChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-primary shrink-0 mt-1 transition-colors" />
           </Link>
         ))}
+
+        {/* Reabre o tour guiado do app */}
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent("buzzup:start-tour"))}
+          className="group hover-lift relative glass-panel-soft rounded-2xl p-4 flex items-start gap-3 text-left hover:border-primary/40 transition-all"
+        >
+          <div
+            className="h-11 w-11 rounded-xl flex items-center justify-center shrink-0"
+            style={{ backgroundColor: "#F9731a1a", color: "#F97316" }}
+          >
+            <Compass className="h-5 w-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <span className="text-sm font-semibold text-foreground">Rever o tour</span>
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+              Faça de novo a apresentação guiada do BuzzUp.
+            </p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-primary shrink-0 mt-1 transition-colors" />
+        </button>
       </div>
     </div>
   );

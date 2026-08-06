@@ -84,7 +84,7 @@ export default function MembersPage() {
           <p className="text-sm text-muted-foreground">Pedidos de entrada no workspace — aprove ou recuse.</p>
         </div>
         {wsCode && (
-          <Button variant="outline" onClick={copyCode} title="Código de convite do workspace">
+          <Button data-tour="invite-code" variant="outline" onClick={copyCode} title="Código de convite do workspace">
             <Copy className="h-4 w-4 mr-1" /> {wsCode}
           </Button>
         )}

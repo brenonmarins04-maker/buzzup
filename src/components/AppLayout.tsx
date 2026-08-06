@@ -24,6 +24,7 @@ import BroadcastBar from "@/components/BroadcastBar";
 import BroadcastModal from "@/components/modals/BroadcastModal";
 import CreateTeamModal from "@/components/modals/CreateTeamModal";
 import PointsEarnedBanner from "@/components/PointsEarnedBanner";
+import ProductTour from "@/components/onboarding/ProductTour";
 import BrandLogo from "@/components/BrandLogo";
 
 const areaIcons: Record<string, any> = {
@@ -194,6 +195,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return (
       <div className="workspace-app-background flex flex-col min-h-screen">
         <PointsEarnedBanner />
+        <ProductTour />
         <header className="h-12 px-4 flex items-center justify-between border-b border-border glass-header shrink-0 sticky top-0 z-30">
           <Link
             to="/welcome"
@@ -314,6 +316,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="workspace-app-background flex h-screen overflow-hidden">
       <PointsEarnedBanner />
+      <ProductTour />
       <motion.aside
         className={`${collapsed ? "w-16" : "w-60"} workspace-blue-panel shrink-0 flex flex-col transition-[width] duration-200 overflow-hidden`}
         initial={false}

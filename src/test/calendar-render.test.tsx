@@ -1,4 +1,4 @@
-import { beforeEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
@@ -11,6 +11,7 @@ const parkingItems = [
   { id: "pk1", area: "mercado", personId: "p1", title: "Ideia mercado", description: "", date: "2026-07-02", position: 0, status: "in-progress", points: 1 },
   // Área de time em MAIÚSCULO — dado legado
   { id: "pk2", area: "TEAM_abc-DEF-123", personId: "p1", title: "Ideia do time", description: "", date: "2026-07-03", position: 0, status: "in-progress", points: 1 },
+  { id: "pk4", area: "mercado", personId: "p1", title: "Demanda futura", description: "", date: "2026-07-15", position: 0, status: "in-progress", points: 1 },
   { id: "pk3", area: "team_abc-DEF-123", personId: null, title: "Sem data", description: "", date: "", position: 0, status: "in-progress", points: 1 },
 ];
 const tasks = [
@@ -48,8 +49,14 @@ import CalendarPage from "@/pages/CalendarPage";
 
 describe("CalendarPage render", () => {
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-01T12:00:00-03:00"));
     mobileMode.value = false;
     localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("renderiza sem lançar erro", () => {
@@ -62,7 +69,7 @@ describe("CalendarPage render", () => {
     ).not.toThrow();
   });
 
-  it("mostra títulos completos na agenda mensal do celular", () => {
+  it("mostra primeiro o calendário e limita a lista inicial aos próximos sete dias", () => {
     mobileMode.value = true;
 
     render(
@@ -71,12 +78,19 @@ describe("CalendarPage render", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText("Agenda da empresa")).toBeInTheDocument();
+    const calendar = screen.getByTestId("mobile-calendar");
+    const upcomingList = screen.getByTestId("mobile-upcoming-list");
+    expect(calendar.compareDocumentPosition(upcomingList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText("Próximas demandas")).toBeInTheDocument();
     expect(screen.getByText("Ideia mercado")).toBeInTheDocument();
     expect(screen.getAllByText("Julia Calixto", { exact: false }).length).toBeGreaterThan(0);
-    expect(screen.getByText("Visão do mês")).toBeInTheDocument();
+    expect(screen.queryByText("Demanda futura")).not.toBeInTheDocument();
+    expect(screen.queryByText("Organize demandas, publicações e eventos em um só lugar.")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Filtros/ })).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("switch", { name: "Minhas demandas" })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver mais (1)" }));
+    expect(screen.getByText("Demanda futura")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /Filtros/ }));
 

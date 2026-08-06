@@ -223,7 +223,7 @@ export default function DashboardPage() {
         return (
           <>
             {/* Minhas Demandas */}
-            <div className={`${myDemands.length > 0 ? "order-2" : "order-[50]"} md:order-2 glass-panel rounded-2xl p-4 md:p-5 h-full flex flex-col`}>
+            <div data-tour="my-demands" className={`${myDemands.length > 0 ? "order-2" : "order-[50]"} md:order-2 glass-panel rounded-2xl p-4 md:p-5 h-full flex flex-col`}>
               <h2 className="text-sm font-semibold text-foreground mb-3 md:mb-4 flex items-center gap-2">
                 <ListChecks className="h-4 w-4 text-primary" /> Minhas Demandas
               </h2>
@@ -298,7 +298,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Meus Pontos (Gameficação) */}
-            <div className="order-1 glass-panel rounded-2xl p-4 md:p-5 h-full flex flex-col justify-center gap-3 md:gap-4">
+            <div data-tour="my-points" className="order-1 glass-panel rounded-2xl p-4 md:p-5 h-full flex flex-col justify-center gap-3 md:gap-4">
               {/* Trophy icon */}
               <div className="flex items-center gap-3 md:flex-col md:text-center">
                 <div className="h-12 w-12 md:h-14 md:w-14 rounded-full flex items-center justify-center bg-gradient-to-br from-yellow-400/30 to-orange-400/20 border-2 border-yellow-400/40 shrink-0">
@@ -333,7 +333,7 @@ export default function DashboardPage() {
       })()}
 
       {/* Ranking */}
-      <div className="order-4 lg:order-4 lg:col-span-3 glass-panel rounded-2xl p-5">
+      <div data-tour="ranking" className="order-4 lg:order-4 lg:col-span-3 glass-panel rounded-2xl p-5">
         <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
           <Trophy className="h-4 w-4 text-[#F97316]" /> Gameficação
         </h2>
@@ -434,7 +434,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Atalhos gerais */}
-      <div className="order-5" style={fadeUp(2)}><GeneralShortcutsSection /></div>
+      <div data-tour="shortcuts" className="order-5" style={fadeUp(2)}><GeneralShortcutsSection /></div>
 
       {/* 2 columns */}
       <div className="hidden md:grid grid-cols-1 lg:grid-cols-2 gap-4" style={fadeUp(3)}>

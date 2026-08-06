@@ -7,7 +7,7 @@ import type { Task, Post, CalendarEvent } from "@/contexts/DataContext";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth,
   addMonths, subMonths, isToday, isSameDay,
-  startOfWeek, endOfWeek, addDays, subDays, isTomorrow,
+  startOfWeek, endOfWeek, addDays, isTomorrow,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -135,7 +135,7 @@ export default function CalendarPage() {
   const [newIdea, setNewIdea] = useState("");
   const [parkingDropActive, setParkingDropActive] = useState(false);
   const newIdeaRef = useRef<HTMLInputElement>(null);
-  const [showPast, setShowPast] = useState(false);
+  const [showAllUpcoming, setShowAllUpcoming] = useState(false);
   // Organização de demandas: "Minhas demandas" e "Mostrar concluídas"
   const [onlyMine, setOnlyMine] = useState(false);
   const [showDone, setShowDone] = useState(true);
@@ -175,7 +175,6 @@ export default function CalendarPage() {
       // O calendário continua funcional mesmo se o navegador bloquear o armazenamento.
     }
   }, [calendarPreferenceKey, loadedPreferenceKey, onlyMine, showDone]);
-  const upcomingTopRef = useRef<HTMLDivElement>(null);
   const calendarTodayStr = format(getNowBrasilia(), "yyyy-MM-dd");
 
   // IDs das pessoas vinculadas ao usuário logado (uma conta pode ter mais de um registro)
@@ -511,13 +510,12 @@ export default function CalendarPage() {
   const calEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
   const monthDays = eachDayOfInterval({ start: calStart, end: calEnd });
 
-  const mobileMonthDays = useMemo(() => {
-    const firstDay = format(startOfMonth(currentDate), "yyyy-MM-dd");
-    const lastDay = format(endOfMonth(currentDate), "yyyy-MM-dd");
+  const mobileWeekEndStr = format(addDays(getNowBrasilia(), 7), "yyyy-MM-dd");
+  const mobileUpcomingDays = useMemo(() => {
     const grouped = new Map<string, CalendarItem[]>();
 
     allItems.forEach(item => {
-      if (!item.date || item.date < firstDay || item.date > lastDay) return;
+      if (!item.date || item.date < calendarTodayStr || item.date > mobileWeekEndStr) return;
       const current = grouped.get(item.date) || [];
       current.push(item);
       grouped.set(item.date, current);
@@ -530,8 +528,30 @@ export default function CalendarPage() {
         date: new Date(`${dateStr}T00:00:00`),
         items: sortCalendarItems(items, calendarTodayStr),
       }));
-  }, [allItems, currentDate, calendarTodayStr]);
-  const mobileMonthTotal = mobileMonthDays.reduce((total, day) => total + day.items.length, 0);
+  }, [allItems, calendarTodayStr, mobileWeekEndStr]);
+  const mobileLaterDays = useMemo(() => {
+    const grouped = new Map<string, CalendarItem[]>();
+
+    allItems.forEach(item => {
+      if (!item.date || item.date <= mobileWeekEndStr) return;
+      const current = grouped.get(item.date) || [];
+      current.push(item);
+      grouped.set(item.date, current);
+    });
+
+    return [...grouped.entries()]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([dateStr, items]) => ({
+        dateStr,
+        date: new Date(`${dateStr}T00:00:00`),
+        items: sortCalendarItems(items, calendarTodayStr),
+      }));
+  }, [allItems, calendarTodayStr, mobileWeekEndStr]);
+  const mobileVisibleDays = showAllUpcoming
+    ? [...mobileUpcomingDays, ...mobileLaterDays]
+    : mobileUpcomingDays;
+  const mobileUpcomingTotal = mobileUpcomingDays.reduce((total, day) => total + day.items.length, 0);
+  const mobileLaterTotal = mobileLaterDays.reduce((total, day) => total + day.items.length, 0);
   const mobileFilterCount = Number(onlyMine) + Number(!showDone) + Number(!!filterArea);
 
   // Dynamic cell height: compact when few demands, grows with content
@@ -706,34 +726,6 @@ export default function CalendarPage() {
     );
   };
 
-  // Upcoming list (mobile-only): next 7 days starting today
-  const upcomingDays = useMemo(() => {
-    const today = getNowBrasilia();
-    const days: { date: Date; dateStr: string; items: CalendarItem[] }[] = [];
-    for (let i = 0; i < 7; i++) {
-      const d = addDays(today, i);
-      const dateStr = format(d, "yyyy-MM-dd");
-      const items = sortCalendarItems(allItems.filter(it => it.date === dateStr), calendarTodayStr);
-      if (items.length > 0) days.push({ date: d, dateStr, items });
-    }
-    return days;
-  }, [allItems, calendarTodayStr]);
-
-  // Past list (mobile-only): previous 14 days, most recent first
-  const pastDays = useMemo(() => {
-    const today = getNowBrasilia();
-    const todayStr = format(today, "yyyy-MM-dd");
-    const days: { date: Date; dateStr: string; items: CalendarItem[] }[] = [];
-    for (let i = 1; i <= 14; i++) {
-      const d = subDays(today, i);
-      const dateStr = format(d, "yyyy-MM-dd");
-      if (dateStr >= todayStr) continue;
-      const items = sortCalendarItems(allItems.filter(it => it.date === dateStr), calendarTodayStr);
-      if (items.length > 0) days.push({ date: d, dateStr, items });
-    }
-    return days; // already most-recent-first
-  }, [allItems, calendarTodayStr]);
-
   const formatDayHeader = (d: Date) => {
     const today = getNowBrasilia();
     if (isSameDay(d, today)) return "Hoje";
@@ -741,7 +733,7 @@ export default function CalendarPage() {
     return format(d, "EEE, d 'de' MMM", { locale: ptBR });
   };
 
-  const renderListItem = (item: CalendarItem, dim = false) => {
+  const renderListItem = (item: CalendarItem) => {
     const demandVisual = getDemandCalendarVisual(item, calendarTodayStr);
     const detailLabel = item.scopeLabel || item.eventTypeName || typeLabels[item.type];
     const statusLabel = demandVisual?.label || (item.type === "post" && item.status ? POST_STATUS_META[item.status]?.label : null);
@@ -750,7 +742,7 @@ export default function CalendarPage() {
         key={item.id}
         onClick={() => handleItemClick(item)}
         style={{ borderColor: demandVisual?.color || "transparent" }}
-        className={`demand-hover flex w-full items-start gap-2 text-left rounded-xl border bg-background/70 px-3 py-2.5 hover:bg-accent transition-colors ${dim ? "opacity-60" : ""}`}
+        className="demand-hover flex w-full items-start gap-2 rounded-xl border bg-background/70 px-3 py-2.5 text-left transition-colors hover:bg-accent"
       >
         {demandVisual?.kind === "overdue" ? (
           <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-500" />
@@ -774,35 +766,20 @@ export default function CalendarPage() {
 
   return (
     <div className="animate-fade-in flex flex-col gap-3">
-      {/* Hero (mesma identidade visual do Início) */}
-      <div className="page-hero relative overflow-hidden rounded-2xl p-4 md:p-6">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="h-12 w-12 rounded-2xl bg-white/72 border border-border/70 backdrop-blur-sm flex items-center justify-center shrink-0 shadow-sm">
-              <CalendarDays className="h-6 w-6 text-primary" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-xl md:text-2xl font-bold text-foreground tracking-tight">Calendário</h1>
-              <p className="text-xs md:text-sm text-muted-foreground mt-0.5">
-                Organize demandas, publicações e eventos em um só lugar.
-              </p>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 md:gap-3">
-            {!isMobile && (
-              <>
-                <CalToggle active={onlyMine} onClick={() => setOnlyMine(v => !v)} icon={User} label="Minhas demandas" />
-                <CalToggle active={showDone} onClick={() => setShowDone(v => !v)} icon={CheckCircle2} label="Mostrar concluídas" activeColor="#10B981" />
-              </>
-            )}
-            <div className={`flex items-center gap-1 bg-white/70 border border-border/70 rounded-2xl p-0.5 backdrop-blur-sm ${isMobile ? "w-full" : ""}`}>
-              <button onClick={navigatePrev} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground"><ChevronLeft className="h-4 w-4" /></button>
-              <span className="text-sm font-semibold text-foreground min-w-0 flex-1 sm:min-w-[180px] text-center capitalize">{headerLabel()}</span>
-              <button onClick={navigateNext} className="p-1.5 rounded-md hover:bg-accent text-muted-foreground"><ChevronRight className="h-4 w-4" /></button>
+      {!isMobile && (
+        <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+          <h1 className="text-xl font-bold tracking-tight text-foreground">Calendário</h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <CalToggle active={onlyMine} onClick={() => setOnlyMine(value => !value)} icon={User} label="Minhas demandas" />
+            <CalToggle active={showDone} onClick={() => setShowDone(value => !value)} icon={CheckCircle2} label="Mostrar concluídas" activeColor="#10B981" />
+            <div className="flex min-w-[210px] items-center gap-1 rounded-xl border border-border bg-background p-0.5">
+              <button onClick={navigatePrev} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent" aria-label="Mês anterior"><ChevronLeft className="h-4 w-4" /></button>
+              <span className="min-w-0 flex-1 text-center text-sm font-semibold capitalize text-foreground">{headerLabel()}</span>
+              <button onClick={navigateNext} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent" aria-label="Próximo mês"><ChevronRight className="h-4 w-4" /></button>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Desktop: dois retângulos acima do calendário */}
       {!isMobile && (
@@ -902,133 +879,107 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {isMobile && (
-        <section className="glass-panel overflow-hidden rounded-2xl">
-          <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-            <div className="min-w-0">
-              <h2 className="text-sm font-bold text-foreground">
-                {onlyMine ? "Minhas demandas do mês" : filterArea && activeAreaMeta ? `Agenda de ${activeAreaMeta.label}` : "Agenda da empresa"}
-              </h2>
-              <p className="mt-0.5 truncate text-[10px] capitalize text-muted-foreground">
-                {headerLabel()}{mobileFilterCount > 0 && activeAreaMeta ? ` • ${activeAreaMeta.label}` : ""}
-              </p>
-            </div>
-            <div className="flex shrink-0 items-center gap-1.5">
-              <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
-                {mobileMonthTotal}
-              </span>
-              <button
-                type="button"
-                onClick={() => setMobileFiltersOpen(open => !open)}
-                aria-expanded={mobileFiltersOpen}
-                aria-controls="mobile-calendar-filters"
-                className={`flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition-colors ${mobileFiltersOpen || mobileFilterCount > 0 ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground"}`}
-              >
-                <SlidersHorizontal className="h-3.5 w-3.5" />
-                <span>Filtros</span>
-                {mobileFilterCount > 0 && (
-                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground">
-                    {mobileFilterCount}
-                  </span>
-                )}
-                {mobileFiltersOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-              </button>
-            </div>
-          </div>
-          {mobileFiltersOpen && (
-            <div id="mobile-calendar-filters" className="space-y-3 border-b border-border bg-muted/20 px-3 py-3">
-              <div className="flex flex-wrap gap-2">
-                <CalToggle active={onlyMine} onClick={() => setOnlyMine(value => !value)} icon={User} label="Minhas demandas" />
-                <CalToggle active={showDone} onClick={() => setShowDone(value => !value)} icon={CheckCircle2} label="Mostrar concluídas" activeColor="#10B981" />
+      {/* Calendário full width — dias quadrados no desktop */}
+      <div data-testid="mobile-calendar" className="glass-panel rounded-2xl cal-grid">
+        {isMobile && (
+          <>
+            <div className="border-b border-border px-3 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-2">
+                  <CalendarDays className="h-4 w-4 shrink-0 text-primary" />
+                  <h1 className="text-sm font-bold text-foreground">Calendário</h1>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileFiltersOpen(open => !open)}
+                  aria-expanded={mobileFiltersOpen}
+                  aria-controls="mobile-calendar-filters"
+                  className={`flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition-colors ${mobileFiltersOpen || mobileFilterCount > 0 ? "border-primary/40 bg-primary/10 text-primary" : "border-border bg-background text-muted-foreground"}`}
+                >
+                  <SlidersHorizontal className="h-3.5 w-3.5" />
+                  <span>Filtros</span>
+                  {mobileFilterCount > 0 && (
+                    <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[9px] font-bold text-primary-foreground">
+                      {mobileFilterCount}
+                    </span>
+                  )}
+                  {mobileFiltersOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                </button>
               </div>
-              <div className="flex flex-wrap items-center gap-1.5 border-t border-border/70 pt-2.5">
-                <span className="w-full text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Áreas</span>
-                {AREAS.map(area => {
-                  const active = filterArea === area.key;
-                  return (
-                    <button
-                      key={area.key}
-                      onClick={() => {
-                        setFilterArea(active ? null : area.key);
-                        setMobileFiltersOpen(false);
-                      }}
-                      style={active ? { backgroundColor: area.color, borderColor: area.color, color: "#fff" } : undefined}
-                      className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${active ? "" : "border-border bg-background text-muted-foreground"}`}
-                    >
-                      {area.label}
-                    </button>
-                  );
-                })}
+              <div className="mt-2 flex items-center gap-1 rounded-xl border border-border bg-background/75 p-0.5">
+                <button onClick={navigatePrev} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent" aria-label="Mês anterior"><ChevronLeft className="h-4 w-4" /></button>
+                <span className="min-w-0 flex-1 text-center text-sm font-semibold capitalize text-foreground">{headerLabel()}</span>
+                <button onClick={navigateNext} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent" aria-label="Próximo mês"><ChevronRight className="h-4 w-4" /></button>
               </div>
-              {teams.length > 0 && (
+            </div>
+            {mobileFiltersOpen && (
+              <div id="mobile-calendar-filters" className="space-y-3 border-b border-border bg-muted/20 px-3 py-3">
+                <div className="flex flex-wrap gap-2">
+                  <CalToggle active={onlyMine} onClick={() => setOnlyMine(value => !value)} icon={User} label="Minhas demandas" />
+                  <CalToggle active={showDone} onClick={() => setShowDone(value => !value)} icon={CheckCircle2} label="Mostrar concluídas" activeColor="#10B981" />
+                </div>
                 <div className="flex flex-wrap items-center gap-1.5 border-t border-border/70 pt-2.5">
-                  <span className="w-full text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Times</span>
-                  {teams.map(team => {
-                    const teamKey = `team_${team.id}`;
-                    const active = filterArea === teamKey;
-                    const teamColor = getTeamColor(team.id);
+                  <span className="w-full text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Áreas</span>
+                  {AREAS.map(area => {
+                    const active = filterArea === area.key;
                     return (
                       <button
-                        key={teamKey}
+                        key={area.key}
                         onClick={() => {
-                          setFilterArea(active ? null : teamKey);
+                          setFilterArea(active ? null : area.key);
                           setMobileFiltersOpen(false);
+                          setShowAllUpcoming(false);
                         }}
-                        style={active ? { backgroundColor: teamColor, borderColor: teamColor, color: "#fff" } : { borderColor: `${teamColor}40`, color: teamColor }}
-                        className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${active ? "" : "bg-background"}`}
+                        style={active ? { backgroundColor: area.color, borderColor: area.color, color: "#fff" } : undefined}
+                        className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${active ? "" : "border-border bg-background text-muted-foreground"}`}
                       >
-                        {team.name}
+                        {area.label}
                       </button>
                     );
                   })}
                 </div>
-              )}
-              {mobileFilterCount > 0 && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setOnlyMine(false);
-                    setShowDone(true);
-                    setFilterArea(null);
-                    setMobileFiltersOpen(false);
-                  }}
-                  className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-3.5 w-3.5" /> Limpar filtros
-                </button>
-              )}
-            </div>
-          )}
-          {mobileMonthDays.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-muted-foreground">Nenhum item agendado neste mês.</div>
-          ) : (
-            <div className="divide-y divide-border">
-              {mobileMonthDays.map(({ date, dateStr, items }) => (
-                <div key={dateStr} className="flex items-start gap-3 px-3 py-3">
-                  <div className={`w-11 shrink-0 rounded-xl border px-1 py-1.5 text-center ${isToday(date) ? "border-primary bg-primary text-primary-foreground" : "border-border bg-muted/45 text-foreground"}`}>
-                    <span className="block text-[9px] font-bold uppercase leading-none">{format(date, "EEE", { locale: ptBR }).replace(".", "")}</span>
-                    <span className="mt-1 block text-lg font-bold leading-none">{format(date, "d")}</span>
+                {teams.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5 border-t border-border/70 pt-2.5">
+                    <span className="w-full text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Times</span>
+                    {teams.map(team => {
+                      const teamKey = `team_${team.id}`;
+                      const active = filterArea === teamKey;
+                      const teamColor = getTeamColor(team.id);
+                      return (
+                        <button
+                          key={teamKey}
+                          onClick={() => {
+                            setFilterArea(active ? null : teamKey);
+                            setMobileFiltersOpen(false);
+                            setShowAllUpcoming(false);
+                          }}
+                          style={active ? { backgroundColor: teamColor, borderColor: teamColor, color: "#fff" } : { borderColor: `${teamColor}40`, color: teamColor }}
+                          className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${active ? "" : "bg-background"}`}
+                        >
+                          {team.name}
+                        </button>
+                      );
+                    })}
                   </div>
-                  <div className="min-w-0 flex-1 space-y-2">
-                    {items.map(item => renderListItem(item))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* Calendário full width — dias quadrados no desktop */}
-      <div className="glass-panel rounded-2xl cal-grid">
-        {isMobile && (
-          <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
-            <div>
-              <div className="text-xs font-bold text-foreground">Visão do mês</div>
-              <div className="text-[10px] text-muted-foreground">Toque em um dia para abrir os detalhes</div>
-            </div>
-            <CalendarDays className="h-4 w-4 text-primary" />
-          </div>
+                )}
+                {mobileFilterCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOnlyMine(false);
+                      setShowDone(true);
+                      setFilterArea(null);
+                      setMobileFiltersOpen(false);
+                      setShowAllUpcoming(false);
+                    }}
+                    className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-3.5 w-3.5" /> Limpar filtros
+                  </button>
+                )}
+              </div>
+            )}
+          </>
         )}
         <div className="grid grid-cols-7 border-b border-border">
           {weekDays.map(d => (
@@ -1054,61 +1005,25 @@ export default function CalendarPage() {
       </div>
 
       {isMobile && (
-        <div className="glass-panel rounded-2xl overflow-hidden">
-          {/* Past toggle / list */}
-          <button
-            onClick={() => {
-              setShowPast(v => {
-                const next = !v;
-                if (next) {
-                  // expand past upward; keep upcoming roughly in place by scrolling to it after layout
-                  setTimeout(() => upcomingTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
-                }
-                return next;
-              });
-            }}
-            className="w-full px-3 py-2 border-b border-border flex items-center justify-between gap-2 hover:bg-accent transition-colors"
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              {showPast ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground shrink-0" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-              <span className="text-[11px] font-medium text-muted-foreground truncate">
-                {showPast ? "Ocultar publicações anteriores" : `Ver últimas publicações (${pastDays.reduce((a, d) => a + d.items.length, 0)})`}
-              </span>
+        <section data-testid="mobile-upcoming-list" className="glass-panel overflow-hidden rounded-2xl">
+          <div className="flex items-center justify-between gap-3 border-b border-border py-3 pl-14 pr-3">
+            <div className="min-w-0">
+              <h2 className="text-sm font-bold text-foreground">
+                {onlyMine ? "Minhas próximas demandas" : "Próximas demandas"}
+              </h2>
+              <p className="mt-0.5 text-[10px] text-muted-foreground">
+                Hoje até {format(new Date(`${mobileWeekEndStr}T00:00:00`), "d 'de' MMM", { locale: ptBR })}
+              </p>
             </div>
-            {!showPast && pastDays.length > 0 && (
-              <span className="text-[10px] text-muted-foreground/70">role para cima</span>
-            )}
-          </button>
-
-          {showPast && (
-            <div className="divide-y divide-border bg-muted/20">
-              {pastDays.length === 0 ? (
-                <div className="px-3 py-4 text-center text-xs text-muted-foreground">Nenhuma publicação anterior nos últimos 14 dias</div>
-              ) : (
-                pastDays.map(({ date, dateStr, items }) => (
-                  <div key={dateStr} className="px-3 py-2.5">
-                    <div className="flex items-baseline justify-between mb-1.5">
-                      <span className="text-xs font-semibold capitalize text-muted-foreground">{format(date, "EEE, d 'de' MMM", { locale: ptBR })}</span>
-                      <span className="text-[10px] text-muted-foreground/70">{items.length} {items.length === 1 ? "item" : "itens"}</span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      {items.map(item => renderListItem(item, true))}
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-
-          <div ref={upcomingTopRef} className="px-3 py-2 border-b border-border bg-card scroll-mt-16">
-            <div className="text-xs font-semibold uppercase tracking-wide text-foreground">Próximos dias</div>
-            <div className="text-[10px] text-muted-foreground mt-0.5">O que vem por aí nos próximos 7 dias</div>
+            <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-bold text-primary">
+              {showAllUpcoming ? mobileUpcomingTotal + mobileLaterTotal : mobileUpcomingTotal}
+            </span>
           </div>
-          {upcomingDays.length === 0 ? (
-            <div className="px-3 py-6 text-center text-xs text-muted-foreground">Nada agendado para os próximos 7 dias</div>
+          {mobileVisibleDays.length === 0 ? (
+            <div className="px-3 py-7 text-center text-xs text-muted-foreground">Nenhuma demanda agendada a partir de hoje</div>
           ) : (
             <div className="divide-y divide-border">
-              {upcomingDays.map(({ date, dateStr, items }) => (
+              {mobileVisibleDays.map(({ date, dateStr, items }) => (
                 <div key={dateStr} className="px-3 py-2.5">
                   <div className="flex items-baseline justify-between mb-1.5">
                     <span className="text-xs font-semibold capitalize text-foreground">{formatDayHeader(date)}</span>
@@ -1121,7 +1036,21 @@ export default function CalendarPage() {
               ))}
             </div>
           )}
-        </div>
+          {mobileLaterTotal > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowAllUpcoming(value => !value)}
+              aria-expanded={showAllUpcoming}
+              className="flex w-full items-center justify-center gap-1.5 border-t border-border px-3 py-3 text-xs font-bold text-primary transition-colors hover:bg-primary/5"
+            >
+              {showAllUpcoming ? (
+                <><ChevronUp className="h-4 w-4" /> Ver menos</>
+              ) : (
+                <><ChevronDown className="h-4 w-4" /> Ver mais ({mobileLaterTotal})</>
+              )}
+            </button>
+          )}
+        </section>
       )}
 
       {/* Popup com todas as demandas do dia */}
