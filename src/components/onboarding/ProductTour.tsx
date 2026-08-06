@@ -54,25 +54,39 @@ export default function ProductTour() {
     setRunning(true);
   }, [isOwner]);
 
+  // Mantém a versão mais recente de start() sem que a identidade dela
+  // reexecute o efeito de início automático.
+  const startRef = useRef(start);
+  useEffect(() => { startRef.current = start; }, [start]);
+
   // Início automático para contas novas, e gatilho manual (Configurações)
   useEffect(() => {
-    const onManualStart = () => start();
+    const onManualStart = () => startRef.current();
     window.addEventListener("buzzup:start-tour", onManualStart);
     return () => window.removeEventListener("buzzup:start-tour", onManualStart);
-  }, [start]);
+  }, []);
 
   useEffect(() => {
-    if (startedRef.current || running) return;
+    if (startedRef.current) return;
     if (!user || !workspaceId) return;
     if (hasSeenTour(user.id)) return;
-    if (!isNewAccount(user.created_at)) {
-      markTourSeen(user.id, "skipped"); // conta antiga: não incomoda
-      return;
-    }
-    startedRef.current = true;
-    const t = setTimeout(() => start(), 900);
+    // Conta antiga não dispara sozinha — mas não persistimos "pulado" aqui:
+    // marcar cedo demais (ex.: created_at ainda indisponível) desligaria o tour
+    // para sempre em uma conta nova.
+    if (!isNewAccount(user.created_at)) return;
+
+    // startedRef só é marcado quando o tour realmente abre. Marcá-lo antes fazia
+    // o tour sumir: o efeito reexecuta quando isOwner muda (o hub carrega logo
+    // após entrar no primeiro workspace), o cleanup cancelava o timer e o guard
+    // bloqueava a partir dali.
+    const t = setTimeout(() => {
+      if (startedRef.current) return;
+      startedRef.current = true;
+      startRef.current();
+    }, 900);
     return () => clearTimeout(t);
-  }, [user, workspaceId, running, start]);
+    // Depende de valores estáveis (ids), não da identidade de user/start
+  }, [user?.id, user?.created_at, workspaceId]);
 
   // Navega para a rota do passo e posiciona o spotlight
   useEffect(() => {

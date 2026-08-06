@@ -23,6 +23,7 @@ import NotificationPanel from "@/components/NotificationPanel";
 import BroadcastBar from "@/components/BroadcastBar";
 import BroadcastModal from "@/components/modals/BroadcastModal";
 import CreateTeamModal from "@/components/modals/CreateTeamModal";
+import CreateAreaModal from "@/components/modals/CreateAreaModal";
 import PointsEarnedBanner from "@/components/PointsEarnedBanner";
 import ProductTour from "@/components/onboarding/ProductTour";
 import BrandLogo from "@/components/BrandLogo";
@@ -154,6 +155,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [broadcastModal, setBroadcastModal] = useState(false);
   const [editAreasModal, setEditAreasModal] = useState(false);
   const [createTeamModal, setCreateTeamModal] = useState(false);
+  const [createAreaModal, setCreateAreaModal] = useState(false);
 
   // Nav items stagger: triggers after sidebar entrance animation is mostly done
   const [navIn, setNavIn] = useState(false);
@@ -355,8 +357,26 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           {/* ── Áreas ── */}
           {!collapsed && (
-            <div className="px-3 pt-3 pb-1">
+            <div className="px-3 pt-3 pb-1 flex items-center justify-between">
               <span className="text-[10px] font-semibold text-white/50 uppercase tracking-wider">Áreas</span>
+              {isOwner && (
+                <div className="flex items-center gap-0.5">
+                  <button
+                    onClick={() => setEditAreasModal(true)}
+                    title="Editar nomes das áreas"
+                    className="h-5 w-5 rounded flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                  <button
+                    onClick={() => setCreateAreaModal(true)}
+                    title="Criar área"
+                    className="h-5 w-5 rounded flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
           )}
           {collapsed && <div className="border-t border-white/15 my-2" />}
@@ -459,16 +479,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           )}
         </nav>
         <div className="p-3 border-t border-white/10 shrink-0">
-          {isAdmin && (
-            <button
-              onClick={() => setEditAreasModal(true)}
-              title="Editar nomes das áreas"
-              className={`w-full mb-2 flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-white/60 hover:text-white hover:bg-white/10 transition-colors ${collapsed ? "justify-center" : ""}`}
-            >
-              <Pencil className="h-4 w-4 shrink-0" />
-              {!collapsed && <span>Editar áreas</span>}
-            </button>
-          )}
           {isOwner && (
             <button
               onClick={() => setBroadcastModal(true)}
@@ -515,6 +525,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <BroadcastModal open={broadcastModal} onOpenChange={setBroadcastModal} />
       <EditAreaNamesModal open={editAreasModal} onOpenChange={setEditAreasModal} />
       <CreateTeamModal open={createTeamModal} onOpenChange={setCreateTeamModal} />
+      <CreateAreaModal open={createAreaModal} onOpenChange={setCreateAreaModal} />
     </div>
   );
 }

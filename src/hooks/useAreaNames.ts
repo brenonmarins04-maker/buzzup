@@ -5,6 +5,9 @@ import {
   setCustomAreaNames,
   getCustomAreaNames,
   loadAreaNamesForWorkspace,
+  getCustomAreas,
+  isCustomAreaKey,
+  makeCustomAreaKey,
   AREAS_DEFAULT,
 } from "@/lib/areas";
 
@@ -99,13 +102,46 @@ export function useAreaNames() {
     [activeWorkspaceId, isOwner]
   );
 
-  const currentNames = getCustomAreaNames(activeWorkspaceId ?? undefined);
-  const areaNames = AREAS_DEFAULT.map(a => ({
-    key: a.key,
-    defaultLabel: a.label,
-    currentLabel: currentNames[a.key] || a.label,
-    color: a.color,
-  }));
+  /** Cria uma área nova: entra como chave extra no mapa de nomes. */
+  const addArea = useCallback(
+    async (name: string) => {
+      const label = name.trim();
+      if (!label || !activeWorkspaceId || !isOwner) return null;
+      const key = makeCustomAreaKey();
+      await saveAreaNames({ ...getCustomAreaNames(activeWorkspaceId), [key]: label });
+      return { key, path: `/${key}` };
+    },
+    [activeWorkspaceId, isOwner, saveAreaNames],
+  );
 
-  return { areaNames, saveAreaNames, currentNames, version };
+  /** Remove uma área criada (as 4 padrão não podem ser removidas). */
+  const removeArea = useCallback(
+    async (key: string) => {
+      if (!activeWorkspaceId || !isOwner || !isCustomAreaKey(key)) return;
+      const next = { ...getCustomAreaNames(activeWorkspaceId) };
+      delete next[key];
+      await saveAreaNames(next);
+    },
+    [activeWorkspaceId, isOwner, saveAreaNames],
+  );
+
+  const currentNames = getCustomAreaNames(activeWorkspaceId ?? undefined);
+  const areaNames = [
+    ...AREAS_DEFAULT.map(a => ({
+      key: a.key,
+      defaultLabel: a.label,
+      currentLabel: currentNames[a.key] || a.label,
+      color: a.color,
+      custom: false,
+    })),
+    ...getCustomAreas(activeWorkspaceId ?? undefined).map(a => ({
+      key: a.key,
+      defaultLabel: a.label,
+      currentLabel: currentNames[a.key] || a.label,
+      color: a.color,
+      custom: true,
+    })),
+  ];
+
+  return { areaNames, saveAreaNames, addArea, removeArea, currentNames, version };
 }

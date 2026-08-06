@@ -100,4 +100,38 @@ describe("ProductTour", () => {
 
     expect(screen.queryByText("Bem-vindo ao BuzzUp! 🎉")).not.toBeInTheDocument();
   });
+
+  it("abre sozinho para conta nova ao entrar no workspace", () => {
+    vi.useFakeTimers();
+    try {
+      renderTour();
+      act(() => { vi.advanceTimersByTime(1200); });
+      expect(screen.getByText("Bem-vindo ao BuzzUp! 🎉")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ainda abre quando o papel do usuário muda antes do tour aparecer", () => {
+    // Regressão: o hub carrega logo após entrar no primeiro workspace e promove
+    // a pessoa a owner. O efeito reexecutava, cancelava o timer e o tour sumia.
+    vi.useFakeTimers();
+    try {
+      mocks.isOwner = false;
+      const view = renderTour();
+
+      act(() => { vi.advanceTimersByTime(400) });
+      mocks.isOwner = true; // hub carregou: virou owner
+      view.rerender(
+        <MemoryRouter initialEntries={["/"]}>
+          <ProductTour />
+        </MemoryRouter>,
+      );
+
+      act(() => { vi.advanceTimersByTime(1200); });
+      expect(screen.getByText("Bem-vindo ao BuzzUp! 🎉")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

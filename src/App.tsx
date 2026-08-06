@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Outlet, Navigate, useParams, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { AREAS, isCustomAreaKey } from "@/lib/areas";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -54,13 +55,13 @@ const ProtectedApp = () => (
   </ProtectedRoute>
 );
 
-const AREA_KEYS = ["projetos", "mercado", "gg", "presidencia"] as const;
-type AreaSlug = typeof AREA_KEYS[number];
 const AreaRoute = () => {
   const { area } = useParams<{ area: string }>();
-  if (!area || !AREA_KEYS.includes(area as AreaSlug)) return <NotFound />;
+  // Aceita as 4 áreas padrão e as criadas pelo owner (chave com prefixo custom)
+  const isKnownArea = !!area && (AREAS.some(a => a.key === area) || isCustomAreaKey(area));
+  if (!isKnownArea) return <NotFound />;
   // key forces internal state reset per area while the layout stays mounted
-  return <AreaPage key={area} area={area as AreaSlug} />;
+  return <AreaPage key={area} area={area} />;
 };
 
 // Durante a recuperação de senha o link do e-mail cria uma sessão temporária.

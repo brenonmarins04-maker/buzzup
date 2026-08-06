@@ -14,7 +14,9 @@ export type TourStep = {
   ownerOnly?: boolean;
 };
 
-export const TOUR_VERSION = "v1";
+// v2: invalida as marcas gravadas pela versão com o bug de início automático
+// (contas novas ficavam marcadas como "pulado" sem nunca ter visto o tour).
+export const TOUR_VERSION = "v2";
 
 export function tourStorageKey(userId: string) {
   return `buzzup.tour.${TOUR_VERSION}.${userId}`;

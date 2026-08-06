@@ -1,4 +1,18 @@
-export type AreaKey = "projetos" | "mercado" | "gg" | "presidencia";
+// Chave de área: as 4 padrão do workspace + as criadas pelo owner (prefixo area_)
+export type AreaKey = string;
+
+export const DEFAULT_AREA_KEYS = ["projetos", "mercado", "gg", "presidencia"] as const;
+
+/** Áreas criadas pelo usuário usam este prefixo para se distinguir das padrão. */
+export const CUSTOM_AREA_PREFIX = "area_";
+
+export function isCustomAreaKey(key?: string | null): boolean {
+  return !!key && key.startsWith(CUSTOM_AREA_PREFIX);
+}
+
+export function makeCustomAreaKey(): string {
+  return `${CUSTOM_AREA_PREFIX}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+}
 
 export const AREAS_DEFAULT: { key: AreaKey; label: string; path: string; color: string }[] = [
   { key: "projetos",    label: "Geral",             path: "/projetos",    color: "#00B4D8" },
@@ -17,14 +31,15 @@ function lsKey(wsId: string) { return `buzzup.area_names.${wsId}`; }
 /** Called whenever the active workspace changes (by AuthContext / AppLayout). */
 export function loadAreaNamesForWorkspace(wsId: string | null): void {
   _activeWsId = wsId;
-  if (!wsId) return;
-  if (wsNamesCache.has(wsId)) return; // already loaded
+  if (!wsId) { syncAreas(); return; }
+  if (wsNamesCache.has(wsId)) { syncAreas(); return; } // already loaded
   try {
     const raw = sessionStorage.getItem(lsKey(wsId));
     wsNamesCache.set(wsId, raw ? JSON.parse(raw) : {});
   } catch {
     wsNamesCache.set(wsId, {});
   }
+  syncAreas();
 }
 
 /** Persist custom names for a specific workspace (and update in-memory cache). */
@@ -33,6 +48,7 @@ export function setCustomAreaNames(names: Record<string, string>, wsId?: string)
   if (!id) return;
   wsNamesCache.set(id, names);
   try { sessionStorage.setItem(lsKey(id), JSON.stringify(names)); } catch {}
+  syncAreas();
 }
 
 /** Read custom names for a workspace (defaults to active workspace). */
@@ -47,20 +63,42 @@ export const getAreaLabel = (key?: string | null): string => {
   if (!key) return "";
   const custom = getCustomAreaNames();
   if (custom[key]) return custom[key];
+  if (isCustomAreaKey(key)) return "Nova área"; // criada mas ainda sem nome
   return AREAS_DEFAULT.find(a => a.key === key)?.label ?? "";
 };
 
-// AREAS uses getter so label is always resolved from the active workspace at render time
-export const AREAS: { key: AreaKey; label: string; path: string; color: string }[] =
-  AREAS_DEFAULT.map(a => ({
+/** Áreas criadas pelo owner: qualquer chave com prefixo custom no mapa de nomes. */
+export function getCustomAreas(wsId?: string): { key: AreaKey; label: string; path: string; color: string }[] {
+  const names = getCustomAreaNames(wsId);
+  return Object.keys(names)
+    .filter(isCustomAreaKey)
+    .map(key => ({
+      key,
+      label: names[key] || "Nova área",
+      path: `/${key}`,
+      color: getTeamColor(key), // cor estável derivada da chave
+    }));
+}
+
+// AREAS é mutado no lugar (mesma referência) para que os imports existentes
+// continuem válidos quando o workspace troca ou uma área é criada/removida.
+// O label usa getter para resolver o nome do workspace ativo no render.
+export const AREAS: { key: AreaKey; label: string; path: string; color: string }[] = [];
+export const AREA_OPTIONS: { value: AreaKey; label: string }[] = [];
+
+function syncAreas(): void {
+  const defaults = AREAS_DEFAULT.map(a => ({
     ...a,
     get label() { return getAreaLabel(a.key); },
   }));
+  const next = [...defaults, ...getCustomAreas()];
+  AREAS.length = 0;
+  AREAS.push(...next);
+  AREA_OPTIONS.length = 0;
+  AREA_OPTIONS.push(...next.map(a => ({ value: a.key, get label() { return getAreaLabel(a.key); } })));
+}
 
-export const AREA_OPTIONS = AREAS_DEFAULT.map(a => ({
-  value: a.key,
-  get label() { return getAreaLabel(a.key); },
-}));
+syncAreas();
 
 // ─── Team color palette ──────────────────────────────────────────────────────
 const TEAM_PALETTE = [
@@ -92,5 +130,6 @@ export function getAreaColor(areaKey?: string | null): string {
   if (!areaKey) return "#CBD5E1";
   const teamId = getTeamIdFromAreaKey(areaKey);
   if (teamId) return getTeamColor(teamId);
+  if (isCustomAreaKey(areaKey)) return getTeamColor(areaKey);
   return AREAS_DEFAULT.find(a => a.key === areaKey)?.color ?? "#CBD5E1";
 }
