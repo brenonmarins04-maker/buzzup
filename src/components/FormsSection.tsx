@@ -20,6 +20,7 @@ export default function FormsSection() {
   const [description, setDescription] = useState("");
   const [targetType, setTargetType] = useState<WorkspaceFormTarget>("all");
   const [targetValue, setTargetValue] = useState<string>("");
+  const [points, setPoints] = useState(1);
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<WorkspaceForm | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
@@ -79,7 +80,7 @@ export default function FormsSection() {
   };
 
   const resetModal = () => {
-    setTitle(""); setUrl(""); setDescription(""); setTargetType("all"); setTargetValue("");
+    setTitle(""); setUrl(""); setDescription(""); setTargetType("all"); setTargetValue(""); setPoints(1);
   };
 
   const onCreate = async () => {
@@ -92,7 +93,7 @@ export default function FormsSection() {
     if (!/^https?:\/\//i.test(finalUrl)) finalUrl = `https://${finalUrl}`;
     if (!isValidHttpUrl(finalUrl)) { toast.error("URL inválida. Use https://..."); return; }
     setBusy(true);
-    await addForm(title.trim(), finalUrl, targetType, targetType === "all" ? null : targetValue, description.trim());
+    await addForm(title.trim(), finalUrl, targetType, targetType === "all" ? null : targetValue, description.trim(), points);
     setBusy(false);
     toast.success("Formulário publicado!");
     resetModal();
@@ -144,9 +145,14 @@ export default function FormsSection() {
                     <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{f.description}</p>
                   )}
                 </div>
-                <span className="shrink-0 inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#8B5CF6]/15 text-[#8B5CF6]">
-                  {TargetIcon(f)} {targetLabel(f)}
-                </span>
+                <div className="shrink-0 flex flex-col items-end gap-1">
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#8B5CF6]/15 text-[#8B5CF6]">
+                    {TargetIcon(f)} {targetLabel(f)}
+                  </span>
+                  <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700">
+                    +{f.points ?? 1} {(f.points ?? 1) > 1 ? "pts" : "pt"}
+                  </span>
+                </div>
               </div>
               <div className="flex gap-2 pt-2 border-t border-border/30">
                 <a
@@ -272,6 +278,20 @@ export default function FormsSection() {
             <div className="space-y-1.5">
               <Label htmlFor="form-desc">Descrição (opcional)</Label>
               <Input id="form-desc" value={description} onChange={e => setDescription(e.target.value)} placeholder="Breve contexto" maxLength={200} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="form-points">Pontos na gamificação</Label>
+              <Input
+                id="form-points"
+                type="number"
+                min={1}
+                max={99}
+                value={points}
+                onChange={e => setPoints(Math.min(99, Math.max(1, Math.round(Number(e.target.value) || 1))))}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Quanto cada pessoa ganha ao marcar este formulário como preenchido.
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label>Quem deve responder?</Label>

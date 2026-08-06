@@ -48,6 +48,7 @@ export default function TeamAreaPage() {
 import { useAuth } from "@/contexts/AuthContext";
 import { isLeaderOfAny } from "@/lib/leadership";
 import { isDemandOverdue, formatDemandDayMonth } from "@/lib/demandStatus";
+import { useDemandPoints } from "@/hooks/useDemandPoints";
 import { getTodayBrasilia } from "@/lib/utils";
 import { type ParkingItem, type AttendanceStatus } from "@/contexts/DataContext";
 import { Plus, ExternalLink, Pencil, Trash2, X, ChevronDown, ChevronUp } from "lucide-react";
@@ -239,9 +240,10 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
   const [date, setDate] = useState("");
   // Na criação aceita várias pessoas (copia a demanda para cada uma); na edição, uma só.
   const [editPersonIds, setEditPersonIds] = useState<string[]>([]);
+  const { points: demandPoints } = useDemandPoints();
   const [points, setPoints] = useState<number>(1);
 
-  const openCreate = () => { setModal({ open: true, item: null }); setTitle(""); setDate(""); setEditPersonIds([]); setPoints(1); };
+  const openCreate = () => { setModal({ open: true, item: null }); setTitle(""); setDate(""); setEditPersonIds([]); setPoints(demandPoints[0] ?? 1); };
   const openEdit = (item: ParkingItem) => {
     setModal({ open: true, item });
     setTitle(item.title);
@@ -506,7 +508,7 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Pontos</label>
               <div className="flex gap-2">
-                {[1, 2, 3].map(n => (
+                {demandPoints.map(n => (
                   <button key={n} type="button" onClick={() => setPoints(n)}
                     className={`flex-1 h-10 rounded-full text-sm font-bold border transition-all ${points === n ? "bg-primary text-white border-primary" : "bg-muted border-border text-foreground"}`}>
                     {n}p

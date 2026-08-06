@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import type { Database } from "@/integrations/supabase/types";
 import { getNowBrasilia, getTodayBrasilia } from "@/lib/utils";
 import { normalizeToISODate } from "@/lib/demandStatus";
+import { clampDemandPoints } from "@/lib/demandPoints";
 import { toast } from "sonner";
 import { GENERAL_SHORTCUTS_PREFIX, parseGeneralShortcuts, serializeGeneralShortcuts } from "@/lib/generalShortcuts";
 
@@ -58,7 +59,7 @@ export type Broadcast = { id: string; message: string; durationDays: number; cre
 export type GeneralShortcut = { id: string; label: string; url: string; icon: string };
 
 export type WorkspaceFormTarget = "all" | "area" | "team";
-export type WorkspaceForm = { id: string; title: string; description: string; url: string; targetType: WorkspaceFormTarget; targetValue: string | null; createdBy: string | null; createdAt: string };
+export type WorkspaceForm = { id: string; title: string; description: string; url: string; targetType: WorkspaceFormTarget; targetValue: string | null; points: number; createdBy: string | null; createdAt: string };
 export type FormCompletion = { id: string; formId: string; userId: string; completedAt: string };
 
 export type Notification = {
@@ -155,7 +156,7 @@ type DataContextType = {
   deleteBroadcast: (id: string) => Promise<void>;
   saveGeneralShortcuts: (shortcuts: GeneralShortcut[]) => Promise<void>;
 
-  addForm: (title: string, url: string, targetType: WorkspaceFormTarget, targetValue: string | null, description?: string) => Promise<void>;
+  addForm: (title: string, url: string, targetType: WorkspaceFormTarget, targetValue: string | null, description?: string, points?: number) => Promise<void>;
   deleteForm: (id: string) => Promise<void>;
   markFormCompleted: (formId: string) => Promise<void>;
   unmarkFormCompleted: (formId: string) => Promise<void>;
@@ -328,7 +329,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setAttendanceRecords(((arRes as any)?.data || []).map((r: any) => ({ id: r.id, area: r.area, personId: r.person_id, date: r.date, status: (r.status ?? "P") as AttendanceStatus, justification: r.justification ?? "" })));
       setBroadcasts(((bcRes as any)?.data || []).map((b: any) => ({ id: b.id, message: b.message, durationDays: b.duration_days ?? 7, createdAt: b.created_at, expiresAt: b.expires_at, createdBy: b.created_by ?? null })));
       // Forms — se as tabelas ainda não existirem no banco, os resultados vêm com erro e ficam vazios (não quebra o app)
-      setForms(((fmRes as any)?.data || []).map((f: any) => ({ id: f.id, title: f.title, description: f.description ?? "", url: f.url, targetType: (f.target_type ?? "all") as WorkspaceFormTarget, targetValue: f.target_value ?? null, createdBy: f.created_by ?? null, createdAt: f.created_at })));
+      setForms(((fmRes as any)?.data || []).map((f: any) => ({ id: f.id, title: f.title, description: f.description ?? "", url: f.url, targetType: (f.target_type ?? "all") as WorkspaceFormTarget, targetValue: f.target_value ?? null, points: f.points ?? 1, createdBy: f.created_by ?? null, createdAt: f.created_at })));
       setFormCompletions(((fcRes as any)?.data || []).map((c: any) => ({ id: c.id, formId: c.form_id, userId: c.user_id, completedAt: c.completed_at })));
 
       // Sync: migrate tasks with deadlines into parkingItems so they appear in Quadro CB
@@ -528,7 +529,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     const refetchForms = async () => {
       const { data } = await (supabase.from as any)("workspace_forms").select("*").eq("workspace_id", wsId).order("created_at", { ascending: false });
-      setForms((data || []).map((f: any) => ({ id: f.id, title: f.title, description: f.description ?? "", url: f.url, targetType: (f.target_type ?? "all") as WorkspaceFormTarget, targetValue: f.target_value ?? null, createdBy: f.created_by ?? null, createdAt: f.created_at })));
+      setForms((data || []).map((f: any) => ({ id: f.id, title: f.title, description: f.description ?? "", url: f.url, targetType: (f.target_type ?? "all") as WorkspaceFormTarget, targetValue: f.target_value ?? null, points: f.points ?? 1, createdBy: f.created_by ?? null, createdAt: f.created_at })));
     };
 
     const refetchFormCompletions = async () => {
@@ -1074,7 +1075,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // === PARKING ITEMS (Quadro CB) ===
   const addParkingItem = useCallback(async (area: string, title: string, date: string, description = "", points: number = 1, personId: string | null = null) => {
     if (!workspaceId) return;
-    const pts = Math.max(1, Math.min(3, Math.round(points || 1)));
+    const pts = clampDemandPoints(points);
     const pid = personId || null;
     const { data, error } = await (supabase.from("parking_items") as any)
       .insert({ workspace_id: workspaceId, area, title, description, date, points: pts, person_id: pid, position: parkingItems.filter(p => p.area === area && p.personId === pid).length })
@@ -1095,7 +1096,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setParkingItems(curr => curr.map(x => x.id === p.id ? { ...p, completedAt, completedBy } : x));
     // Award gamification points when transitioning to "done"
     if (workspaceId && becomingDone && p.personId) {
-      const pts = Math.max(1, Math.min(3, p.points || 1));
+      const pts = clampDemandPoints(p.points);
       let { data: aw } = await (supabase.from("gamification_awards") as any)
         .insert({ workspace_id: workspaceId, person_id: p.personId, action_id: null, action_name: `Demanda: ${p.title}`, points: pts, awarded_by: uid })
         .select().single();
@@ -1321,13 +1322,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [workspaceId, uid, broadcasts, isAdmin, isOwner]);
 
   // === FORMS (Formulários do workspace) ===
-  const addForm = useCallback(async (title: string, url: string, targetType: WorkspaceFormTarget, targetValue: string | null, description = "") => {
+  const addForm = useCallback(async (title: string, url: string, targetType: WorkspaceFormTarget, targetValue: string | null, description = "", points = 1) => {
     if (!workspaceId) return;
+    const pts = clampDemandPoints(points);
     const { data, error } = await (supabase.from("workspace_forms") as any)
-      .insert({ workspace_id: workspaceId, title, description, url, target_type: targetType, target_value: targetValue, created_by: uid })
+      .insert({ workspace_id: workspaceId, title, description, url, target_type: targetType, target_value: targetValue, points: pts, created_by: uid })
       .select().single();
     if (error) { toast.error("Erro ao criar formulário"); return; }
-    if (data) setForms(prev => [{ id: data.id, title: data.title, description: data.description ?? "", url: data.url, targetType: (data.target_type ?? "all") as WorkspaceFormTarget, targetValue: data.target_value ?? null, createdBy: data.created_by ?? null, createdAt: data.created_at }, ...prev]);
+    if (data) setForms(prev => [{ id: data.id, title: data.title, description: data.description ?? "", url: data.url, targetType: (data.target_type ?? "all") as WorkspaceFormTarget, targetValue: data.target_value ?? null, points: data.points ?? pts, createdBy: data.created_by ?? null, createdAt: data.created_at }, ...prev]);
   }, [workspaceId, uid]);
 
   const deleteForm = useCallback(async (id: string) => {
@@ -1368,9 +1370,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       toast.success("Preenchido! Ponto deste formulário já contabilizado ✔");
       return;
     }
-    const formTitle = forms.find(f => f.id === formId)?.title || "Formulário";
+    const form = forms.find(f => f.id === formId);
+    const formTitle = form?.title || "Formulário";
+    const formPoints = clampDemandPoints(form?.points ?? 1);
     const direct = await (supabase.from("gamification_awards") as any)
-      .insert({ workspace_id: workspaceId, person_id: myPerson.id, action_id: formId, action_name: `Formulário: ${formTitle}`, points: 1, awarded_by: uid })
+      .insert({ workspace_id: workspaceId, person_id: myPerson.id, action_id: formId, action_name: `Formulário: ${formTitle}`, points: formPoints, awarded_by: uid })
       .select().single();
     let aw = direct.data;
     if (!aw) {
@@ -1382,7 +1386,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
     if (aw) {
       setGamificationAwards(curr => [{ id: aw.id, personId: aw.person_id, actionId: aw.action_id ?? null, actionName: aw.action_name, points: aw.points ?? 0, awardedAt: aw.awarded_at }, ...curr]);
-      toast.success("Você ganhou +1 ponto na gamificação! 🏆");
+      toast.success(`Você ganhou +${aw.points ?? formPoints} ponto${(aw.points ?? formPoints) > 1 ? "s" : ""} na gamificação! 🏆`);
     } else {
       // preencheu, mas o ponto não entrou — avisa em vez de esconder
       toast.warning("Preenchido! Mas o ponto não pôde ser registrado. Avise um diretor (SQL de gamificação pendente).");

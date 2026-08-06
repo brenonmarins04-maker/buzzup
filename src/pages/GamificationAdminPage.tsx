@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState, useRef, useEffect } from "react";
 import { useData, type GamificationAction } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
@@ -9,8 +9,10 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AREAS_DEFAULT, getAreaLabel } from "@/lib/areas";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useDemandPoints } from "@/hooks/useDemandPoints";
+import { MAX_DEMAND_POINT_OPTIONS } from "@/lib/demandPoints";
 
-type Sub = "pontuar" | "acoes" | "apelidos" | "historico";
+type Sub = "pontuar" | "acoes" | "demandas" | "apelidos" | "historico";
 
 export default function GamificationAdminPage() {
   const { isAdmin, hubStatus } = useAuth();
@@ -27,6 +29,7 @@ export default function GamificationAdminPage() {
     { v: "pontuar", label: "Pontuar" },
     { v: "apelidos", label: "Apelidos" },
     { v: "acoes", label: "Ações rápidas" },
+    { v: "demandas", label: "Pontuação por demandas" },
     { v: "historico", label: "Histórico" },
   ];
 
@@ -47,6 +50,7 @@ export default function GamificationAdminPage() {
       </div>
       {sub === "pontuar" && <PontuarTab />}
       {sub === "acoes" && <AcoesTab />}
+      {sub === "demandas" && <DemandasTab />}
       {sub === "apelidos" && <ApelidosTab />}
       {sub === "historico" && <HistoricoTab />}
     </div>
@@ -557,6 +561,123 @@ function NicknameProgressBar({ people }: { people: { id: string; name: string; n
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ── Pontuação por demandas ───────────────────────────────────────────────────
+// Define os valores rápidos que aparecem ao criar/editar uma demanda.
+// Vale para o workspace inteiro; só diretores e owner podem alterar.
+function DemandasTab() {
+  const { points, savePoints, defaultPoints } = useDemandPoints();
+  const [values, setValues] = useState<number[]>(points);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { setValues(points); }, [points]);
+
+  const dirty = values.length !== points.length || values.some((v, i) => v !== points[i]);
+
+  const setAt = (i: number, raw: string) => {
+    const n = Math.min(99, Math.max(1, Math.round(Number(raw) || 1)));
+    setValues(prev => prev.map((v, idx) => (idx === i ? n : v)));
+  };
+
+  const save = async () => {
+    setSaving(true);
+    const res = await savePoints(values);
+    setSaving(false);
+    if (res.ok) toast.success("Pontuação das demandas atualizada!");
+    else toast.error(res.error || "Não foi possível salvar.");
+  };
+
+  return (
+    <div className="space-y-4 max-w-xl">
+      <div>
+        <h3 className="text-sm font-semibold text-foreground">Pontuação por demandas</h3>
+        <p className="text-xs text-muted-foreground mt-1">
+          Estes são os valores oferecidos ao criar uma demanda no Quadro CB e no calendário.
+          A mudança vale para todo o workspace.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3">
+        {values.map((v, i) => (
+          <div key={i} className="flex flex-col gap-1">
+            <label className="text-[11px] font-medium text-muted-foreground">Opção {i + 1}</label>
+            <div className="flex items-center gap-1">
+              <Input
+                type="number"
+                min={1}
+                max={99}
+                value={v}
+                onChange={e => setAt(i, e.target.value)}
+                className="h-10 w-20 text-center font-bold"
+                disabled={saving}
+              />
+              {values.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setValues(prev => prev.filter((_, idx) => idx !== i))}
+                  title="Remover opção"
+                  disabled={saving}
+                  className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {values.length < MAX_DEMAND_POINT_OPTIONS && (
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10"
+            disabled={saving}
+            onClick={() => setValues(prev => [...prev, Math.min(99, (prev[prev.length - 1] ?? 0) + 1)])}
+          >
+            <Plus className="h-4 w-4 mr-1" /> Opção
+          </Button>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-border bg-muted/30 p-3">
+        <p className="text-[11px] font-medium text-muted-foreground mb-2">Prévia do seletor</p>
+        <div className="flex flex-wrap gap-2">
+          {values.map((v, i) => (
+            <span
+              key={i}
+              className="px-4 h-9 rounded-full border border-primary/30 bg-primary/10 text-primary text-sm font-bold flex items-center"
+            >
+              {v} {v === 1 ? "ponto" : "pontos"}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 pt-1">
+        <Button onClick={save} disabled={saving || !dirty}>
+          {saving ? "Salvando..." : "Salvar"}
+        </Button>
+        {dirty && (
+          <Button variant="ghost" onClick={() => setValues(points)} disabled={saving}>
+            Cancelar
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          className="ml-auto text-muted-foreground"
+          onClick={() => setValues([...defaultPoints])}
+          disabled={saving}
+        >
+          Restaurar padrão (1, 2, 3)
+        </Button>
+      </div>
+
+      <p className="text-[11px] text-muted-foreground">
+        Demandas já criadas mantêm os pontos que receberam.
+      </p>
     </div>
   );
 }

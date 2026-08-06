@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AREAS, type AreaKey, getAreaLabel } from "@/lib/areas";
 import { isLeaderOfAny } from "@/lib/leadership";
 import { isDemandOverdue, formatDemandDayMonth } from "@/lib/demandStatus";
+import { useDemandPoints } from "@/hooks/useDemandPoints";
 import { getTodayBrasilia } from "@/lib/utils";
 import { Plus, ExternalLink, Pencil, Trash2, X, Settings, ChevronDown, ChevronUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -391,15 +392,16 @@ function KanbanTab({ area }: { area: AreaKey }) {
   const [date, setDate] = useState("");
   // Na criação aceita várias pessoas (a demanda é copiada para cada uma); na edição, uma só.
   const [personIds, setPersonIds] = useState<string[]>([]);
+  const { points: demandPoints } = useDemandPoints();
   const [points, setPoints] = useState<number>(1);
 
-  const openCreate = () => { setModal({ open: true, item: null }); setTitle(""); setDate(""); setPersonIds([]); setPoints(1); };
+  const openCreate = () => { setModal({ open: true, item: null }); setTitle(""); setDate(""); setPersonIds([]); setPoints(demandPoints[0] ?? 1); };
   const openEdit = (item: ParkingItem) => { setModal({ open: true, item }); setTitle(item.title); setDate(item.date || ""); setPersonIds(item.personId ? [item.personId] : []); setPoints(item.points ?? 1); };
 
   const save = async () => {
     if (!title.trim()) { toast.error("Título obrigatório"); return; }
     if (!date) { toast.error("Data obrigatória"); return; }
-    if (![1, 2, 3].includes(points)) { toast.error("Selecione os pontos"); return; }
+    if (!demandPoints.includes(points)) { toast.error("Selecione os pontos"); return; }
     if (modal.item) {
       await updateParkingItem({ ...modal.item, title: title.trim(), date, personId: personIds[0] || null, points });
       toast.success("Atualizado");
@@ -752,7 +754,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
             <div>
               <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Pontos <span className="text-destructive">*</span></label>
               <div className="flex gap-2">
-                {[1, 2, 3].map(n => {
+                {demandPoints.map(n => {
                   const selected = points === n;
                   return (
                     <button

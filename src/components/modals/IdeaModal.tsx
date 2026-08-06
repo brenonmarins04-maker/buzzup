@@ -8,6 +8,7 @@ import { AREAS, getAreaColor, getTeamColor, getTeamIdFromAreaKey } from "@/lib/a
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
+import { useDemandPoints } from "@/hooks/useDemandPoints";
 
 type Props = {
   open: boolean;
@@ -27,6 +28,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
   const [area, setArea] = useState("");
   const [personId, setPersonId] = useState<string>("");
   const [date, setDate] = useState("");
+  const { points: demandPoints } = useDemandPoints();
   const [points, setPoints] = useState<number>(1);
   const [savedOk, setSavedOk] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
@@ -64,7 +66,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
     const t = title.trim();
     if (!t) { toast.error("Título é obrigatório"); return; }
     if (!area) { toast.error("Selecione a área primeiro"); return; }
-    if (![1, 2, 3].includes(points)) { toast.error("Selecione os pontos (1, 2 ou 3)"); return; }
+    if (!demandPoints.includes(points)) { toast.error("Selecione os pontos"); return; }
     if (requireFull) {
       if (!date) { toast.error("Selecione uma data"); return; }
     }
@@ -226,7 +228,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
                     Pontos <span className="text-destructive">*</span>
                   </label>
                   <div className="flex gap-1.5">
-                    {[1, 2, 3].map(n => {
+                    {demandPoints.map(n => {
                       const selected = points === n;
                       const areaColor = selectedColor;
                       return (
