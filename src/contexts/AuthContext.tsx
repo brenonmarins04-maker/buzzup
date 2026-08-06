@@ -114,6 +114,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Garante um token utilizável antes de falar com o servidor. Sessões recém
+  // criadas (link de confirmação, primeiro login) podem ainda não estar
+  // persistidas; se não houver sessão, tenta renovar com o refresh token em
+  // vez de simplesmente acusar erro.
+  async function ensureFreshSession(expectedUserId: string) {
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.user.id === expectedUserId) return data.session;
+    const { data: refreshed } = await supabase.auth.refreshSession();
+    if (refreshed.session?.user.id === expectedUserId) return refreshed.session;
+    return null;
+  }
+
   async function fetchHub(expectedUserId = currentUserIdRef.current): Promise<boolean> {
     if (!expectedUserId) return false;
 
@@ -121,30 +133,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!hubLoadedRef.current) setHubStatus("loading");
     setHubError(null);
 
-    // Sessões recém-criadas (link de confirmação, login logo após confirmar)
-    // podem demorar alguns instantes para o client persistir — tenta algumas
-    // vezes antes de acusar sessão inválida, senão conta nova vê erro à toa.
-    let sessionValid = false;
-    for (let attempt = 0; attempt < 8; attempt++) {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (
-        requestId !== hubRequestIdRef.current
-        || currentUserIdRef.current !== expectedUserId
-      ) return false;
-      if (!sessionError && sessionData.session?.user.id === expectedUserId) {
-        sessionValid = true;
-        break;
-      }
-      await new Promise(r => setTimeout(r, 250));
-    }
+    const session = await ensureFreshSession(expectedUserId);
     if (
       requestId !== hubRequestIdRef.current
       || currentUserIdRef.current !== expectedUserId
     ) return false;
 
-    if (!sessionValid) {
+    if (!session) {
       if (!hubLoadedRef.current) setHubStatus("error");
-      setHubError("Sua sessão não pôde ser validada. Tente carregar novamente.");
+      setHubError("Sua sessão expirou. Entre novamente para ver seus workspaces.");
       return false;
     }
 
@@ -461,6 +458,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const requestJoinWorkspace = async (code: string) => {
     const trimmedCode = code.trim().toUpperCase();
 
+    const uid = currentUserIdRef.current;
+    if (uid) await ensureFreshSession(uid);
+
     const { error } = await supabase.rpc("request_join_workspace", { _code: trimmedCode });
     if (error) {
       const msg = String(error.message || "").toLowerCase();
@@ -482,8 +482,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const createWorkspace = async (name: string) => {
+    // Renova a sessão antes do RPC: sem token válido o servidor devolve
+    // "not_authenticated" mesmo com o usuário aparentemente logado.
+    const uid = currentUserIdRef.current;
+    if (uid && !(await ensureFreshSession(uid))) {
+      return { ok: false, error: "Sua sessão expirou. Entre novamente para criar o workspace." };
+    }
+
     const { data, error } = await supabase.rpc("create_workspace", { _name: name });
-    if (error) return { ok: false, error: error.message };
+    if (error) {
+      const msg = String(error.message || "").toLowerCase();
+      if (msg.includes("not_authenticated")) {
+        return { ok: false, error: "Sua sessão expirou. Entre novamente para criar o workspace." };
+      }
+      if (msg.includes("invalid_name")) {
+        return { ok: false, error: "Escolha um nome para o workspace." };
+      }
+      return { ok: false, error: error.message };
+    }
     const ws = Array.isArray(data) ? data[0] : data;
 
     // Grava os nomes padrão das áreas como broadcast para que todos os membros

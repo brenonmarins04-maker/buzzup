@@ -202,9 +202,15 @@ export default function WelcomePage() {
                 <AlertCircle className="h-9 w-9 text-amber-600 mx-auto mb-3" />
                 <p className="text-sm font-semibold text-foreground">Não conseguimos carregar seus workspaces agora.</p>
                 <p className="text-xs text-muted-foreground mt-1.5">{hubError}</p>
-                <Button type="button" variant="outline" className="mt-4 rounded-xl" onClick={() => void refreshHub()}>
-                  <RefreshCw className="h-4 w-4 mr-2" /> Tentar novamente
-                </Button>
+                <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                  <Button type="button" variant="outline" className="rounded-xl" onClick={() => void refreshHub()}>
+                    <RefreshCw className="h-4 w-4 mr-2" /> Tentar novamente
+                  </Button>
+                  {/* Sessão morta não se resolve com retry — oferece o novo login */}
+                  <Button type="button" variant="ghost" className="rounded-xl text-muted-foreground" onClick={() => void signOut()}>
+                    Entrar novamente
+                  </Button>
+                </div>
               </div>
             ) : myWorkspaces.length === 0 ? (
               <div style={fadeUp(1)} className="rounded-3xl border border-dashed border-border bg-white p-10 text-center">
