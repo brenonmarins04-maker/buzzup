@@ -59,8 +59,15 @@ export type Broadcast = { id: string; message: string; durationDays: number; cre
 export type GeneralShortcut = { id: string; label: string; url: string; icon: string };
 
 export type WorkspaceFormTarget = "all" | "area" | "team";
-export type WorkspaceForm = { id: string; title: string; description: string; url: string; targetType: WorkspaceFormTarget; targetValue: string | null; points: number; createdBy: string | null; createdAt: string };
-export type FormCompletion = { id: string; formId: string; userId: string; completedAt: string };
+export type WorkspaceForm = { id: string; title: string; description: string; url: string; targetType: WorkspaceFormTarget; targetValue: string | null; targetValues: string[]; points: number; createdBy: string | null; createdAt: string };
+/** Destinos do formulário: usa a lista nova e cai no destino único antigo. */
+function normalizeFormTargets(list: unknown, legacy?: string | null): string[] {
+  const arr = Array.isArray(list) ? list.filter((v): v is string => typeof v === "string" && !!v) : [];
+  if (arr.length > 0) return arr;
+  return legacy ? [legacy] : [];
+}
+
+export type FormCompletion = { id: string; formId: string; userId: string; completedAt: string; status: "done" | "declined" };
 
 export type Notification = {
   id: string; title: string; message: string;
@@ -156,7 +163,9 @@ type DataContextType = {
   deleteBroadcast: (id: string) => Promise<void>;
   saveGeneralShortcuts: (shortcuts: GeneralShortcut[]) => Promise<void>;
 
-  addForm: (title: string, url: string, targetType: WorkspaceFormTarget, targetValue: string | null, description?: string, points?: number) => Promise<void>;
+  addForm: (title: string, url: string, targetType: WorkspaceFormTarget, targetValues: string[], description?: string, points?: number) => Promise<void>;
+  updateForm: (id: string, patch: { title: string; url: string; targetType: WorkspaceFormTarget; targetValues: string[]; description: string; points: number }) => Promise<void>;
+  declineForm: (formId: string) => Promise<void>;
   deleteForm: (id: string) => Promise<void>;
   markFormCompleted: (formId: string) => Promise<void>;
   unmarkFormCompleted: (formId: string) => Promise<void>;
@@ -329,8 +338,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setAttendanceRecords(((arRes as any)?.data || []).map((r: any) => ({ id: r.id, area: r.area, personId: r.person_id, date: r.date, status: (r.status ?? "P") as AttendanceStatus, justification: r.justification ?? "" })));
       setBroadcasts(((bcRes as any)?.data || []).map((b: any) => ({ id: b.id, message: b.message, durationDays: b.duration_days ?? 7, createdAt: b.created_at, expiresAt: b.expires_at, createdBy: b.created_by ?? null })));
       // Forms — se as tabelas ainda não existirem no banco, os resultados vêm com erro e ficam vazios (não quebra o app)
-      setForms(((fmRes as any)?.data || []).map((f: any) => ({ id: f.id, title: f.title, description: f.description ?? "", url: f.url, targetType: (f.target_type ?? "all") as WorkspaceFormTarget, targetValue: f.target_value ?? null, points: f.points ?? 1, createdBy: f.created_by ?? null, createdAt: f.created_at })));
-      setFormCompletions(((fcRes as any)?.data || []).map((c: any) => ({ id: c.id, formId: c.form_id, userId: c.user_id, completedAt: c.completed_at })));
+      setForms(((fmRes as any)?.data || []).map((f: any) => ({ id: f.id, title: f.title, description: f.description ?? "", url: f.url, targetType: (f.target_type ?? "all") as WorkspaceFormTarget, targetValue: f.target_value ?? null, targetValues: normalizeFormTargets(f.target_values, f.target_value), points: f.points ?? 1, createdBy: f.created_by ?? null, createdAt: f.created_at })));
+      setFormCompletions(((fcRes as any)?.data || []).map((c: any) => ({ id: c.id, formId: c.form_id, userId: c.user_id, completedAt: c.completed_at, status: (c.status === "declined" ? "declined" : "done") as "done" | "declined" })));
 
       // Sync: migrate tasks with deadlines into parkingItems so they appear in Quadro CB
       try {
@@ -529,12 +538,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     const refetchForms = async () => {
       const { data } = await (supabase.from as any)("workspace_forms").select("*").eq("workspace_id", wsId).order("created_at", { ascending: false });
-      setForms((data || []).map((f: any) => ({ id: f.id, title: f.title, description: f.description ?? "", url: f.url, targetType: (f.target_type ?? "all") as WorkspaceFormTarget, targetValue: f.target_value ?? null, points: f.points ?? 1, createdBy: f.created_by ?? null, createdAt: f.created_at })));
+      setForms((data || []).map((f: any) => ({ id: f.id, title: f.title, description: f.description ?? "", url: f.url, targetType: (f.target_type ?? "all") as WorkspaceFormTarget, targetValue: f.target_value ?? null, targetValues: normalizeFormTargets(f.target_values, f.target_value), points: f.points ?? 1, createdBy: f.created_by ?? null, createdAt: f.created_at })));
     };
 
     const refetchFormCompletions = async () => {
       const { data } = await (supabase.from as any)("form_completions").select("*").eq("workspace_id", wsId);
-      setFormCompletions((data || []).map((c: any) => ({ id: c.id, formId: c.form_id, userId: c.user_id, completedAt: c.completed_at })));
+      setFormCompletions((data || []).map((c: any) => ({ id: c.id, formId: c.form_id, userId: c.user_id, completedAt: c.completed_at, status: (c.status === "declined" ? "declined" : "done") as "done" | "declined" })));
     };
 
     // Per-group debounce: bursts on the same group collapse into one fetch (300ms window)
@@ -1322,15 +1331,39 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [workspaceId, uid, broadcasts, isAdmin, isOwner]);
 
   // === FORMS (Formulários do workspace) ===
-  const addForm = useCallback(async (title: string, url: string, targetType: WorkspaceFormTarget, targetValue: string | null, description = "", points = 1) => {
+  const addForm = useCallback(async (title: string, url: string, targetType: WorkspaceFormTarget, targetValues: string[], description = "", points = 1) => {
     if (!workspaceId) return;
     const pts = clampDemandPoints(points);
+    const targets = targetType === "all" ? [] : targetValues.filter(Boolean);
     const { data, error } = await (supabase.from("workspace_forms") as any)
-      .insert({ workspace_id: workspaceId, title, description, url, target_type: targetType, target_value: targetValue, points: pts, created_by: uid })
+      .insert({ workspace_id: workspaceId, title, description, url, target_type: targetType, target_value: targets[0] ?? null, target_values: targets, points: pts, created_by: uid })
       .select().single();
     if (error) { toast.error("Erro ao criar formulário"); return; }
-    if (data) setForms(prev => [{ id: data.id, title: data.title, description: data.description ?? "", url: data.url, targetType: (data.target_type ?? "all") as WorkspaceFormTarget, targetValue: data.target_value ?? null, points: data.points ?? pts, createdBy: data.created_by ?? null, createdAt: data.created_at }, ...prev]);
+    if (data) setForms(prev => [{ id: data.id, title: data.title, description: data.description ?? "", url: data.url, targetType: (data.target_type ?? "all") as WorkspaceFormTarget, targetValue: data.target_value ?? null, targetValues: normalizeFormTargets(data.target_values, data.target_value), points: data.points ?? pts, createdBy: data.created_by ?? null, createdAt: data.created_at }, ...prev]);
   }, [workspaceId, uid]);
+
+  const updateForm = useCallback(async (
+    id: string,
+    patch: { title: string; url: string; targetType: WorkspaceFormTarget; targetValues: string[]; description: string; points: number },
+  ) => {
+    const pts = clampDemandPoints(patch.points);
+    const targets = patch.targetType === "all" ? [] : patch.targetValues.filter(Boolean);
+    const { error } = await (supabase.from("workspace_forms") as any)
+      .update({
+        title: patch.title,
+        description: patch.description,
+        url: patch.url,
+        target_type: patch.targetType,
+        target_value: targets[0] ?? null,
+        target_values: targets,
+        points: pts,
+      })
+      .eq("id", id);
+    if (error) { toast.error("Erro ao salvar o formulário"); return; }
+    setForms(prev => prev.map(f => f.id === id
+      ? { ...f, title: patch.title, description: patch.description, url: patch.url, targetType: patch.targetType, targetValue: targets[0] ?? null, targetValues: targets, points: pts }
+      : f));
+  }, []);
 
   const deleteForm = useCallback(async (id: string) => {
     const { error } = await (supabase.from("workspace_forms") as any).delete().eq("id", id);
@@ -1344,9 +1377,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
     // Optimistic — o card some na hora
     const tempId = `tmp-${formId}-${uid}`;
     const completedAt = new Date().toISOString();
-    setFormCompletions(prev => [...prev, { id: tempId, formId, userId: uid, completedAt }]);
+    setFormCompletions(prev => [
+      ...prev.filter(c => !(c.formId === formId && c.userId === uid)),
+      { id: tempId, formId, userId: uid, completedAt, status: "done" },
+    ]);
+    // upsert: se a pessoa tinha recusado antes, vira "preenchido"
     const { data, error } = await (supabase.from("form_completions") as any)
-      .insert({ form_id: formId, workspace_id: workspaceId, user_id: uid, completed_at: completedAt })
+      .upsert(
+        { form_id: formId, workspace_id: workspaceId, user_id: uid, completed_at: completedAt, status: "done" },
+        { onConflict: "form_id,user_id" },
+      )
       .select().single();
     if (error && !String(error.code).includes("23505")) {
       // erro real (23505 = já estava marcado — segue em frente e tenta o ponto)
@@ -1354,7 +1394,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setFormCompletions(prev => prev.filter(c => c.id !== tempId));
       return;
     }
-    if (data) setFormCompletions(prev => prev.map(c => c.id === tempId ? { id: data.id, formId: data.form_id, userId: data.user_id, completedAt: data.completed_at } : c));
+    if (data) setFormCompletions(prev => prev.map(c => c.id === tempId ? { id: data.id, formId: data.form_id, userId: data.user_id, completedAt: data.completed_at, status: "done" as const } : c));
 
     // +1 ponto na gamificação — mesmo mecanismo da conclusão de demanda:
     // insere direto em gamification_awards (action_id guarda o id do formulário
@@ -1392,6 +1432,40 @@ export function DataProvider({ children }: { children: ReactNode }) {
       toast.warning("Preenchido! Mas o ponto não pôde ser registrado. Avise um diretor (SQL de gamificação pendente).");
     }
   }, [workspaceId, uid, people, gamificationAwards, forms]);
+
+  const declineForm = useCallback(async (formId: string) => {
+    if (!workspaceId || !uid) return;
+    const tempId = `tmp-decline-${formId}-${uid}`;
+    const completedAt = new Date().toISOString();
+    setFormCompletions(prev => [
+      ...prev.filter(c => !(c.formId === formId && c.userId === uid)),
+      { id: tempId, formId, userId: uid, completedAt, status: "declined" },
+    ]);
+
+    const { data, error } = await (supabase.from("form_completions") as any)
+      .upsert(
+        { form_id: formId, workspace_id: workspaceId, user_id: uid, completed_at: completedAt, status: "declined" },
+        { onConflict: "form_id,user_id" },
+      )
+      .select().single();
+
+    if (error) {
+      const msg = String(error.message || "").toLowerCase();
+      if (msg.includes("status") && (msg.includes("column") || msg.includes("schema"))) {
+        toast.error("Rode o forms-upgrade.sql no Supabase para ativar esta opção.");
+      } else {
+        toast.error("Não foi possível registrar sua resposta.");
+      }
+      setFormCompletions(prev => prev.filter(c => c.id !== tempId));
+      return;
+    }
+    if (data) {
+      setFormCompletions(prev => prev.map(c => c.id === tempId
+        ? { id: data.id, formId: data.form_id, userId: data.user_id, completedAt: data.completed_at, status: "declined" }
+        : c));
+    }
+    toast.info("Marcado como \"não vou preencher\".");
+  }, [workspaceId, uid]);
 
   const unmarkFormCompleted = useCallback(async (formId: string) => {
     if (!workspaceId || !uid) return;
@@ -1441,7 +1515,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addLeadThermometer, updateLeadThermometer, deleteLeadThermometer,
       upsertAttendanceSetting, setAttendance, clearAttendance,
       addBroadcast, deleteBroadcast, saveGeneralShortcuts,
-      addForm, deleteForm, markFormCompleted, unmarkFormCompleted,
+      addForm, updateForm, deleteForm, markFormCompleted, unmarkFormCompleted, declineForm,
     }}>
       {children}
     </DataContext.Provider>

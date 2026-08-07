@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { FileText, Plus, ExternalLink, CheckCircle2, Trash2, Users, UsersRound, Globe, ChevronDown, ChevronUp, Filter } from "lucide-react";
+import { FileText, Plus, ExternalLink, CheckCircle2, Trash2, Users, UsersRound, Globe, ChevronDown, ChevronUp, Filter, Pencil, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { AREAS, getAreaLabel } from "@/lib/areas";
 import { isValidHttpUrl, safeHref } from "@/lib/urlValidation";
 
 export default function FormsSection() {
-  const { forms, formCompletions, teams, people, addForm, deleteForm, markFormCompleted, unmarkFormCompleted } = useData();
+  const { forms, formCompletions, teams, people, addForm, updateForm, deleteForm, markFormCompleted, unmarkFormCompleted, declineForm } = useData();
   const { user, isAdmin } = useAuth();
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -19,7 +19,8 @@ export default function FormsSection() {
   const [url, setUrl] = useState("");
   const [description, setDescription] = useState("");
   const [targetType, setTargetType] = useState<WorkspaceFormTarget>("all");
-  const [targetValue, setTargetValue] = useState<string>("");
+  const [targetValues, setTargetValues] = useState<string[]>([]);
+  const [editing, setEditing] = useState<WorkspaceForm | null>(null);
   const [points, setPoints] = useState(1);
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<WorkspaceForm | null>(null);
@@ -43,10 +44,14 @@ export default function FormsSection() {
     [formCompletions, user?.id]
   );
 
+  const formTargets = (f: WorkspaceForm) =>
+    (f.targetValues?.length ? f.targetValues : (f.targetValue ? [f.targetValue] : []));
+
   const isEligible = (f: WorkspaceForm) => {
     if (f.targetType === "all") return true;
-    if (f.targetType === "area") return !!f.targetValue && myAreas.has(f.targetValue);
-    if (f.targetType === "team") return !!f.targetValue && myTeamIds.has(f.targetValue);
+    const targets = formTargets(f);
+    if (f.targetType === "area") return targets.some(v => myAreas.has(v));
+    if (f.targetType === "team") return targets.some(v => myTeamIds.has(v));
     return false;
   };
 
@@ -56,16 +61,41 @@ export default function FormsSection() {
   const myCompleted = forms.filter(f => isEligible(f) && completedByMe.has(f.id));
 
   const targetLabel = (f: WorkspaceForm) => {
-    if (f.targetType === "area") return getAreaLabel(f.targetValue || "");
-    if (f.targetType === "team") return teams.find(t => t.id === f.targetValue)?.name || "Time";
-    return "Todos";
+    const targets = formTargets(f);
+    if (targets.length === 0) return "Todos";
+    const names = f.targetType === "area"
+      ? targets.map(v => getAreaLabel(v) || v)
+      : targets.map(v => teams.find(t => t.id === v)?.name || "Time");
+    if (names.length === 1) return names[0];
+    return `${names[0]} +${names.length - 1}`;
   };
   const TargetIcon = (f: WorkspaceForm) =>
     f.targetType === "area" ? <Users className="h-3 w-3" /> :
     f.targetType === "team" ? <UsersRound className="h-3 w-3" /> :
     <Globe className="h-3 w-3" />;
 
-  const completionCount = (formId: string) => formCompletions.filter(c => c.formId === formId).length;
+  /** Pessoas elegíveis a um formulário (usadas nas contagens e no popup). */
+  const eligiblePeopleFor = (f: WorkspaceForm) => {
+    const targets = formTargets(f);
+    if (f.targetType === "area") {
+      return people.filter(p => (p.areas || []).some(a => targets.includes(a)));
+    }
+    if (f.targetType === "team") {
+      return people.filter(p => teams.some(t => targets.includes(t.id) && t.memberIds.includes(p.id)));
+    }
+    return people;
+  };
+
+  /** Quem preencheu de fato (recusa não conta como preenchido). */
+  const filledCount = (formId: string) =>
+    formCompletions.filter(c => c.formId === formId && c.status !== "declined").length;
+
+  const missingCount = (f: WorkspaceForm) => {
+    const done = new Set(
+      formCompletions.filter(c => c.formId === f.id && c.status !== "declined").map(c => c.userId),
+    );
+    return eligiblePeopleFor(f).filter(p => !p.userId || !done.has(p.userId)).length;
+  };
   const formatCompletionDate = (value?: string | null) => {
     if (!value) return "Sem horário registrado";
     const date = new Date(value);
@@ -80,22 +110,46 @@ export default function FormsSection() {
   };
 
   const resetModal = () => {
-    setTitle(""); setUrl(""); setDescription(""); setTargetType("all"); setTargetValue(""); setPoints(1);
+    setTitle(""); setUrl(""); setDescription(""); setTargetType("all"); setTargetValues([]); setPoints(1); setEditing(null);
+  };
+
+  const openEdit = (f: WorkspaceForm) => {
+    setEditing(f);
+    setTitle(f.title);
+    setUrl(f.url);
+    setDescription(f.description || "");
+    setTargetType(f.targetType);
+    setTargetValues(formTargets(f));
+    setPoints(f.points ?? 1);
+    setCreateOpen(true);
+  };
+
+  const toggleTarget = (value: string) => {
+    setTargetValues(prev => prev.includes(value) ? prev.filter(v => v !== value) : [...prev, value]);
   };
 
   const onCreate = async () => {
     if (!title.trim() || !url.trim() || busy) return;
-    if (targetType !== "all" && !targetValue) {
-      toast.error(targetType === "area" ? "Escolha a área" : "Escolha o time");
+    if (targetType !== "all" && targetValues.length === 0) {
+      toast.error(targetType === "area" ? "Escolha ao menos uma área" : "Escolha ao menos um time");
       return;
     }
     let finalUrl = url.trim();
     if (!/^https?:\/\//i.test(finalUrl)) finalUrl = `https://${finalUrl}`;
     if (!isValidHttpUrl(finalUrl)) { toast.error("URL inválida. Use https://..."); return; }
     setBusy(true);
-    await addForm(title.trim(), finalUrl, targetType, targetType === "all" ? null : targetValue, description.trim(), points);
+    if (editing) {
+      await updateForm(editing.id, {
+        title: title.trim(), url: finalUrl, targetType,
+        targetValues: targetType === "all" ? [] : targetValues,
+        description: description.trim(), points,
+      });
+      toast.success("Formulário atualizado!");
+    } else {
+      await addForm(title.trim(), finalUrl, targetType, targetType === "all" ? [] : targetValues, description.trim(), points);
+      toast.success("Formulário publicado!");
+    }
     setBusy(false);
-    toast.success("Formulário publicado!");
     resetModal();
     setCreateOpen(false);
   };
@@ -169,6 +223,14 @@ export default function FormsSection() {
                   className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold py-2 rounded-md bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 border border-emerald-400/60 transition-all"
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" /> Já preenchi
+                </button>
+                {/* Ação secundária: discreta, sem competir com as duas principais */}
+                <button
+                  onClick={() => { declineForm(f.id); }}
+                  title="Marcar que você não vai preencher este formulário"
+                  className="shrink-0 flex items-center justify-center gap-1 text-[10px] font-medium px-2 py-2 rounded-md whitespace-nowrap text-muted-foreground border border-transparent hover:text-red-600 hover:bg-red-500/10 hover:border-red-400/40 transition-all"
+                >
+                  <XCircle className="h-3 w-3" /> Não vou preencher
                 </button>
               </div>
             </div>
@@ -245,9 +307,21 @@ export default function FormsSection() {
                 <button
                   onClick={() => setViewResponses(f)}
                   title="Ver quem preencheu e quem falta"
-                  className="text-xs font-semibold text-primary hover:underline whitespace-nowrap shrink-0"
+                  className="flex items-center gap-1 whitespace-nowrap shrink-0"
                 >
-                  {completionCount(f.id)} preencheram
+                  <span className="text-xs font-bold text-emerald-600" title="Preencheram">
+                    ({filledCount(f.id)})
+                  </span>
+                  <span className="text-xs font-bold text-red-500" title="Não preencheram">
+                    ({missingCount(f)})
+                  </span>
+                </button>
+                <button
+                  onClick={() => openEdit(f)}
+                  className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-accent shrink-0"
+                  title="Editar formulário"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
                 </button>
                 <button
                   onClick={() => setConfirmDelete(f)}
@@ -265,7 +339,7 @@ export default function FormsSection() {
       {/* Modal: novo formulário */}
       <Dialog open={createOpen} onOpenChange={(o) => { if (!o) { setCreateOpen(false); resetModal(); } }}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Novo formulário</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? "Editar formulário" : "Novo formulário"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="form-title">Título</Label>
@@ -306,44 +380,54 @@ export default function FormsSection() {
                     type="button"
                     variant={targetType === opt.v ? "default" : "outline"}
                     className="flex-1"
-                    onClick={() => { setTargetType(opt.v); setTargetValue(""); }}
+                    onClick={() => { setTargetType(opt.v); setTargetValues([]); }}
                   >
                     {opt.label}
                   </Button>
                 ))}
               </div>
             </div>
-            {targetType === "area" && (
+            {targetType !== "all" && (
               <div className="space-y-1.5">
-                <Label>Área</Label>
-                <select
-                  value={targetValue}
-                  onChange={e => setTargetValue(e.target.value)}
-                  className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                >
-                  <option value="">Escolha a área…</option>
-                  {AREAS.map(a => <option key={a.key} value={a.key}>{getAreaLabel(a.key)}</option>)}
-                </select>
-              </div>
-            )}
-            {targetType === "team" && (
-              <div className="space-y-1.5">
-                <Label>Time</Label>
-                <select
-                  value={targetValue}
-                  onChange={e => setTargetValue(e.target.value)}
-                  className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-                >
-                  <option value="">Escolha o time…</option>
-                  {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                </select>
+                <Label>{targetType === "area" ? "Áreas" : "Times"}</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {(targetType === "area"
+                    ? AREAS.map(a => ({ value: a.key, label: getAreaLabel(a.key) }))
+                    : teams.map(t => ({ value: t.id, label: t.name }))
+                  ).map(opt => {
+                    const selected = targetValues.includes(opt.value);
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => toggleTarget(opt.value)}
+                        className={`px-3 h-9 rounded-full text-sm font-medium border transition-all ${
+                          selected
+                            ? "bg-[#8B5CF6] text-white border-[#8B5CF6]"
+                            : "bg-background text-muted-foreground border-border hover:border-foreground/30 hover:text-foreground"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {(targetType === "team" && teams.length === 0) ? (
+                  <p className="text-[11px] text-muted-foreground">Nenhum time criado ainda.</p>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">
+                    {targetValues.length === 0
+                      ? `Selecione ${targetType === "area" ? "uma ou mais áreas" : "um ou mais times"}.`
+                      : `${targetValues.length} selecionado${targetValues.length > 1 ? "s" : ""}.`}
+                  </p>
+                )}
               </div>
             )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setCreateOpen(false); resetModal(); }}>Cancelar</Button>
             <Button onClick={onCreate} disabled={busy || !title.trim() || !url.trim()}>
-              {busy ? "Publicando…" : "Publicar"}
+              {busy ? "Salvando…" : editing ? "Salvar" : "Publicar"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -358,12 +442,7 @@ export default function FormsSection() {
               (p.nickname && p.nickname.trim()) ? `${p.name} (${p.nickname.trim()})` : p.name;
 
             // Todas as pessoas elegíveis para o formulário
-            const allEligible =
-              f.targetType === "area"
-                ? people.filter(p => (p.areas || []).includes(f.targetValue || ""))
-                : f.targetType === "team"
-                  ? people.filter(p => teams.find(t => t.id === f.targetValue)?.memberIds.includes(p.id))
-                  : people;
+            const allEligible = eligiblePeopleFor(f);
 
             // Áreas presentes entre as pessoas elegíveis (para o filtro)
             const areasInForm = Array.from(
@@ -381,17 +460,21 @@ export default function FormsSection() {
             const completionsByUser = new Map(
               formCompletions.filter(c => c.formId === f.id).map(c => [c.userId, c])
             );
+            // Recusa não conta como preenchido — aparece entre os que faltam
             const filled = eligiblePeople
               .map(p => ({ person: p, completion: p.userId ? completionsByUser.get(p.userId) : undefined }))
-              .filter(item => !!item.completion);
-            const missing = eligiblePeople.filter(p => !p.userId || !completionsByUser.has(p.userId));
+              .filter(item => !!item.completion && item.completion.status !== "declined");
+            const missing = eligiblePeople
+              .map(p => ({ person: p, completion: p.userId ? completionsByUser.get(p.userId) : undefined }))
+              .filter(item => !item.completion || item.completion.status === "declined");
 
             return (
               <>
                 <DialogHeader className="shrink-0">
                   <DialogTitle className="text-base">{f.title}</DialogTitle>
                   <p className="text-xs text-muted-foreground">
-                    {targetLabel(f)} • {filled.length} de {eligiblePeople.length} preencheram
+                    {targetLabel(f)} • <span className="font-bold text-emerald-600">({filled.length})</span> preencheram
+                    {" · "}<span className="font-bold text-red-500">({missing.length})</span> não preencheram
                     {responseAreaFilter !== "all" && ` (filtrando por área)`}
                   </p>
                 </DialogHeader>
@@ -462,17 +545,20 @@ export default function FormsSection() {
 
                   {/* Faltam */}
                   <div>
-                    <p className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider mb-1.5">
-                      Faltam preencher ({missing.length})
+                    <p className="text-[11px] font-semibold text-red-500 uppercase tracking-wider mb-1.5">
+                      Não preencheram ({missing.length})
                     </p>
                     {missing.length === 0 ? (
                       <p className="text-xs text-muted-foreground">Todo mundo preencheu! 🎉</p>
                     ) : (
                       <ul className="space-y-0.5">
-                        {missing.map(p => (
+                        {missing.map(({ person: p, completion }) => (
                           <li key={p.id} className="text-sm text-muted-foreground flex items-center gap-2 px-2 py-1 rounded bg-muted/40">
-                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500/70 shrink-0" />
-                            <span className="truncate">{personLabel(p)}</span>
+                            <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${completion?.status === "declined" ? "bg-red-500" : "bg-amber-500/70"}`} />
+                            <span className="truncate flex-1">{personLabel(p)}</span>
+                            {completion?.status === "declined" && (
+                              <span className="text-[10px] font-semibold text-red-500 shrink-0">não vai preencher</span>
+                            )}
                           </li>
                         ))}
                       </ul>

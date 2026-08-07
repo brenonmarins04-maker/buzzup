@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AREAS, getTeamColor } from "@/lib/areas";
 import { toast } from "sonner";
-import { Eye, Zap, Shield, Crown } from "lucide-react";
+import { Eye, Zap, Shield, Crown, UserMinus, AlertTriangle } from "lucide-react";
 
 type Props = { open: boolean; onOpenChange: (o: boolean) => void; person: Person | null };
 type RoleKey = "assessor" | "lider" | "diretor";
@@ -20,12 +20,50 @@ export default function MemberEditModal({ open, onOpenChange, person }: Props) {
   const [teamIds, setTeamIds] = useState<string[]>([]);
   const [role, setRole] = useState<RoleKey>("assessor");
   const [wsRole, setWsRole] = useState<string | null>(null); // role real em workspace_members
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [removing, setRemoving] = useState(false);
 
   const hasAccount = !!person?.userId;
   const isOwnerAccount = wsRole === "owner";
+  // Owner nunca é removido; diretor só pelo owner; ninguém remove a si mesmo.
+  const targetIsAdmin = wsRole === "admin";
+  const canRemove =
+    isAdmin
+    && !!person
+    && !isOwnerAccount
+    && (!targetIsAdmin || isOwner);
+
+  const handleRemove = async () => {
+    if (!person || !workspaceId) return;
+    setRemoving(true);
+    const { data, error } = await (supabase.rpc as any)("remove_workspace_member", {
+      _ws_id: workspaceId,
+      _person_id: person.id,
+    });
+    setRemoving(false);
+
+    if (error) {
+      const msg = String(error.message || "").toLowerCase();
+      if (msg.includes("cannot_remove_owner")) toast.error("O owner do workspace não pode ser removido.");
+      else if (msg.includes("owner_only")) toast.error("Só o owner pode remover um diretor.");
+      else if (msg.includes("cannot_remove_self")) toast.error("Você não pode remover a si mesmo.");
+      else if (msg.includes("not_allowed")) toast.error("Você não tem permissão para remover pessoas.");
+      else if (msg.includes("person_not_found")) toast.error("Pessoa não encontrada neste workspace.");
+      else if (msg.includes("could not find") || msg.includes("does not exist")) {
+        toast.error("Rode o remove-member-setup.sql no Supabase para ativar a remoção.");
+      } else toast.error("Não foi possível remover a pessoa.");
+      return;
+    }
+
+    const nome = (data?.name as string) || person.name;
+    toast.success(`${nome.split(" ")[0]} foi removido do workspace.`);
+    onOpenChange(false);
+    // A lista se atualiza sozinha: o DataContext escuta a tabela people em realtime
+  };
 
   useEffect(() => {
     if (!person) return;
+    setConfirmRemove(false);
     setName(person.name);
     setAreas(person.areas || (person.area ? [person.area] : []));
     const personTeams = teams.filter(t => t.memberIds.includes(person.id));
@@ -180,6 +218,58 @@ export default function MemberEditModal({ open, onOpenChange, person }: Props) {
                   </div>
                   <p className="text-[10px] text-muted-foreground mt-2">{roleOptions.find(o => o.key === role)?.hint}</p>
                 </>
+              )}
+            </div>
+          )}
+
+          {/* Remover do workspace — destrutivo, com confirmação */}
+          {canRemove && (
+            <div className="border-t pt-4">
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">
+                Remover do workspace
+              </label>
+              {!confirmRemove ? (
+                <button
+                  type="button"
+                  onClick={() => setConfirmRemove(true)}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-destructive/40 text-destructive text-xs font-semibold hover:bg-destructive/10 transition-colors"
+                >
+                  <UserMinus className="h-4 w-4" />
+                  Remover {person?.name?.split(" ")[0] || "pessoa"} do workspace
+                </button>
+              ) : (
+                <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3">
+                  <p className="flex items-start gap-2 text-xs font-semibold text-destructive">
+                    <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                    Tem certeza? Isso apaga tudo desta pessoa neste workspace.
+                  </p>
+                  <ul className="mt-2 ml-6 list-disc text-[11px] text-muted-foreground space-y-0.5">
+                    <li>Demandas, pontos da gamificação e presenças</li>
+                    <li>Áreas e times de que ela participa</li>
+                    {hasAccount && <li>O acesso dela ao workspace — só volta se pedir entrada com o código</li>}
+                  </ul>
+                  <p className="mt-2 ml-6 text-[11px] text-muted-foreground">Não dá para desfazer.</p>
+                  <div className="flex gap-2 mt-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1 rounded-md"
+                      onClick={() => setConfirmRemove(false)}
+                      disabled={removing}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      className="flex-1 rounded-md"
+                      onClick={handleRemove}
+                      disabled={removing}
+                    >
+                      {removing ? "Removendo..." : "Sim, remover"}
+                    </Button>
+                  </div>
+                </div>
               )}
             </div>
           )}

@@ -13,7 +13,9 @@ ALTER TABLE public.workspace_config
 -- 3) Diretores (e owner) podem mudar os valores das demandas.
 --    A escrita direta em workspace_config continua restrita ao owner (para os
 --    nomes das áreas); esta função altera SOMENTE a coluna demand_points.
-CREATE OR REPLACE FUNCTION public.set_demand_points(_ws_id uuid, _points integer[])
+DROP FUNCTION IF EXISTS public.set_demand_points(uuid, integer[]);
+
+CREATE FUNCTION public.set_demand_points(_ws_id uuid, _points integer[])
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -54,7 +56,9 @@ GRANT EXECUTE ON FUNCTION public.set_demand_points(uuid, integer[]) TO authentic
 -- 4) O fallback que concede o ponto do formulário (usado quando a RLS bloqueia
 --    a escrita direta do assessor) passa a usar os pontos configurados no
 --    formulário em vez de 1 fixo.
-CREATE OR REPLACE FUNCTION public.award_form_completion_point(_form_id uuid)
+DROP FUNCTION IF EXISTS public.award_form_completion_point(uuid);
+
+CREATE FUNCTION public.award_form_completion_point(_form_id uuid)
 RETURNS public.gamification_awards
 LANGUAGE plpgsql
 SECURITY DEFINER
