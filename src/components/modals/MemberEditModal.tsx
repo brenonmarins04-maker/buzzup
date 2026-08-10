@@ -13,7 +13,7 @@ type Props = { open: boolean; onOpenChange: (o: boolean) => void; person: Person
 type RoleKey = "assessor" | "lider" | "diretor";
 
 export default function MemberEditModal({ open, onOpenChange, person }: Props) {
-  const { teams, updatePerson, updatePersonAreas, updatePersonLeaderAreas, updateTeam } = useData();
+  const { teams, updatePerson, updatePersonAreas, updatePersonLeaderAreas, updateTeam, removePersonFromWorkspaceState } = useData();
   const { isAdmin, isOwner, workspaceId } = useAuth();
   const [name, setName] = useState("");
   const [areas, setAreas] = useState<string[]>([]);
@@ -56,9 +56,9 @@ export default function MemberEditModal({ open, onOpenChange, person }: Props) {
     }
 
     const nome = (data?.name as string) || person.name;
+    removePersonFromWorkspaceState(person.id, person.userId);
     toast.success(`${nome.split(" ")[0]} foi removido do workspace.`);
     onOpenChange(false);
-    // A lista se atualiza sozinha: o DataContext escuta a tabela people em realtime
   };
 
   useEffect(() => {

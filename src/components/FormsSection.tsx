@@ -157,7 +157,7 @@ export default function FormsSection() {
   const nothingToShow = myPending.length === 0 && myCompleted.length === 0 && (!isAdmin || forms.length === 0);
 
   return (
-    <div className="glass-panel rounded-2xl p-4 md:p-5 h-full flex flex-col">
+    <div className="glass-panel rounded-2xl p-4 md:p-5 h-full flex min-w-0 flex-col">
       <div className="flex items-center justify-between gap-3 mb-1 flex-wrap">
         <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
           <FileText className="h-4 w-4 text-[#8B5CF6]" /> Formulários
@@ -191,16 +191,16 @@ export default function FormsSection() {
       {myPending.length > 0 && (
         <div className="grid grid-cols-1 gap-3">
           {myPending.map(f => (
-            <div key={f.id} className="hover-lift flex flex-col gap-3 p-4 rounded-2xl border border-[#8B5CF6]/20 bg-white/62">
-              <div className="flex items-start justify-between gap-2">
+            <div key={f.id} className="hover-lift flex w-full min-w-0 max-w-full flex-col gap-3 overflow-hidden rounded-2xl border border-[#8B5CF6]/20 bg-white/62 p-4">
+              <div className="flex min-w-0 items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground">{f.title}</p>
+                  <p className="break-words text-sm font-semibold text-foreground [overflow-wrap:anywhere]">{f.title}</p>
                   {f.description && (
-                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{f.description}</p>
+                    <p className="mt-1 line-clamp-2 break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">{f.description}</p>
                   )}
                 </div>
-                <div className="shrink-0 flex flex-col items-end gap-1">
-                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#8B5CF6]/15 text-[#8B5CF6]">
+                <div className="flex min-w-0 max-w-[45%] shrink-0 flex-col items-end gap-1">
+                  <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-[#8B5CF6]/15 px-2 py-0.5 text-right text-[10px] font-semibold text-[#8B5CF6]">
                     {TargetIcon(f)} {targetLabel(f)}
                   </span>
                   <span className="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700">
@@ -208,19 +208,19 @@ export default function FormsSection() {
                   </span>
                 </div>
               </div>
-              <div className="flex gap-2 pt-2 border-t border-border/30">
+              <div className="grid w-full min-w-0 grid-cols-2 items-stretch gap-2 border-t border-border/30 pt-2">
                 <a
                   href={safeHref(f.url)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-md bg-[#8B5CF6] text-white hover:bg-[#7C3AED] transition-all"
+                  className="flex w-full min-w-0 items-center justify-center gap-1.5 break-words rounded-md bg-[#8B5CF6] px-2 py-2 text-center text-xs font-medium leading-tight text-white transition-all [overflow-wrap:anywhere] hover:bg-[#7C3AED]"
                 >
                   <ExternalLink className="h-3 w-3" /> Abrir formulário
                 </a>
                 <button
                   onClick={() => { markFormCompleted(f.id); }}
                   title="Depois de preencher o formulário, clique aqui para marcar como concluído"
-                  className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold py-2 rounded-md bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 border border-emerald-400/60 transition-all"
+                  className="flex w-full min-w-0 items-center justify-center gap-1.5 break-words rounded-md border border-emerald-400/60 bg-emerald-500/15 px-2 py-2 text-center text-xs font-semibold leading-tight text-emerald-700 transition-all [overflow-wrap:anywhere] hover:bg-emerald-500/25"
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" /> Já preenchi
                 </button>
@@ -228,7 +228,7 @@ export default function FormsSection() {
                 <button
                   onClick={() => { declineForm(f.id); }}
                   title="Marcar que você não vai preencher este formulário"
-                  className="shrink-0 flex items-center justify-center gap-1 text-[10px] font-medium px-2 py-2 rounded-md whitespace-nowrap text-muted-foreground border border-transparent hover:text-red-600 hover:bg-red-500/10 hover:border-red-400/40 transition-all"
+                  className="col-span-2 flex w-full min-w-0 items-center justify-center gap-1 break-words rounded-md border border-transparent px-2 py-2 text-center text-[10px] font-medium leading-tight text-muted-foreground transition-all [overflow-wrap:anywhere] hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-600"
                 >
                   <XCircle className="h-3 w-3" /> Não vou preencher
                 </button>

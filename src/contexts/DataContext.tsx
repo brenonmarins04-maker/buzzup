@@ -98,6 +98,7 @@ type DataContextType = {
   updatePersonLeaderArea: (id: string, leaderArea: string | null) => void;
   updatePersonLeaderAreas: (id: string, leaderAreas: string[]) => void;
   deletePerson: (id: string) => void;
+  removePersonFromWorkspaceState: (id: string, userId?: string | null) => void;
 
   addTask: (task: Omit<Task, "id" | "responsible"> & { responsibleIds: string[] }) => void;
   updateTask: (task: Task) => void;
@@ -201,6 +202,34 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [categoriesRaw, setCategoriesRaw] = useState<{ id: string; name: string }[]>([]);
   const pplMapRef = useRef<Map<string, Person>>(new Map());
   const generalShortcuts = useMemo(() => parseGeneralShortcuts(broadcasts), [broadcasts]);
+
+  const removePersonFromWorkspaceState = useCallback((personId: string, personUserId?: string | null) => {
+    pplMapRef.current.delete(personId);
+    setPeople(prev => prev.filter(person => person.id !== personId));
+    setTeams(prev => prev.map(team => ({
+      ...team,
+      memberIds: team.memberIds.filter(memberId => memberId !== personId),
+    })));
+    setProjects(prev => prev.map(project => ({
+      ...project,
+      members: project.members.filter(member => member.id !== personId),
+      managerId: project.managerId === personId ? null : project.managerId,
+    })));
+    setTasks(prev => prev.map(task => ({
+      ...task,
+      responsible: task.responsible.filter(person => person.id !== personId),
+    })));
+    setPosts(prev => prev.map(post => ({
+      ...post,
+      responsible: post.responsible.filter(person => person.id !== personId),
+    })));
+    setParkingItems(prev => prev.filter(item => item.personId !== personId));
+    setGamificationAwards(prev => prev.filter(award => award.personId !== personId));
+    setAttendanceRecords(prev => prev.filter(record => record.personId !== personId));
+    if (personUserId) {
+      setFormCompletions(prev => prev.filter(completion => completion.userId !== personUserId));
+    }
+  }, []);
 
   // Fetch workspace + all data
   useEffect(() => {
@@ -403,6 +432,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
           ? p.leader_areas.split(",").filter(Boolean) : [];
         return { id: p.id, name: p.name, nickname: p.nickname ?? null, area: rawArea, areas, userId: p.user_id ?? null, leaderArea: leaderAreas[0] || null, leaderAreas };
       });
+      const nextPersonIds = new Set(pplList.map(person => person.id));
+      const removedPeople = [...pplMapRef.current.values()].filter(person => !nextPersonIds.has(person.id));
+      removedPeople.forEach(person => removePersonFromWorkspaceState(person.id, person.userId));
       pplMapRef.current = new Map(pplList.map(p => [p.id, p]));
       setPeople(pplList);
     };
@@ -594,7 +626,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       timers.forEach(t => clearTimeout(t));
       if (channel) supabase.removeChannel(channel);
     };
-  }, [workspaceId]);
+  }, [workspaceId, removePersonFromWorkspaceState]);
 
   // Sync: keep people list in sync with workspace_members.
   // Isolated effect — runs only on workspace change, not on every Realtime tick,
@@ -789,12 +821,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const deletePerson = useCallback(async (id: string) => {
     const { error } = await supabase.from("people").delete().eq("id", id);
     if (error) { toast.error("Erro ao excluir pessoa"); return; }
-    setPeople(prev => prev.filter(p => p.id !== id));
-    setTasks(prev => prev.map(t => ({ ...t, responsible: t.responsible.filter(r => r.id !== id) })));
-    setPosts(prev => prev.map(p => ({ ...p, responsible: p.responsible.filter(r => r.id !== id) })));
-    setProjects(prev => prev.map(p => ({ ...p, members: p.members.filter(m => m.id !== id) })));
-    setTeams(prev => prev.map(t => ({ ...t, memberIds: t.memberIds.filter(mid => mid !== id) })));
-  }, []);
+    removePersonFromWorkspaceState(id);
+  }, [removePersonFromWorkspaceState]);
 
   // === TASKS ===
   const addTask = useCallback(async (t: Omit<Task, "id" | "responsible"> & { responsibleIds: string[] }) => {
@@ -1498,7 +1526,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     <DataContext.Provider value={{
       people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, gamificationActions, gamificationAwards, leadThermometer, attendanceSettings, attendanceRecords, broadcasts, generalShortcuts, forms, formCompletions, loading, workspaceId,
       pointsEarnedNotice, dismissPointsEarnedNotice,
-      addPerson, updatePerson, updatePersonNickname, updatePersonArea, updatePersonAreas, updatePersonLeaderArea, updatePersonLeaderAreas, deletePerson,
+      addPerson, updatePerson, updatePersonNickname, updatePersonArea, updatePersonAreas, updatePersonLeaderArea, updatePersonLeaderAreas, deletePerson, removePersonFromWorkspaceState,
       addTask, updateTask, deleteTask,
       addPost, updatePost, deletePost,
       addProject, updateProject, deleteProject,

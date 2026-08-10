@@ -239,6 +239,68 @@
     -webkit-backdrop-filter: blur(18px);
   }
 
+  /* Card content must adapt to its own width instead of leaking into nearby cards. */
+  :where(
+    .app-surface,
+    .glass-panel,
+    .glass-panel-soft,
+    .bg-card.border,
+    .bg-white.border,
+    .bg-white\/70.border,
+    .bg-white\/62.border,
+    .bg-white\/58.border,
+    .card-content-safe
+  ) {
+    box-sizing: border-box;
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  :where(
+    .app-surface,
+    .glass-panel,
+    .glass-panel-soft,
+    .bg-card.border,
+    .bg-white.border,
+    .bg-white\/70.border,
+    .bg-white\/62.border,
+    .bg-white\/58.border,
+    .card-content-safe
+  ) :where(h1, h2, h3, h4, h5, h6, p, span, label, a, button) {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+
+  :where(
+    .app-surface,
+    .glass-panel,
+    .glass-panel-soft,
+    .bg-card.border,
+    .bg-white.border,
+    .bg-white\/70.border,
+    .bg-white\/62.border,
+    .bg-white\/58.border,
+    .card-content-safe
+  ) :where(.flex, .grid) > * {
+    min-width: 0;
+  }
+
+  :where(
+    .app-surface,
+    .glass-panel,
+    .glass-panel-soft,
+    .bg-card.border,
+    .bg-white.border,
+    .bg-white\/70.border,
+    .bg-white\/62.border,
+    .bg-white\/58.border,
+    .card-content-safe
+  ) :where(a, button) {
+    white-space: normal !important;
+  }
+
   .app-control {
     background: rgba(255, 255, 255, 0.74);
     border-color: rgba(214, 225, 240, 0.88);
