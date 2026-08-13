@@ -63,7 +63,10 @@ const mobileNavItems = [
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const [collapsed, setCollapsed] = useState(false);
+  // No desktop, o menu fica compacto e se expande somente enquanto está em uso.
+  // Também abre ao receber foco para não esconder os rótulos de quem navega por teclado.
+  const [sidebarHovered, setSidebarHovered] = useState(false);
+  const collapsed = !sidebarHovered;
   const isMobile = useIsMobile();
   const { notifications, teams, people, parkingItems } = useData();
 
@@ -323,6 +326,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         className={`${collapsed ? "w-16" : "w-60"} workspace-blue-panel shrink-0 flex flex-col transition-[width] duration-200 overflow-hidden`}
         initial={false}
         animate={{ opacity: 1, x: 0 }}
+        onMouseEnter={() => setSidebarHovered(true)}
+        onMouseLeave={() => setSidebarHovered(false)}
+        onFocusCapture={() => setSidebarHovered(true)}
+        onBlurCapture={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setSidebarHovered(false);
+        }}
       >
         <div className="h-14 px-4 flex items-center justify-between border-b border-white/10 shrink-0">
           {!collapsed && (
@@ -334,9 +343,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <BrandLogo markClassName="h-9 w-9" textClassName="text-lg text-white" />
             </Link>
           )}
-          <button onClick={() => setCollapsed(!collapsed)} className="p-1 rounded hover:bg-white/10 transition-colors text-white/60 hover:text-white">
+          <span className="p-1 rounded text-white/60" aria-hidden="true">
             <ChevronLeft className={`h-4 w-4 transition-transform ${collapsed ? "rotate-180" : ""}`} />
-          </button>
+          </span>
         </div>
         <nav className="flex-1 py-4 px-2 flex flex-col gap-1 overflow-y-auto scrollbar-thin">
           {/* Main nav items (sem Acessos) */}

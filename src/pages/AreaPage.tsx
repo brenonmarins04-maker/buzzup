@@ -561,7 +561,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
           <div className="mt-1.5 flex flex-wrap items-center gap-1">
             {formatDemandDayMonth(item.date) && (
               <span
-                className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded text-white"
+                className="inline-flex shrink-0 items-center justify-center whitespace-nowrap tabular-nums text-[10px] font-semibold px-1.5 py-0.5 rounded text-white min-w-[3.25rem]"
                 style={{ backgroundColor: tint }}
               >
                 {formatDemandDayMonth(item.date)}
@@ -628,7 +628,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
           {canManage && (
             <button
               onClick={openCreate}
-              className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-primary/50 rounded-lg px-2 py-1 transition-colors bg-white/45 hover:bg-white/80"
+              className="flex items-center gap-1 text-[11px] font-semibold text-white border border-emerald-500 rounded-lg px-2 py-1 transition-colors bg-emerald-500 hover:bg-emerald-600 shadow-sm shadow-emerald-500/25"
             >
               <Plus className="h-3 w-3" /> nova demanda
             </button>

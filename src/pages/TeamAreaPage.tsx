@@ -51,7 +51,7 @@ import { isDemandOverdue, formatDemandDayMonth } from "@/lib/demandStatus";
 import { useDemandPoints } from "@/hooks/useDemandPoints";
 import { getTodayBrasilia } from "@/lib/utils";
 import { type ParkingItem, type AttendanceStatus } from "@/contexts/DataContext";
-import { Plus, ExternalLink, Pencil, Trash2, X, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, ExternalLink, Pencil, Trash2, X, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -254,7 +254,6 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
 
   const save = async () => {
     if (!title.trim()) { toast.error("Título obrigatório"); return; }
-    if (!date) { toast.error("Data obrigatória"); return; }
     if (modal.item) {
       await updateParkingItem({ ...modal.item, title: title.trim(), date, personId: editPersonIds[0] || null, points });
       toast.success("Atualizado");
@@ -347,9 +346,16 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
           </div>
           {item.description && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-3 break-words">{item.description}</p>}
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            {formatDemandDayMonth(item.date) && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md text-white" style={{ backgroundColor: tint }}>
+            {formatDemandDayMonth(item.date) ? (
+              <span className="inline-flex shrink-0 items-center justify-center whitespace-nowrap tabular-nums text-[11px] font-semibold px-2 py-0.5 rounded-md text-white min-w-[3.5rem]" style={{ backgroundColor: tint }}>
                 {formatDemandDayMonth(item.date)}
+              </span>
+            ) : (
+              <span
+                className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] font-semibold px-2 py-0.5 rounded-md"
+                style={{ color: "#C2410C", backgroundColor: "#FFF7ED", border: "1px solid #FDBA74" }}
+              >
+                <AlertTriangle className="h-3 w-3" /> Sem data
               </span>
             )}
             {/* Aviso de status — visível para todos */}
@@ -414,7 +420,7 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
           {isAdmin && (
             <button
               onClick={openCreate}
-              className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground border border-dashed border-border hover:border-primary/50 rounded-xl px-3 py-1.5 transition-colors bg-white/45 hover:bg-white/80"
+              className="flex items-center gap-1 text-xs font-semibold text-white border border-emerald-500 rounded-xl px-3 py-1.5 transition-colors bg-emerald-500 hover:bg-emerald-600 shadow-sm shadow-emerald-500/25"
             >
               <Plus className="h-3.5 w-3.5" /> nova demanda
             </button>
@@ -502,8 +508,9 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
               )}
             </div>
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Data</label>
-              <Input type="date" value={date} onChange={e => setDate(e.target.value)} required />
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Data <span className="font-normal">(opcional)</span></label>
+              <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
+              <p className="text-[10px] text-orange-700 mt-1.5">Sem data, a demanda fica sinalizada até você definir um prazo.</p>
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Pontos</label>

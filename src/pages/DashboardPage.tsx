@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   Trophy, Medal, ListChecks, Megaphone,
   CheckCircle2, FolderPlus, CalendarPlus,
-  Sparkles, BarChart2, Star, ClipboardList, Circle, CheckCircle,
+  Sparkles, BarChart2, Star, ClipboardList, Circle, CheckCircle, AlertTriangle,
 } from "lucide-react";
 import { getNowBrasilia } from "@/lib/utils";
 import { format, endOfWeek, differenceInHours, differenceInDays } from "date-fns";
@@ -262,8 +262,13 @@ export default function DashboardPage() {
                         </div>
                         <div className="flex items-center gap-2 pt-1">
                           {dayMonth && (
-                            <span className="text-[11px] font-medium px-2 py-0.5 rounded-md text-white" style={{ backgroundColor: scope.color }}>
+                            <span className="inline-flex shrink-0 items-center justify-center whitespace-nowrap tabular-nums text-[11px] font-medium px-2 py-0.5 rounded-md text-white min-w-[3.5rem]" style={{ backgroundColor: scope.color }}>
                               {dayMonth}
+                            </span>
+                          )}
+                          {!dayMonth && (
+                            <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[11px] font-semibold px-2 py-0.5 rounded-md text-orange-700 bg-orange-50 border border-orange-300">
+                              <AlertTriangle className="h-3 w-3" /> Sem data
                             </span>
                           )}
                           {/* Aviso de status — atrasada (vermelho) ou em andamento (laranja) */}
