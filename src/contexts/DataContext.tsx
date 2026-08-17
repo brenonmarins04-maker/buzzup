@@ -666,27 +666,23 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return () => { cancelled = true; };
   }, [uid, workspaceId]);
 
-  // Entrada por PERÍODO: no máximo 1 por manhã/tarde/noite por dia.
-  // - 8h e 9h contam como 1 (mesma manhã); manhã + tarde contam como 2.
+  // Entrada por DIA: no máximo 1 por dia, por pessoa.
+  // - Entrou de manhã e de novo à noite? Conta 1 só.
   // - Só registra ao ENTRAR de fato no workspace (montagem do DataProvider);
-  //   aba aberta parada NÃO conta (o efeito não roda de novo sozinho), e
-  //   reentradas no mesmo período do dia não duplicam.
+  //   aba aberta parada NÃO conta, e reentradas no mesmo dia não duplicam.
   useEffect(() => {
     if (!uid || !workspaceId) return;
     let cancelled = false;
-    const periodOf = (h: number) => (h >= 6 && h < 12 ? "m" : h >= 12 && h < 19 ? "t" : "n");
     (async () => {
       const today = getTodayBrasilia();
       const { data: rows } = await (supabase.from("user_daily_logins") as any)
-        .select("created_at")
+        .select("id")
         .eq("workspace_id", workspaceId)
         .eq("user_id", uid)
-        .eq("login_date", today);
+        .eq("login_date", today)
+        .limit(1);
       if (cancelled) return;
-
-      const curPeriod = periodOf(new Date().getHours());
-      const already = new Set((rows || []).map((r: any) => periodOf(new Date(r.created_at).getHours())));
-      if (already.has(curPeriod)) return; // esse período de hoje já foi contado
+      if ((rows || []).length > 0) return; // hoje já foi contado
 
       await (supabase.from("user_daily_logins") as any).insert({
         workspace_id: workspaceId,

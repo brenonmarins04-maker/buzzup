@@ -8,10 +8,10 @@ import { safeHref } from "@/lib/urlValidation";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
-import { BarChart2, Users, Trophy, Clock, ChevronLeft, CalendarDays, FileText, ExternalLink, Globe, UsersRound } from "lucide-react";
+import { BarChart2, Users, Trophy, Clock, ChevronLeft, FileText, ExternalLink, Globe, UsersRound } from "lucide-react";
+import { ReportFilterBar, useReportFilter } from "@/components/reports/ReportFilter";
 
 type TimeSlot = "morning" | "afternoon" | "night";
-type Preset = "7d" | "30d" | "3m" | "6m" | "custom";
 
 const DAYS_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const SLOTS: { key: TimeSlot; label: string }[] = [
@@ -19,39 +19,7 @@ const SLOTS: { key: TimeSlot; label: string }[] = [
   { key: "afternoon", label: "Tarde (12–19)" },
   { key: "night",     label: "Noite (19–06)" },
 ];
-const PRESETS: { key: Preset; label: string }[] = [
-  { key: "7d",  label: "7 dias" },
-  { key: "30d", label: "30 dias" },
-  { key: "3m",  label: "3 meses" },
-  { key: "6m",  label: "6 meses" },
-  { key: "custom", label: "Personalizado" },
-];
 
-function toDateStr(d: Date) {
-  return d.toISOString().split("T")[0];
-}
-// Data local (sem shift de fuso) — usada pelas chaves de semana
-function toLocalStr(d: Date) {
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
-// Segunda-feira (00:00 local) da semana que contém `d`
-function mondayOf(d: Date) {
-  const x = new Date(d);
-  const dow = (x.getDay() + 6) % 7; // Seg=0 ... Dom=6
-  x.setDate(x.getDate() - dow);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-function fromPreset(preset: Preset): { start: string; end: string } {
-  const end = toDateStr(new Date());
-  const s = new Date();
-  if (preset === "7d")  { s.setDate(s.getDate() - 7); }
-  else if (preset === "30d") { s.setDate(s.getDate() - 30); }
-  else if (preset === "3m")  { s.setMonth(s.getMonth() - 3); }
-  else if (preset === "6m")  { s.setMonth(s.getMonth() - 6); }
-  return { start: toDateStr(s), end };
-}
 
 function getTimeSlot(hour: number): TimeSlot {
   if (hour >= 6 && hour < 12) return "morning";
@@ -86,58 +54,19 @@ export default function ReportsPage() {
   const { isAdmin, activeWorkspaceId } = useAuth();
   const { gamificationAwards, parkingItems, people, forms, formCompletions, teams } = useData();
 
-  // Date range
-  const [preset, setPreset] = useState<Preset>("30d");
-  const [dateRange, setDateRange] = useState(() => fromPreset("30d"));
-  const [customStart, setCustomStart] = useState(dateRange.start);
-  const [customEnd, setCustomEnd]   = useState(dateRange.end);
+  // Um filtro independente por gráfico (período, intervalo de datas e semana)
+  const pointsFilter = useReportFilter("30d");
+  const entriesFilter = useReportFilter("30d");
+  const tasksHeatFilter = useReportFilter("30d");
+  const entriesHeatFilter = useReportFilter("30d");
 
-  const applyPreset = (p: Preset) => {
-    setPreset(p);
-    if (p !== "custom") {
-      const r = fromPreset(p);
-      setDateRange(r);
-      setCustomStart(r.start);
-      setCustomEnd(r.end);
-    }
-  };
-  const applyCustom = () => {
-    if (customStart && customEnd && customStart <= customEnd) {
-      setDateRange({ start: customStart, end: customEnd });
-    }
-  };
-
-  // Filtro de semana — recorta as tarefas concluídas e as entradas por semana.
-  // "" = todas as semanas do período selecionado acima.
-  const [weekFilter, setWeekFilter] = useState<string>("");
-  useEffect(() => { setWeekFilter(""); }, [dateRange]);
-
-  // Semanas (Seg–Dom) que se sobrepõem ao período, mais recentes primeiro
-  const availableWeeks = useMemo(() => {
-    const min = mondayOf(new Date(dateRange.start + "T00:00:00"));
-    let cur = mondayOf(new Date(dateRange.end + "T00:00:00"));
-    const weeks: { key: string; label: string }[] = [];
-    while (cur >= min && weeks.length < 27) {
-      const end = new Date(cur); end.setDate(end.getDate() + 6);
-      const fmt = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-      weeks.push({ key: toLocalStr(cur), label: `${fmt(cur)} – ${fmt(end)}` });
-      cur = new Date(cur); cur.setDate(cur.getDate() - 7);
-    }
-    return weeks;
-  }, [dateRange]);
-
-  // Janela efetiva dos heatmaps: semana selecionada, senão o período inteiro
-  const inHeatWindow = useMemo(() => {
-    let start: Date, endExcl: Date;
-    if (weekFilter) {
-      start = new Date(weekFilter + "T00:00:00");
-      endExcl = new Date(start); endExcl.setDate(endExcl.getDate() + 7);
-    } else {
-      start = new Date(dateRange.start + "T00:00:00");
-      endExcl = new Date(dateRange.end + "T00:00:00"); endExcl.setDate(endExcl.getDate() + 1);
-    }
-    return (d: Date) => d >= start && d < endExcl;
-  }, [weekFilter, dateRange]);
+  // Busca de entradas cobre a união das janelas dos gráficos que usam logins
+  const loginFetchRange = useMemo(() => ({
+    start: entriesFilter.dateRange.start < entriesHeatFilter.dateRange.start
+      ? entriesFilter.dateRange.start : entriesHeatFilter.dateRange.start,
+    end: entriesFilter.dateRange.end > entriesHeatFilter.dateRange.end
+      ? entriesFilter.dateRange.end : entriesHeatFilter.dateRange.end,
+  }), [entriesFilter.dateRange, entriesHeatFilter.dateRange]);
 
   // Logins (entradas) state — linhas brutas, agregadas por área/pessoa/horário via useMemo
   const [loginRows, setLoginRows] = useState<{ user_id: string; created_at: string }[]>([]);
@@ -160,13 +89,13 @@ export default function ReportsPage() {
     (supabase.from("user_daily_logins") as any)
       .select("user_id, created_at")
       .eq("workspace_id", activeWorkspaceId)
-      .gte("login_date", dateRange.start)
-      .lte("login_date", dateRange.end)
+      .gte("login_date", loginFetchRange.start)
+      .lte("login_date", loginFetchRange.end)
       .then(({ data }: { data: { user_id: string; created_at: string }[] | null }) => {
         setLoginRows(data || []);
         setLoadingLogins(false);
       });
-  }, [activeWorkspaceId, dateRange]);
+  }, [activeWorkspaceId, loginFetchRange]);
 
   // Points by area filtered by date range
   const pointsData = useMemo(() => {
@@ -174,7 +103,7 @@ export default function ReportsPage() {
     AREAS_DEFAULT.forEach(a => { byArea[a.key] = 0; });
     gamificationAwards.forEach(award => {
       const awardDate = award.awardedAt.split("T")[0];
-      if (awardDate < dateRange.start || awardDate > dateRange.end) return;
+      if (!pointsFilter.inWindowStr(awardDate)) return;
       const person = people.find(p => p.id === award.personId);
       if (!person) return;
       const areas = person.areas?.length ? person.areas : (person.area ? [person.area] : []);
@@ -186,7 +115,7 @@ export default function ReportsPage() {
       pts: byArea[a.key] || 0,
       color: getAreaColor(a.key),
     }));
-  }, [gamificationAwards, people, dateRange]);
+  }, [gamificationAwards, people, pointsFilter]);
 
   // Drill-down: pontos por pessoa na área selecionada (filtered)
   const drillData = useMemo(() => {
@@ -194,7 +123,7 @@ export default function ReportsPage() {
     const byPerson: Record<string, { name: string; pts: number }> = {};
     gamificationAwards.forEach(award => {
       const awardDate = award.awardedAt.split("T")[0];
-      if (awardDate < dateRange.start || awardDate > dateRange.end) return;
+      if (!pointsFilter.inWindowStr(awardDate)) return;
       const person = people.find(p => p.id === award.personId);
       if (!person) return;
       const areas = person.areas?.length ? person.areas : (person.area ? [person.area] : []);
@@ -207,14 +136,14 @@ export default function ReportsPage() {
       byPerson[award.personId].pts += award.points;
     });
     return Object.values(byPerson).sort((a, b) => b.pts - a.pts);
-  }, [drillArea, gamificationAwards, people, dateRange]);
+  }, [drillArea, gamificationAwards, people, pointsFilter]);
 
   // Entradas por área (chart 2)
   const loginData = useMemo(() => {
     const byArea: Record<string, number> = {};
     AREAS_DEFAULT.forEach(a => { byArea[a.key] = 0; });
     loginRows.forEach(row => {
-      if (row.created_at && !inHeatWindow(new Date(row.created_at))) return;
+      if (row.created_at && !entriesFilter.inWindow(new Date(row.created_at))) return;
       const person = people.find(p => p.userId === row.user_id);
       if (!person) return;
       const areas = person.areas?.length ? person.areas : (person.area ? [person.area] : []);
@@ -226,14 +155,14 @@ export default function ReportsPage() {
       entradas: byArea[a.key] || 0,
       color: getAreaColor(a.key),
     }));
-  }, [loginRows, people, inHeatWindow]);
+  }, [loginRows, people, entriesFilter]);
 
   // Drill-down: entradas por pessoa na área selecionada (filtered)
   const loginDrillData = useMemo(() => {
     if (!loginDrillArea) return [];
     const byPerson: Record<string, { name: string; entradas: number }> = {};
     loginRows.forEach(row => {
-      if (row.created_at && !inHeatWindow(new Date(row.created_at))) return;
+      if (row.created_at && !entriesFilter.inWindow(new Date(row.created_at))) return;
       const person = people.find(p => p.userId === row.user_id);
       if (!person) return;
       const areas = person.areas?.length ? person.areas : (person.area ? [person.area] : []);
@@ -246,7 +175,7 @@ export default function ReportsPage() {
       byPerson[person.id].entradas += 1;
     });
     return Object.values(byPerson).sort((a, b) => b.entradas - a.entradas);
-  }, [loginDrillArea, loginRows, people, inHeatWindow]);
+  }, [loginDrillArea, loginRows, people, entriesFilter]);
 
   // Heatmap
   const heatmap = useMemo(() => {
@@ -257,12 +186,12 @@ export default function ReportsPage() {
     parkingItems.forEach(item => {
       if (item.status !== "done" || !item.completedAt) return;
       const date = new Date(item.completedAt);
-      if (!inHeatWindow(date)) return;
+      if (!tasksHeatFilter.inWindow(date)) return;
       grid[`${date.getDay()}-${getTimeSlot(date.getHours())}`] =
         (grid[`${date.getDay()}-${getTimeSlot(date.getHours())}`] || 0) + 1;
     });
     return grid;
-  }, [parkingItems, inHeatWindow]);
+  }, [parkingItems, tasksHeatFilter.inWindow]);
 
   const maxHeat = Math.max(0, ...Object.values(heatmap));
   const totalHeatItems = Object.values(heatmap).reduce((a, b) => a + b, 0);
@@ -275,7 +204,7 @@ export default function ReportsPage() {
     parkingItems.forEach(item => {
       if (item.status !== "done" || !item.completedAt) return;
       const date = new Date(item.completedAt);
-      if (!inHeatWindow(date)) return;
+      if (!tasksHeatFilter.inWindow(date)) return;
       if (date.getDay() !== day || getTimeSlot(date.getHours()) !== slot) return;
       const person = people.find(p => p.id === item.personId);
       const firstName = person?.name.split(" ")[0] ?? "Sem responsável";
@@ -296,7 +225,7 @@ export default function ReportsPage() {
       });
     });
     return items.sort((a, b) => b.ts - a.ts);
-  }, [taskHeatmapDrill, parkingItems, people, inHeatWindow]);
+  }, [taskHeatmapDrill, parkingItems, people, tasksHeatFilter.inWindow]);
 
   // Heatmap de entradas no BuzzUp por dia/horário
   const loginHeatmap = useMemo(() => {
@@ -307,12 +236,12 @@ export default function ReportsPage() {
     loginRows.forEach(row => {
       if (!row.created_at) return;
       const date = new Date(row.created_at);
-      if (!inHeatWindow(date)) return;
+      if (!entriesHeatFilter.inWindow(date)) return;
       const key = `${date.getDay()}-${getTimeSlot(date.getHours())}`;
       grid[key] = (grid[key] || 0) + 1;
     });
     return grid;
-  }, [loginRows, inHeatWindow]);
+  }, [loginRows, entriesHeatFilter.inWindow]);
 
   const maxLoginHeat = Math.max(0, ...Object.values(loginHeatmap));
   const totalLoginHeatItems = Object.values(loginHeatmap).reduce((a, b) => a + b, 0);
@@ -325,7 +254,7 @@ export default function ReportsPage() {
     loginRows.forEach(row => {
       if (!row.created_at) return;
       const date = new Date(row.created_at);
-      if (!inHeatWindow(date)) return;
+      if (!entriesHeatFilter.inWindow(date)) return;
       if (date.getDay() !== day || getTimeSlot(date.getHours()) !== slot) return;
       const person = people.find(p => p.userId === row.user_id);
       const firstName = person?.name.split(" ")[0] ?? "Desconhecido";
@@ -337,7 +266,7 @@ export default function ReportsPage() {
       });
     });
     return items.sort((a, b) => b.ts - a.ts);
-  }, [loginHeatmapDrill, loginRows, people, inHeatWindow]);
+  }, [loginHeatmapDrill, loginRows, people, entriesHeatFilter.inWindow]);
 
   // Formulários publicados — resumo para o diretor acessar/gerenciar direto dos Relatórios
   const formsSummary = useMemo(() => {
@@ -368,90 +297,6 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {/* Seletor de período — compartilhado entre os dois gráficos */}
-      <div className="bg-card border border-border rounded-xl px-4 py-3 flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground shrink-0">
-          <CalendarDays className="h-3.5 w-3.5" />
-          Período:
-        </div>
-        <div className="flex gap-1.5 flex-wrap">
-          {PRESETS.map(p => (
-            <button
-              key={p.key}
-              onClick={() => applyPreset(p.key)}
-              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-                preset === p.key
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-
-        {preset === "custom" && (
-          <div className="flex items-center gap-2 ml-1">
-            <input
-              type="date"
-              value={customStart}
-              max={customEnd}
-              onChange={e => setCustomStart(e.target.value)}
-              className="text-xs border border-input rounded-md px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-            <span className="text-xs text-muted-foreground">até</span>
-            <input
-              type="date"
-              value={customEnd}
-              min={customStart}
-              max={toDateStr(new Date())}
-              onChange={e => setCustomEnd(e.target.value)}
-              className="text-xs border border-input rounded-md px-2 py-1 bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-            <button
-              onClick={applyCustom}
-              className="px-3 py-1 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              Aplicar
-            </button>
-          </div>
-        )}
-
-        {preset !== "custom" && (
-          <span className="text-[11px] text-muted-foreground ml-auto">
-            {dateRange.start} → {dateRange.end}
-          </span>
-        )}
-
-        {/* Filtro de semana — recorta tarefas concluídas e entradas por semana */}
-        <div className="basis-full flex items-center gap-2 pt-3 mt-1 border-t border-border/60">
-          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground shrink-0">
-            <CalendarDays className="h-3.5 w-3.5" />
-            Semana:
-          </div>
-          <select
-            value={weekFilter}
-            onChange={e => setWeekFilter(e.target.value)}
-            className="h-8 px-2 rounded-md border border-input bg-background text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-          >
-            <option value="">Todas as semanas do período</option>
-            {availableWeeks.map(w => (
-              <option key={w.key} value={w.key}>Semana de {w.label}</option>
-            ))}
-          </select>
-          {weekFilter && (
-            <button
-              onClick={() => setWeekFilter("")}
-              className="text-[11px] text-primary hover:underline"
-            >
-              limpar
-            </button>
-          )}
-          <span className="text-[11px] text-muted-foreground/70 ml-auto hidden sm:inline">
-            aplica-se às Tarefas Concluídas e às Entradas
-          </span>
-        </div>
-      </div>
 
       {/* Formulários — acesso rápido para o diretor abrir e acompanhar respostas */}
       <div className="bg-card border border-border rounded-xl p-5">
@@ -499,6 +344,7 @@ export default function ReportsPage() {
 
         {/* Chart 1: Pontos por área / drill-down por pessoa */}
         <div className="bg-card border border-border rounded-xl p-5">
+          <ReportFilterBar filter={pointsFilter} />
           <div className="flex items-center gap-2 mb-5">
             {drillArea ? (
               <>
@@ -579,6 +425,7 @@ export default function ReportsPage() {
 
         {/* Chart 2: Entradas por área / drill-down por pessoa */}
         <div className="bg-card border border-border rounded-xl p-5">
+          <ReportFilterBar filter={entriesFilter} />
           <div className="flex items-center gap-2 mb-5">
             {loginDrillArea ? (
               <>
@@ -664,6 +511,7 @@ export default function ReportsPage() {
 
       {/* Heatmap */}
       <div className="bg-card border border-border rounded-xl p-5">
+        <ReportFilterBar filter={tasksHeatFilter} />
         <div className="flex items-center gap-2 mb-5">
           {taskHeatmapDrill ? (
             <>
@@ -774,6 +622,7 @@ export default function ReportsPage() {
 
       {/* Heatmap de Entradas no BuzzUp por horário / drill-down por pessoa */}
       <div className="bg-card border border-border rounded-xl p-5">
+        <ReportFilterBar filter={entriesHeatFilter} />
         <div className="flex items-center gap-2 mb-5">
           {loginHeatmapDrill ? (
             <>

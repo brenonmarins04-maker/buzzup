@@ -319,11 +319,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   });
 
   return (
-    <div className="workspace-app-background flex h-screen overflow-hidden">
+    <div className="workspace-app-background fixed inset-0 flex h-screen w-screen overflow-hidden">
       <PointsEarnedBanner />
       <ProductTour />
       <motion.aside
-        className={`${collapsed ? "w-16" : "w-60"} workspace-blue-panel shrink-0 flex flex-col transition-[width] duration-200 overflow-hidden`}
+        className={`${collapsed ? "w-16" : "w-60"} workspace-blue-panel relative z-10 shrink-0 flex flex-col border-l-0 transition-[width] duration-200 overflow-hidden`}
         initial={false}
         animate={{ opacity: 1, x: 0 }}
         onMouseEnter={() => setSidebarHovered(true)}
