@@ -12,6 +12,9 @@ import { AREAS, getTeamColor } from "@/lib/areas";
 import { isDemandOverdue, formatDemandDayMonth } from "@/lib/demandStatus";
 import FormsSection from "@/components/FormsSection";
 import GeneralShortcutsSection from "@/components/GeneralShortcutsSection";
+import CycleSelector from "@/components/gamification/CycleSelector";
+import { useGamificationCycles } from "@/hooks/useGamificationCycles";
+import { isInCycle } from "@/lib/gamificationCycles";
 
 function timeAgo(iso: string) {
   const d = new Date(iso);
@@ -51,6 +54,8 @@ export default function DashboardPage() {
   const { people, tasks, projects, events, broadcasts, gamificationAwards, parkingItems, teams, forms, formCompletions, updateParkingItem, loading } = useData();
   const { user } = useAuth();
   const today = getNowBrasilia();
+  const cycles = useGamificationCycles();
+  const activeCycle = cycles.activeCycle;
 
   // Buscar a pessoa correspondente ao usuário atual
   const currentPerson = useMemo(() => {
@@ -102,10 +107,12 @@ export default function DashboardPage() {
   const todayStr = format(today, "yyyy-MM-dd");
   const weekEndStr = format(weekEnd, "yyyy-MM-dd");
 
-  // Ranking — soma TODOS os pontos da gamificação (demandas concluídas + ações manuais)
+  // Ranking — soma os pontos da gamificação (demandas concluídas + ações manuais).
+  // Com um ciclo ativo, conta só o que foi ganho dentro dele.
   const allRanking = useMemo(() => {
     const pointsByPerson: Record<string, number> = {};
     gamificationAwards.forEach(a => {
+      if (!isInCycle(a.awardedAt, activeCycle)) return;
       pointsByPerson[a.personId] = (pointsByPerson[a.personId] || 0) + (a.points || 0);
     });
     // Conta apelidos repetidos para desambiguar (ex.: dois "Panamá" → "Panamá (Diogo)" / "Panamá (Mateus)")
@@ -124,7 +131,7 @@ export default function DashboardPage() {
         return { id: p.id, label, points: pointsByPerson[p.id] || 0 };
       })
       .sort((a, b) => b.points - a.points || a.label.localeCompare(b.label));
-  }, [people, gamificationAwards]);
+  }, [people, gamificationAwards, activeCycle]);
   // Top 15 (3 cols × 5 rows) shown by default; rest shown via "Ver mais"
   const top15 = allRanking.slice(0, 15);
   const restRanking = allRanking.slice(15);
@@ -339,9 +346,10 @@ export default function DashboardPage() {
 
       {/* Ranking */}
       <div data-tour="ranking" className="order-4 lg:order-4 lg:col-span-3 glass-panel rounded-2xl p-5">
-        <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+        <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
           <Trophy className="h-4 w-4 text-[#F97316]" /> Gameficação
         </h2>
+        <CycleSelector cycles={cycles} />
         {allRanking.length === 0 ? (
           <p className="text-xs text-muted-foreground">Nenhum ponto ainda. Conclua demandas com pontos atribuídos para entrar no ranking.</p>
         ) : (() => {
