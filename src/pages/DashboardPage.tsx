@@ -177,26 +177,57 @@ export default function DashboardPage() {
     return () => clearInterval(timer);
   }, [weekDemands.length]);
 
-  // Activity feed
+  // Activity feed — a atividade vem primeiro; o autor aparece na linha de baixo
   const activity = useMemo(() => {
-    const items: { id: string; type: string; label: string; ts: string; icon: React.ReactNode; color: string }[] = [];
+    const items: { id: string; type: string; label: string; author?: string; ts: string; icon: React.ReactNode; color: string }[] = [];
+    const nameOfUser = (userId?: string | null) =>
+      userId ? people.find(p => p.userId === userId)?.name : undefined;
+
     tasks.filter(t => t.status === "done").forEach(t => {
-      const r = t.responsible[0]?.name ?? "Alguém";
-      items.push({ id: `t-${t.id}`, type: "task", label: `${r} concluiu a demanda "${t.title}"`, ts: (t as any).created_at ?? new Date().toISOString(), icon: <CheckCircle2 className="h-3.5 w-3.5" />, color: "#10B981" });
+      items.push({
+        id: `t-${t.id}`, type: "task",
+        label: `Demanda concluída — "${t.title}"`,
+        author: t.responsible[0]?.name,
+        ts: (t as any).created_at ?? new Date().toISOString(),
+        icon: <CheckCircle2 className="h-3.5 w-3.5" />, color: "#10B981",
+      });
     });
     projects.forEach(p => {
-      items.push({ id: `p-${p.id}`, type: "project", label: `Novo projeto "${p.name}" criado`, ts: (p as any).created_at ?? new Date().toISOString(), icon: <FolderPlus className="h-3.5 w-3.5" />, color: "#00B4D8" });
+      const manager = people.find(pe => pe.id === (p as any).managerId);
+      items.push({
+        id: `p-${p.id}`, type: "project",
+        label: `Novo projeto criado — "${p.name}"`,
+        author: manager?.name,
+        ts: (p as any).created_at ?? new Date().toISOString(),
+        icon: <FolderPlus className="h-3.5 w-3.5" />, color: "#00B4D8",
+      });
     });
     events.forEach(e => {
-      items.push({ id: `e-${e.id}`, type: "event", label: `Evento "${e.title}" agendado`, ts: (e as any).created_at ?? new Date().toISOString(), icon: <CalendarPlus className="h-3.5 w-3.5" />, color: "#F97316" });
+      items.push({
+        id: `e-${e.id}`, type: "event",
+        label: `Evento agendado — "${e.title}"`,
+        ts: (e as any).created_at ?? new Date().toISOString(),
+        icon: <CalendarPlus className="h-3.5 w-3.5" />, color: "#F97316",
+      });
     });
     broadcasts.filter(b => !b.message.startsWith("__")).forEach(b => {
-      items.push({ id: `b-${b.id}`, type: "broadcast", label: `Comunicado publicado: "${b.message.slice(0, 60)}${b.message.length > 60 ? "…" : ""}"`, ts: b.createdAt, icon: <Megaphone className="h-3.5 w-3.5" />, color: "#8B5CF6" });
+      items.push({
+        id: `b-${b.id}`, type: "broadcast",
+        label: `Comunicado publicado — "${b.message.slice(0, 60)}${b.message.length > 60 ? "…" : ""}"`,
+        author: nameOfUser(b.createdBy),
+        ts: b.createdAt,
+        icon: <Megaphone className="h-3.5 w-3.5" />, color: "#8B5CF6",
+      });
     });
     gamificationAwards.forEach(a => {
       const person = people.find(p => p.id === a.personId);
-      const name = person?.name ?? "Alguém";
-      items.push({ id: `g-${a.id}`, type: "gamification", label: `+${a.points} pt${a.points > 1 ? "s" : ""} para ${name} — "${a.actionName}"`, ts: a.awardedAt, icon: <Star className="h-3.5 w-3.5" />, color: "#F59E0B" });
+      items.push({
+        id: `g-${a.id}`, type: "gamification",
+        label: `+${a.points} pt${a.points > 1 ? "s" : ""} — "${a.actionName}"`,
+        author: person?.name,
+        ts: a.awardedAt,
+        icon: <Star className="h-3.5 w-3.5" />, color: "#F59E0B",
+      });
     });
     return items
       .filter(i => i.ts)
@@ -536,7 +567,15 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-foreground leading-snug">{a.label}</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">{timeAgo(a.ts)}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    {a.author && (
+                      <>
+                        <span className="font-semibold text-foreground/75">{a.author}</span>
+                        {" · "}
+                      </>
+                    )}
+                    {timeAgo(a.ts)}
+                  </p>
                 </div>
               </li>
             ))}
