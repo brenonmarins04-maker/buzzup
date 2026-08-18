@@ -13,18 +13,29 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { isValidHttpUrl, safeHref } from "@/lib/urlValidation";
+import CobrancaTab from "@/components/cobranca/CobrancaTab";
 
 type Props = { area: AreaKey };
 
 export default function AreaPage({ area }: Props) {
-  type Tab = "quadro" | "notas" | "presencas";
+  type Tab = "quadro" | "notas" | "presencas" | "cobranca";
   const [tab, setTab] = useState<Tab>("quadro");
   const label = getAreaLabel(area);
   const meta = AREAS.find(a => a.key === area)!;
+  const { people } = useData();
+  const { isAdmin, user } = useAuth();
+  // Cobrança é ferramenta de gestão: só diretores e líderes
+  const canCharge = isAdmin || isLeaderOfAny(people, user?.id);
+  const areaMembers = useMemo(
+    () => people.filter(p => (p.areas && p.areas.includes(area)) || p.area === area),
+    [people, area],
+  );
+
   const tabs: { v: Tab; label: string }[] = [
     { v: "quadro", label: "Quadro CB" },
     { v: "notas", label: "Links úteis" },
     { v: "presencas", label: "Controle de Presenças" },
+    ...(canCharge ? [{ v: "cobranca" as Tab, label: "Cobrança" }] : []),
   ];
 
   return (
@@ -52,6 +63,9 @@ export default function AreaPage({ area }: Props) {
       {tab === "notas" && <NotesTab area={area} />}
       {tab === "quadro" && <KanbanTab area={area} />}
       {tab === "presencas" && <AttendanceTab area={area} />}
+      {tab === "cobranca" && canCharge && (
+        <CobrancaTab areaKey={area} members={areaMembers} scopeLabel={label} />
+      )}
     </div>
   );
 }
