@@ -21,7 +21,7 @@ import { getNowBrasilia } from "@/lib/utils";
 import { normalizeToISODate } from "@/lib/demandStatus";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useLongPressDrag, type DragDropResult } from "@/hooks/useLongPressDrag";
-import { AREAS, getTeamColor, getAreaColor, getTeamIdFromAreaKey } from "@/lib/areas";
+import { AREAS, getTeamColor, getAreaColor, getAreaLabel, getTeamIdFromAreaKey } from "@/lib/areas";
 import { isLeaderOfAny } from "@/lib/leadership";
 import trashBinImg from "@/assets/trash-bin.png";
 
@@ -1003,6 +1003,51 @@ export default function CalendarPage() {
           ))}
         </div>
       </div>
+
+      {/* Ideias (Papel) no mobile — demandas sem prazo, de qualquer área ou time */}
+      {isMobile && parkedIdeas.length > 0 && (
+        <section data-testid="mobile-ideas-list" className="glass-panel overflow-hidden rounded-2xl">
+          <div className="flex items-center justify-between gap-3 border-b border-border px-3 py-3">
+            <div className="min-w-0">
+              <h2 className="text-sm font-bold text-foreground">Papel</h2>
+              <p className="mt-0.5 text-[10px] text-muted-foreground">Demandas sem prazo definido</p>
+            </div>
+            <span className="shrink-0 rounded-full bg-amber-500/15 px-2.5 py-1 text-xs font-bold text-amber-700">
+              {parkedIdeas.length}
+            </span>
+          </div>
+          <ul className="divide-y divide-border">
+            {parkedIdeas.slice(0, 20).map(p => {
+              const person = p.personId ? people.find(pe => pe.id === p.personId) : null;
+              return (
+                <li key={p.id}>
+                  <button
+                    type="button"
+                    onClick={() => isAdmin && setIdeaModal({ open: true, item: p })}
+                    disabled={!isAdmin}
+                    className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left disabled:cursor-default"
+                  >
+                    <span
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: getAreaColor(p.area) }}
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs font-medium text-foreground">{p.title}</span>
+                      <span className="block truncate text-[10px] text-muted-foreground">
+                        {getAreaLabel(p.area) || (getTeamIdFromAreaKey(p.area) ? "Time" : "Sem área")}
+                        {person ? ` · ${person.name.split(" ")[0]}` : ""}
+                      </span>
+                    </span>
+                    <span className="shrink-0 rounded-md border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                      Sem data
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       {isMobile && (
         <section data-testid="mobile-upcoming-list" className="glass-panel overflow-hidden rounded-2xl">

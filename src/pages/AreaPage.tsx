@@ -6,7 +6,7 @@ import { isLeaderOfAny } from "@/lib/leadership";
 import { isDemandOverdue, formatDemandDayMonth } from "@/lib/demandStatus";
 import { useDemandPoints } from "@/hooks/useDemandPoints";
 import { getTodayBrasilia } from "@/lib/utils";
-import { Plus, ExternalLink, Pencil, Trash2, X, Settings, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, ExternalLink, Pencil, Trash2, X, Settings, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -400,7 +400,6 @@ function KanbanTab({ area }: { area: AreaKey }) {
 
   const save = async () => {
     if (!title.trim()) { toast.error("Título obrigatório"); return; }
-    if (!date) { toast.error("Data obrigatória"); return; }
     if (!demandPoints.includes(points)) { toast.error("Selecione os pontos"); return; }
     if (modal.item) {
       await updateParkingItem({ ...modal.item, title: title.trim(), date, personId: personIds[0] || null, points });
@@ -559,12 +558,20 @@ function KanbanTab({ area }: { area: AreaKey }) {
           </div>
           {item.description && <p className="text-[11px] text-muted-foreground mt-1 line-clamp-2 break-words">{item.description}</p>}
           <div className="mt-1.5 flex flex-wrap items-center gap-1">
-            {formatDemandDayMonth(item.date) && (
+            {formatDemandDayMonth(item.date) ? (
               <span
                 className="inline-flex shrink-0 items-center justify-center whitespace-nowrap tabular-nums text-[10px] font-semibold px-1.5 py-0.5 rounded text-white min-w-[3.25rem]"
                 style={{ backgroundColor: tint }}
               >
                 {formatDemandDayMonth(item.date)}
+              </span>
+            ) : !isDone && (
+              // Sem prazo: fica sinalizada e aparece no Papel do calendário
+              <span
+                className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                style={{ color: "#C2410C", backgroundColor: "#FFF7ED", border: "1px solid #FDBA74" }}
+              >
+                <AlertTriangle className="h-2.5 w-2.5" /> Sem data
               </span>
             )}
             {/* Aviso de status — visível para todos */}
@@ -748,8 +755,13 @@ function KanbanTab({ area }: { area: AreaKey }) {
               )}
             </div>
             <div>
-              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Data <span className="text-destructive">*</span></label>
-              <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="rounded-full h-11 px-4" required />
+              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">
+                Data <span className="font-normal normal-case tracking-normal">(opcional)</span>
+              </label>
+              <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="rounded-full h-11 px-4" />
+              <p className="text-[10px] text-orange-700 mt-1.5">
+                Sem data, a demanda fica sinalizada e vai para o Papel do calendário até você definir um prazo.
+              </p>
             </div>
             <div>
               <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Pontos <span className="text-destructive">*</span></label>
