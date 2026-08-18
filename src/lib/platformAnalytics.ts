@@ -4,6 +4,7 @@ export type PlatformEventKey =
   | "landing_view"
   | "signup_cta_click"
   | "signup_success"
+  | "social_auth_started"
   | "workspace_entered"
   | "workspace_created"
   | "workspace_join_requested";

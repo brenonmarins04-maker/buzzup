@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, type DragEvent } from "react";
 import { useParams } from "react-router-dom";
 import { useData } from "@/contexts/DataContext";
 import { UsersRound } from "lucide-react";
@@ -55,7 +55,6 @@ import { Plus, ExternalLink, Pencil, Trash2, X, ChevronDown, ChevronUp, AlertTri
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 
 function TeamTabs({ teamId }: { teamId: string }) {
