@@ -1,96 +1,90 @@
 import { describe, expect, it } from "vitest";
-import { buildCobrancaMessage, buildMensagemGeral } from "@/components/cobranca/CobrancaTab";
-import type { ParkingItem } from "@/contexts/DataContext";
+import {
+  DEFAULT_FOOTER,
+  DEFAULT_HEADER_GERAL,
+  composeMessage,
+  demandLine,
+  prazoLabel,
+} from "@/components/cobranca/CobrancaTab";
 
-const demanda = (over: Partial<ParkingItem>): ParkingItem => ({
-  id: "d1", area: "mercado", personId: "p1", title: "Demanda", description: "",
-  date: "2026-08-20", position: 0, status: "in-progress", points: 1, ...over,
+const opts = (showName: boolean, showDate: boolean) => ({ showName, showDate });
+
+describe("prazo da demanda", () => {
+  it("com data vira 'até DD/MM'", () => {
+    expect(prazoLabel("2026-08-20")).toBe("até 20/08");
+  });
+
+  it("sem data vira 'data indefinida'", () => {
+    expect(prazoLabel("")).toBe("data indefinida");
+    expect(prazoLabel(null)).toBe("data indefinida");
+  });
+
+  it("aceita data com hora", () => {
+    expect(prazoLabel("2026-08-20T15:00:00Z")).toBe("até 20/08");
+  });
 });
 
-describe("mensagem de cobrança", () => {
-  it("usa o primeiro nome da pessoa e o escopo", () => {
-    const msg = buildCobrancaMessage("Breno Marins Nicoletti", [demanda({})], "Marketing");
-    expect(msg).toContain("Oi, Breno!");
-    expect(msg).toContain("demandas de Marketing");
+describe("linha da demanda — personalização por nome e data", () => {
+  it("com nome e data: nome - demanda - data", () => {
+    expect(demandLine("Post", "2026-08-20", "Breno Marins", opts(true, true)))
+      .toBe("• Breno - Post - até 20/08");
   });
 
-  it("mostra o prazo de cada demanda como 'até DD/MM'", () => {
-    const msg = buildCobrancaMessage("Ana", [
-      demanda({ id: "a", title: "Post de recrutamento", date: "2026-08-20" }),
-    ], "Marketing");
-    expect(msg).toContain("• Post de recrutamento — até 20/08");
+  it("sem nome: só demanda - data", () => {
+    expect(demandLine("Post", "2026-08-20", "Breno Marins", opts(false, true)))
+      .toBe("• Post - até 20/08");
   });
 
-  it("demanda sem prazo aparece como 'data indefinida'", () => {
-    const msg = buildCobrancaMessage("Ana", [
-      demanda({ id: "b", title: "Planilha de vendas", date: "" }),
-    ], "Marketing");
-    expect(msg).toContain("• Planilha de vendas — data indefinida");
-    expect(msg).not.toContain("até ");
+  it("sem data: só nome - demanda", () => {
+    expect(demandLine("Post", "2026-08-20", "Breno Marins", opts(true, false)))
+      .toBe("• Breno - Post");
   });
 
-  it("lista várias demandas, cada uma em uma linha", () => {
-    const msg = buildCobrancaMessage("Ana", [
-      demanda({ id: "a", title: "Post", date: "2026-08-20" }),
-      demanda({ id: "b", title: "Relatório", date: "" }),
-    ], "Marketing");
-    const linhas = msg.split("\n").filter(l => l.startsWith("•"));
-    expect(linhas).toHaveLength(2);
-    expect(linhas[0]).toContain("Post — até 20/08");
-    expect(linhas[1]).toContain("Relatório — data indefinida");
+  it("sem nome e sem data: só a demanda", () => {
+    expect(demandLine("Post", "2026-08-20", "Breno Marins", opts(false, false)))
+      .toBe("• Post");
   });
 
-  it("aceita data com hora sem quebrar o formato", () => {
-    const msg = buildCobrancaMessage("Ana", [
-      demanda({ id: "c", title: "Reunião", date: "2026-08-20T15:00:00Z" }),
-    ], "Vendas");
-    expect(msg).toContain("Reunião — até 20/08");
+  it("demanda sem prazo mostra 'data indefinida' quando a data está ligada", () => {
+    expect(demandLine("Planilha", "", "Ana Souza", opts(true, true)))
+      .toBe("• Ana - Planilha - data indefinida");
+  });
+
+  it("usa apenas o primeiro nome", () => {
+    expect(demandLine("Post", "", "Breno Marins Nicoletti", opts(true, false)))
+      .toBe("• Breno - Post");
+  });
+});
+
+describe("montagem da mensagem", () => {
+  const linhas = ["• Breno - Post - até 20/08", "• Ana - Planilha - data indefinida"];
+
+  it("junta primeira linha, corpo e última linha", () => {
+    const msg = composeMessage(DEFAULT_HEADER_GERAL, linhas, DEFAULT_FOOTER);
+    expect(msg).toBe(
+      `${DEFAULT_HEADER_GERAL}\n\n${linhas.join("\n")}\n\n${DEFAULT_FOOTER}`,
+    );
+  });
+
+  it("preserva o texto que o diretor escreveu", () => {
+    const msg = composeMessage("Bom dia, time!", linhas, "Abraço!");
+    expect(msg.startsWith("Bom dia, time!")).toBe(true);
+    expect(msg.endsWith("Abraço!")).toBe(true);
+  });
+
+  it("o corpo depende só das demandas, não do texto editado", () => {
+    const a = composeMessage("Cabeçalho A", linhas, "Rodapé A");
+    const b = composeMessage("Cabeçalho B", linhas, "Rodapé B");
+    const corpo = (m: string) => m.split("\n").filter(l => l.startsWith("•")).join("\n");
+    expect(corpo(a)).toBe(corpo(b));
+  });
+
+  it("omite bloco vazio quando não há primeira ou última linha", () => {
+    expect(composeMessage("", linhas, "")).toBe(linhas.join("\n"));
   });
 
   it("é texto simples, pronto para colar", () => {
-    const msg = buildCobrancaMessage("Ana", [demanda({})], "Marketing");
-    expect(msg).not.toMatch(/<[a-z]/i); // sem HTML
-    expect(typeof msg).toBe("string");
-  });
-});
-
-describe("mensagem geral", () => {
-  const pessoa = (id: string, name: string) => ({ id, name } as any);
-
-  it("abre com a saudação do grupo e o escopo", () => {
-    const msg = buildMensagemGeral([
-      { person: pessoa("p1", "Breno Marins"), demands: [demanda({})] },
-    ], "Marketing");
-    expect(msg).toContain("Fala pessoal, tudo bem?");
-    expect(msg).toContain("demandas da semana de Marketing");
-  });
-
-  it("lista nome - demanda - data", () => {
-    const msg = buildMensagemGeral([
-      { person: pessoa("p1", "Breno Marins"), demands: [demanda({ title: "Post", date: "2026-08-20" })] },
-    ], "Marketing");
-    expect(msg).toContain("• Breno - Post - até 20/08");
-  });
-
-  it("usa 'data indefinida' quando não há prazo", () => {
-    const msg = buildMensagemGeral([
-      { person: pessoa("p1", "Ana Souza"), demands: [demanda({ title: "Relatório", date: "" })] },
-    ], "Vendas");
-    expect(msg).toContain("• Ana - Relatório - data indefinida");
-  });
-
-  it("junta as demandas de todas as pessoas", () => {
-    const msg = buildMensagemGeral([
-      { person: pessoa("p1", "Breno"), demands: [demanda({ id: "a", title: "Post", date: "2026-08-20" })] },
-      { person: pessoa("p2", "Ana"), demands: [
-        demanda({ id: "b", title: "Planilha", date: "" }),
-        demanda({ id: "c", title: "Reunião", date: "2026-08-21" }),
-      ] },
-    ], "Marketing");
-    const linhas = msg.split("\n").filter(l => l.startsWith("•"));
-    expect(linhas).toHaveLength(3);
-    expect(linhas[0]).toContain("Breno - Post");
-    expect(linhas[1]).toContain("Ana - Planilha - data indefinida");
-    expect(linhas[2]).toContain("Ana - Reunião - até 21/08");
+    const msg = composeMessage(DEFAULT_HEADER_GERAL, linhas, DEFAULT_FOOTER);
+    expect(msg).not.toMatch(/<[a-z]/i);
   });
 });
