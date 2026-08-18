@@ -62,9 +62,9 @@ function TeamTabs({ teamId, teamName }: { teamId: string; teamName: string }) {
   type Tab = "quadro" | "notas" | "presencas" | "cobranca";
   const [tab, setTab] = useState<Tab>("quadro");
   const { people, teams } = useData();
-  const { isAdmin, user } = useAuth();
-  // Cobrança é ferramenta de gestão: só diretores e líderes
-  const canCharge = isAdmin || isLeaderOfAny(people, user?.id);
+  const { isAdmin } = useAuth();
+  // Cobrança é ferramenta de gestão: só diretores (owner/admin), nem líderes
+  const canCharge = isAdmin;
   const teamMembers = useMemo(() => {
     const team = teams.find(t => t.id === teamId);
     return people.filter(p => team?.memberIds.includes(p.id));

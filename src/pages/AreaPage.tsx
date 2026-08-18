@@ -23,9 +23,9 @@ export default function AreaPage({ area }: Props) {
   const label = getAreaLabel(area);
   const meta = AREAS.find(a => a.key === area)!;
   const { people } = useData();
-  const { isAdmin, user } = useAuth();
-  // Cobrança é ferramenta de gestão: só diretores e líderes
-  const canCharge = isAdmin || isLeaderOfAny(people, user?.id);
+  const { isAdmin } = useAuth();
+  // Cobrança é ferramenta de gestão: só diretores (owner/admin), nem líderes
+  const canCharge = isAdmin;
   const areaMembers = useMemo(
     () => people.filter(p => (p.areas && p.areas.includes(area)) || p.area === area),
     [people, area],
