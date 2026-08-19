@@ -43,6 +43,8 @@ export default function ProductTour() {
   const [index, setIndex] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
   const [running, setRunning] = useState(false);
+  // Anima o deslocamento só entre passos; durante o scroll acompanha na hora
+  const [smooth, setSmooth] = useState(true);
   const startedRef = useRef(false);
 
   const step = steps[index];
@@ -107,6 +109,7 @@ export default function ProductTour() {
       const el = await waitForTarget(step.target!);
       if (cancelled) return;
       if (!el) { setRect(null); return; }
+      setSmooth(true);
       el.scrollIntoView({ behavior: "smooth", block: "center" });
       // deixa o scroll assentar antes de medir
       setTimeout(() => {
@@ -125,6 +128,7 @@ export default function ProductTour() {
     const update = () => {
       const el = document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`);
       if (!el) return;
+      setSmooth(false);
       const r = el.getBoundingClientRect();
       setRect({ top: r.top, left: r.left, width: r.width, height: r.height });
     };
@@ -179,13 +183,18 @@ export default function ProductTour() {
       {/* Escurece a tela; o recorte marca o elemento em destaque */}
       {hole ? (
         <div
-          className="pointer-events-none absolute rounded-2xl ring-2 ring-primary transition-all duration-300"
+          className="pointer-events-none absolute rounded-2xl ring-2 ring-primary"
           style={{
             top: hole.top,
             left: hole.left,
             width: hole.width,
             height: hole.height,
             boxShadow: "0 0 0 9999px rgba(4, 32, 48, 0.72)",
+            // Deslize longo com desaceleração suave (sem o "salto" do ease padrão)
+            transition: smooth
+              ? "top 620ms cubic-bezier(0.22, 1, 0.36, 1), left 620ms cubic-bezier(0.22, 1, 0.36, 1), width 620ms cubic-bezier(0.22, 1, 0.36, 1), height 620ms cubic-bezier(0.22, 1, 0.36, 1)"
+              : "none",
+            willChange: "top, left, width, height",
           }}
         />
       ) : (
@@ -193,15 +202,17 @@ export default function ProductTour() {
       )}
 
       <div
-        style={cardStyle}
+        style={{
+          ...cardStyle,
+          transition: smooth
+            ? "top 620ms cubic-bezier(0.22, 1, 0.36, 1), bottom 620ms cubic-bezier(0.22, 1, 0.36, 1), left 620ms cubic-bezier(0.22, 1, 0.36, 1)"
+            : "none",
+        }}
         className="glass-panel rounded-2xl bg-card p-4 shadow-2xl animate-fade-in"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-primary">
-              Passo {index + 1} de {steps.length}
-            </p>
-            <h2 className="mt-1 text-base font-bold text-foreground">{step.title}</h2>
+            <h2 className="text-base font-bold text-foreground">{step.title}</h2>
           </div>
           <button
             onClick={() => finish("skipped")}
@@ -225,17 +236,25 @@ export default function ProductTour() {
           ))}
         </div>
 
+        {/* Posições fixas: os botões que não valem no passo ficam invisíveis,
+            mas continuam ocupando o espaço para nada se mexer entre passos. */}
         <div className="mt-4 flex items-center gap-2">
-          {index > 0 && (
-            <Button variant="outline" className="rounded-xl" onClick={() => setIndex(i => i - 1)}>
-              Voltar
-            </Button>
-          )}
-          {!isLast && (
-            <Button variant="ghost" className="rounded-xl text-muted-foreground" onClick={() => finish("skipped")}>
-              Pular
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            className={`rounded-xl ${index === 0 ? "invisible" : ""}`}
+            onClick={() => setIndex(i => i - 1)}
+            disabled={index === 0}
+          >
+            Voltar
+          </Button>
+          <Button
+            variant="ghost"
+            className={`rounded-xl text-muted-foreground ${isLast ? "invisible" : ""}`}
+            onClick={() => finish("skipped")}
+            disabled={isLast}
+          >
+            Pular
+          </Button>
           <Button
             className="ml-auto rounded-xl font-bold"
             onClick={() => (isLast ? finish("done") : setIndex(i => i + 1))}

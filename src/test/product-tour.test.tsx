@@ -72,11 +72,12 @@ describe("ProductTour", () => {
     startTour();
 
     expect(screen.getByText("Bem-vindo ao BuzzUp! 🎉")).toBeInTheDocument();
-    expect(screen.getByText(/Passo 1 de/)).toBeInTheDocument();
+    // O progresso é indicado só pelas bolinhas, sem o texto "Passo X de N"
+    expect(screen.queryByText(/Passo \d+ de/)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Próximo" }));
     expect(screen.getByText("Suas demandas")).toBeInTheDocument();
-    expect(screen.getByText(/Passo 2 de/)).toBeInTheDocument();
+    expect(screen.queryByText(/Passo \d+ de/)).not.toBeInTheDocument();
 
     // volta um passo
     fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
@@ -133,5 +134,38 @@ describe("ProductTour", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("layout do tour", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    mocks.user = { id: "user-1", created_at: new Date().toISOString() };
+    mocks.isOwner = true;
+    mocks.workspaceId = "ws-1";
+    mocks.isMobile = true;
+  });
+
+  it("não mostra o texto 'Passo X de N' em nenhum passo", () => {
+    renderTour();
+    startTour();
+    expect(screen.queryByText(/Passo \d+ de/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Próximo" }));
+    expect(screen.queryByText(/Passo \d+ de/)).not.toBeInTheDocument();
+  });
+
+  it("Voltar e Pular ocupam lugar fixo — existem sempre, invisíveis quando não valem", () => {
+    renderTour();
+    startTour();
+
+    // No primeiro passo, Voltar existe mas está invisível (mantém o espaço)
+    const voltar = screen.getByRole("button", { name: "Voltar" });
+    expect(voltar).toHaveClass("invisible");
+    expect(screen.getByRole("button", { name: "Pular" })).not.toHaveClass("invisible");
+
+    // No segundo passo, Voltar fica visível e Pular continua lá
+    fireEvent.click(screen.getByRole("button", { name: "Próximo" }));
+    expect(screen.getByRole("button", { name: "Voltar" })).not.toHaveClass("invisible");
+    expect(screen.getByRole("button", { name: "Pular" })).not.toHaveClass("invisible");
   });
 });
