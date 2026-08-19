@@ -40,3 +40,27 @@ describe("semana (Seg–Dom)", () => {
     expect(toLocalStr(mondayOf(seg))).toBe("2026-01-05");
   });
 });
+
+describe("filtro por ciclo", () => {
+  // Espelha applyCycle: a janela do gráfico vira o período do ciclo.
+  const janelaDoCiclo = (c: { start: string; end: string }, hoje: string) => ({
+    start: c.start,
+    end: c.end || hoje,
+  });
+
+  it("usa o início e o fim do ciclo como período", () => {
+    expect(janelaDoCiclo({ start: "2026-08-01", end: "2026-08-31" }, "2026-09-10"))
+      .toEqual({ start: "2026-08-01", end: "2026-08-31" });
+  });
+
+  it("ciclo em andamento (sem fim) vai até hoje", () => {
+    expect(janelaDoCiclo({ start: "2026-08-19", end: "" }, "2026-09-10"))
+      .toEqual({ start: "2026-08-19", end: "2026-09-10" });
+  });
+
+  it("não inclui o que veio antes do início do ciclo", () => {
+    const { start } = janelaDoCiclo({ start: "2026-08-19", end: "" }, "2026-09-10");
+    expect("2026-08-18" < start).toBe(true);  // fora
+    expect("2026-08-19" < start).toBe(false); // dentro
+  });
+});

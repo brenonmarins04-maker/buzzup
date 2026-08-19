@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import { BarChart2, Users, Trophy, Clock, ChevronLeft, FileText, ExternalLink, Globe, UsersRound } from "lucide-react";
 import { ReportFilterBar, useReportFilter } from "@/components/reports/ReportFilter";
+import { useGamificationCycles } from "@/hooks/useGamificationCycles";
 
 type TimeSlot = "morning" | "afternoon" | "night";
 
@@ -53,6 +54,9 @@ export default function ReportsPage() {
   const navigate = useNavigate();
   const { isAdmin, activeWorkspaceId } = useAuth();
   const { gamificationAwards, parkingItems, people, forms, formCompletions, teams } = useData();
+
+  // Ciclos da gamificação: viram opção de período nos filtros
+  const { cycles } = useGamificationCycles();
 
   // Um filtro independente por gráfico (período, intervalo de datas e semana)
   const pointsFilter = useReportFilter("30d");
@@ -344,7 +348,7 @@ export default function ReportsPage() {
 
         {/* Chart 1: Pontos por área / drill-down por pessoa */}
         <div className="bg-card border border-border rounded-xl p-5">
-          <ReportFilterBar filter={pointsFilter} />
+          <ReportFilterBar filter={pointsFilter} cycles={cycles} />
           <div className="flex items-center gap-2 mb-5">
             {drillArea ? (
               <>
@@ -425,7 +429,7 @@ export default function ReportsPage() {
 
         {/* Chart 2: Entradas por área / drill-down por pessoa */}
         <div className="bg-card border border-border rounded-xl p-5">
-          <ReportFilterBar filter={entriesFilter} />
+          <ReportFilterBar filter={entriesFilter} cycles={cycles} />
           <div className="flex items-center gap-2 mb-5">
             {loginDrillArea ? (
               <>
@@ -511,7 +515,7 @@ export default function ReportsPage() {
 
       {/* Heatmap */}
       <div className="bg-card border border-border rounded-xl p-5">
-        <ReportFilterBar filter={tasksHeatFilter} />
+        <ReportFilterBar filter={tasksHeatFilter} cycles={cycles} />
         <div className="flex items-center gap-2 mb-5">
           {taskHeatmapDrill ? (
             <>
@@ -622,7 +626,7 @@ export default function ReportsPage() {
 
       {/* Heatmap de Entradas no BuzzUp por horário / drill-down por pessoa */}
       <div className="bg-card border border-border rounded-xl p-5">
-        <ReportFilterBar filter={entriesHeatFilter} />
+        <ReportFilterBar filter={entriesHeatFilter} cycles={cycles} />
         <div className="flex items-center gap-2 mb-5">
           {loginHeatmapDrill ? (
             <>

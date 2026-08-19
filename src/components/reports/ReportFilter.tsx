@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CalendarDays } from "lucide-react";
 
-export type Preset = "7d" | "30d" | "3m" | "6m" | "custom";
+export type Preset = "7d" | "30d" | "3m" | "6m" | "custom" | "cycle";
 
 const PRESETS: { key: Preset; label: string }[] = [
   { key: "7d", label: "7 dias" },
@@ -52,12 +52,15 @@ export function useReportFilter(initial: Preset = "30d") {
   const [customStart, setCustomStart] = useState(dateRange.start);
   const [customEnd, setCustomEnd] = useState(dateRange.end);
   const [weekFilter, setWeekFilter] = useState<string>("");
+  const [cycleId, setCycleId] = useState<string | null>(null);
 
   // Trocar o período zera a semana escolhida (ela pode nem existir mais)
   useEffect(() => { setWeekFilter(""); }, [dateRange]);
 
   const applyPreset = (p: Preset) => {
+    if (p === "cycle") return; // ciclo entra por applyCycle
     setPreset(p);
+    setCycleId(null);
     if (p !== "custom") {
       const r = fromPreset(p);
       setDateRange(r);
@@ -66,8 +69,19 @@ export function useReportFilter(initial: Preset = "30d") {
     }
   };
 
+  /** Usa o período de um ciclo da gamificação como janela do gráfico. */
+  const applyCycle = (cycle: { id: string; start: string; end: string } | null) => {
+    if (!cycle) { applyPreset("30d"); return; }
+    setPreset("cycle");
+    setCycleId(cycle.id);
+    // Ciclo em andamento (sem fim) vai até hoje
+    setDateRange({ start: cycle.start, end: cycle.end || toDateStr(new Date()) });
+  };
+
   const applyCustom = () => {
     if (customStart && customEnd && customStart <= customEnd) {
+      setCycleId(null);
+      setPreset("custom");
       setDateRange({ start: customStart, end: customEnd });
     }
   };
@@ -111,6 +125,7 @@ export function useReportFilter(initial: Preset = "30d") {
 
   return {
     preset, applyPreset,
+    cycleId, applyCycle,
     dateRange, range,
     customStart, setCustomStart,
     customEnd, setCustomEnd, applyCustom,
@@ -119,10 +134,12 @@ export function useReportFilter(initial: Preset = "30d") {
   };
 }
 
+export type CycleOption = { id: string; name: string; start: string; end: string };
+
 /** Barra de filtros compacta, exibida dentro do card de cada gráfico. */
-export function ReportFilterBar({ filter }: { filter: ReportFilter }) {
+export function ReportFilterBar({ filter, cycles = [] }: { filter: ReportFilter; cycles?: CycleOption[] }) {
   const {
-    preset, applyPreset,
+    preset, applyPreset, cycleId, applyCycle,
     customStart, setCustomStart, customEnd, setCustomEnd, applyCustom,
     weekFilter, setWeekFilter, availableWeeks, dateRange,
   } = filter;
@@ -144,6 +161,21 @@ export function ReportFilterBar({ filter }: { filter: ReportFilter }) {
             {p.label}
           </button>
         ))}
+        {cycles.length > 0 && (
+          <select
+            value={cycleId ?? ""}
+            onChange={e => applyCycle(cycles.find(c => c.id === e.target.value) ?? null)}
+            title="Filtrar pelo período de um ciclo da gamificação"
+            className={`h-[26px] px-2 rounded-full text-[11px] font-medium border transition-colors ${
+              preset === "cycle"
+                ? "bg-primary text-primary-foreground border-primary"
+                : "border-border text-muted-foreground bg-background hover:text-foreground"
+            }`}
+          >
+            <option value="">Ciclo…</option>
+            {cycles.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        )}
         {preset !== "custom" && (
           <span className="text-[10px] text-muted-foreground/70 ml-auto">
             {dateRange.start} → {dateRange.end}
