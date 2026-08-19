@@ -17,7 +17,6 @@ import {
 type Rect = { top: number; left: number; width: number; height: number };
 
 const PADDING = 8;
-const CARD_GAP = 14;
 
 /** Espera o elemento aparecer depois da navegação (a rota renderiza async). */
 function waitForTarget(target: string, timeoutMs = 2500): Promise<HTMLElement | null> {
@@ -158,25 +157,17 @@ export default function ProductTour() {
       }
     : null;
 
-  // Card: no celular vira faixa inferior; no desktop fica junto do alvo
-  let cardStyle: React.CSSProperties;
-  if (isMobile || !hole) {
-    // 88px = altura da navegação inferior + folga, para ela seguir visível
-    cardStyle = hole
-      ? { left: 12, right: 12, bottom: isMobile ? 88 : 16, position: "fixed" }
-      : { left: 12, right: 12, top: "50%", transform: "translateY(-50%)", position: "fixed" };
-  } else {
-    const below = hole.top + hole.height + CARD_GAP;
-    const fitsBelow = below + 190 < window.innerHeight;
-    const width = 360;
-    const left = Math.min(
-      Math.max(hole.left + hole.width / 2 - width / 2, 16),
-      window.innerWidth - width - 16,
-    );
-    cardStyle = fitsBelow
-      ? { position: "fixed", top: below, left, width }
-      : { position: "fixed", bottom: window.innerHeight - hole.top + CARD_GAP, left, width };
-  }
+  // O card fica SEMPRE no mesmo ponto da tela (rodapé central), em todos os
+  // passos. Quem se move é o recorte de destaque — assim os botões Voltar,
+  // Pular e Próximo nunca mudam de lugar entre um passo e outro.
+  const cardStyle: React.CSSProperties = {
+    position: "fixed",
+    bottom: isMobile ? 88 : 28, // no celular, acima da navegação inferior
+    left: "50%",
+    transform: "translateX(-50%)",
+    width: isMobile ? "calc(100vw - 24px)" : 440,
+    maxWidth: "calc(100vw - 24px)",
+  };
 
   return createPortal(
     <div className="fixed inset-0 z-[100]" role="dialog" aria-modal="true" aria-label="Tour do BuzzUp">
@@ -202,12 +193,7 @@ export default function ProductTour() {
       )}
 
       <div
-        style={{
-          ...cardStyle,
-          transition: smooth
-            ? "top 620ms cubic-bezier(0.22, 1, 0.36, 1), bottom 620ms cubic-bezier(0.22, 1, 0.36, 1), left 620ms cubic-bezier(0.22, 1, 0.36, 1)"
-            : "none",
-        }}
+        style={cardStyle}
         className="glass-panel rounded-2xl bg-card p-4 shadow-2xl animate-fade-in"
       >
         <div className="flex items-start justify-between gap-3">
