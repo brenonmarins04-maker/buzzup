@@ -143,9 +143,6 @@ export default function LandingPage() {
       <main id="main">
 
         <section className="hero pad">
-          <div className="hero-announce-wrap">
-            <PromoMarquee />
-          </div>
           <div className="wrap hero-grid">
             <div>
               <h1 className="reveal">Gestão da sua entidade na faculdade no seu celular.</h1>
@@ -278,7 +275,6 @@ export default function LandingPage() {
 
         <section className="sec-blue pad" id="planos">
           <div className="wrap center reveal section-slide slide-right">
-            <span className="eyebrow on-blue reveal">Free forever</span>
             <h2 className="reveal mx">Entre até 30 de setembro. Use o BuzzUp para sempre.</h2>
             <p className="lead reveal mx" style={{ color: "rgba(255,255,255,.86)", marginTop: 14 }}>Estamos abrindo o BuzzUp para as entidades que querem organizar a gestão de verdade. Quem chegar primeiro entra sem pagar e permanece com tudo liberado.</p>
             <div className="steps">
@@ -334,22 +330,6 @@ export default function LandingPage() {
           <div>© 2026 BuzzUp · Feito por universitários, para universitários</div>
         </div>
       </footer>
-    </div>
-  );
-}
-
-function PromoMarquee() {
-  return (
-    <div className="announce" aria-label="Free forever">
-      <div className="announce-track">
-        {[0, 1].map((group) => (
-          <div className="announce-group" key={group}>
-            {Array.from({ length: 6 }).map((_, i) => (
-              <span key={`${group}-${i}`}>FREE FOREVER</span>
-            ))}
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
