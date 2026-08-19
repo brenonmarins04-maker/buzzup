@@ -239,7 +239,7 @@ export default function LoginPage() {
               <Label htmlFor="name" className="font-semibold">Nome completo</Label>
               <div className="relative">
                 <User className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input id="name" value={name} onChange={e => setName(e.target.value)} placeholder="Seu nome completo" className="h-16 rounded-2xl pl-14 text-base bg-[#f5f5f3]" autoFocus required />
+                <Input id="name" autoComplete="name" value={name} onChange={e => setName(e.target.value)} placeholder="Seu nome completo" className="h-16 rounded-2xl pl-14 text-base bg-[#f5f5f3]" autoFocus required />
               </div>
             </div>
           )}
@@ -248,7 +248,7 @@ export default function LoginPage() {
             <Label htmlFor="email" className="font-semibold">E-mail</Label>
             <div className="relative">
               <Mail className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="voce@empresa.com" className="h-16 rounded-2xl pl-14 text-base bg-[#f5f5f3]" autoFocus={mode !== "signup"} required />
+              <Input id="email" type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} placeholder="voce@empresa.com" className="h-16 rounded-2xl pl-14 text-base bg-[#f5f5f3]" autoFocus={mode !== "signup"} required />
             </div>
           </div>
 
@@ -264,7 +264,7 @@ export default function LoginPage() {
               </div>
               <div className="relative">
                 <Lock className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <Input id="password" type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="h-16 rounded-2xl pl-14 pr-12 text-base bg-[#f5f5f3]" minLength={6} required />
+                <Input id="password" type={showPassword ? "text" : "password"} autoComplete={mode === "signup" ? "new-password" : "current-password"} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="h-16 rounded-2xl pl-14 pr-12 text-base bg-[#f5f5f3]" minLength={6} required />
                 <button type="button" onClick={() => setShowPassword(p => !p)} className="absolute right-5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" tabIndex={-1}>
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
@@ -281,6 +281,7 @@ export default function LoginPage() {
                 <Input
                   id="confirm-password"
                   type={showPassword ? "text" : "password"}
+                  autoComplete="new-password"
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
