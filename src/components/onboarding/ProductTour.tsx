@@ -9,7 +9,7 @@ import { X } from "lucide-react";
 import {
   buildTourSteps,
   hasSeenTour,
-  isNewAccount,
+  isNewWorkspace,
   markTourSeen,
   type TourStep,
 } from "@/lib/tour";
@@ -33,7 +33,7 @@ function waitForTarget(target: string, timeoutMs = 2500): Promise<HTMLElement | 
 }
 
 export default function ProductTour() {
-  const { user, isOwner, workspaceId } = useAuth();
+  const { user, isOwner, workspaceId, myWorkspaces } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
@@ -70,11 +70,12 @@ export default function ProductTour() {
   useEffect(() => {
     if (startedRef.current) return;
     if (!user || !workspaceId) return;
-    if (hasSeenTour(user.id)) return;
-    // Conta antiga não dispara sozinha — mas não persistimos "pulado" aqui:
-    // marcar cedo demais (ex.: created_at ainda indisponível) desligaria o tour
-    // para sempre em uma conta nova.
-    if (!isNewAccount(user.created_at)) return;
+    if (hasSeenTour(user.id, workspaceId)) return;
+    // Dispara em workspace recém-criado — uma vez por workspace. Assim quem
+    // cria um workspace novo vê a apresentação, mesmo com a conta antiga, e
+    // workspaces já em uso não voltam a mostrá-la.
+    const ws = myWorkspaces.find(w => w.workspace_id === workspaceId);
+    if (!isNewWorkspace(ws?.created_at)) return;
 
     // startedRef só é marcado quando o tour realmente abre. Marcá-lo antes fazia
     // o tour sumir: o efeito reexecuta quando isOwner muda (o hub carrega logo
@@ -87,7 +88,7 @@ export default function ProductTour() {
     }, 900);
     return () => clearTimeout(t);
     // Depende de valores estáveis (ids), não da identidade de user/start
-  }, [user?.id, user?.created_at, workspaceId]);
+  }, [user?.id, workspaceId, myWorkspaces]);
 
   // Navega para a rota do passo e posiciona o spotlight
   useEffect(() => {
@@ -142,7 +143,7 @@ export default function ProductTour() {
   const finish = (how: "done" | "skipped") => {
     setRunning(false);
     setRect(null);
-    if (user) markTourSeen(user.id, how);
+    if (user && workspaceId) markTourSeen(user.id, workspaceId, how);
   };
 
   if (!running || !step) return null;

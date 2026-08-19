@@ -14,40 +14,44 @@ export type TourStep = {
   ownerOnly?: boolean;
 };
 
-// v2: invalida as marcas gravadas pela versão com o bug de início automático
-// (contas novas ficavam marcadas como "pulado" sem nunca ter visto o tour).
-export const TOUR_VERSION = "v2";
+// v3: a marca passa a ser por workspace — cada workspace novo mostra o tour
+// uma vez, em vez de uma vez por conta.
+export const TOUR_VERSION = "v3";
 
-export function tourStorageKey(userId: string) {
-  return `buzzup.tour.${TOUR_VERSION}.${userId}`;
+export function tourStorageKey(userId: string, workspaceId: string) {
+  return `buzzup.tour.${TOUR_VERSION}.${userId}.${workspaceId}`;
 }
 
-export function hasSeenTour(userId: string): boolean {
+export function hasSeenTour(userId: string, workspaceId: string): boolean {
   try {
-    return !!localStorage.getItem(tourStorageKey(userId));
+    return !!localStorage.getItem(tourStorageKey(userId, workspaceId));
   } catch {
     return true; // storage bloqueado: não insiste com o tour
   }
 }
 
-export function markTourSeen(userId: string, how: "done" | "skipped") {
+export function markTourSeen(userId: string, workspaceId: string, how: "done" | "skipped") {
   try {
-    localStorage.setItem(tourStorageKey(userId), how);
+    localStorage.setItem(tourStorageKey(userId, workspaceId), how);
   } catch {
     // modo privado pode bloquear — o tour só não será lembrado
   }
 }
 
-export function clearTourSeen(userId: string) {
+export function clearTourSeen(userId: string, workspaceId: string) {
   try {
-    localStorage.removeItem(tourStorageKey(userId));
+    localStorage.removeItem(tourStorageKey(userId, workspaceId));
   } catch {
     // ignore
   }
 }
 
-/** Conta criada há pouco tempo — evita disparar o tour para quem já usa o app. */
-export function isNewAccount(createdAt?: string | null, days = 7): boolean {
+/**
+ * Workspace criado há pouco tempo. É o gatilho do tour: quem acabou de criar
+ * (ou de entrar em) um workspace recém-criado vê a apresentação, e workspaces
+ * antigos não voltam a mostrá-la para quem já os usa.
+ */
+export function isNewWorkspace(createdAt?: string | null, days = 7): boolean {
   if (!createdAt) return false;
   const created = new Date(createdAt).getTime();
   if (Number.isNaN(created)) return false;

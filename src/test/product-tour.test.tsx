@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   isOwner: true,
   workspaceId: "ws-1" as string | null,
   isMobile: true,
+  // Workspace recém-criado é o gatilho do tour
+  myWorkspaces: [{ workspace_id: "ws-1", created_at: new Date().toISOString() }] as Array<{ workspace_id: string; created_at: string }>,
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({
@@ -16,6 +18,7 @@ vi.mock("@/contexts/AuthContext", () => ({
     user: mocks.user,
     isOwner: mocks.isOwner,
     workspaceId: mocks.workspaceId,
+    myWorkspaces: mocks.myWorkspaces,
   }),
 }));
 
@@ -65,6 +68,7 @@ describe("ProductTour", () => {
     mocks.isOwner = true;
     mocks.workspaceId = "ws-1";
     mocks.isMobile = true;
+    mocks.myWorkspaces = [{ workspace_id: "ws-1", created_at: new Date().toISOString() }];
   });
 
   it("abre no passo de boas-vindas e avança", () => {
@@ -91,15 +95,34 @@ describe("ProductTour", () => {
     fireEvent.click(screen.getByRole("button", { name: "Pular" }));
 
     expect(screen.queryByText("Bem-vindo ao BuzzUp! 🎉")).not.toBeInTheDocument();
-    expect(localStorage.getItem(tourStorageKey("user-1"))).toBe("skipped");
-    expect(hasSeenTour("user-1")).toBe(true);
+    expect(localStorage.getItem(tourStorageKey("user-1", "ws-1"))).toBe("skipped");
+    expect(hasSeenTour("user-1", "ws-1")).toBe(true);
   });
 
-  it("não inicia sozinho para conta antiga", () => {
-    mocks.user = { id: "user-antigo", created_at: "2020-01-01T00:00:00Z" };
+  it("não inicia sozinho em workspace antigo", () => {
+    mocks.myWorkspaces = [{ workspace_id: "ws-1", created_at: "2020-01-01T00:00:00Z" }];
     renderTour();
 
     expect(screen.queryByText("Bem-vindo ao BuzzUp! 🎉")).not.toBeInTheDocument();
+  });
+
+  it("inicia em workspace novo mesmo com conta antiga", () => {
+    vi.useFakeTimers();
+    try {
+      mocks.user = { id: "user-antigo", created_at: "2020-01-01T00:00:00Z" };
+      renderTour();
+      act(() => { vi.advanceTimersByTime(1200); });
+      expect(screen.getByText("Bem-vindo ao BuzzUp! 🎉")).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("mostra de novo em outro workspace novo, já visto no primeiro", () => {
+    // Marca o ws-1 como visto; o ws-2 (novo) ainda deve mostrar
+    localStorage.setItem(tourStorageKey("user-1", "ws-1"), "done");
+    expect(hasSeenTour("user-1", "ws-1")).toBe(true);
+    expect(hasSeenTour("user-1", "ws-2")).toBe(false);
   });
 
   it("abre sozinho para conta nova ao entrar no workspace", () => {
@@ -144,6 +167,7 @@ describe("layout do tour", () => {
     mocks.isOwner = true;
     mocks.workspaceId = "ws-1";
     mocks.isMobile = true;
+    mocks.myWorkspaces = [{ workspace_id: "ws-1", created_at: new Date().toISOString() }];
   });
 
   it("não mostra o texto 'Passo X de N' em nenhum passo", () => {
