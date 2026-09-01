@@ -9,9 +9,9 @@ import { toast } from "sonner";
 import { GENERAL_SHORTCUTS_PREFIX, parseGeneralShortcuts, serializeGeneralShortcuts } from "@/lib/generalShortcuts";
 
 import type { Meeting, MeetingRoom, MeetingTargetType } from "@/lib/agenda";
-import type { AvailabilitySlot, Interval } from "@/lib/availability";
+import type { UnavailableSlot, Interval } from "@/lib/unavailability";
 export type { Meeting, MeetingRoom, MeetingTargetType };
-export type { AvailabilitySlot };
+export type { UnavailableSlot };
 
 type Json = Database["public"]["Tables"]["tasks"]["Row"]["checklist"];
 
@@ -89,7 +89,7 @@ function mapMeeting(m: any): Meeting {
   };
 }
 
-function mapAvailability(a: any): AvailabilitySlot {
+function mapUnavailable(a: any): UnavailableSlot {
   return {
     id: a.id,
     userId: a.user_id,
@@ -159,7 +159,8 @@ type DataContextType = {
   generalShortcuts: GeneralShortcut[];
   forms: WorkspaceForm[]; formCompletions: FormCompletion[];
   meetings: Meeting[]; meetingRooms: MeetingRoom[];
-  availability: AvailabilitySlot[];
+  /** Blocos ocupados declarados por todas as contas do workspace */
+  unavailability: UnavailableSlot[];
   loading: boolean; workspaceId: string | null;
   pointsEarnedNotice: number | null;
   dismissPointsEarnedNotice: () => void;
@@ -248,8 +249,8 @@ type DataContextType = {
   addMeeting: (m: Omit<Meeting, "id" | "createdBy" | "createdAt">) => Promise<void>;
   updateMeeting: (id: string, patch: Omit<Meeting, "id" | "createdBy" | "createdAt">) => Promise<void>;
   deleteMeeting: (id: string) => Promise<void>;
-  /** Substitui a minha disponibilidade de um dia inteiro pelos blocos dados. */
-  setMyAvailabilityForDay: (weekday: number, blocos: Interval[]) => Promise<void>;
+  /** Substitui os meus horários ocupados de um dia inteiro pelos blocos dados. */
+  setMyUnavailabilityForDay: (weekday: number, blocos: Interval[]) => Promise<void>;
   addMeetingRoom: (name: string, color: string) => Promise<void>;
   updateMeetingRoom: (id: string, patch: { name: string; color: string }) => Promise<void>;
   deleteMeetingRoom: (id: string) => Promise<void>;
@@ -283,7 +284,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [formCompletions, setFormCompletions] = useState<FormCompletion[]>([]);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [meetingRooms, setMeetingRooms] = useState<MeetingRoom[]>([]);
-  const [availability, setAvailability] = useState<AvailabilitySlot[]>([]);
+  const [unavailability, setUnavailability] = useState<UnavailableSlot[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoriesRaw, setCategoriesRaw] = useState<{ id: string; name: string }[]>([]);
   const pplMapRef = useRef<Map<string, Person>>(new Map());
@@ -322,7 +323,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!uid || !workspaceId) {
       setPeople([]); setProjects([]); setTasks([]); setPosts([]);
       setEvents([]); setCategories([]); setChannels([]); setTeams([]);
-      setCategoriesRaw([]); setEventTypes([]); setAreaNotes([]); setParkingItems([]); setGamificationActions([]); setGamificationAwards([]); setLeadThermometer([]); setAttendanceSettings([]); setAttendanceRecords([]); setBroadcasts([]); setForms([]); setFormCompletions([]); setMeetings([]); setMeetingRooms([]); setAvailability([]); setLoading(false);
+      setCategoriesRaw([]); setEventTypes([]); setAreaNotes([]); setParkingItems([]); setGamificationActions([]); setGamificationAwards([]); setLeadThermometer([]); setAttendanceSettings([]); setAttendanceRecords([]); setBroadcasts([]); setForms([]); setFormCompletions([]); setMeetings([]); setMeetingRooms([]); setUnavailability([]); setLoading(false);
       return;
     }
     let cancelled = false;
@@ -357,7 +358,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         (supabase.from as any)("form_completions").select("*").eq("workspace_id", wsId),
         (supabase.from as any)("meetings").select("*").eq("workspace_id", wsId),
         (supabase.from as any)("meeting_rooms").select("*").eq("workspace_id", wsId).order("position", { ascending: true }),
-        (supabase.from as any)("availability_slots").select("*").eq("workspace_id", wsId),
+        (supabase.from as any)("unavailable_slots").select("*").eq("workspace_id", wsId),
       ]);
       if (cancelled) return;
 
@@ -462,7 +463,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       // Agenda — vazia enquanto o agenda-setup.sql não tiver sido rodado
       setMeetings(((mtRes as any)?.data || []).map(mapMeeting));
       setMeetingRooms(((mrRes as any)?.data || []).map(mapRoom));
-      setAvailability(((avRes as any)?.data || []).map(mapAvailability));
+      setUnavailability(((avRes as any)?.data || []).map(mapUnavailable));
 
       // Sync: migrate tasks with deadlines into parkingItems so they appear in Quadro CB
       try {
@@ -682,9 +683,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setMeetingRooms((data || []).map(mapRoom));
     };
 
-    const refetchAvailability = async () => {
-      const { data } = await (supabase.from as any)("availability_slots").select("*").eq("workspace_id", wsId);
-      setAvailability((data || []).map(mapAvailability));
+    const refetchUnavailability = async () => {
+      const { data } = await (supabase.from as any)("unavailable_slots").select("*").eq("workspace_id", wsId);
+      setUnavailability((data || []).map(mapUnavailable));
     };
 
     // Per-group debounce: bursts on the same group collapse into one fetch (300ms window)
@@ -721,7 +722,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       form_completions:     () => debounced("formCompletions", refetchFormCompletions),
       meetings:             () => debounced("meetings", refetchMeetings),
       meeting_rooms:        () => debounced("meetingRooms", refetchMeetingRooms),
-      availability_slots:   () => debounced("availability", refetchAvailability),
+      unavailable_slots:    () => debounced("unavailability", refetchUnavailability),
     };
 
     // Unique suffix prevents collision when removeChannel (async) hasn't finished
@@ -1656,47 +1657,47 @@ export function DataProvider({ children }: { children: ReactNode }) {
     toast.success("Reunião removida.");
   }, []);
 
-  const setMyAvailabilityForDay = useCallback(async (weekday: number, blocos: Interval[]) => {
+  const setMyUnavailabilityForDay = useCallback(async (weekday: number, blocos: Interval[]) => {
     if (!workspaceId || !uid) return;
 
     // Otimista: a grade responde na hora
-    const anterior = availability;
-    const temporarios: AvailabilitySlot[] = blocos.map((b, i) => ({
+    const anterior = unavailability;
+    const temporarios: UnavailableSlot[] = blocos.map((b, i) => ({
       id: `tmp-${weekday}-${i}`, userId: uid, weekday, startMin: b.startMin, endMin: b.endMin,
     }));
-    setAvailability(prev => [
+    setUnavailability(prev => [
       ...prev.filter(a => !(a.userId === uid && a.weekday === weekday)),
       ...temporarios,
     ]);
 
-    const { error: delErro } = await (supabase.from as any)("availability_slots")
+    const { error: delErro } = await (supabase.from as any)("unavailable_slots")
       .delete().eq("workspace_id", workspaceId).eq("user_id", uid).eq("weekday", weekday);
     if (delErro) {
-      toast.error(agendaErrorMessage(delErro, "Erro ao salvar disponibilidade"));
-      setAvailability(anterior);
+      toast.error(agendaErrorMessage(delErro, "Erro ao salvar horários ocupados"));
+      setUnavailability(anterior);
       return;
     }
 
     if (blocos.length === 0) return;
 
-    const { data, error } = await (supabase.from as any)("availability_slots")
+    const { data, error } = await (supabase.from as any)("unavailable_slots")
       .insert(blocos.map(b => ({
         workspace_id: workspaceId, user_id: uid, weekday,
         start_min: b.startMin, end_min: b.endMin,
       })))
       .select();
     if (error) {
-      toast.error(agendaErrorMessage(error, "Erro ao salvar disponibilidade"));
-      setAvailability(anterior);
+      toast.error(agendaErrorMessage(error, "Erro ao salvar horários ocupados"));
+      setUnavailability(anterior);
       return;
     }
 
     // Troca os temporários pelas linhas reais
-    setAvailability(prev => [
+    setUnavailability(prev => [
       ...prev.filter(a => !(a.userId === uid && a.weekday === weekday)),
-      ...(data || []).map(mapAvailability),
+      ...(data || []).map(mapUnavailable),
     ]);
-  }, [workspaceId, uid, availability]);
+  }, [workspaceId, uid, unavailability]);
 
   const addMeetingRoom = useCallback(async (name: string, color: string) => {
     if (!workspaceId) return;
@@ -1745,8 +1746,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       upsertAttendanceSetting, setAttendance, clearAttendance,
       addBroadcast, deleteBroadcast, saveGeneralShortcuts,
       addForm, updateForm, deleteForm, markFormCompleted, unmarkFormCompleted, declineForm,
-      meetings, meetingRooms, availability,
-      setMyAvailabilityForDay,
+      meetings, meetingRooms, unavailability,
+      setMyUnavailabilityForDay,
       addMeeting, updateMeeting, deleteMeeting,
       addMeetingRoom, updateMeetingRoom, deleteMeetingRoom,
     }}>

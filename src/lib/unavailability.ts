@@ -1,5 +1,9 @@
-// Disponibilidade semanal e busca de horário em comum.
-// Tudo aqui é aritmética de intervalos em minutos desde a meia-noite.
+// Horários ocupados e busca de horário em comum.
+//
+// Cada pessoa declara quando NÃO está livre (aula, estágio, trabalho...).
+// O que não estiver marcado conta como livre — quem não preencheu nada está
+// livre a semana toda. Tudo aqui é aritmética de intervalos em minutos desde
+// a meia-noite.
 
 import type { Person, Team } from "@/contexts/DataContext";
 import {
@@ -10,7 +14,8 @@ import {
 
 export type Interval = { startMin: number; endMin: number };
 
-export type AvailabilitySlot = {
+/** Um bloco em que a pessoa está ocupada, repetido toda semana. */
+export type UnavailableSlot = {
   id: string;
   userId: string;
   weekday: number;
@@ -23,7 +28,7 @@ export type AvailabilitySlot = {
 /**
  * Junta intervalos que se sobrepõem ou se encostam.
  * 09:00–10:00 e 10:00–11:00 viram 09:00–11:00: para quem lê a agenda é um
- * bloco livre só.
+ * bloco só.
  */
 export function mergeIntervals(list: Interval[]): Interval[] {
   const ordenados = [...list]
@@ -89,11 +94,11 @@ export function clampIntervals(list: Interval[], limite: Interval): Interval[] {
     .filter(it => it.endMin > it.startMin);
 }
 
-// --- Disponibilidade --------------------------------------------------------
+// --- Horários ocupados de cada conta ----------------------------------------
 
-/** Blocos livres de uma conta num dia, já unificados. */
-export function availabilityOf(
-  slots: AvailabilitySlot[],
+/** Blocos ocupados de uma conta num dia, já unificados. */
+export function unavailableOf(
+  slots: UnavailableSlot[],
   userId: string,
   weekday: number,
 ): Interval[] {
@@ -104,8 +109,8 @@ export function availabilityOf(
   );
 }
 
-/** A conta já marcou alguma disponibilidade nesta semana? */
-export function hasDeclaredAvailability(slots: AvailabilitySlot[], userId: string): boolean {
+/** A conta já marcou algum horário ocupado nesta semana? */
+export function hasDeclaredSchedule(slots: UnavailableSlot[], userId: string): boolean {
   return slots.some(s => s.userId === userId);
 }
 
@@ -133,7 +138,8 @@ export type FindTimeInput = {
   people: Person[];
   teams: Team[];
   meetings: Meeting[];
-  availability: AvailabilitySlot[];
+  /** Blocos ocupados declarados por cada conta */
+  unavailability: UnavailableSlot[];
   /** Janela do dia considerada (ex.: 08:00 às 18:00) */
   limite: Interval;
   /** Duração mínima da janela devolvida */
@@ -145,12 +151,13 @@ export type FindTimeInput = {
 /**
  * Janelas em que TODO mundo da lista está livre.
  *
- * Quem ainda não marcou disponibilidade entra como livre na janela inteira —
- * excluir essa pessoa faria a busca não devolver nada e parecer quebrada. Use
- * `peopleWithoutAvailability` para avisar quem foi tratado assim.
+ * Cada pessoa começa livre na janela inteira; de lá saem os horários que ela
+ * marcou como ocupados e as reuniões que já tem. Quem não marcou nada segue
+ * livre o dia todo — use `peopleWithoutSchedule` para avisar que a agenda
+ * dessa pessoa pode não estar completa.
  */
 export function findCommonWindows(input: FindTimeInput): CommonWindow[] {
-  const { personIds, people, teams, meetings, availability, limite, minDuration, weekdays } = input;
+  const { personIds, people, teams, meetings, unavailability, limite, minDuration, weekdays } = input;
   if (personIds.length === 0) return [];
 
   const ctx = { people, teams };
@@ -163,14 +170,13 @@ export function findCommonWindows(input: FindTimeInput): CommonWindow[] {
       const pessoa = people.find(p => p.id === personId);
       const userId = pessoa?.userId ?? null;
 
-      const declarou = !!userId && hasDeclaredAvailability(availability, userId);
-      const livre = declarou
-        ? clampIntervals(availabilityOf(availability, userId!, weekday), limite)
-        : [{ ...limite }];
+      const ocupado = [
+        ...(userId ? unavailableOf(unavailability, userId, weekday) : []),
+        ...busyOf(meetings, personId, weekday, ctx),
+      ];
+      const livre = subtractIntervals([{ ...limite }], ocupado);
 
-      const semReuniao = subtractIntervals(livre, busyOf(meetings, personId, weekday, ctx));
-
-      comum = comum === null ? semReuniao : intersectIntervals(comum, semReuniao);
+      comum = comum === null ? livre : intersectIntervals(comum, livre);
       if (comum.length === 0) break; // ninguém mais salva este dia
     }
 
@@ -184,17 +190,17 @@ export function findCommonWindows(input: FindTimeInput): CommonWindow[] {
   return out;
 }
 
-/** Quem da lista ainda não marcou disponibilidade nenhuma. */
-export function peopleWithoutAvailability(
+/** Quem da lista ainda não marcou nenhum horário ocupado. */
+export function peopleWithoutSchedule(
   personIds: string[],
   people: Person[],
-  availability: AvailabilitySlot[],
+  unavailability: UnavailableSlot[],
 ): Person[] {
   return personIds
     .map(id => people.find(p => p.id === id))
     .filter((p): p is Person => {
       if (!p) return false;
-      return !p.userId || !hasDeclaredAvailability(availability, p.userId);
+      return !p.userId || !hasDeclaredSchedule(unavailability, p.userId);
     });
 }
 

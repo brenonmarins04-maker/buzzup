@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { CalendarCheck, Eraser } from "lucide-react";
+import { CalendarX, Eraser } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -12,11 +12,11 @@ import {
   WEEKDAYS_UTEIS,
 } from "@/lib/agenda";
 import {
-  availabilityOf,
   mergeIntervals,
   subtractIntervals,
+  unavailableOf,
   type Interval,
-} from "@/lib/availability";
+} from "@/lib/unavailability";
 
 const PX_PER_HOUR = 64;
 const RANGE = { start: 6 * 60, end: 23 * 60 };
@@ -42,7 +42,7 @@ function DayColumn({
     return slotAtOffset(e.clientY - rect.top, RANGE, PX_PER_HOUR);
   };
 
-  /** Já está livre neste horário? Então o arraste apaga em vez de marcar. */
+  /** Já está ocupado neste horário? Então o arraste apaga em vez de marcar. */
   const jaMarcado = (slot: number) =>
     blocos.some(b => slot >= b.startMin && slot < b.endMin);
 
@@ -72,7 +72,7 @@ function DayColumn({
             key={m}
             type="button"
             aria-pressed={marcado}
-            aria-label={`${marcado ? "Remover" : "Marcar"} disponibilidade às ${minutesToLabel(m)}`}
+            aria-label={`${marcado ? "Liberar" : "Ocupar"} ${minutesToLabel(m)}`}
             onClick={() => onSlotClick(weekday, m, marcado)}
             className="absolute inset-x-0 border-b border-border/40 hover:bg-primary/5"
             style={{
@@ -83,11 +83,11 @@ function DayColumn({
         );
       })}
 
-      {/* Blocos livres */}
+      {/* Blocos ocupados */}
       {blocos.map(b => (
         <div
           key={`${b.startMin}-${b.endMin}`}
-          className="pointer-events-none absolute inset-x-1 rounded-lg bg-emerald-500/25 ring-1 ring-emerald-500/60"
+          className="pointer-events-none absolute inset-x-1 rounded-lg bg-rose-500/25 ring-1 ring-rose-500/60"
           style={{
             top: ((b.startMin - RANGE.start) / 60) * PX_PER_HOUR,
             height: ((b.endMin - b.startMin) / 60) * PX_PER_HOUR - 2,
@@ -102,7 +102,7 @@ function DayColumn({
       {preview && (
         <div
           className={`pointer-events-none absolute inset-x-1 rounded-lg border-2 ${
-            drag?.apagando ? "border-red-500 bg-red-500/20" : "border-emerald-500 bg-emerald-500/30"
+            drag?.apagando ? "border-emerald-500 bg-emerald-500/25" : "border-rose-500 bg-rose-500/30"
           }`}
           style={{
             top: ((preview.startMin - RANGE.start) / 60) * PX_PER_HOUR,
@@ -114,8 +114,8 @@ function DayColumn({
   );
 }
 
-export default function AvailabilityTab() {
-  const { availability, setMyAvailabilityForDay } = useData();
+export default function BusyTimesTab() {
+  const { unavailability, setMyUnavailabilityForDay } = useData();
   const { user } = useAuth();
   const isMobile = useIsMobile();
 
@@ -128,24 +128,24 @@ export default function AvailabilityTab() {
   const dragEndedAt = useRef(0);
 
   const meus = useMemo(
-    () => (user ? availability.filter(a => a.userId === user.id) : []),
-    [availability, user],
+    () => (user ? unavailability.filter(a => a.userId === user.id) : []),
+    [unavailability, user],
   );
 
   const blocosDe = useCallback(
-    (weekday: number) => (user ? availabilityOf(meus, user.id, weekday) : []),
+    (weekday: number) => (user ? unavailableOf(meus, user.id, weekday) : []),
     [meus, user],
   );
 
-  /** Soma ou tira uma faixa da minha disponibilidade daquele dia. */
+  /** Soma ou tira uma faixa dos meus horários ocupados daquele dia. */
   const aplicar = useCallback((weekday: number, faixa: Interval, apagando: boolean) => {
     if (!user) return;
-    const atuais = availabilityOf(meus, user.id, weekday);
+    const atuais = unavailableOf(meus, user.id, weekday);
     const novos = apagando
       ? subtractIntervals(atuais, [faixa])
       : mergeIntervals([...atuais, faixa]);
-    void setMyAvailabilityForDay(weekday, novos);
-  }, [user, meus, setMyAvailabilityForDay]);
+    void setMyUnavailabilityForDay(weekday, novos);
+  }, [user, meus, setMyUnavailabilityForDay]);
 
   const onDragStart = useCallback((weekday: number, slot: number, apagando: boolean) => {
     setDrag({ weekday, anchor: slot, current: slot, apagando, moved: false });
@@ -173,7 +173,7 @@ export default function AvailabilityTab() {
     aplicar(weekday, { startMin: slot, endMin: slot + SLOT_MIN }, marcado);
   }, [aplicar]);
 
-  const limparDia = (weekday: number) => { void setMyAvailabilityForDay(weekday, []); };
+  const limparDia = (weekday: number) => { void setMyUnavailabilityForDay(weekday, []); };
 
   const dias = isMobile
     ? WEEKDAYS.filter(d => d.key === mobileDay)
@@ -190,13 +190,13 @@ export default function AvailabilityTab() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-0 flex-1">
           <h2 className="flex items-center gap-2 text-lg font-bold text-foreground">
-            <CalendarCheck className="h-5 w-5 text-emerald-500" />
-            Meus horários livres
+            <CalendarX className="h-5 w-5 text-rose-500" />
+            Meus horários ocupados
           </h2>
           <p className="text-sm text-muted-foreground">
             {isMobile
-              ? "Toque nas meias horas em que você costuma estar livre."
-              : "Arraste para marcar quando você costuma estar livre. Arraste sobre um bloco verde para apagar."}
+              ? "Toque nas meias horas em que você NÃO está livre."
+              : "Arraste para marcar quando você NÃO está livre — aula, estágio, trabalho. Arraste sobre um bloco vermelho para liberar."}
           </p>
         </div>
         {!isMobile && (
@@ -278,17 +278,17 @@ export default function AvailabilityTab() {
       {totalBlocos === 0 && (
         <div className="rounded-2xl border border-dashed border-border p-6 text-center">
           <p className="text-sm font-medium text-foreground">
-            Você ainda não marcou nenhum horário livre.
+            Você ainda não marcou nenhum horário ocupado.
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Sem isso, na busca por horário em comum você conta como livre o tempo todo.
+            Enquanto estiver assim, na busca por horário você conta como livre a semana toda.
           </p>
         </div>
       )}
 
       <p className="text-xs text-muted-foreground">
-        Só você edita a sua disponibilidade. As outras pessoas do workspace
-        conseguem vê-la para achar um horário em comum.
+        Só você edita os seus horários. As outras pessoas do workspace conseguem
+        vê-los para achar um horário em comum.
       </p>
     </div>
   );

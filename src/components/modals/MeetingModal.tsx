@@ -134,7 +134,7 @@ export default function MeetingModal({ open, onOpenChange, meeting, initial }: M
   const filteredPeople = useMemo(() => {
     const q = personSearch.trim().toLowerCase();
     if (!q) return people;
-    return people.filter(p => p.name.toLowerCase().includes(q) || (p.nickname ?? "").toLowerCase().includes(q));
+    return people.filter(p => p.name.toLowerCase().includes(q));
   }, [people, personSearch]);
 
   const timeInvalid = endMin <= startMin;
@@ -324,7 +324,7 @@ export default function MeetingModal({ open, onOpenChange, meeting, initial }: M
                           setForceSave(false);
                         }}
                       />
-                      <span className="text-sm">{p.nickname?.trim() || p.name}</span>
+                      <span className="text-sm">{p.name}</span>
                     </label>
                   ))}
                   {filteredPeople.length === 0 && (

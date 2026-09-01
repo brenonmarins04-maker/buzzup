@@ -177,7 +177,8 @@ describe("conflitos de horário", () => {
     const draft = meeting({ id: undefined, targetType: "people", personIds: ["ana"] });
     const [c] = findConflicts(draft, [existente], ctx);
     const frase = describeConflict(c, { people, rooms: [] });
-    expect(frase).toBe('Ana tem "Reunião de Marketing" das 14:00–15:00.');
+    // Nome de verdade, não o apelido "Ana" da gamificação
+    expect(frase).toBe('Ana Souza tem "Reunião de Marketing" das 14:00–15:00.');
   });
 
   it("explica o choque de sala pelo nome dela", () => {

@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
-  availabilityOf,
   busyOf,
   clampIntervals,
   findCommonWindows,
-  hasDeclaredAvailability,
+  hasDeclaredSchedule,
   intersectIntervals,
   mergeIntervals,
-  peopleWithoutAvailability,
+  peopleWithoutSchedule,
   subtractIntervals,
-  type AvailabilitySlot,
-} from "@/lib/availability";
+  unavailableOf,
+  type UnavailableSlot,
+} from "@/lib/unavailability";
 import type { Meeting } from "@/lib/agenda";
 import type { Person, Team } from "@/contexts/DataContext";
 
@@ -26,7 +26,7 @@ const people: Person[] = [
 
 const teams: Team[] = [{ id: "t1", name: "Time Alpha", memberIds: ["ana", "caio"] }];
 
-function slot(userId: string, weekday: number, de: number, ate: number, id = `${userId}-${de}`): AvailabilitySlot {
+function slot(userId: string, weekday: number, de: number, ate: number, id = `${userId}-${de}`): UnavailableSlot {
   return { id, userId, weekday, startMin: de, endMin: ate };
 }
 
@@ -125,7 +125,7 @@ describe("aritmética de intervalos", () => {
   });
 });
 
-describe("disponibilidade de cada conta", () => {
+describe("horários ocupados de cada conta", () => {
   const slots = [
     slot("u-ana", 1, h(9), h(12)),
     slot("u-ana", 1, h(14), h(18)),
@@ -134,19 +134,19 @@ describe("disponibilidade de cada conta", () => {
   ];
 
   it("devolve só os blocos daquela conta naquele dia", () => {
-    expect(availabilityOf(slots, "u-ana", 1)).toEqual([
+    expect(unavailableOf(slots, "u-ana", 1)).toEqual([
       { startMin: h(9), endMin: h(12) },
       { startMin: h(14), endMin: h(18) },
     ]);
   });
 
   it("dia sem nada marcado vem vazio", () => {
-    expect(availabilityOf(slots, "u-ana", 5)).toEqual([]);
+    expect(unavailableOf(slots, "u-ana", 5)).toEqual([]);
   });
 
   it("sabe quem já marcou alguma coisa", () => {
-    expect(hasDeclaredAvailability(slots, "u-ana")).toBe(true);
-    expect(hasDeclaredAvailability(slots, "u-caio")).toBe(false);
+    expect(hasDeclaredSchedule(slots, "u-ana")).toBe(true);
+    expect(hasDeclaredSchedule(slots, "u-caio")).toBe(false);
   });
 });
 
@@ -165,110 +165,127 @@ describe("horários ocupados por reunião", () => {
 
 describe("achar horário em comum", () => {
   const limite = { startMin: h(8), endMin: h(18) };
-  const base = {
-    people, teams, limite, minDuration: 60, weekdays: [1],
-  };
+  const base = { people, teams, limite, minDuration: 60, weekdays: [1] };
 
-  it("cruza a disponibilidade de duas pessoas", () => {
-    const availability = [
-      slot("u-ana", 1, h(9), h(12)),
-      slot("u-bia", 1, h(11), h(15)),
+  it("cruza o que sobra livre de duas pessoas", () => {
+    // Ana ocupada de manhã, Bia ocupada no fim da tarde
+    const unavailability = [
+      slot("u-ana", 1, h(8), h(10)),
+      slot("u-bia", 1, h(16), h(18)),
     ];
-    expect(findCommonWindows({ ...base, personIds: ["ana", "bia"], meetings: [], availability }))
-      .toEqual([{ weekday: 1, startMin: h(11), endMin: h(12) }]);
+    expect(findCommonWindows({ ...base, personIds: ["ana", "bia"], meetings: [], unavailability }))
+      .toEqual([{ weekday: 1, startMin: h(10), endMin: h(16) }]);
   });
 
-  it("respeita o limite de começo e fim", () => {
-    const availability = [
-      slot("u-ana", 1, h(6), h(22)),
-      slot("u-bia", 1, h(6), h(22)),
-    ];
-    expect(findCommonWindows({ ...base, personIds: ["ana", "bia"], meetings: [], availability }))
+  it("sem nada marcado, a janela inteira serve", () => {
+    expect(findCommonWindows({ ...base, personIds: ["ana", "bia"], meetings: [], unavailability: [] }))
       .toEqual([{ weekday: 1, startMin: h(8), endMin: h(18) }]);
   });
 
-  it("tira os horários já ocupados por reunião", () => {
-    const availability = [
-      slot("u-ana", 1, h(9), h(17)),
-      slot("u-bia", 1, h(9), h(17)),
-    ];
-    const m = meeting({ targetType: "people", personIds: ["ana"], startMin: h(11), endMin: h(12) });
-    expect(findCommonWindows({ ...base, personIds: ["ana", "bia"], meetings: [m], availability }))
+  it("um bloco ocupado no meio parte a janela em duas", () => {
+    const unavailability = [slot("u-ana", 1, h(12), h(13))];
+    expect(findCommonWindows({ ...base, personIds: ["ana", "bia"], meetings: [], unavailability }))
       .toEqual([
-        { weekday: 1, startMin: h(9), endMin: h(11) },
-        { weekday: 1, startMin: h(12), endMin: h(17) },
+        { weekday: 1, startMin: h(8), endMin: h(12) },
+        { weekday: 1, startMin: h(13), endMin: h(18) },
+      ]);
+  });
+
+  it("tira também os horários de reunião já marcada", () => {
+    const m = meeting({ targetType: "people", personIds: ["ana"], startMin: h(11), endMin: h(12) });
+    expect(findCommonWindows({ ...base, personIds: ["ana", "bia"], meetings: [m], unavailability: [] }))
+      .toEqual([
+        { weekday: 1, startMin: h(8), endMin: h(11) },
+        { weekday: 1, startMin: h(12), endMin: h(18) },
       ]);
   });
 
   it("descarta janelas menores que a duração pedida", () => {
-    const availability = [
-      slot("u-ana", 1, h(9), h(12)),
-      slot("u-bia", 1, h(11, 30), h(15)),
+    // Sobra só 11:30–12:00 para as duas
+    const unavailability = [
+      slot("u-ana", 1, h(8), h(11, 30)),
+      slot("u-bia", 1, h(12), h(18)),
     ];
-    // Sobra só 11:30–12:00, meia hora
-    expect(findCommonWindows({ ...base, personIds: ["ana", "bia"], meetings: [], availability }))
+    expect(findCommonWindows({ ...base, personIds: ["ana", "bia"], meetings: [], unavailability }))
       .toEqual([]);
-    // Com meia hora de reunião, serve
-    expect(findCommonWindows({ ...base, minDuration: 30, personIds: ["ana", "bia"], meetings: [], availability }))
+    expect(findCommonWindows({ ...base, minDuration: 30, personIds: ["ana", "bia"], meetings: [], unavailability }))
       .toEqual([{ weekday: 1, startMin: h(11, 30), endMin: h(12) }]);
   });
 
-  it("quem não marcou disponibilidade conta como livre na janela toda", () => {
-    const availability = [slot("u-ana", 1, h(9), h(12))];
-    // Caio não marcou nada: não deve zerar o resultado
-    expect(findCommonWindows({ ...base, personIds: ["ana", "caio"], meetings: [], availability }))
+  it("quem não marcou nada está livre a janela toda", () => {
+    // Caio não preencheu; só a agenda da Ana limita
+    const unavailability = [
+      slot("u-ana", 1, h(8), h(9), "a1"),
+      slot("u-ana", 1, h(12), h(18), "a2"),
+    ];
+    expect(findCommonWindows({ ...base, personIds: ["ana", "caio"], meetings: [], unavailability }))
       .toEqual([{ weekday: 1, startMin: h(9), endMin: h(12) }]);
   });
 
-  it("mas quem não marcou ainda respeita as próprias reuniões", () => {
-    const availability = [slot("u-ana", 1, h(9), h(12))];
+  it("mas quem não marcou nada ainda respeita as próprias reuniões", () => {
+    const unavailability = [
+      slot("u-ana", 1, h(8), h(9), "a1"),
+      slot("u-ana", 1, h(12), h(18), "a2"),
+    ];
     const m = meeting({ targetType: "people", personIds: ["caio"], startMin: h(10), endMin: h(11) });
-    expect(findCommonWindows({ ...base, minDuration: 30, personIds: ["ana", "caio"], meetings: [m], availability }))
+    expect(findCommonWindows({ ...base, minDuration: 30, personIds: ["ana", "caio"], meetings: [m], unavailability }))
       .toEqual([
         { weekday: 1, startMin: h(9), endMin: h(10) },
         { weekday: 1, startMin: h(11), endMin: h(12) },
       ]);
   });
 
-  it("sem ninguém escolhido não devolve nada", () => {
-    expect(findCommonWindows({ ...base, personIds: [], meetings: [], availability: [] })).toEqual([]);
+  it("pessoa sem conta ligada conta como livre", () => {
+    // Duda não tem conta: não há como ela ter marcado nada
+    expect(findCommonWindows({ ...base, personIds: ["duda"], meetings: [], unavailability: [] }))
+      .toEqual([{ weekday: 1, startMin: h(8), endMin: h(18) }]);
   });
 
-  it("agendas que não se cruzam não devolvem horário", () => {
-    const availability = [
-      slot("u-ana", 1, h(9), h(10)),
-      slot("u-bia", 1, h(15), h(16)),
+  it("sem ninguém escolhido não devolve nada", () => {
+    expect(findCommonWindows({ ...base, personIds: [], meetings: [], unavailability: [] })).toEqual([]);
+  });
+
+  it("agendas que não deixam brecha não devolvem horário", () => {
+    const unavailability = [
+      slot("u-ana", 1, h(8), h(13)),
+      slot("u-bia", 1, h(13), h(18)),
     ];
-    expect(findCommonWindows({ ...base, personIds: ["ana", "bia"], meetings: [], availability }))
+    // Uma livre só à tarde, a outra só de manhã: encostam às 13:00 e nada sobra
+    expect(findCommonWindows({ ...base, personIds: ["ana", "bia"], meetings: [], unavailability }))
+      .toEqual([]);
+  });
+
+  it("ocupado o dia inteiro tira o dia da lista", () => {
+    const unavailability = [slot("u-ana", 1, h(8), h(18))];
+    expect(findCommonWindows({ ...base, personIds: ["ana"], meetings: [], unavailability }))
       .toEqual([]);
   });
 
   it("percorre todos os dias pedidos", () => {
-    const availability = [
-      slot("u-ana", 1, h(9), h(11), "a1"),
-      slot("u-bia", 1, h(9), h(11), "b1"),
-      slot("u-ana", 3, h(14), h(16), "a3"),
-      slot("u-bia", 3, h(14), h(16), "b3"),
+    const unavailability = [
+      slot("u-ana", 1, h(11), h(18), "a1"),  // segunda livre 08–11
+      slot("u-bia", 3, h(8), h(14), "b3"),   // quarta livre 14–18
     ];
     expect(findCommonWindows({
-      ...base, weekdays: [1, 2, 3], personIds: ["ana", "bia"], meetings: [], availability,
+      ...base, weekdays: [1, 2, 3], personIds: ["ana", "bia"], meetings: [], unavailability,
     })).toEqual([
-      { weekday: 1, startMin: h(9), endMin: h(11) },
-      { weekday: 3, startMin: h(14), endMin: h(16) },
+      { weekday: 1, startMin: h(8), endMin: h(11) },
+      { weekday: 2, startMin: h(8), endMin: h(18) },
+      { weekday: 3, startMin: h(14), endMin: h(18) },
     ]);
   });
 });
 
-describe("quem ainda não marcou disponibilidade", () => {
-  const availability = [slot("u-ana", 1, h(9), h(12))];
+describe("quem ainda não marcou horários ocupados", () => {
+  const unavailability = [slot("u-ana", 1, h(9), h(12))];
 
   it("aponta quem não declarou nada", () => {
-    const faltando = peopleWithoutAvailability(["ana", "bia", "caio"], people, availability);
+    const faltando = peopleWithoutSchedule(["ana", "bia", "caio"], people, unavailability);
     expect(faltando.map(p => p.id)).toEqual(["bia", "caio"]);
   });
 
   it("pessoa sem conta ligada também entra na lista", () => {
-    const faltando = peopleWithoutAvailability(["duda"], people, availability);
+    const faltando = peopleWithoutSchedule(["duda"], people, unavailability);
     expect(faltando.map(p => p.id)).toEqual(["duda"]);
   });
 });

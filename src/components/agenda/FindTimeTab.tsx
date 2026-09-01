@@ -20,14 +20,42 @@ import {
 import {
   DURATION_OPTIONS,
   findCommonWindows,
-  peopleWithoutAvailability,
-} from "@/lib/availability";
+  peopleWithoutSchedule,
+} from "@/lib/unavailability";
 import type { SlotSeed } from "@/pages/AgendaPage";
 
 const TIME_OPTIONS = buildTimeOptions();
 
+/**
+ * Chip de time/área, marcado quando o grupo inteiro está na seleção.
+ *
+ * Fica fora do componente de propósito: definido lá dentro, cada render criaria
+ * um tipo novo e o React trocaria o nó do DOM — o chip nunca refletiria o
+ * próprio estado.
+ */
+function GrupoChip({
+  label, ativo, vazio, onToggle,
+}: {
+  label: string; ativo: boolean; vazio: boolean; onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={ativo}
+      disabled={vazio}
+      title={vazio ? "Ninguém neste grupo" : undefined}
+      className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-40 ${
+        ativo ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
 export default function FindTimeTab({ onMarcar }: { onMarcar: (s: SlotSeed) => void }) {
-  const { people, teams, meetings, availability } = useData();
+  const { people, teams, meetings, unavailability } = useData();
 
   const [personIds, setPersonIds] = useState<string[]>([]);
   const [busca, setBusca] = useState("");
@@ -40,8 +68,7 @@ export default function FindTimeTab({ onMarcar }: { onMarcar: (s: SlotSeed) => v
   const filtradas = useMemo(() => {
     const q = busca.trim().toLowerCase();
     if (!q) return people;
-    return people.filter(p =>
-      p.name.toLowerCase().includes(q) || (p.nickname ?? "").toLowerCase().includes(q));
+    return people.filter(p => p.name.toLowerCase().includes(q));
   }, [people, busca]);
 
   const toggle = (id: string) => {
@@ -49,11 +76,21 @@ export default function FindTimeTab({ onMarcar }: { onMarcar: (s: SlotSeed) => v
     setBuscou(false);
   };
 
-  /** Atalhos: marca de uma vez todo mundo de um time ou de uma área. */
-  const selecionarGrupo = (ids: string[]) => {
-    setPersonIds(prev => Array.from(new Set([...prev, ...ids])));
+  /**
+   * Grupos (times e áreas) funcionam como seleção: com todo mundo já marcado,
+   * clicar tira o grupo inteiro; caso contrário, completa a seleção.
+   */
+  const grupoSelecionado = (ids: string[]) =>
+    ids.length > 0 && ids.every(id => personIds.includes(id));
+
+  const alternarGrupo = (ids: string[]) => {
+    if (ids.length === 0) return;
+    setPersonIds(prev => grupoSelecionado(ids)
+      ? prev.filter(id => !ids.includes(id))
+      : Array.from(new Set([...prev, ...ids])));
     setBuscou(false);
   };
+
 
   const limiteInvalido = limiteFim <= limiteInicio;
   const janelaMenorQueDuracao = !limiteInvalido && limiteFim - limiteInicio < duracao;
@@ -64,17 +101,17 @@ export default function FindTimeTab({ onMarcar }: { onMarcar: (s: SlotSeed) => v
   const janelas = useMemo(() => {
     if (!buscou || !podeBuscar) return [];
     return findCommonWindows({
-      personIds, people, teams, meetings, availability,
+      personIds, people, teams, meetings, unavailability,
       limite: { startMin: limiteInicio, endMin: limiteFim },
       minDuration: duracao,
       weekdays,
     });
-  }, [buscou, podeBuscar, personIds, people, teams, meetings, availability,
+  }, [buscou, podeBuscar, personIds, people, teams, meetings, unavailability,
       limiteInicio, limiteFim, duracao, weekdays]);
 
-  const semDisponibilidade = useMemo(
-    () => (buscou ? peopleWithoutAvailability(personIds, people, availability) : []),
-    [buscou, personIds, people, availability],
+  const semAgenda = useMemo(
+    () => (buscou ? peopleWithoutSchedule(personIds, people, unavailability) : []),
+    [buscou, personIds, people, unavailability],
   );
 
   // Agrupa por dia, na ordem da semana
@@ -119,28 +156,29 @@ export default function FindTimeTab({ onMarcar }: { onMarcar: (s: SlotSeed) => v
           )}
         </div>
 
-        {/* Atalhos por time e área */}
+        {/* Times e áreas: clicar marca o grupo, clicar de novo desmarca */}
         <div className="mt-2 flex flex-wrap gap-1.5">
           {teams.map(t => (
-            <button
+            <GrupoChip
               key={t.id}
-              type="button"
-              onClick={() => selecionarGrupo(t.memberIds)}
-              className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-accent"
-            >
-              + {t.name}
-            </button>
+              label={t.name}
+              ativo={grupoSelecionado(t.memberIds)}
+              vazio={t.memberIds.length === 0}
+              onToggle={() => alternarGrupo(t.memberIds)}
+            />
           ))}
-          {AREAS.map(a => (
-            <button
-              key={a.key}
-              type="button"
-              onClick={() => selecionarGrupo(peopleOfArea(people, a.key).map(p => p.id))}
-              className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-accent"
-            >
-              + {getAreaLabel(a.key)}
-            </button>
-          ))}
+          {AREAS.map(a => {
+            const ids = peopleOfArea(people, a.key).map(p => p.id);
+            return (
+              <GrupoChip
+                key={a.key}
+                label={getAreaLabel(a.key)}
+                ativo={grupoSelecionado(ids)}
+                vazio={ids.length === 0}
+                onToggle={() => alternarGrupo(ids)}
+              />
+            );
+          })}
         </div>
 
         <div className="relative mt-2">
@@ -157,7 +195,7 @@ export default function FindTimeTab({ onMarcar }: { onMarcar: (s: SlotSeed) => v
           {filtradas.map(p => (
             <label key={p.id} className="flex cursor-pointer items-center gap-2 rounded-md px-1.5 py-1 hover:bg-accent">
               <Checkbox checked={personIds.includes(p.id)} onCheckedChange={() => toggle(p.id)} />
-              <span className="text-sm">{p.nickname?.trim() || p.name}</span>
+              <span className="text-sm">{p.name}</span>
             </label>
           ))}
           {filtradas.length === 0 && (
@@ -235,13 +273,13 @@ export default function FindTimeTab({ onMarcar }: { onMarcar: (s: SlotSeed) => v
       {/* Resultado */}
       {buscou && (
         <div className="space-y-3">
-          {semDisponibilidade.length > 0 && (
+          {semAgenda.length > 0 && (
             <div className="flex items-start gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3">
               <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
               <p className="text-sm text-foreground/90">
-                {semDisponibilidade.map(p => p.nickname?.trim() || p.name).join(", ")}
-                {semDisponibilidade.length === 1 ? " ainda não marcou" : " ainda não marcaram"} disponibilidade.
-                Contei como livre em todo o intervalo, tirando as reuniões já marcadas.
+                {semAgenda.map(p => p.name).join(", ")}
+                {semAgenda.length === 1 ? " ainda não marcou" : " ainda não marcaram"} horários ocupados.
+                Contei como livre em todo o intervalo, tirando só as reuniões já marcadas.
               </p>
             </div>
           )}

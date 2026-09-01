@@ -3,7 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AgendaPage from "@/pages/AgendaPage";
 import type { Meeting, MeetingRoom } from "@/lib/agenda";
-import type { AvailabilitySlot } from "@/lib/availability";
+import type { UnavailableSlot } from "@/lib/unavailability";
 import type { Person, Team } from "@/contexts/DataContext";
 
 const mocks = vi.hoisted(() => ({
@@ -18,8 +18,8 @@ const mocks = vi.hoisted(() => ({
   teams: [{ id: "t1", name: "Time Alpha", memberIds: ["caio"] }] as Team[],
   meetings: [] as Meeting[],
   meetingRooms: [] as MeetingRoom[],
-  availability: [] as AvailabilitySlot[],
-  setMyAvailabilityForDay: vi.fn(),
+  unavailability: [] as UnavailableSlot[],
+  setMyUnavailabilityForDay: vi.fn(),
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({
@@ -34,8 +34,8 @@ vi.mock("@/contexts/DataContext", () => ({
     teams: mocks.teams,
     meetings: mocks.meetings,
     meetingRooms: mocks.meetingRooms,
-    availability: mocks.availability,
-    setMyAvailabilityForDay: mocks.setMyAvailabilityForDay,
+    unavailability: mocks.unavailability,
+    setMyUnavailabilityForDay: mocks.setMyUnavailabilityForDay,
     addMeeting: vi.fn(),
     updateMeeting: vi.fn(),
     deleteMeeting: vi.fn(),
@@ -287,16 +287,16 @@ describe("abas da agenda", () => {
     mocks.isMobile = false;
     mocks.meetings = [];
     mocks.meetingRooms = [];
-    mocks.availability = [];
-    mocks.setMyAvailabilityForDay.mockClear();
+    mocks.unavailability = [];
+    mocks.setMyUnavailabilityForDay.mockClear();
   });
 
   it("abre na semana e troca para as outras abas", () => {
     renderPage();
     expect(screen.getByText("Todas as salas")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Minha disponibilidade/ }));
-    expect(screen.getByText("Meus horários livres")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Meus horários/ }));
+    expect(screen.getByText("Meus horários ocupados")).toBeInTheDocument();
     // Os filtros da semana saem de cena
     expect(screen.queryByText("Todas as salas")).not.toBeInTheDocument();
 
@@ -304,26 +304,26 @@ describe("abas da agenda", () => {
     expect(screen.getByText("Achar horário em comum")).toBeInTheDocument();
   });
 
-  it("marcar uma meia hora salva a disponibilidade daquele dia", () => {
+  it("clicar numa meia hora a marca como ocupada", () => {
     renderPage();
-    fireEvent.click(screen.getByRole("button", { name: /Minha disponibilidade/ }));
-    fireEvent.click(screen.getAllByRole("button", { name: /^Marcar disponibilidade às 09:00/ })[0]);
+    fireEvent.click(screen.getByRole("button", { name: /Meus horários/ }));
+    fireEvent.click(screen.getAllByRole("button", { name: /^Ocupar 09:00/ })[0]);
 
-    expect(mocks.setMyAvailabilityForDay).toHaveBeenCalledTimes(1);
-    const [, blocos] = mocks.setMyAvailabilityForDay.mock.calls[0];
+    expect(mocks.setMyUnavailabilityForDay).toHaveBeenCalledTimes(1);
+    const [, blocos] = mocks.setMyUnavailabilityForDay.mock.calls[0];
     expect(blocos).toEqual([{ startMin: 9 * 60, endMin: 9 * 60 + 30 }]);
   });
 
-  it("clicar num bloco já marcado o remove", () => {
-    mocks.availability = [
+  it("clicar num bloco já ocupado libera aquela meia hora", () => {
+    mocks.unavailability = [
       { id: "a1", userId: "u1", weekday: 1, startMin: 9 * 60, endMin: 10 * 60 },
     ];
     renderPage();
-    fireEvent.click(screen.getByRole("button", { name: /Minha disponibilidade/ }));
-    fireEvent.click(screen.getAllByRole("button", { name: /^Remover disponibilidade às 09:00/ })[0]);
+    fireEvent.click(screen.getByRole("button", { name: /Meus horários/ }));
+    fireEvent.click(screen.getAllByRole("button", { name: /^Liberar 09:00/ })[0]);
 
-    const [, blocos] = mocks.setMyAvailabilityForDay.mock.calls[0];
-    // Tirou a primeira meia hora, sobrou 09:30–10:00
+    const [, blocos] = mocks.setMyUnavailabilityForDay.mock.calls[0];
+    // Liberou a primeira meia hora, continua ocupado das 09:30 às 10:00
     expect(blocos).toEqual([{ startMin: 9 * 60 + 30, endMin: 10 * 60 }]);
   });
 });
@@ -334,10 +334,11 @@ describe("achar horário em comum", () => {
     mocks.isMobile = false;
     mocks.meetings = [];
     mocks.meetingRooms = [];
-    // Ana (u1) e Bia (u2) livres em faixas que se cruzam das 10:00 às 12:00
-    mocks.availability = [
-      { id: "a1", userId: "u1", weekday: 1, startMin: 8 * 60, endMin: 12 * 60 },
-      { id: "a2", userId: "u2", weekday: 1, startMin: 10 * 60, endMin: 16 * 60 },
+    // Ana (u1) ocupada até as 10:00 e Bia (u2) a partir das 12:00:
+    // dentro do limite padrão (08:00–18:00) sobra 10:00–12:00 para as duas
+    mocks.unavailability = [
+      { id: "a1", userId: "u1", weekday: 1, startMin: 8 * 60, endMin: 10 * 60 },
+      { id: "a2", userId: "u2", weekday: 1, startMin: 12 * 60, endMin: 18 * 60 },
     ];
   });
 
@@ -364,13 +365,42 @@ describe("achar horário em comum", () => {
     expect(screen.getByRole("button", { name: /^Achar horário$/ })).toBeDisabled();
   });
 
-  it("avisa sobre quem não marcou disponibilidade", () => {
+  it("avisa sobre quem não marcou horários ocupados", () => {
     irParaAchar();
     const caixas = screen.getAllByRole("checkbox");
     fireEvent.click(caixas[0]); // Ana
     fireEvent.click(caixas[2]); // Caio, que não marcou nada
     fireEvent.click(screen.getByRole("button", { name: /^Achar horário$/ }));
 
-    expect(screen.getByText(/Caio Reis ainda não marcou/)).toBeInTheDocument();
+    expect(screen.getByText(/Caio Reis ainda não marcou horários ocupados/)).toBeInTheDocument();
+  });
+
+  it("mostra o nome da pessoa, não o apelido da gamificação", () => {
+    irParaAchar();
+    // Ana Souza tem apelido "Ana" na gamificação
+    expect(screen.getByText("Ana Souza")).toBeInTheDocument();
+    expect(screen.queryByText("Ana")).not.toBeInTheDocument();
+  });
+
+  it("o chip do time marca e desmarca o grupo inteiro", () => {
+    irParaAchar();
+    const chip = screen.getByRole("button", { name: "Time Alpha" });
+    expect(chip).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(chip);
+    expect(chip).toHaveAttribute("aria-pressed", "true");
+    // Time Alpha = Caio
+    expect(screen.getByText(/Quem precisa estar \(1\)/)).toBeInTheDocument();
+
+    fireEvent.click(chip);
+    expect(chip).toHaveAttribute("aria-pressed", "false");
+    expect(screen.queryByText(/Quem precisa estar \(/)).not.toBeInTheDocument();
+  });
+
+  it("o chip fica marcado quando o grupo já está todo selecionado", () => {
+    irParaAchar();
+    // Marca o Caio na mão; o chip do Time Alpha deve refletir isso
+    fireEvent.click(screen.getAllByRole("checkbox")[2]);
+    expect(screen.getByRole("button", { name: "Time Alpha" })).toHaveAttribute("aria-pressed", "true");
   });
 });

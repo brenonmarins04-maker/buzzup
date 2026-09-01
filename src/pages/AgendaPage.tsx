@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { CalendarCheck, CalendarClock, DoorOpen, Plus, Sparkles, Users } from "lucide-react";
+import { CalendarClock, CalendarX, DoorOpen, Plus, Sparkles, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -8,7 +8,7 @@ import { isLeaderOfAny } from "@/lib/leadership";
 import { Button } from "@/components/ui/button";
 import MeetingModal from "@/components/modals/MeetingModal";
 import MeetingRoomsModal from "@/components/modals/MeetingRoomsModal";
-import AvailabilityTab from "@/components/agenda/AvailabilityTab";
+import BusyTimesTab from "@/components/agenda/BusyTimesTab";
 import FindTimeTab from "@/components/agenda/FindTimeTab";
 import {
   dragRange,
@@ -47,7 +47,7 @@ type Aba = "semana" | "disponibilidade" | "achar";
 
 const ABAS: { key: Aba; label: string; icon: typeof CalendarClock }[] = [
   { key: "semana",          label: "Semana",           icon: CalendarClock },
-  { key: "disponibilidade", label: "Minha disponibilidade", icon: CalendarCheck },
+  { key: "disponibilidade", label: "Meus horários", icon: CalendarX },
   // "Combinar" e não "Achar horário": dentro da aba existe o botão com esse
   // nome, e dois controles com o mesmo rótulo confundem
   { key: "achar",           label: "Combinar horário", icon: Sparkles },
@@ -414,7 +414,7 @@ export default function AgendaPage() {
         })}
       </div>
 
-      {aba === "disponibilidade" && <AvailabilityTab />}
+      {aba === "disponibilidade" && <BusyTimesTab />}
 
       {aba === "achar" && (
         <FindTimeTab

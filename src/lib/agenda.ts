@@ -121,10 +121,13 @@ export function resolveParticipants(
   return [...meeting.personIds];
 }
 
-/** Nome curto da pessoa, preferindo o apelido. */
+/**
+ * Nome da pessoa. Usa o nome de verdade, não o apelido da gamificação: na
+ * agenda quem lê precisa saber de quem se trata.
+ */
 export function personName(people: Person[], id: string): string {
   const p = people.find(x => x.id === id);
-  return p?.nickname?.trim() || p?.name || "alguém";
+  return p?.name || "alguém";
 }
 
 // --- Conflitos --------------------------------------------------------------
