@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AgendaPage from "@/pages/AgendaPage";
 import type { Meeting, MeetingRoom } from "@/lib/agenda";
+import type { AvailabilitySlot } from "@/lib/availability";
 import type { Person, Team } from "@/contexts/DataContext";
 
 const mocks = vi.hoisted(() => ({
@@ -17,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   teams: [{ id: "t1", name: "Time Alpha", memberIds: ["caio"] }] as Team[],
   meetings: [] as Meeting[],
   meetingRooms: [] as MeetingRoom[],
+  availability: [] as AvailabilitySlot[],
+  setMyAvailabilityForDay: vi.fn(),
 }));
 
 vi.mock("@/contexts/AuthContext", () => ({
@@ -31,6 +34,8 @@ vi.mock("@/contexts/DataContext", () => ({
     teams: mocks.teams,
     meetings: mocks.meetings,
     meetingRooms: mocks.meetingRooms,
+    availability: mocks.availability,
+    setMyAvailabilityForDay: mocks.setMyAvailabilityForDay,
     addMeeting: vi.fn(),
     updateMeeting: vi.fn(),
     deleteMeeting: vi.fn(),
@@ -249,11 +254,11 @@ describe("arrastar na grade para marcar", () => {
     expect(within(dialog).getByText("09:00 às 11:00 · 2h")).toBeInTheDocument();
   });
 
-  it("clicar sem arrastar mantém a reunião de uma hora", () => {
+  it("clicar num retângulo marca meia hora", () => {
     renderPage();
     fireEvent.click(screen.getAllByRole("button", { name: /Marcar reunião às 09:00/ })[0]);
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByText("09:00 às 10:00 · 1h")).toBeInTheDocument();
+    expect(within(dialog).getByText("09:00 às 09:30 · 30min")).toBeInTheDocument();
   });
 
   it("o toque não arrasta — na tela pequena o gesto vertical é rolagem", () => {
@@ -273,5 +278,99 @@ describe("arrastar na grade para marcar", () => {
     arrastar(coluna, 128, 224);
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});
+
+describe("abas da agenda", () => {
+  beforeEach(() => {
+    mocks.isAdmin = true;
+    mocks.isMobile = false;
+    mocks.meetings = [];
+    mocks.meetingRooms = [];
+    mocks.availability = [];
+    mocks.setMyAvailabilityForDay.mockClear();
+  });
+
+  it("abre na semana e troca para as outras abas", () => {
+    renderPage();
+    expect(screen.getByText("Todas as salas")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Minha disponibilidade/ }));
+    expect(screen.getByText("Meus horários livres")).toBeInTheDocument();
+    // Os filtros da semana saem de cena
+    expect(screen.queryByText("Todas as salas")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Combinar horário/ }));
+    expect(screen.getByText("Achar horário em comum")).toBeInTheDocument();
+  });
+
+  it("marcar uma meia hora salva a disponibilidade daquele dia", () => {
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /Minha disponibilidade/ }));
+    fireEvent.click(screen.getAllByRole("button", { name: /^Marcar disponibilidade às 09:00/ })[0]);
+
+    expect(mocks.setMyAvailabilityForDay).toHaveBeenCalledTimes(1);
+    const [, blocos] = mocks.setMyAvailabilityForDay.mock.calls[0];
+    expect(blocos).toEqual([{ startMin: 9 * 60, endMin: 9 * 60 + 30 }]);
+  });
+
+  it("clicar num bloco já marcado o remove", () => {
+    mocks.availability = [
+      { id: "a1", userId: "u1", weekday: 1, startMin: 9 * 60, endMin: 10 * 60 },
+    ];
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /Minha disponibilidade/ }));
+    fireEvent.click(screen.getAllByRole("button", { name: /^Remover disponibilidade às 09:00/ })[0]);
+
+    const [, blocos] = mocks.setMyAvailabilityForDay.mock.calls[0];
+    // Tirou a primeira meia hora, sobrou 09:30–10:00
+    expect(blocos).toEqual([{ startMin: 9 * 60 + 30, endMin: 10 * 60 }]);
+  });
+});
+
+describe("achar horário em comum", () => {
+  beforeEach(() => {
+    mocks.isAdmin = true;
+    mocks.isMobile = false;
+    mocks.meetings = [];
+    mocks.meetingRooms = [];
+    // Ana (u1) e Bia (u2) livres em faixas que se cruzam das 10:00 às 12:00
+    mocks.availability = [
+      { id: "a1", userId: "u1", weekday: 1, startMin: 8 * 60, endMin: 12 * 60 },
+      { id: "a2", userId: "u2", weekday: 1, startMin: 10 * 60, endMin: 16 * 60 },
+    ];
+  });
+
+  const irParaAchar = () => {
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /Combinar horário/ }));
+  };
+
+  it("mostra a janela em que as duas estão livres", () => {
+    irParaAchar();
+    // Marca Ana e Bia pela lista de pessoas
+    const caixas = screen.getAllByRole("checkbox");
+    fireEvent.click(caixas[0]); // Ana
+    fireEvent.click(caixas[1]); // Bia
+    fireEvent.click(screen.getByRole("button", { name: /^Achar horário$/ }));
+
+    expect(screen.getByText("Segunda")).toBeInTheDocument();
+    expect(screen.getByText("10:00–12:00")).toBeInTheDocument();
+  });
+
+  it("avisa quando ninguém foi escolhido", () => {
+    irParaAchar();
+    expect(screen.getByText("Escolha ao menos uma pessoa.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Achar horário$/ })).toBeDisabled();
+  });
+
+  it("avisa sobre quem não marcou disponibilidade", () => {
+    irParaAchar();
+    const caixas = screen.getAllByRole("checkbox");
+    fireEvent.click(caixas[0]); // Ana
+    fireEvent.click(caixas[2]); // Caio, que não marcou nada
+    fireEvent.click(screen.getByRole("button", { name: /^Achar horário$/ }));
+
+    expect(screen.getByText(/Caio Reis ainda não marcou/)).toBeInTheDocument();
   });
 });

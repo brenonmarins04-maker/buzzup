@@ -31,10 +31,16 @@ interface MeetingModalProps {
   /** Reunião existente (edição) ou null (nova) */
   meeting?: Meeting | null;
   /**
-   * Horário pré-preenchido. Vem de um clique num espaço vazio (só o começo)
-   * ou de um arraste na grade, que já traz o fim escolhido.
+   * Horário pré-preenchido. Vem de um clique num espaço vazio, de um arraste
+   * na grade (que já traz o fim) ou da busca por horário em comum — nesse
+   * caso com as pessoas escolhidas junto.
    */
-  initial?: { weekday: number; startMin: number; endMin?: number } | null;
+  initial?: {
+    weekday: number;
+    startMin: number;
+    endMin?: number;
+    personIds?: string[];
+  } | null;
 }
 
 const TIME_OPTIONS = buildTimeOptions();
@@ -89,6 +95,13 @@ export default function MeetingModal({ open, onOpenChange, meeting, initial }: M
     setStartMin(inicio);
     // Sem fim definido (clique simples), a reunião nasce com uma hora
     setEndMin(initial?.endMin && initial.endMin > inicio ? initial.endMin : inicio + 60);
+    // Vindo da busca por horário, as pessoas já estão escolhidas
+    if (initial?.personIds?.length) {
+      setTargetType("people");
+      setTargetValue(null);
+      setPersonIds(initial.personIds);
+      return;
+    }
     const times = teamsRef.current;
     setTargetType(times.length ? "team" : "area");
     setTargetValue(times[0]?.id ?? AREAS[0]?.key ?? null);

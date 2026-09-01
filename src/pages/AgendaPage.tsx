@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { CalendarClock, DoorOpen, Plus, Users } from "lucide-react";
+import { CalendarCheck, CalendarClock, DoorOpen, Plus, Sparkles, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -8,6 +8,8 @@ import { isLeaderOfAny } from "@/lib/leadership";
 import { Button } from "@/components/ui/button";
 import MeetingModal from "@/components/modals/MeetingModal";
 import MeetingRoomsModal from "@/components/modals/MeetingRoomsModal";
+import AvailabilityTab from "@/components/agenda/AvailabilityTab";
+import FindTimeTab from "@/components/agenda/FindTimeTab";
 import {
   dragRange,
   durationLabel,
@@ -30,8 +32,26 @@ const NO_ROOM = "__sem_sala__";
 type Range = { start: number; end: number };
 type Drag = { weekday: number; anchor: number; current: number; moved: boolean };
 
-/** Onde o formulário deve abrir: dia, começo e — se veio de um arraste — fim. */
-export type SlotSeed = { weekday: number; startMin: number; endMin?: number };
+/**
+ * Onde o formulário deve abrir: dia, começo e — se veio de um arraste ou da
+ * busca por horário — o fim e as pessoas já escolhidas.
+ */
+export type SlotSeed = {
+  weekday: number;
+  startMin: number;
+  endMin?: number;
+  personIds?: string[];
+};
+
+type Aba = "semana" | "disponibilidade" | "achar";
+
+const ABAS: { key: Aba; label: string; icon: typeof CalendarClock }[] = [
+  { key: "semana",          label: "Semana",           icon: CalendarClock },
+  { key: "disponibilidade", label: "Minha disponibilidade", icon: CalendarCheck },
+  // "Combinar" e não "Achar horário": dentro da aba existe o botão com esse
+  // nome, e dois controles com o mesmo rótulo confundem
+  { key: "achar",           label: "Combinar horário", icon: Sparkles },
+];
 
 // --- Subcomponentes -----------------------------------------------------
 // Ficam fora do AgendaPage de propósito: definidos lá dentro, cada render
@@ -232,6 +252,7 @@ export default function AgendaPage() {
   const [seed, setSeed] = useState<SlotSeed | null>(null);
   const [roomsOpen, setRoomsOpen] = useState(false);
   const [drag, setDrag] = useState<Drag | null>(null);
+  const [aba, setAba] = useState<Aba>("semana");
   // Quando o arraste terminou. O navegador dispara um clique logo depois, e
   // ele reabriria o formulário perdendo o intervalo escolhido. Guardamos o
   // instante em vez de uma trava booleana: uma trava ficaria presa quando o
@@ -281,7 +302,8 @@ export default function AgendaPage() {
   const openNew = useCallback((weekday: number, startMin: number) => {
     if (!canManage) return;
     if (Date.now() - dragEndedAt.current < 300) return;
-    openForm({ weekday, startMin });
+    // Um clique vale o retângulo em que se clicou: meia hora
+    openForm({ weekday, startMin, endMin: startMin + SLOT_MIN });
   }, [canManage, openForm]);
 
   const openEdit = useCallback((m: Meeting) => {
@@ -345,18 +367,20 @@ export default function AgendaPage() {
             Agenda
           </h1>
           <p className="text-sm text-muted-foreground">
-            {canManage && !isMobile
-              ? "Arraste na grade para escolher o horário da reunião."
-              : "As reuniões da semana se repetem toda semana."}
+            {aba !== "semana"
+              ? "Combine horários sem ficar perguntando um por um."
+              : canManage && !isMobile
+                ? "Arraste na grade para escolher o horário. Um clique marca meia hora."
+                : "As reuniões da semana se repetem toda semana."}
           </p>
         </div>
-        {isAdmin && (
+        {isAdmin && aba === "semana" && (
           <Button variant="outline" onClick={() => setRoomsOpen(true)} className="rounded-xl">
             <DoorOpen className="mr-1.5 h-4 w-4" />
             Salas
           </Button>
         )}
-        {canManage && (
+        {canManage && aba === "semana" && (
           <Button
             onClick={() => openForm({ weekday: isMobile ? mobileDay : 1, startMin: 14 * 60 })}
             className="rounded-xl font-bold"
@@ -367,6 +391,39 @@ export default function AgendaPage() {
         )}
       </div>
 
+      {/* Abas */}
+      <div className="flex gap-1.5 overflow-x-auto border-b border-border pb-2">
+        {ABAS.map(a => {
+          const Icone = a.icon;
+          return (
+            <button
+              key={a.key}
+              type="button"
+              onClick={() => setAba(a.key)}
+              aria-current={aba === a.key ? "page" : undefined}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-sm font-medium transition-colors ${
+                aba === a.key
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent"
+              }`}
+            >
+              <Icone className="h-4 w-4" />
+              {a.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {aba === "disponibilidade" && <AvailabilityTab />}
+
+      {aba === "achar" && (
+        <FindTimeTab
+          onMarcar={s => { setAba("semana"); openForm(s); }}
+        />
+      )}
+
+      {aba === "semana" && (
+      <>
       {/* Filtros */}
       <div className="flex flex-wrap items-center gap-1.5">
         <FilterChip active={roomFilter === null} onClick={() => setRoomFilter(null)}>
@@ -516,6 +573,9 @@ export default function AgendaPage() {
             );
           })}
         </div>
+      )}
+
+      </>
       )}
 
       <MeetingModal
