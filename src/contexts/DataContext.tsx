@@ -8,6 +8,9 @@ import { clampDemandPoints } from "@/lib/demandPoints";
 import { toast } from "sonner";
 import { GENERAL_SHORTCUTS_PREFIX, parseGeneralShortcuts, serializeGeneralShortcuts } from "@/lib/generalShortcuts";
 
+import type { Meeting, MeetingRoom, MeetingTargetType } from "@/lib/agenda";
+export type { Meeting, MeetingRoom, MeetingTargetType };
+
 type Json = Database["public"]["Tables"]["tasks"]["Row"]["checklist"];
 
 export type Person = { id: string; name: string; nickname?: string | null; area?: string | null; areas?: string[] | null; userId?: string | null; leaderArea?: string | null; leaderAreas?: string[] | null };
@@ -67,6 +70,44 @@ function normalizeFormTargets(list: unknown, legacy?: string | null): string[] {
   return legacy ? [legacy] : [];
 }
 
+function mapMeeting(m: any): Meeting {
+  return {
+    id: m.id,
+    title: m.title,
+    description: m.description ?? "",
+    roomId: m.room_id ?? null,
+    weekday: Number(m.weekday),
+    startMin: Number(m.start_min),
+    endMin: Number(m.end_min),
+    targetType: (m.target_type ?? "people") as MeetingTargetType,
+    targetValue: m.target_value ?? null,
+    personIds: Array.isArray(m.person_ids) ? m.person_ids : [],
+    createdBy: m.created_by ?? null,
+    createdAt: m.created_at,
+  };
+}
+
+function mapRoom(r: any): MeetingRoom {
+  return { id: r.id, name: r.name, color: r.color ?? "#00B4D8", position: r.position ?? 0 };
+}
+
+/** Campos da reunião no formato do banco. */
+function meetingRow(m: Omit<Meeting, "id" | "createdBy" | "createdAt">) {
+  return {
+    title: m.title,
+    description: m.description,
+    room_id: m.roomId,
+    weekday: m.weekday,
+    start_min: m.startMin,
+    end_min: m.endMin,
+    target_type: m.targetType,
+    target_value: m.targetValue,
+    // Time e área resolvem as pessoas na hora de exibir, então a lista fica
+    // vazia — assim entrar/sair do time já reflete na agenda.
+    person_ids: m.targetType === "people" ? m.personIds : [],
+  };
+}
+
 export type FormCompletion = { id: string; formId: string; userId: string; completedAt: string; status: "done" | "declined" };
 
 export type Notification = {
@@ -86,6 +127,7 @@ type DataContextType = {
   broadcasts: Broadcast[];
   generalShortcuts: GeneralShortcut[];
   forms: WorkspaceForm[]; formCompletions: FormCompletion[];
+  meetings: Meeting[]; meetingRooms: MeetingRoom[];
   loading: boolean; workspaceId: string | null;
   pointsEarnedNotice: number | null;
   dismissPointsEarnedNotice: () => void;
@@ -170,6 +212,13 @@ type DataContextType = {
   deleteForm: (id: string) => Promise<void>;
   markFormCompleted: (formId: string) => Promise<void>;
   unmarkFormCompleted: (formId: string) => Promise<void>;
+
+  addMeeting: (m: Omit<Meeting, "id" | "createdBy" | "createdAt">) => Promise<void>;
+  updateMeeting: (id: string, patch: Omit<Meeting, "id" | "createdBy" | "createdAt">) => Promise<void>;
+  deleteMeeting: (id: string) => Promise<void>;
+  addMeetingRoom: (name: string, color: string) => Promise<void>;
+  updateMeetingRoom: (id: string, patch: { name: string; color: string }) => Promise<void>;
+  deleteMeetingRoom: (id: string) => Promise<void>;
 };
 
 const DataContext = createContext<DataContextType | null>(null);
@@ -198,6 +247,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [forms, setForms] = useState<WorkspaceForm[]>([]);
   const [formCompletions, setFormCompletions] = useState<FormCompletion[]>([]);
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [meetingRooms, setMeetingRooms] = useState<MeetingRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoriesRaw, setCategoriesRaw] = useState<{ id: string; name: string }[]>([]);
   const pplMapRef = useRef<Map<string, Person>>(new Map());
@@ -236,7 +287,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!uid || !workspaceId) {
       setPeople([]); setProjects([]); setTasks([]); setPosts([]);
       setEvents([]); setCategories([]); setChannels([]); setTeams([]);
-      setCategoriesRaw([]); setEventTypes([]); setAreaNotes([]); setParkingItems([]); setGamificationActions([]); setGamificationAwards([]); setLeadThermometer([]); setAttendanceSettings([]); setAttendanceRecords([]); setBroadcasts([]); setForms([]); setFormCompletions([]); setLoading(false);
+      setCategoriesRaw([]); setEventTypes([]); setAreaNotes([]); setParkingItems([]); setGamificationActions([]); setGamificationAwards([]); setLeadThermometer([]); setAttendanceSettings([]); setAttendanceRecords([]); setBroadcasts([]); setForms([]); setFormCompletions([]); setMeetings([]); setMeetingRooms([]); setLoading(false);
       return;
     }
     let cancelled = false;
@@ -245,7 +296,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const wsId = workspaceId!;
       try {
 
-      const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes, etRes, anRes, piRes, gaRes, gwRes, ltRes, asRes, arRes, bcRes, fmRes, fcRes] = await Promise.all([
+      const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes, etRes, anRes, piRes, gaRes, gwRes, ltRes, asRes, arRes, bcRes, fmRes, fcRes, mtRes, mrRes] = await Promise.all([
         (supabase.from("people") as any).select("*").eq("workspace_id", wsId),
         supabase.from("projects").select("*").eq("workspace_id", wsId),
         supabase.from("tasks").select("*").eq("workspace_id", wsId),
@@ -269,6 +320,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         (supabase.from as any)("broadcasts").select("*").eq("workspace_id", wsId).gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }),
         (supabase.from as any)("workspace_forms").select("*").eq("workspace_id", wsId).order("created_at", { ascending: false }),
         (supabase.from as any)("form_completions").select("*").eq("workspace_id", wsId),
+        (supabase.from as any)("meetings").select("*").eq("workspace_id", wsId),
+        (supabase.from as any)("meeting_rooms").select("*").eq("workspace_id", wsId).order("position", { ascending: true }),
       ]);
       if (cancelled) return;
 
@@ -369,6 +422,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
       // Forms — se as tabelas ainda não existirem no banco, os resultados vêm com erro e ficam vazios (não quebra o app)
       setForms(((fmRes as any)?.data || []).map((f: any) => ({ id: f.id, title: f.title, description: f.description ?? "", url: f.url, targetType: (f.target_type ?? "all") as WorkspaceFormTarget, targetValue: f.target_value ?? null, targetValues: normalizeFormTargets(f.target_values, f.target_value), points: f.points ?? 1, createdBy: f.created_by ?? null, createdAt: f.created_at })));
       setFormCompletions(((fcRes as any)?.data || []).map((c: any) => ({ id: c.id, formId: c.form_id, userId: c.user_id, completedAt: c.completed_at, status: (c.status === "declined" ? "declined" : "done") as "done" | "declined" })));
+
+      // Agenda — vazia enquanto o agenda-setup.sql não tiver sido rodado
+      setMeetings(((mtRes as any)?.data || []).map(mapMeeting));
+      setMeetingRooms(((mrRes as any)?.data || []).map(mapRoom));
 
       // Sync: migrate tasks with deadlines into parkingItems so they appear in Quadro CB
       try {
@@ -578,6 +635,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setFormCompletions((data || []).map((c: any) => ({ id: c.id, formId: c.form_id, userId: c.user_id, completedAt: c.completed_at, status: (c.status === "declined" ? "declined" : "done") as "done" | "declined" })));
     };
 
+    const refetchMeetings = async () => {
+      const { data } = await (supabase.from as any)("meetings").select("*").eq("workspace_id", wsId);
+      setMeetings((data || []).map(mapMeeting));
+    };
+
+    const refetchMeetingRooms = async () => {
+      const { data } = await (supabase.from as any)("meeting_rooms").select("*").eq("workspace_id", wsId).order("position", { ascending: true });
+      setMeetingRooms((data || []).map(mapRoom));
+    };
+
     // Per-group debounce: bursts on the same group collapse into one fetch (300ms window)
     const timers = new Map<string, ReturnType<typeof setTimeout>>();
     const debounced = (key: string, fn: () => Promise<void>) => {
@@ -610,6 +677,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       broadcasts:           () => debounced("broadcasts", refetchBroadcasts),
       workspace_forms:      () => debounced("forms", refetchForms),
       form_completions:     () => debounced("formCompletions", refetchFormCompletions),
+      meetings:             () => debounced("meetings", refetchMeetings),
+      meeting_rooms:        () => debounced("meetingRooms", refetchMeetingRooms),
     };
 
     // Unique suffix prevents collision when removeChannel (async) hasn't finished
@@ -1518,6 +1587,65 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setGamificationAwards(curr => curr.filter(a => !(a.actionId === formId && myPersonIds.has(a.personId))));
   }, [workspaceId, uid, people]);
 
+  // === AGENDA (reuniões semanais) ===
+  const SETUP_HINT = "Rode o agenda-setup.sql no Supabase para ativar a agenda.";
+
+  const addMeeting = useCallback(async (m: Omit<Meeting, "id" | "createdBy" | "createdAt">) => {
+    if (!workspaceId) return;
+    const { data, error } = await (supabase.from as any)("meetings")
+      .insert({ workspace_id: workspaceId, created_by: uid, ...meetingRow(m) })
+      .select().single();
+    if (error) {
+      toast.error(error.code === "42P01" ? SETUP_HINT : "Erro ao criar reunião");
+      return;
+    }
+    setMeetings(prev => [...prev, mapMeeting(data)]);
+    toast.success("Reunião marcada!");
+  }, [workspaceId, uid]);
+
+  const updateMeeting = useCallback(async (id: string, patch: Omit<Meeting, "id" | "createdBy" | "createdAt">) => {
+    const { data, error } = await (supabase.from as any)("meetings")
+      .update(meetingRow(patch)).eq("id", id).select().single();
+    if (error) { toast.error("Erro ao salvar reunião"); return; }
+    setMeetings(prev => prev.map(x => x.id === id ? mapMeeting(data) : x));
+    toast.success("Reunião atualizada!");
+  }, []);
+
+  const deleteMeeting = useCallback(async (id: string) => {
+    const { error } = await (supabase.from as any)("meetings").delete().eq("id", id);
+    if (error) { toast.error("Erro ao remover reunião"); return; }
+    setMeetings(prev => prev.filter(x => x.id !== id));
+    toast.success("Reunião removida.");
+  }, []);
+
+  const addMeetingRoom = useCallback(async (name: string, color: string) => {
+    if (!workspaceId) return;
+    const position = meetingRooms.length;
+    const { data, error } = await (supabase.from as any)("meeting_rooms")
+      .insert({ workspace_id: workspaceId, name, color, position })
+      .select().single();
+    if (error) {
+      toast.error(error.code === "42P01" ? SETUP_HINT : "Erro ao criar sala");
+      return;
+    }
+    setMeetingRooms(prev => [...prev, mapRoom(data)]);
+  }, [workspaceId, meetingRooms.length]);
+
+  const updateMeetingRoom = useCallback(async (id: string, patch: { name: string; color: string }) => {
+    const { error } = await (supabase.from as any)("meeting_rooms")
+      .update({ name: patch.name, color: patch.color }).eq("id", id);
+    if (error) { toast.error("Erro ao salvar sala"); return; }
+    setMeetingRooms(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
+  }, []);
+
+  const deleteMeetingRoom = useCallback(async (id: string) => {
+    const { error } = await (supabase.from as any)("meeting_rooms").delete().eq("id", id);
+    if (error) { toast.error("Erro ao remover sala"); return; }
+    setMeetingRooms(prev => prev.filter(r => r.id !== id));
+    // O banco desliga a sala das reuniões (ON DELETE SET NULL); reflete aqui
+    setMeetings(prev => prev.map(m => m.roomId === id ? { ...m, roomId: null } : m));
+  }, []);
+
   return (
     <DataContext.Provider value={{
       people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, gamificationActions, gamificationAwards, leadThermometer, attendanceSettings, attendanceRecords, broadcasts, generalShortcuts, forms, formCompletions, loading, workspaceId,
@@ -1540,6 +1668,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       upsertAttendanceSetting, setAttendance, clearAttendance,
       addBroadcast, deleteBroadcast, saveGeneralShortcuts,
       addForm, updateForm, deleteForm, markFormCompleted, unmarkFormCompleted, declineForm,
+      meetings, meetingRooms,
+      addMeeting, updateMeeting, deleteMeeting,
+      addMeetingRoom, updateMeetingRoom, deleteMeetingRoom,
     }}>
       {children}
     </DataContext.Provider>
