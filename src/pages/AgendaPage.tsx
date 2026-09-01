@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { CalendarClock, DoorOpen, Plus, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
@@ -9,20 +9,207 @@ import { Button } from "@/components/ui/button";
 import MeetingModal from "@/components/modals/MeetingModal";
 import MeetingRoomsModal from "@/components/modals/MeetingRoomsModal";
 import {
+  dragRange,
   durationLabel,
   gridRange,
   layoutDay,
   minutesToLabel,
   resolveParticipants,
+  slotAtOffset,
   SLOT_MIN,
   WEEKDAYS,
   WEEKDAYS_UTEIS,
   type Meeting,
+  type MeetingRoom,
 } from "@/lib/agenda";
 
 /** Altura de uma hora na grade, em pixels. Meia hora = metade disso. */
 const PX_PER_HOUR = 64;
 const NO_ROOM = "__sem_sala__";
+
+type Range = { start: number; end: number };
+type Drag = { weekday: number; anchor: number; current: number; moved: boolean };
+
+/** Onde o formulário deve abrir: dia, começo e — se veio de um arraste — fim. */
+export type SlotSeed = { weekday: number; startMin: number; endMin?: number };
+
+// --- Subcomponentes -----------------------------------------------------
+// Ficam fora do AgendaPage de propósito: definidos lá dentro, cada render
+// criaria um tipo novo e o React remontaria a grade inteira — o que zeraria o
+// arraste no meio do gesto.
+
+function MeetingBlock({
+  m, lane, lanes, range, canManage, color, room, subtitle, onEdit,
+}: {
+  m: Meeting; lane: number; lanes: number; range: Range; canManage: boolean;
+  color: string; room: MeetingRoom | null; subtitle: string;
+  onEdit: (m: Meeting) => void;
+}) {
+  const top = ((m.startMin - range.start) / 60) * PX_PER_HOUR;
+  const height = Math.max(((m.endMin - m.startMin) / 60) * PX_PER_HOUR - 3, 22);
+  const compact = height < 46;
+
+  return (
+    <button
+      type="button"
+      onClick={() => onEdit(m)}
+      disabled={!canManage}
+      title={`${m.title} · ${minutesToLabel(m.startMin)}–${minutesToLabel(m.endMin)}${room ? ` · ${room.name}` : ""}`}
+      className="absolute overflow-hidden rounded-lg border-l-4 px-2 py-1 text-left transition-shadow hover:shadow-lg disabled:cursor-default"
+      style={{
+        top, height,
+        left: `calc(${(100 / lanes) * lane}% + 2px)`,
+        width: `calc(${100 / lanes}% - 4px)`,
+        borderLeftColor: color,
+        backgroundColor: `${color}22`,
+      }}
+    >
+      <span className="block truncate text-xs font-bold leading-tight text-foreground">
+        {m.title}
+      </span>
+      {!compact && (
+        <>
+          <span className="block truncate text-[11px] leading-tight text-muted-foreground">
+            {minutesToLabel(m.startMin)}–{minutesToLabel(m.endMin)}
+          </span>
+          <span className="block truncate text-[11px] leading-tight text-muted-foreground">
+            {subtitle}{room ? ` · ${room.name}` : ""}
+          </span>
+        </>
+      )}
+    </button>
+  );
+}
+
+function DayColumn({
+  weekday, list, range, canManage, drag,
+  onDragStart, onDragMove, onDragEnd, onOpenNew, onEdit,
+  colorOf, roomOf, subtitleOf,
+}: {
+  weekday: number; list: Meeting[]; range: Range; canManage: boolean;
+  drag: Drag | null;
+  onDragStart: (weekday: number, slot: number) => void;
+  onDragMove: (weekday: number, slot: number) => void;
+  onDragEnd: (weekday: number) => void;
+  onOpenNew: (weekday: number, startMin: number) => void;
+  onEdit: (m: Meeting) => void;
+  colorOf: (m: Meeting) => string;
+  roomOf: (m: Meeting) => MeetingRoom | null;
+  subtitleOf: (m: Meeting) => string;
+}) {
+  const lanesMap = layoutDay(list);
+  const slots: number[] = [];
+  for (let m = range.start; m < range.end; m += SLOT_MIN) slots.push(m);
+
+  /** Horário sob o ponteiro, medido a partir do topo desta coluna. */
+  const slotFromEvent = (e: React.PointerEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    return slotAtOffset(e.clientY - rect.top, range, PX_PER_HOUR);
+  };
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    // Só arrasta com mouse/caneta: no toque o gesto vertical é rolagem
+    // e.button > 0 = botão direito/meio. Comparar com !== 0 recusaria o
+    // gesto onde o campo não vem preenchido.
+    if (!canManage || e.pointerType === "touch" || e.button > 0) return;
+    // Segura o ponteiro para o arraste continuar mesmo saindo da coluna.
+    // Nem todo ambiente implementa a captura, e falhar nela não é motivo
+    // para perder o gesto.
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* segue sem captura */ }
+    onDragStart(weekday, slotFromEvent(e));
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!drag || drag.weekday !== weekday) return;
+    onDragMove(weekday, slotFromEvent(e));
+  };
+
+  const handlePointerUp = () => {
+    if (!drag || drag.weekday !== weekday) return;
+    onDragEnd(weekday);
+  };
+
+  // Faixa translúcida mostrando o que está sendo selecionado
+  const preview = drag && drag.weekday === weekday ? dragRange(drag.anchor, drag.current) : null;
+
+  return (
+    <div
+      className="relative select-none border-l border-border"
+      style={{ height: (range.end - range.start) / 60 * PX_PER_HOUR, touchAction: "pan-y" }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+    >
+      {slots.map(m => (
+        <button
+          key={m}
+          type="button"
+          onClick={() => onOpenNew(weekday, m)}
+          disabled={!canManage}
+          aria-label={`Marcar reunião às ${minutesToLabel(m)}`}
+          className="absolute inset-x-0 border-b border-border/40 transition-colors hover:bg-primary/5 disabled:cursor-default disabled:hover:bg-transparent"
+          style={{
+            top: ((m - range.start) / 60) * PX_PER_HOUR,
+            height: (SLOT_MIN / 60) * PX_PER_HOUR,
+          }}
+        />
+      ))}
+
+      {list.map(m => {
+        const l = lanesMap.get(m.id) ?? { lane: 0, lanes: 1 };
+        return (
+          <MeetingBlock
+            key={m.id}
+            m={m} lane={l.lane} lanes={l.lanes} range={range} canManage={canManage}
+            color={colorOf(m)} room={roomOf(m)} subtitle={subtitleOf(m)}
+            onEdit={onEdit}
+          />
+        );
+      })}
+
+      {preview && (
+        <div
+          className="pointer-events-none absolute inset-x-1 rounded-lg border-2 border-primary bg-primary/20"
+          style={{
+            top: ((preview.startMin - range.start) / 60) * PX_PER_HOUR,
+            height: ((preview.endMin - preview.startMin) / 60) * PX_PER_HOUR,
+          }}
+        >
+          <span className="block px-1.5 py-0.5 text-[11px] font-bold text-foreground">
+            {minutesToLabel(preview.startMin)}–{minutesToLabel(preview.endMin)}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FilterChip({
+  active, onClick, children, color,
+}: {
+  active: boolean; onClick: () => void; children: React.ReactNode; color?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+        active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"
+      }`}
+    >
+      {color && (
+        <span
+          className="mr-1.5 h-2 w-2 rounded-full"
+          style={{ backgroundColor: active ? "currentColor" : color }}
+        />
+      )}
+      {children}
+    </button>
+  );
+}
+
+// --- Página -------------------------------------------------------------
 
 export default function AgendaPage() {
   const { people, teams, meetings, meetingRooms } = useData();
@@ -42,10 +229,16 @@ export default function AgendaPage() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Meeting | null>(null);
-  const [initialSlot, setInitialSlot] = useState<{ weekday: number; startMin: number } | null>(null);
+  const [seed, setSeed] = useState<SlotSeed | null>(null);
   const [roomsOpen, setRoomsOpen] = useState(false);
+  const [drag, setDrag] = useState<Drag | null>(null);
+  // Quando o arraste terminou. O navegador dispara um clique logo depois, e
+  // ele reabriria o formulário perdendo o intervalo escolhido. Guardamos o
+  // instante em vez de uma trava booleana: uma trava ficaria presa quando o
+  // clique não vem (soltar fora de um espaço vago) e engoliria o clique
+  // seguinte, esse de verdade.
+  const dragEndedAt = useRef(0);
 
-  // Ids das pessoas ligadas à minha conta (posso ter mais de um registro)
   const myPersonIds = useMemo(
     () => new Set(people.filter(p => p.userId === user?.id).map(p => p.id)),
     [people, user?.id],
@@ -65,8 +258,6 @@ export default function AgendaPage() {
 
   const days = showWeekend ? WEEKDAYS : WEEKDAYS_UTEIS;
   const range = useMemo(() => gridRange(visible), [visible]);
-  const totalMin = range.end - range.start;
-  const gridHeight = (totalMin / 60) * PX_PER_HOUR;
 
   const hourMarks = useMemo(() => {
     const out: number[] = [];
@@ -81,111 +272,68 @@ export default function AgendaPage() {
     return map;
   }, [visible]);
 
-  const openNew = (weekday: number, startMin: number) => {
-    if (!canManage) return;
+  const openForm = useCallback((s: SlotSeed) => {
     setEditing(null);
-    setInitialSlot({ weekday, startMin });
+    setSeed(s);
     setModalOpen(true);
-  };
+  }, []);
 
-  const openEdit = (m: Meeting) => {
+  const openNew = useCallback((weekday: number, startMin: number) => {
+    if (!canManage) return;
+    if (Date.now() - dragEndedAt.current < 300) return;
+    openForm({ weekday, startMin });
+  }, [canManage, openForm]);
+
+  const openEdit = useCallback((m: Meeting) => {
     if (!canManage) return;
     setEditing(m);
-    setInitialSlot(null);
+    setSeed(null);
     setModalOpen(true);
-  };
+  }, [canManage]);
 
-  const roomOf = (m: Meeting) => meetingRooms.find(r => r.id === m.roomId) ?? null;
+  // --- Arraste para escolher o intervalo ---
+  const onDragStart = useCallback((weekday: number, slot: number) => {
+    setDrag({ weekday, anchor: slot, current: slot, moved: false });
+  }, []);
 
-  const colorOf = (m: Meeting) => {
+  const onDragMove = useCallback((weekday: number, slot: number) => {
+    setDrag(d => (d && d.weekday === weekday && d.current !== slot)
+      ? { ...d, current: slot, moved: true }
+      : d);
+  }, []);
+
+  const onDragEnd = useCallback((weekday: number) => {
+    // Abrir o formulário de dentro de um updater de estado seria um efeito
+    // colateral numa função que precisa ser pura
+    if (drag && drag.weekday === weekday && drag.moved) {
+      const { startMin, endMin } = dragRange(drag.anchor, drag.current);
+      dragEndedAt.current = Date.now();
+      openForm({ weekday, startMin, endMin });
+    }
+    setDrag(null);
+  }, [drag, openForm]);
+
+  const roomOf = useCallback(
+    (m: Meeting) => meetingRooms.find(r => r.id === m.roomId) ?? null,
+    [meetingRooms],
+  );
+
+  const colorOf = useCallback((m: Meeting) => {
     const room = roomOf(m);
     if (room) return room.color;
     if (m.targetType === "area") return AREAS.find(a => a.key === m.targetValue)?.color ?? "#64748B";
     return "#64748B";
-  };
+  }, [roomOf]);
 
-  const subtitleOf = (m: Meeting) => {
+  const subtitleOf = useCallback((m: Meeting) => {
     if (m.targetType === "team") return teams.find(t => t.id === m.targetValue)?.name ?? "Time";
     if (m.targetType === "area") return getAreaLabel(m.targetValue ?? "");
     const n = m.personIds.length;
     return `${n} ${n === 1 ? "pessoa" : "pessoas"}`;
-  };
-
-  /** Bloco da reunião posicionado na coluna do dia. */
-  const MeetingBlock = ({ m, lane, lanes }: { m: Meeting; lane: number; lanes: number }) => {
-    const top = ((m.startMin - range.start) / 60) * PX_PER_HOUR;
-    const height = Math.max(((m.endMin - m.startMin) / 60) * PX_PER_HOUR - 3, 22);
-    const color = colorOf(m);
-    const room = roomOf(m);
-    const width = `calc(${100 / lanes}% - 4px)`;
-    const left = `calc(${(100 / lanes) * lane}% + 2px)`;
-    const compact = height < 46;
-
-    return (
-      <button
-        type="button"
-        onClick={() => openEdit(m)}
-        disabled={!canManage}
-        title={`${m.title} · ${minutesToLabel(m.startMin)}–${minutesToLabel(m.endMin)}${room ? ` · ${room.name}` : ""}`}
-        className="absolute overflow-hidden rounded-lg border-l-4 px-2 py-1 text-left transition-shadow hover:shadow-lg disabled:cursor-default"
-        style={{
-          top,
-          height,
-          left,
-          width,
-          borderLeftColor: color,
-          backgroundColor: `${color}22`,
-        }}
-      >
-        <span className="block truncate text-xs font-bold leading-tight text-foreground">
-          {m.title}
-        </span>
-        {!compact && (
-          <>
-            <span className="block truncate text-[11px] leading-tight text-muted-foreground">
-              {minutesToLabel(m.startMin)}–{minutesToLabel(m.endMin)}
-            </span>
-            <span className="block truncate text-[11px] leading-tight text-muted-foreground">
-              {subtitleOf(m)}{room ? ` · ${room.name}` : ""}
-            </span>
-          </>
-        )}
-      </button>
-    );
-  };
-
-  /** Coluna de um dia: fundo clicável de 30 em 30 min + blocos por cima. */
-  const DayColumn = ({ weekday }: { weekday: number }) => {
-    const list = byDay.get(weekday) ?? [];
-    const lanesMap = layoutDay(list);
-    const slots: number[] = [];
-    for (let m = range.start; m < range.end; m += SLOT_MIN) slots.push(m);
-
-    return (
-      <div className="relative border-l border-border" style={{ height: gridHeight }}>
-        {slots.map(m => (
-          <button
-            key={m}
-            type="button"
-            onClick={() => openNew(weekday, m)}
-            disabled={!canManage}
-            aria-label={`Marcar reunião às ${minutesToLabel(m)}`}
-            className="absolute inset-x-0 border-b border-border/40 transition-colors hover:bg-primary/5 disabled:cursor-default disabled:hover:bg-transparent"
-            style={{
-              top: ((m - range.start) / 60) * PX_PER_HOUR,
-              height: (SLOT_MIN / 60) * PX_PER_HOUR,
-            }}
-          />
-        ))}
-        {list.map(m => {
-          const l = lanesMap.get(m.id) ?? { lane: 0, lanes: 1 };
-          return <MeetingBlock key={m.id} m={m} lane={l.lane} lanes={l.lanes} />;
-        })}
-      </div>
-    );
-  };
+  }, [teams]);
 
   const shownDays = isMobile ? WEEKDAYS.filter(d => d.key === mobileDay) : days;
+  const gridCols = `56px repeat(${shownDays.length}, minmax(0, 1fr))`;
 
   return (
     <div className="space-y-4 p-4 md:p-6">
@@ -197,7 +345,9 @@ export default function AgendaPage() {
             Agenda
           </h1>
           <p className="text-sm text-muted-foreground">
-            As reuniões da semana se repetem toda semana.
+            {canManage && !isMobile
+              ? "Arraste na grade para escolher o horário da reunião."
+              : "As reuniões da semana se repetem toda semana."}
           </p>
         </div>
         {isAdmin && (
@@ -208,7 +358,7 @@ export default function AgendaPage() {
         )}
         {canManage && (
           <Button
-            onClick={() => openNew(isMobile ? mobileDay : 1, 14 * 60)}
+            onClick={() => openForm({ weekday: isMobile ? mobileDay : 1, startMin: 14 * 60 })}
             className="rounded-xl font-bold"
           >
             <Plus className="mr-1.5 h-4 w-4" />
@@ -257,31 +407,26 @@ export default function AgendaPage() {
 
       {/* Grade */}
       <div className="glass-panel overflow-hidden rounded-2xl">
-        {/* Cabeçalho dos dias */}
-        <div
-          className="grid border-b border-border bg-card/60"
-          style={{ gridTemplateColumns: `56px repeat(${shownDays.length}, minmax(0, 1fr))` }}
-        >
+        <div className="grid border-b border-border bg-card/60" style={{ gridTemplateColumns: gridCols }}>
           <div />
-          {shownDays.map(d => (
-            <div key={d.key} className="border-l border-border px-2 py-2 text-center">
-              <span className="text-sm font-bold text-foreground">
-                {isMobile ? d.label : d.short}
-              </span>
-              <span className="block text-[11px] text-muted-foreground">
-                {(byDay.get(d.key) ?? []).length} {(byDay.get(d.key) ?? []).length === 1 ? "reunião" : "reuniões"}
-              </span>
-            </div>
-          ))}
+          {shownDays.map(d => {
+            const n = (byDay.get(d.key) ?? []).length;
+            return (
+              <div key={d.key} className="border-l border-border px-2 py-2 text-center">
+                <span className="text-sm font-bold text-foreground">
+                  {isMobile ? d.label : d.short}
+                </span>
+                <span className="block text-[11px] text-muted-foreground">
+                  {n} {n === 1 ? "reunião" : "reuniões"}
+                </span>
+              </div>
+            );
+          })}
         </div>
 
-        {/* Horas + colunas */}
-        <div
-          className="grid overflow-x-auto"
-          style={{ gridTemplateColumns: `56px repeat(${shownDays.length}, minmax(0, 1fr))` }}
-        >
+        <div className="grid overflow-x-auto" style={{ gridTemplateColumns: gridCols }}>
           {/* Régua de horas */}
-          <div className="relative" style={{ height: gridHeight }}>
+          <div className="relative" style={{ height: (range.end - range.start) / 60 * PX_PER_HOUR }}>
             {hourMarks.map(m => (
               <span
                 key={m}
@@ -293,7 +438,24 @@ export default function AgendaPage() {
             ))}
           </div>
 
-          {shownDays.map(d => <DayColumn key={d.key} weekday={d.key} />)}
+          {shownDays.map(d => (
+            <DayColumn
+              key={d.key}
+              weekday={d.key}
+              list={byDay.get(d.key) ?? []}
+              range={range}
+              canManage={canManage}
+              drag={drag}
+              onDragStart={onDragStart}
+              onDragMove={onDragMove}
+              onDragEnd={onDragEnd}
+              onOpenNew={openNew}
+              onEdit={openEdit}
+              colorOf={colorOf}
+              roomOf={roomOf}
+              subtitleOf={subtitleOf}
+            />
+          ))}
         </div>
       </div>
 
@@ -306,13 +468,15 @@ export default function AgendaPage() {
           </p>
           {canManage && meetings.length === 0 && (
             <p className="mt-1 text-sm text-muted-foreground">
-              Toque em um horário da grade para marcar a primeira.
+              {isMobile
+                ? "Toque em um horário da grade para marcar a primeira."
+                : "Arraste do horário de início ao de fim para marcar a primeira."}
             </p>
           )}
         </div>
       )}
 
-      {/* Lista do dia — resumo legível abaixo da grade */}
+      {/* Resumo por dia */}
       {visible.length > 0 && (
         <div className="space-y-2">
           {shownDays.map(d => {
@@ -358,36 +522,9 @@ export default function AgendaPage() {
         open={modalOpen}
         onOpenChange={setModalOpen}
         meeting={editing}
-        initial={initialSlot}
+        initial={seed}
       />
       <MeetingRoomsModal open={roomsOpen} onOpenChange={setRoomsOpen} />
     </div>
-  );
-}
-
-function FilterChip({
-  active, onClick, children, color,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-  color?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-        active ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"
-      }`}
-    >
-      {color && (
-        <span
-          className="mr-1.5 h-2 w-2 rounded-full"
-          style={{ backgroundColor: active ? "currentColor" : color }}
-        />
-      )}
-      {children}
-    </button>
   );
 }

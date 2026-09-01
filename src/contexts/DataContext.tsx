@@ -91,6 +91,25 @@ function mapRoom(r: any): MeetingRoom {
   return { id: r.id, name: r.name, color: r.color ?? "#00B4D8", position: r.position ?? 0 };
 }
 
+/**
+ * Mensagem de erro da agenda. Antes tudo virava "Erro ao criar sala", o que
+ * escondia o caso mais comum: o agenda-setup.sql não ter sido rodado — o
+ * PostgREST devolve PGRST205 nesse caso, e não o 42P01 do Postgres.
+ */
+function agendaErrorMessage(error: { code?: string; message?: string } | null, fallback: string): string {
+  const code = error?.code ?? "";
+  const msg = String(error?.message ?? "");
+
+  if (code === "42P01" || code === "PGRST205" || code === "PGRST204" ||
+      /schema cache|does not exist|não existe/i.test(msg)) {
+    return "A agenda ainda não foi criada no banco. Rode o agenda-setup.sql no Supabase.";
+  }
+  if (code === "42501" || /row-level security|permission denied/i.test(msg)) {
+    return "Você não tem permissão para isso.";
+  }
+  return msg ? `${fallback}: ${msg}` : fallback;
+}
+
 /** Campos da reunião no formato do banco. */
 function meetingRow(m: Omit<Meeting, "id" | "createdBy" | "createdAt">) {
   return {
@@ -1588,17 +1607,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [workspaceId, uid, people]);
 
   // === AGENDA (reuniões semanais) ===
-  const SETUP_HINT = "Rode o agenda-setup.sql no Supabase para ativar a agenda.";
-
   const addMeeting = useCallback(async (m: Omit<Meeting, "id" | "createdBy" | "createdAt">) => {
     if (!workspaceId) return;
     const { data, error } = await (supabase.from as any)("meetings")
       .insert({ workspace_id: workspaceId, created_by: uid, ...meetingRow(m) })
       .select().single();
-    if (error) {
-      toast.error(error.code === "42P01" ? SETUP_HINT : "Erro ao criar reunião");
-      return;
-    }
+    if (error) { toast.error(agendaErrorMessage(error, "Erro ao criar reunião")); return; }
     setMeetings(prev => [...prev, mapMeeting(data)]);
     toast.success("Reunião marcada!");
   }, [workspaceId, uid]);
@@ -1606,14 +1620,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const updateMeeting = useCallback(async (id: string, patch: Omit<Meeting, "id" | "createdBy" | "createdAt">) => {
     const { data, error } = await (supabase.from as any)("meetings")
       .update(meetingRow(patch)).eq("id", id).select().single();
-    if (error) { toast.error("Erro ao salvar reunião"); return; }
+    if (error) { toast.error(agendaErrorMessage(error, "Erro ao salvar reunião")); return; }
     setMeetings(prev => prev.map(x => x.id === id ? mapMeeting(data) : x));
     toast.success("Reunião atualizada!");
   }, []);
 
   const deleteMeeting = useCallback(async (id: string) => {
     const { error } = await (supabase.from as any)("meetings").delete().eq("id", id);
-    if (error) { toast.error("Erro ao remover reunião"); return; }
+    if (error) { toast.error(agendaErrorMessage(error, "Erro ao remover reunião")); return; }
     setMeetings(prev => prev.filter(x => x.id !== id));
     toast.success("Reunião removida.");
   }, []);
@@ -1624,23 +1638,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const { data, error } = await (supabase.from as any)("meeting_rooms")
       .insert({ workspace_id: workspaceId, name, color, position })
       .select().single();
-    if (error) {
-      toast.error(error.code === "42P01" ? SETUP_HINT : "Erro ao criar sala");
-      return;
-    }
+    if (error) { toast.error(agendaErrorMessage(error, "Erro ao criar sala")); return; }
     setMeetingRooms(prev => [...prev, mapRoom(data)]);
   }, [workspaceId, meetingRooms.length]);
 
   const updateMeetingRoom = useCallback(async (id: string, patch: { name: string; color: string }) => {
     const { error } = await (supabase.from as any)("meeting_rooms")
       .update({ name: patch.name, color: patch.color }).eq("id", id);
-    if (error) { toast.error("Erro ao salvar sala"); return; }
+    if (error) { toast.error(agendaErrorMessage(error, "Erro ao salvar sala")); return; }
     setMeetingRooms(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
   }, []);
 
   const deleteMeetingRoom = useCallback(async (id: string) => {
     const { error } = await (supabase.from as any)("meeting_rooms").delete().eq("id", id);
-    if (error) { toast.error("Erro ao remover sala"); return; }
+    if (error) { toast.error(agendaErrorMessage(error, "Erro ao remover sala")); return; }
     setMeetingRooms(prev => prev.filter(r => r.id !== id));
     // O banco desliga a sala das reuniões (ON DELETE SET NULL); reflete aqui
     setMeetings(prev => prev.map(m => m.roomId === id ? { ...m, roomId: null } : m));

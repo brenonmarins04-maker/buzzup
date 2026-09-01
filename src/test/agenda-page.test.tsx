@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { createEvent, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AgendaPage from "@/pages/AgendaPage";
@@ -128,6 +128,8 @@ describe("AgendaPage", () => {
     mocks.isMobile = true;
     mocks.meetings = [meeting({ weekday: 1 })];
     renderPage();
+    // O dia inicial é o de hoje; escolhe segunda para o teste não depender disso
+    fireEvent.click(screen.getByRole("button", { name: "Seg" }));
     // O cabeçalho da grade traz o dia por extenso, não a semana toda
     expect(screen.getAllByText("Segunda").length).toBeGreaterThan(0);
     expect(screen.queryByText("Quarta")).not.toBeInTheDocument();
@@ -187,5 +189,89 @@ describe("MeetingModal — conflitos", () => {
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Qua" }));
     expect(within(dialog).queryByText("Esse horário já está ocupado")).not.toBeInTheDocument();
+  });
+});
+
+describe("arrastar na grade para marcar", () => {
+  beforeEach(() => {
+    mocks.isAdmin = true;
+    mocks.isMobile = false;
+    mocks.meetings = [];
+    mocks.meetingRooms = [{ id: "sala1", name: "Sala 1", color: "#00B4D8", position: 0 }];
+  });
+
+  /** A coluna do dia é o pai dos espaços vagos daquele dia. */
+  const colunaDe = (rotulo: RegExp) =>
+    screen.getAllByRole("button", { name: rotulo })[0].parentElement as HTMLElement;
+
+  /**
+   * O jsdom não implementa PointerEvent, então clientY e pointerType não
+   * sobrevivem ao fireEvent comum — é preciso cravá-los no evento.
+   */
+  const ponteiro = (
+    tipo: "pointerDown" | "pointerMove" | "pointerUp",
+    el: HTMLElement,
+    { clientY, pointerType = "mouse" }: { clientY: number; pointerType?: string },
+  ) => {
+    const ev = createEvent[tipo](el, { bubbles: true });
+    Object.defineProperty(ev, "clientY", { value: clientY });
+    Object.defineProperty(ev, "button", { value: 0 });
+    Object.defineProperty(ev, "pointerId", { value: 1 });
+    Object.defineProperty(ev, "pointerType", { value: pointerType });
+    fireEvent(el, ev);
+  };
+
+  /** Arrasta de um ponto a outro dentro da coluna. */
+  const arrastar = (el: HTMLElement, de: number, ate: number, pointerType = "mouse") => {
+    ponteiro("pointerDown", el, { clientY: de, pointerType });
+    ponteiro("pointerMove", el, { clientY: ate, pointerType });
+    ponteiro("pointerUp", el, { clientY: ate, pointerType });
+  };
+
+  it("arrastar de 09:00 até 10:30 abre o formulário das 09:00 às 11:00", () => {
+    renderPage();
+    const coluna = colunaDe(/Marcar reunião às 09:00/);
+
+    // A grade começa às 07:00 e cada hora tem 64px: 128px = 09:00, 224px = 10:30
+    arrastar(coluna, 128, 224);
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("09:00 às 11:00 · 2h")).toBeInTheDocument();
+  });
+
+  it("arrastar para cima dá o mesmo intervalo", () => {
+    renderPage();
+    const coluna = colunaDe(/Marcar reunião às 09:00/);
+
+    arrastar(coluna, 224, 128);
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("09:00 às 11:00 · 2h")).toBeInTheDocument();
+  });
+
+  it("clicar sem arrastar mantém a reunião de uma hora", () => {
+    renderPage();
+    fireEvent.click(screen.getAllByRole("button", { name: /Marcar reunião às 09:00/ })[0]);
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("09:00 às 10:00 · 1h")).toBeInTheDocument();
+  });
+
+  it("o toque não arrasta — na tela pequena o gesto vertical é rolagem", () => {
+    renderPage();
+    const coluna = colunaDe(/Marcar reunião às 09:00/);
+
+    arrastar(coluna, 128, 224, "touch");
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("quem só consulta não consegue arrastar", () => {
+    mocks.isAdmin = false;
+    renderPage();
+    const coluna = colunaDe(/Marcar reunião às 09:00/);
+
+    arrastar(coluna, 128, 224);
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });

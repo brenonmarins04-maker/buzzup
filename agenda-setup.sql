@@ -6,6 +6,36 @@
 -- e se repete toda semana. Os horários andam de 30 em 30 minutos.
 
 -- ---------------------------------------------------------------
+-- Funções auxiliares de permissão
+-- ---------------------------------------------------------------
+-- Este script não depende de nenhum outro: se o leaders-setup.sql ainda não
+-- tiver rodado, is_manager_of não existiria, a criação da policy falharia e o
+-- SQL Editor desfaria TUDO — inclusive a tabela de salas. Criamos aqui o que
+-- falta (CREATE OR REPLACE não mexe no que já está certo).
+
+ALTER TABLE public.people ADD COLUMN IF NOT EXISTS leader_areas text;
+
+CREATE OR REPLACE FUNCTION public.is_leader_in(_user_id uuid, _ws_id uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.people
+    WHERE user_id = _user_id
+      AND workspace_id = _ws_id
+      AND leader_areas IS NOT NULL
+      AND btrim(leader_areas) <> ''
+  );
+$$;
+
+-- "Gestor" = diretor/owner OU líder de alguma área/time
+CREATE OR REPLACE FUNCTION public.is_manager_of(_user_id uuid, _ws_id uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT public.is_admin_of(_user_id, _ws_id) OR public.is_leader_in(_user_id, _ws_id);
+$$;
+
+GRANT EXECUTE ON FUNCTION public.is_leader_in(uuid, uuid)  TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_manager_of(uuid, uuid) TO authenticated;
+
+-- ---------------------------------------------------------------
 -- Salas
 -- ---------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.meeting_rooms (
@@ -103,3 +133,12 @@ CROSS JOIN (VALUES
 WHERE NOT EXISTS (
   SELECT 1 FROM public.meeting_rooms r WHERE r.workspace_id = w.id
 );
+
+
+-- ---------------------------------------------------------------
+-- Conferência: as duas linhas abaixo devem aparecer
+-- ---------------------------------------------------------------
+SELECT table_name AS tabela_criada
+FROM information_schema.tables
+WHERE table_schema = 'public' AND table_name IN ('meetings', 'meeting_rooms')
+ORDER BY table_name;

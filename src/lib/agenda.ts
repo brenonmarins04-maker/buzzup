@@ -211,6 +211,34 @@ export function gridRange(meetings: Meeting[]): { start: number; end: number } {
 }
 
 /**
+ * Em que horário o ponteiro está, dada a distância até o topo da grade.
+ * Arredonda para baixo até o slot de 30 min e nunca sai da faixa visível.
+ */
+export function slotAtOffset(
+  offsetY: number,
+  range: { start: number; end: number },
+  pxPerHour: number,
+): number {
+  // Sem uma posição válida, fica no começo da faixa: devolver NaN faria o
+  // arraste se achar "movido" sozinho, já que NaN nunca é igual a NaN.
+  if (!Number.isFinite(offsetY)) return range.start;
+  const bruto = range.start + (offsetY / pxPerHour) * 60;
+  const slot = Math.floor(bruto / SLOT_MIN) * SLOT_MIN;
+  return Math.min(Math.max(slot, range.start), range.end - SLOT_MIN);
+}
+
+/**
+ * Intervalo de um arraste entre dois slots. Arrastar para cima funciona igual,
+ * e soltar no mesmo slot em que começou vale meia hora.
+ */
+export function dragRange(anchor: number, current: number): { startMin: number; endMin: number } {
+  return {
+    startMin: Math.min(anchor, current),
+    endMin: Math.max(anchor, current) + SLOT_MIN,
+  };
+}
+
+/**
  * Reuniões que se sobrepõem no mesmo dia dividem a largura da coluna.
  * Devolve, para cada uma, em qual "faixa" ela entra e quantas faixas existem.
  */

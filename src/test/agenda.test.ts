@@ -8,6 +8,8 @@ import {
   gridRange,
   labelToMinutes,
   layoutDay,
+  slotAtOffset,
+  dragRange,
   minutesToLabel,
   overlaps,
   resolveParticipants,
@@ -240,5 +242,45 @@ describe("grade", () => {
     expect(l.get("c")?.lane).toBe(0); // entra onde a "b" terminou
     // Só duas faixas: as três reuniões cabem lado a lado sem espremer
     expect(l.get("c")?.lanes).toBe(2);
+  });
+});
+
+describe("arraste na grade", () => {
+  const range = { start: 7 * 60, end: 22 * 60 };
+  const PX = 64; // altura de uma hora
+
+  it("converte a posição do ponteiro no slot de 30 minutos", () => {
+    expect(slotAtOffset(0, range, PX)).toBe(7 * 60);
+    expect(slotAtOffset(128, range, PX)).toBe(9 * 60);       // 2 horas abaixo
+    expect(slotAtOffset(224, range, PX)).toBe(10 * 60 + 30); // 3h30 abaixo
+  });
+
+  it("arredonda para baixo, nunca para o meio de um slot", () => {
+    // 20px = ~19 min depois das 07:00 → continua no slot das 07:00
+    expect(slotAtOffset(20, range, PX)).toBe(7 * 60);
+    // 40px = ~37 min → já é o slot das 07:30
+    expect(slotAtOffset(40, range, PX)).toBe(7 * 60 + 30);
+  });
+
+  it("posição inválida não vira NaN", () => {
+    expect(slotAtOffset(Number.NaN, range, PX)).toBe(range.start);
+    expect(slotAtOffset(Number.POSITIVE_INFINITY, range, PX)).toBe(range.start);
+  });
+
+  it("não deixa sair da faixa visível", () => {
+    expect(slotAtOffset(-500, range, PX)).toBe(range.start);
+    expect(slotAtOffset(99999, range, PX)).toBe(range.end - 30);
+  });
+
+  it("soltar no mesmo slot vale meia hora", () => {
+    expect(dragRange(9 * 60, 9 * 60)).toEqual({ startMin: 9 * 60, endMin: 9 * 60 + 30 });
+  });
+
+  it("arrastar para baixo cobre do início ao fim do último slot", () => {
+    expect(dragRange(9 * 60, 10 * 60 + 30)).toEqual({ startMin: 9 * 60, endMin: 11 * 60 });
+  });
+
+  it("arrastar para cima dá o mesmo intervalo", () => {
+    expect(dragRange(10 * 60 + 30, 9 * 60)).toEqual({ startMin: 9 * 60, endMin: 11 * 60 });
   });
 });

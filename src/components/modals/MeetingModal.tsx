@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Search, Trash2, Users } from "lucide-react";
 import { useData } from "@/contexts/DataContext";
 import { AREAS, getAreaLabel } from "@/lib/areas";
@@ -30,8 +30,11 @@ interface MeetingModalProps {
   onOpenChange: (open: boolean) => void;
   /** Reunião existente (edição) ou null (nova) */
   meeting?: Meeting | null;
-  /** Horário pré-preenchido ao clicar num espaço vazio da grade */
-  initial?: { weekday: number; startMin: number } | null;
+  /**
+   * Horário pré-preenchido. Vem de um clique num espaço vazio (só o começo)
+   * ou de um arraste na grade, que já traz o fim escolhido.
+   */
+  initial?: { weekday: number; startMin: number; endMin?: number } | null;
 }
 
 const TIME_OPTIONS = buildTimeOptions();
@@ -53,6 +56,14 @@ export default function MeetingModal({ open, onOpenChange, meeting, initial }: M
   // Segunda confirmação: o conflito avisa, mas não trava
   const [forceSave, setForceSave] = useState(false);
 
+  // Lidos só na abertura. Como dependências do efeito, uma atualização em
+  // tempo real de times ou salas o reexecutaria e apagaria o que a pessoa
+  // já tinha digitado com o formulário aberto.
+  const teamsRef = useRef(teams);
+  const roomsRef = useRef(meetingRooms);
+  teamsRef.current = teams;
+  roomsRef.current = meetingRooms;
+
   // Preenche ao abrir
   useEffect(() => {
     if (!open) return;
@@ -72,14 +83,17 @@ export default function MeetingModal({ open, onOpenChange, meeting, initial }: M
     }
     setTitle("");
     setDescription("");
-    setRoomId(meetingRooms[0]?.id ?? null);
+    setRoomId(roomsRef.current[0]?.id ?? null);
+    const inicio = initial?.startMin ?? 14 * 60;
     setWeekday(initial?.weekday ?? 1);
-    setStartMin(initial?.startMin ?? 14 * 60);
-    setEndMin((initial?.startMin ?? 14 * 60) + 60);
-    setTargetType(teams.length ? "team" : "area");
-    setTargetValue(teams[0]?.id ?? AREAS[0]?.key ?? null);
+    setStartMin(inicio);
+    // Sem fim definido (clique simples), a reunião nasce com uma hora
+    setEndMin(initial?.endMin && initial.endMin > inicio ? initial.endMin : inicio + 60);
+    const times = teamsRef.current;
+    setTargetType(times.length ? "team" : "area");
+    setTargetValue(times[0]?.id ?? AREAS[0]?.key ?? null);
     setPersonIds([]);
-  }, [open, meeting, initial, meetingRooms, teams]);
+  }, [open, meeting, initial]);
 
   // O fim sempre anda junto com o início, mantendo a duração
   const onChangeStart = (value: number) => {
