@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { CalendarPlus, Info, Search, Sparkles } from "lucide-react";
 import { useData } from "@/contexts/DataContext";
+import { matchesSearch } from "@/lib/utils";
 import { AREAS, getAreaLabel } from "@/lib/areas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,7 +69,7 @@ export default function FindTimeTab({ onMarcar }: { onMarcar: (s: SlotSeed) => v
   const filtradas = useMemo(() => {
     const q = busca.trim().toLowerCase();
     if (!q) return people;
-    return people.filter(p => p.name.toLowerCase().includes(q));
+    return people.filter(p => matchesSearch(p.name, busca));
   }, [people, busca]);
 
   const toggle = (id: string) => {

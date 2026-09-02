@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Search, Trash2, Users } from "lucide-react";
 import { useData } from "@/contexts/DataContext";
+import { matchesSearch } from "@/lib/utils";
 import { AREAS, getAreaLabel } from "@/lib/areas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -134,7 +135,7 @@ export default function MeetingModal({ open, onOpenChange, meeting, initial }: M
   const filteredPeople = useMemo(() => {
     const q = personSearch.trim().toLowerCase();
     if (!q) return people;
-    return people.filter(p => p.name.toLowerCase().includes(q));
+    return people.filter(p => matchesSearch(p.name, personSearch));
   }, [people, personSearch]);
 
   const timeInvalid = endMin <= startMin;

@@ -168,6 +168,8 @@ type DataContextType = {
   addPerson: (name: string) => void;
   updatePerson: (id: string, name: string) => void;
   updatePersonNickname: (id: string, nickname: string | null) => void;
+  /** Limpa o apelido de várias pessoas de uma vez. Devolve quantas mudaram. */
+  resetPersonNicknames: (ids: string[]) => Promise<number>;
   updatePersonArea: (id: string, area: string | null) => void;
   updatePersonAreas: (id: string, areas: string[]) => void;
   updatePersonLeaderArea: (id: string, leaderArea: string | null) => void;
@@ -897,6 +899,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const { error } = await (supabase.from("people") as any).update({ nickname: value }).eq("id", id);
     if (error) { toast.error("Erro ao atualizar apelido"); return; }
     setPeople(prev => prev.map(p => p.id === id ? { ...p, nickname: value } : p));
+  }, []);
+
+  const resetPersonNicknames = useCallback(async (ids: string[]) => {
+    if (ids.length === 0) return 0;
+    const { error } = await (supabase.from("people") as any)
+      .update({ nickname: null }).in("id", ids);
+    if (error) { toast.error("Erro ao resetar apelidos"); return 0; }
+    const alvo = new Set(ids);
+    setPeople(prev => prev.map(p => alvo.has(p.id) ? { ...p, nickname: null } : p));
+    return ids.length;
   }, []);
 
   const updatePersonArea = useCallback(async (id: string, area: string | null) => {
@@ -1728,7 +1740,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     <DataContext.Provider value={{
       people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, gamificationActions, gamificationAwards, leadThermometer, attendanceSettings, attendanceRecords, broadcasts, generalShortcuts, forms, formCompletions, loading, workspaceId,
       pointsEarnedNotice, dismissPointsEarnedNotice,
-      addPerson, updatePerson, updatePersonNickname, updatePersonArea, updatePersonAreas, updatePersonLeaderArea, updatePersonLeaderAreas, deletePerson, removePersonFromWorkspaceState,
+      addPerson, updatePerson, updatePersonNickname, resetPersonNicknames, updatePersonArea, updatePersonAreas, updatePersonLeaderArea, updatePersonLeaderAreas, deletePerson, removePersonFromWorkspaceState,
       addTask, updateTask, deleteTask,
       addPost, updatePost, deletePost,
       addProject, updateProject, deleteProject,

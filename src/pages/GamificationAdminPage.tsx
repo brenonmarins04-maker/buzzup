@@ -4,11 +4,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Navigate } from "react-router-dom";
-import { Trophy, Search, Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import { Trophy, Search, Plus, Pencil, Trash2, Check, X, RotateCcw, ChevronDown, ChevronRight, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { AREAS_DEFAULT, getAreaLabel } from "@/lib/areas";
+import { AREAS, getAreaLabel } from "@/lib/areas";
+import {
+  groupPeopleByArea, peopleForReset, progressOf, SEM_AREA, TODAS_AS_AREAS,
+  type NickPerson,
+} from "@/lib/nicknames";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { matchesSearch } from "@/lib/utils";
 import { useDemandPoints } from "@/hooks/useDemandPoints";
 import { MAX_DEMAND_POINT_OPTIONS } from "@/lib/demandPoints";
 
@@ -119,7 +124,7 @@ function PontuarTab() {
   const actionsRef = useRef<HTMLDivElement>(null);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return people.filter(p => !q || p.name.toLowerCase().includes(q) || (p.nickname || "").toLowerCase().includes(q));
+    return people.filter(p => !q || matchesSearch(p.name, q) || matchesSearch(p.nickname, q));
   }, [people, query]);
   const visiblePeople = isMobile && !query.trim() ? [] : filtered;
   const selected = people.find(p => p.id === selectedId) || null;
@@ -340,7 +345,8 @@ function AcoesTab() {
 }
 
 function ApelidosTab() {
-  const { people, updatePersonNickname } = useData();
+  const { people, updatePersonNickname, resetPersonNicknames } = useData();
+  const [resetOpen, setResetOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [nickname, setNickname] = useState("");
@@ -350,7 +356,7 @@ function ApelidosTab() {
   const filtered = useMemo(() => {
     if (!search.trim()) return people;
     const q = search.toLowerCase();
-    return people.filter(p => p.name.toLowerCase().includes(q) || (p.nickname || "").toLowerCase().includes(q));
+    return people.filter(p => matchesSearch(p.name, q) || matchesSearch(p.nickname, q));
   }, [people, search]);
 
   const selectedPerson = selectedId ? people.find(p => p.id === selectedId) : null;
@@ -409,21 +415,31 @@ function ApelidosTab() {
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">
               Pesquisar pessoa
             </label>
-            <Input
-              ref={searchRef}
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-              placeholder="Digite o nome e aperte Enter..."
-              className="h-10"
-              autoFocus
-            />
+            <div className="flex items-center gap-2">
+              <Input
+                ref={searchRef}
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                placeholder="Digite o nome e aperte Enter..."
+                className="h-10 flex-1"
+                autoFocus
+              />
+              <Button
+                variant="outline"
+                onClick={() => setResetOpen(true)}
+                className="h-10 shrink-0"
+              >
+                <RotateCcw className="h-4 w-4 sm:mr-1.5" />
+                <span className="hidden sm:inline">Resetar</span>
+              </Button>
+            </div>
             <p className="text-[11px] text-muted-foreground mt-1.5">
               Pesquise → Enter para selecionar → Digite o apelido → Enter para salvar
             </p>
 
-            {/* Counter per area */}
-            <NicknameProgressBar people={people} />
+            {/* Preenchimento por área — clique numa área para ver os nomes */}
+            <NicknameByArea people={people} onSelectPerson={selectPerson} />
           </div>
         ) : (
           <div>
@@ -461,6 +477,13 @@ function ApelidosTab() {
           </div>
         )}
       </div>
+
+      <ResetNicknamesDialog
+        open={resetOpen}
+        onOpenChange={setResetOpen}
+        people={people}
+        onReset={resetPersonNicknames}
+      />
 
       {/* Results list (when searching) */}
       {!selectedId && (
@@ -500,68 +523,216 @@ function ApelidosTab() {
   );
 }
 
-function NicknameProgressBar({ people }: { people: { id: string; name: string; nickname?: string | null; area?: string | null; areas?: string[] | null }[] }) {
-  const groups = useMemo(() => {
-    const out: { key: string; label: string; color: string; people: typeof people }[] = [];
+/**
+ * Preenchimento de apelidos por área. Cada área abre mostrando os nomes de
+ * quem ainda não tem apelido — antes isso só existia como tooltip, que não dá
+ * para ler no celular nem clicar.
+ */
+function NicknameByArea({
+  people, onSelectPerson,
+}: {
+  people: NickPerson[];
+  onSelectPerson: (id: string) => void;
+}) {
+  const [aberta, setAberta] = useState<string | null>(null);
 
-    AREAS_DEFAULT.forEach(area => {
-      const inArea = people.filter(p => {
-        if (p.areas && p.areas.length > 0) return p.areas.includes(area.key);
-        if (p.area) return p.area.split(",").includes(area.key);
-        return false;
-      });
-      if (inArea.length > 0) {
-        out.push({ key: area.key, label: getAreaLabel(area.key), color: area.color, people: inArea });
-      }
-    });
-
-    const noArea = people.filter(p => {
-      if (p.areas && p.areas.length > 0) return false;
-      if (p.area && p.area.trim()) return false;
-      return true;
-    });
-    if (noArea.length > 0) {
-      out.push({ key: "__none__", label: "Sem área", color: "#94A3B8", people: noArea });
-    }
-
-    return out;
-  }, [people]);
+  const groups = useMemo(
+    () => groupPeopleByArea(people, AREAS.map(a => ({ key: a.key, label: getAreaLabel(a.key), color: a.color }))),
+    [people],
+  );
 
   if (groups.length === 0) return null;
 
   return (
     <div className="mt-4 space-y-1.5">
-      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Progresso de apelidos por área</p>
+      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+        Apelidos por área — toque para ver quem falta
+      </p>
+
       {groups.map(g => {
-        const withNickname = g.people.filter(p => p.nickname && p.nickname.trim());
-        const without = g.people.filter(p => !p.nickname || !p.nickname.trim());
-        const total = g.people.length;
-        const filled = withNickname.length;
-        const pct = total === 0 ? 0 : (filled / total) * 100;
-        const missingNames = without.map(p => p.name).join(", ");
-        const tooltip = without.length > 0
-          ? `Faltam: ${missingNames}`
-          : "Todos têm apelido ✓";
+        const { filled, total, pct } = progressOf(g);
+        const expandida = aberta === g.key;
+        const completa = g.semApelido.length === 0;
 
         return (
-          <div key={g.key} title={tooltip}>
-            <div className="flex items-center gap-2 mb-0.5">
-              <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: g.color }} />
-              <span className="text-[11px] font-medium text-foreground flex-1 truncate">{g.label}</span>
-              <span className="text-[10px] font-mono text-muted-foreground tabular-nums">
-                {filled}/{total}
-              </span>
-            </div>
-            <div className="h-1 rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full transition-all"
-                style={{ width: `${pct}%`, backgroundColor: g.color }}
-              />
-            </div>
+          <div key={g.key} className="rounded-lg border border-border overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setAberta(expandida ? null : g.key)}
+              aria-expanded={expandida}
+              className="w-full px-2.5 py-2 text-left hover:bg-accent/50 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                {expandida
+                  ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  : <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />}
+                <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: g.color }} />
+                <span className="text-[11px] font-medium text-foreground flex-1 truncate">{g.label}</span>
+                {completa ? (
+                  <span className="text-[10px] font-bold text-emerald-500">completo</span>
+                ) : (
+                  <span className="text-[10px] font-bold text-amber-500">
+                    {g.semApelido.length} sem apelido
+                  </span>
+                )}
+                <span className="text-[10px] font-mono text-muted-foreground tabular-nums">
+                  {filled}/{total}
+                </span>
+              </div>
+              <div className="h-1 rounded-full bg-muted overflow-hidden mt-1">
+                <div className="h-full transition-all" style={{ width: `${pct}%`, backgroundColor: g.color }} />
+              </div>
+            </button>
+
+            {expandida && (
+              <div className="border-t border-border bg-muted/20 px-2.5 py-2 space-y-2">
+                {g.semApelido.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-semibold text-amber-500 uppercase tracking-wider mb-1">
+                      Sem apelido ({g.semApelido.length})
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {g.semApelido.map(p => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => onSelectPerson(p.id)}
+                          title={`Definir o apelido de ${p.name}`}
+                          className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-foreground hover:bg-amber-500/30 transition-colors"
+                        >
+                          {p.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {g.comApelido.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                      Já têm ({g.comApelido.length})
+                    </p>
+                    <div className="flex flex-wrap gap-1">
+                      {g.comApelido.map(p => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => onSelectPerson(p.id)}
+                          title={`Trocar o apelido de ${p.name}`}
+                          className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-accent transition-colors"
+                        >
+                          {p.name} <span className="text-foreground font-medium">· {p.nickname}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
       })}
     </div>
+  );
+}
+
+/** Reset em massa, com filtro por área e confirmação mostrando quem é afetado. */
+function ResetNicknamesDialog({
+  open, onOpenChange, people, onReset,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  people: NickPerson[];
+  onReset: (ids: string[]) => Promise<number>;
+}) {
+  const [areaKey, setAreaKey] = useState<string>(TODAS_AS_AREAS);
+  const [salvando, setSalvando] = useState(false);
+
+  const opcoes = useMemo(() => {
+    const base = [{ key: TODAS_AS_AREAS, label: "Todas as áreas", color: "#94A3B8" }];
+    const grupos = groupPeopleByArea(
+      people,
+      AREAS.map(a => ({ key: a.key, label: getAreaLabel(a.key), color: a.color })),
+    );
+    return [...base, ...grupos.map(g => ({ key: g.key, label: g.label, color: g.color }))];
+  }, [people]);
+
+  const alvo = useMemo(() => peopleForReset(people, areaKey), [people, areaKey]);
+
+  const confirmar = async () => {
+    setSalvando(true);
+    const n = await onReset(alvo.map(p => p.id));
+    setSalvando(false);
+    if (n > 0) toast.success(`${n} ${n === 1 ? "apelido apagado" : "apelidos apagados"}`);
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!salvando) { setAreaKey(TODAS_AS_AREAS); onOpenChange(v); } }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Resetar apelidos</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">
+              Área
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {opcoes.map(o => (
+                <button
+                  key={o.key}
+                  type="button"
+                  onClick={() => setAreaKey(o.key)}
+                  aria-pressed={areaKey === o.key}
+                  className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                    areaKey === o.key
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-accent"
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {alvo.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Ninguém dessa seleção tem apelido para apagar.
+            </p>
+          ) : (
+            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3">
+              <div className="flex items-center gap-2 text-sm font-bold text-amber-500">
+                <AlertTriangle className="h-4 w-4" />
+                {alvo.length} {alvo.length === 1 ? "apelido será apagado" : "apelidos serão apagados"}
+              </div>
+              <p className="mt-1.5 text-xs text-foreground/80">
+                {alvo.map(p => p.name).join(", ")}
+              </p>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                Os pontos e o histórico não mudam — só o apelido volta a ficar vazio.
+                Não dá para desfazer.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-2 flex justify-end gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={salvando}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={confirmar}
+            disabled={alvo.length === 0 || salvando}
+            className="bg-red-500 hover:bg-red-600 text-white font-bold"
+          >
+            {salvando ? "Apagando..." : `Apagar ${alvo.length > 0 ? alvo.length : ""}`}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
