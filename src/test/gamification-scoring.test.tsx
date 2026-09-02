@@ -52,7 +52,11 @@ describe("pontuação móvel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /Entregou demanda/ }));
 
-    await waitFor(() => expect(awardGamificationPoints).toHaveBeenCalledWith("p1", expect.objectContaining({ id: "a1" })));
+    // O terceiro argumento é a data do ciclo filtrado; sem ciclo vem null e o
+    // banco carimba a hora real
+    await waitFor(() => expect(awardGamificationPoints).toHaveBeenCalledWith(
+      "p1", expect.objectContaining({ id: "a1" }), null,
+    ));
     await waitFor(() => {
       expect(search.value).toBe("Ana Souza");
       expect(search.selectionStart).toBe(0);

@@ -11,6 +11,7 @@ import { format, endOfWeek, differenceInHours, differenceInDays } from "date-fns
 import { AREAS, getTeamColor } from "@/lib/areas";
 import { isDemandOverdue, formatDemandDayMonth } from "@/lib/demandStatus";
 import FormsSection from "@/components/FormsSection";
+import EmojiPicker from "@/components/gamification/EmojiPicker";
 import GeneralShortcutsSection from "@/components/GeneralShortcutsSection";
 import CycleSelector from "@/components/gamification/CycleSelector";
 import { useGamificationCycles } from "@/hooks/useGamificationCycles";
@@ -128,7 +129,7 @@ export default function DashboardPage() {
         if (nick && nickCount[nick.toLowerCase()] > 1) {
           label = `${nick} (${p.name.split(" ")[0]})`;
         }
-        return { id: p.id, label, points: pointsByPerson[p.id] || 0 };
+        return { id: p.id, label, emoji: p.emoji ?? null, points: pointsByPerson[p.id] || 0 };
       })
       .sort((a, b) => b.points - a.points || a.label.localeCompare(b.label));
   }, [people, gamificationAwards, activeCycle]);
@@ -352,20 +353,26 @@ export default function DashboardPage() {
                 <div className="space-y-0.5 min-w-0 flex-1 md:flex-none">
                   <div className="flex items-center justify-between gap-3 md:block">
                     <p className="text-base font-bold text-foreground leading-tight truncate">{myNickname}</p>
-                    <span className="md:hidden h-14 w-14 rounded-xl border border-primary/20 bg-primary/10 text-3xl font-extrabold text-primary flex items-center justify-center shrink-0">
-                      {myPoints}
-                    </span>
+                    <div className="flex items-center gap-2 shrink-0 md:hidden">
+                      <EmojiPicker atual={currentPerson.emoji} />
+                      <span className="h-14 w-14 rounded-xl border border-primary/20 bg-primary/10 text-3xl font-extrabold text-primary flex items-center justify-center">
+                        {myPoints}
+                      </span>
+                    </div>
                   </div>
                   <p className="text-xs font-semibold text-muted-foreground md:hidden">{myRankLabel} no ranking</p>
                 </div>
               </div>
 
               {/* Points */}
-              <div className="hidden md:block w-full rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 py-3 md:py-4 px-3 text-center">
-                <p className="text-3xl font-extrabold text-primary leading-none">{myPoints}</p>
-                <p className="text-[11px] font-medium text-muted-foreground mt-1">
-                  {myPoints === 1 ? "ponto" : "pontos"}
-                </p>
+              <div className="hidden md:flex w-full items-center gap-2">
+                <div className="flex-1 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 py-3 md:py-4 px-3 text-center">
+                  <p className="text-3xl font-extrabold text-primary leading-none">{myPoints}</p>
+                  <p className="text-[11px] font-medium text-muted-foreground mt-1">
+                    {myPoints === 1 ? "ponto" : "pontos"}
+                  </p>
+                </div>
+                <EmojiPicker atual={currentPerson.emoji} />
               </div>
 
               {/* Rank */}
@@ -397,6 +404,7 @@ export default function DashboardPage() {
                     ? <Medal className={`h-4 w-4 ${medalColor}`} />
                     : <span className="text-xs font-bold text-muted-foreground">{globalIdx + 1}</span>}
                 </div>
+                {r.emoji && <span className="text-base leading-none shrink-0" aria-hidden="true">{r.emoji}</span>}
                 <span className="flex-1 text-sm font-medium text-foreground truncate">{r.label}</span>
                 <span className="text-xs font-bold text-primary whitespace-nowrap">{r.points} pts</span>
               </li>
@@ -421,6 +429,7 @@ export default function DashboardPage() {
                       {mobileRestRanking.map((r, i) => (
                         <li key={r.id} className={`hover-lift flex items-center gap-2.5 p-2.5 rounded-xl border border-border/55 ${r.points > 0 ? "bg-white/62" : "bg-white/35 opacity-60"}`}>
                           <span className="w-6 text-center text-xs font-bold text-muted-foreground">{5 + i + 1}</span>
+                          {r.emoji && <span className="text-base leading-none shrink-0" aria-hidden="true">{r.emoji}</span>}
                           <span className="flex-1 text-sm font-medium text-foreground truncate">{r.label}</span>
                           <span className={`text-xs font-bold ${r.points > 0 ? "text-primary" : "text-muted-foreground"}`}>
                             {r.points} pts

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
-  CalendarDays, CalendarClock, Megaphone,
+  CalendarDays, Megaphone,
   FolderKanban, Bell, Search, ChevronLeft, Plus, Eye, Shield, Briefcase, Crown, Sparkles, Home, UsersRound, Pencil, Settings,
 } from "lucide-react";
 import { useMemo } from "react";
@@ -39,7 +39,6 @@ function getNavItems() {
   return [
     { to: "/",         icon: Home,         label: "Início" },
     { to: "/calendar", icon: CalendarDays, label: "Calendário" },
-    { to: "/agenda",   icon: CalendarClock, label: "Agenda" },
   ];
 }
 
@@ -60,7 +59,6 @@ function OverdueBadge({ count }: { count: number }) {
 const mobileNavItems = [
   { to: "/calendar", icon: CalendarDays, label: "Calendário" },
   { to: "/",         icon: Home,         label: "Início" },
-  { to: "/agenda",   icon: CalendarClock, label: "Agenda" },
   { to: "/areas-times", icon: FolderKanban, label: "Áreas" },
 ];
 

@@ -71,3 +71,45 @@ export function formatCycleRange(cycle: GamificationCycle): string {
   };
   return cycle.end ? `${fmt(cycle.start)} – ${fmt(cycle.end)}` : `desde ${fmt(cycle.start)}`;
 }
+
+/**
+ * Quando o ponto deve ser registrado para cair no ciclo filtrado.
+ *
+ * Sem ciclo, ou com hoje já dentro dele, devolve null: o banco carimba a hora
+ * real. Filtrando um ciclo que não contém hoje (um passado, por exemplo), o
+ * ponto iria para fora dele — então a data é puxada para a ponta mais próxima.
+ */
+export function awardTimestampForCycle(
+  cycle: GamificationCycle | null,
+  todayIso: string,
+): string | null {
+  if (!cycle) return null;
+  const hoje = todayIso.slice(0, 10);
+  if (hoje < cycle.start) return `${cycle.start}T12:00:00.000Z`;
+  if (cycle.end && hoje > cycle.end) return `${cycle.end}T12:00:00.000Z`;
+  return null;
+}
+
+/** Soma dos pontos de cada ciclo, na ordem em que os ciclos vêm. */
+export function pointsPerCycle(
+  awards: { points: number; awardedAt: string }[],
+  cycles: GamificationCycle[],
+): { cycle: GamificationCycle; points: number }[] {
+  return cycles.map(cycle => ({
+    cycle,
+    points: awards
+      .filter(a => isInCycle(a.awardedAt, cycle))
+      .reduce((soma, a) => soma + (a.points || 0), 0),
+  }));
+}
+
+/** Pontos que não caem em ciclo nenhum — ficaram fora de todos os períodos. */
+export function pointsOutsideCycles(
+  awards: { points: number; awardedAt: string }[],
+  cycles: GamificationCycle[],
+): number {
+  if (cycles.length === 0) return 0;
+  return awards
+    .filter(a => !cycles.some(c => isInCycle(a.awardedAt, c)))
+    .reduce((soma, a) => soma + (a.points || 0), 0);
+}

@@ -15,6 +15,11 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { matchesSearch } from "@/lib/utils";
 import { useDemandPoints } from "@/hooks/useDemandPoints";
+import { useGamificationCycles } from "@/hooks/useGamificationCycles";
+import CycleSelector from "@/components/gamification/CycleSelector";
+import {
+  awardTimestampForCycle, formatCycleRange, isInCycle, pointsOutsideCycles, pointsPerCycle,
+} from "@/lib/gamificationCycles";
 import { MAX_DEMAND_POINT_OPTIONS } from "@/lib/demandPoints";
 
 type Sub = "pontuar" | "acoes" | "demandas" | "apelidos" | "historico";
@@ -117,6 +122,8 @@ function HistoricoTab() {
 function PontuarTab() {
   const { people, gamificationActions, awardGamificationPoints, gamificationAwards, deleteGamificationAward } = useData();
   const isMobile = useIsMobile();
+  const cycles = useGamificationCycles();
+  const { activeCycle } = cycles;
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [awardingActionId, setAwardingActionId] = useState<string | null>(null);
@@ -129,7 +136,18 @@ function PontuarTab() {
   const visiblePeople = isMobile && !query.trim() ? [] : filtered;
   const selected = people.find(p => p.id === selectedId) || null;
   const recent = useMemo(() => selected ? gamificationAwards.filter(a => a.personId === selected.id).slice(0, 5) : [], [gamificationAwards, selected]);
-  const totalSelected = useMemo(() => selected ? gamificationAwards.filter(a => a.personId === selected.id).reduce((s, a) => s + a.points, 0) : 0, [gamificationAwards, selected]);
+  const meusAwards = useMemo(
+    () => selected ? gamificationAwards.filter(a => a.personId === selected.id) : [],
+    [gamificationAwards, selected],
+  );
+  const totalSelected = useMemo(() => meusAwards.reduce((s, a) => s + a.points, 0), [meusAwards]);
+  /** Quanto a pessoa tem em cada ciclo, e o que sobrou fora de todos. */
+  const porCiclo = useMemo(() => pointsPerCycle(meusAwards, cycles.cycles), [meusAwards, cycles.cycles]);
+  const foraDeCiclo = useMemo(() => pointsOutsideCycles(meusAwards, cycles.cycles), [meusAwards, cycles.cycles]);
+  const totalNoCicloAtivo = useMemo(
+    () => meusAwards.filter(a => isInCycle(a.awardedAt, activeCycle)).reduce((s, a) => s + a.points, 0),
+    [meusAwards, activeCycle],
+  );
 
   const focusAndSelectSearch = () => {
     requestAnimationFrame(() => {
@@ -159,8 +177,15 @@ function PontuarTab() {
     if (!selected) return;
     setAwardingActionId(action.id);
     try {
-      await awardGamificationPoints(selected.id, action);
-      toast.success(`+${action.points} pts para ${selected.name}`);
+      // Filtrando um ciclo que não contém hoje, o ponto iria para fora dele:
+      // a data é puxada para dentro do período que está sendo visto
+      const quando = awardTimestampForCycle(activeCycle, new Date().toISOString());
+      await awardGamificationPoints(selected.id, action, quando);
+      toast.success(
+        activeCycle
+          ? `+${action.points} pts para ${selected.name} no ${activeCycle.name}`
+          : `+${action.points} pts para ${selected.name}`,
+      );
       setQuery(selected.name);
       focusAndSelectSearch();
     } finally {
@@ -212,6 +237,16 @@ function PontuarTab() {
       </div>
 
       <div ref={actionsRef} className="glass-panel-soft scroll-mt-16 rounded-2xl p-4">
+        {/* Filtro de ciclo: define onde os pontos deste momento vão cair */}
+        <div className="mb-3 flex flex-wrap items-center gap-2 border-b border-border pb-3">
+          <CycleSelector cycles={cycles} />
+          <span className="text-[11px] text-muted-foreground">
+            {activeCycle
+              ? `Os pontos entram no ${activeCycle.name}.`
+              : "Sem ciclo escolhido: os pontos entram na data de hoje."}
+          </span>
+        </div>
+
         {!selected ? (
           <div className="py-10 text-center">
             <Search className="mx-auto mb-2 h-7 w-7 text-primary/50" />
@@ -220,13 +255,53 @@ function PontuarTab() {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 p-3">
-              <div className="min-w-0">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-primary">Pessoa selecionada</p>
-                <p className="text-base font-semibold text-foreground">{selected.name}</p>
-                <p className="text-xs text-muted-foreground">{totalSelected} pontos no total</p>
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-primary">Pessoa selecionada</p>
+                  <p className="text-base font-semibold text-foreground">{selected.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {totalSelected} pontos no total
+                    {activeCycle && <> · <span className="font-semibold text-foreground">{totalNoCicloAtivo} no {activeCycle.name}</span></>}
+                  </p>
+                </div>
+                <Check className="h-5 w-5 shrink-0 text-primary" />
               </div>
-              <Check className="h-5 w-5 shrink-0 text-primary" />
+
+              {/* Divisão por ciclo — de onde vieram os pontos dessa pessoa */}
+              {porCiclo.length > 0 && (
+                <div className="mt-3 border-t border-primary/15 pt-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                    Pontos por ciclo
+                  </p>
+                  <div className="space-y-1">
+                    {porCiclo.map(({ cycle, points }) => (
+                      <div
+                        key={cycle.id}
+                        className={`flex items-center gap-2 rounded-lg px-2 py-1 ${
+                          activeCycle?.id === cycle.id ? "bg-primary/10" : ""
+                        }`}
+                      >
+                        <span className="text-xs font-medium text-foreground truncate">{cycle.name}</span>
+                        <span className="text-[10px] text-muted-foreground truncate hidden sm:inline">
+                          {formatCycleRange(cycle)}
+                        </span>
+                        <span className="ml-auto text-xs font-bold tabular-nums text-primary shrink-0">
+                          {points} pts
+                        </span>
+                      </div>
+                    ))}
+                    {foraDeCiclo > 0 && (
+                      <div className="flex items-center gap-2 px-2 py-1">
+                        <span className="text-xs text-muted-foreground truncate">Fora dos ciclos</span>
+                        <span className="ml-auto text-xs font-bold tabular-nums text-muted-foreground shrink-0">
+                          {foraDeCiclo} pts
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <p className="text-xs font-semibold text-foreground mb-2">Escolha uma ação</p>

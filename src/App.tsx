@@ -12,7 +12,6 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import AppLayout from "@/components/AppLayout";
 import DashboardPage from "./pages/DashboardPage";
 import CalendarPage from "./pages/CalendarPage";
-import AgendaPage from "./pages/AgendaPage";
 import PeoplePage from "./pages/PeoplePage";
 import MembersPage from "./pages/MembersPage";
 import SettingsPage from "./pages/SettingsPage";
@@ -120,7 +119,6 @@ const App = () => (
             <Route element={<ProtectedApp />}>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/calendar" element={<CalendarPage />} />
-              <Route path="/agenda" element={<AgendaPage />} />
               <Route path="/gamification" element={<GamificationAdminPage />} />
               <Route path="/configuracoes" element={<ConfigHubPage />} />
               <Route path="/people" element={<PeoplePage />} />
