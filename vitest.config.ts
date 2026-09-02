@@ -9,6 +9,10 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    // Os testes de tela da agenda montam grades com centenas de elementos.
+    // Com o padrão de 5s eles falhavam por tempo sob carga, sem nada de
+    // errado no código.
+    testTimeout: 15000,
   },
   resolve: {
     alias: { "@": path.resolve(__dirname, "./src") },

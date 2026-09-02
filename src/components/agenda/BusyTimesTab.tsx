@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { CalendarX, Eraser } from "lucide-react";
+import { CalendarX, Eraser, Hand, MoveVertical } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -24,7 +24,7 @@ const RANGE = { start: 6 * 60, end: 23 * 60 };
 type Drag = { weekday: number; anchor: number; current: number; apagando: boolean; moved: boolean };
 
 function DayColumn({
-  weekday, blocos, drag, onDragStart, onDragMove, onDragEnd, onSlotClick,
+  weekday, blocos, drag, onDragStart, onDragMove, onDragEnd, onSlotClick, pintar,
 }: {
   weekday: number;
   blocos: Interval[];
@@ -33,6 +33,8 @@ function DayColumn({
   onDragMove: (weekday: number, slot: number) => void;
   onDragEnd: (weekday: number) => void;
   onSlotClick: (weekday: number, slot: number, marcado: boolean) => void;
+  /** No toque, só arrasta com o modo de pintura ligado */
+  pintar: boolean;
 }) {
   const slots: number[] = [];
   for (let m = RANGE.start; m < RANGE.end; m += SLOT_MIN) slots.push(m);
@@ -47,7 +49,11 @@ function DayColumn({
     blocos.some(b => slot >= b.startMin && slot < b.endMin);
 
   const handleDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.pointerType === "touch" || e.button > 0) return;
+    // No toque o arraste vertical é rolagem, e quem decide isso é o navegador
+    // no início do gesto — por isso o dedo só pinta com o modo ligado, que
+    // troca o touch-action da coluna antes de qualquer toque começar.
+    if (e.button > 0) return;
+    if (e.pointerType === "touch" && !pintar) return;
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* segue sem captura */ }
     const slot = slotFromEvent(e);
     onDragStart(weekday, slot, jaMarcado(slot));
@@ -58,7 +64,10 @@ function DayColumn({
   return (
     <div
       className="relative select-none border-l border-border"
-      style={{ height: (RANGE.end - RANGE.start) / 60 * PX_PER_HOUR, touchAction: "pan-y" }}
+      style={{
+        height: (RANGE.end - RANGE.start) / 60 * PX_PER_HOUR,
+        touchAction: pintar ? "none" : "pan-y",
+      }}
       onPointerDown={handleDown}
       onPointerMove={e => { if (drag?.weekday === weekday) onDragMove(weekday, slotFromEvent(e)); }}
       onPointerUp={() => { if (drag?.weekday === weekday) onDragEnd(weekday); }}
@@ -125,6 +134,7 @@ export default function BusyTimesTab() {
     return hoje === 0 || hoje === 6 ? 1 : hoje;
   });
   const [drag, setDrag] = useState<Drag | null>(null);
+  const [pintar, setPintar] = useState(false);
   const dragEndedAt = useRef(0);
 
   const meus = useMemo(
@@ -194,11 +204,26 @@ export default function BusyTimesTab() {
             Meus horários ocupados
           </h2>
           <p className="text-sm text-muted-foreground">
-            {isMobile
-              ? "Toque nas meias horas em que você NÃO está livre."
-              : "Arraste para marcar quando você NÃO está livre — aula, estágio, trabalho. Arraste sobre um bloco vermelho para liberar."}
+            {!isMobile
+              ? "Arraste para marcar quando você NÃO está livre — aula, estágio, trabalho. Arraste sobre um bloco vermelho para liberar."
+              : pintar
+                ? "Arraste o dedo na grade para marcar. Sobre um bloco vermelho, o arraste libera. Use a régua de horas à esquerda para rolar."
+                : "Toque nas meias horas em que você NÃO está livre, ou ligue o arraste com o dedo."}
           </p>
         </div>
+        {isMobile && (
+          <button
+            type="button"
+            onClick={() => setPintar(v => !v)}
+            aria-pressed={pintar}
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-colors ${
+              pintar ? "bg-rose-500 text-white" : "bg-muted text-muted-foreground hover:bg-accent"
+            }`}
+          >
+            {pintar ? <Hand className="h-3.5 w-3.5" /> : <MoveVertical className="h-3.5 w-3.5" />}
+            {pintar ? "Arrastando" : "Arrastar o dedo"}
+          </button>
+        )}
         {!isMobile && (
           <button
             type="button"
@@ -248,7 +273,15 @@ export default function BusyTimesTab() {
         </div>
 
         <div className="grid overflow-x-auto" style={{ gridTemplateColumns: gridCols }}>
-          <div className="relative" style={{ height: (RANGE.end - RANGE.start) / 60 * PX_PER_HOUR }}>
+          {/* A régua fica sempre rolável: no modo de pintura, é por ela que se
+              percorre o dia sem sair do modo */}
+          <div
+            className="relative"
+            style={{
+              height: (RANGE.end - RANGE.start) / 60 * PX_PER_HOUR,
+              touchAction: "pan-y",
+            }}
+          >
             {horas.map(m => (
               <span
                 key={m}
@@ -270,6 +303,7 @@ export default function BusyTimesTab() {
               onDragMove={onDragMove}
               onDragEnd={onDragEnd}
               onSlotClick={onSlotClick}
+              pintar={pintar}
             />
           ))}
         </div>
