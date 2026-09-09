@@ -56,25 +56,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import CobrancaTab from "@/components/cobranca/CobrancaTab";
 
 function TeamTabs({ teamId, teamName }: { teamId: string; teamName: string }) {
-  type Tab = "quadro" | "notas" | "presencas" | "cobranca";
+  type Tab = "quadro" | "notas" | "presencas";
   const [tab, setTab] = useState<Tab>("quadro");
-  const { people, teams } = useData();
-  const { isAdmin } = useAuth();
-  // Cobrança é ferramenta de gestão: só diretores (owner/admin), nem líderes
-  const canCharge = isAdmin;
-  const teamMembers = useMemo(() => {
-    const team = teams.find(t => t.id === teamId);
-    return people.filter(p => team?.memberIds.includes(p.id));
-  }, [people, teams, teamId]);
-
   const tabs: { v: Tab; label: string }[] = [
     { v: "quadro", label: "Quadro CB" },
     { v: "notas", label: "Links úteis" },
     { v: "presencas", label: "Controle de Presenças" },
-    ...(canCharge ? [{ v: "cobranca" as Tab, label: "Cobrança" }] : []),
   ];
 
   // Use team id as a virtual area key (prefixed to avoid collision with real areas)
@@ -94,9 +83,6 @@ function TeamTabs({ teamId, teamName }: { teamId: string; teamName: string }) {
       {tab === "notas" && <TeamNotesTab teamAreaKey={teamAreaKey} />}
       {tab === "quadro" && <TeamKanbanTab teamId={teamId} teamAreaKey={teamAreaKey} />}
       {tab === "presencas" && <TeamAttendanceTab teamId={teamId} teamAreaKey={teamAreaKey} />}
-      {tab === "cobranca" && canCharge && (
-        <CobrancaTab areaKey={teamAreaKey} members={teamMembers} scopeLabel={teamName} />
-      )}
     </>
   );
 }
