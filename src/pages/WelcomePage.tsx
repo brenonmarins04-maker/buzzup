@@ -33,6 +33,8 @@ export default function WelcomePage() {
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  // Workspace em que a pessoa tocou — pinta de azul na hora, antes de entrar
+  const [pressed, setPressed] = useState<string | null>(null);
 
   // Stagger trigger: fires shortly after AnimatePresence mounts this component
   const [contentIn, setContentIn] = useState(false);
@@ -59,17 +61,18 @@ export default function WelcomePage() {
   }, [hubStatus, loading, refreshHub, user]);
 
   const enterWorkspace = async (id: string) => {
+    if (leaving) return; // já está entrando: um segundo toque não faz nada
+    setPressed(id);
     trackPlatformEvent("workspace_entered", {
       email: user?.email,
       metadata: { workspace_id: id },
     });
-    // Trigger exit animations on cards + panel morph
     setLeaving(true);
     setGlobalLeaving(true);
-    // Espera a animação única (encolher + escurecer, 0.45s) terminar antes de
-    // trocar de rota, pra o painel já estar na cor/largura da sidebar.
-    await new Promise(r => setTimeout(r, 460));
-    // Reset global leaving after AuthLayout unmounts (no visual effect)
+    // Só o suficiente para o azul do toque ser visto. Antes eram 460ms de tela
+    // parada, tempo em que dava para achar que o clique não pegou e clicar de
+    // novo — de graça, num app onde a visita dura 15 a 30 segundos.
+    await new Promise(r => setTimeout(r, 130));
     setTimeout(() => setGlobalLeaving(false), 200);
     flushSync(() => { setActiveWorkspaceId(id); });
     navigate("/", { replace: true });
@@ -222,10 +225,23 @@ export default function WelcomePage() {
                 {myWorkspaces.map((w, i) => (
                   <div
                     key={w.workspace_id}
-                    onClick={() => enterWorkspace(w.workspace_id)}
                     style={fadeUp(i + 1)}
-                    className="group relative text-left rounded-3xl border border-border/50 bg-white p-6 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/8 transition-[border-color,box-shadow] cursor-pointer flex items-center gap-4"
+                    className={`group relative text-left rounded-3xl border p-6 transition-[border-color,box-shadow,background-color] duration-100 flex items-center gap-4 ${
+                      pressed === w.workspace_id
+                        ? "border-primary bg-primary/10 shadow-lg shadow-primary/15"
+                        : "border-border/50 bg-white hover:border-primary/40 hover:shadow-xl hover:shadow-primary/8"
+                    }`}
                   >
+                    {/* Botão que cobre o card inteiro. Ele existe porque a
+                        lixeira é um botão e um não pode ficar dentro do outro.
+                        O toque pinta de azul na hora, sem esperar a navegação. */}
+                    <button
+                      type="button"
+                      aria-label={`Entrar em ${w.name}`}
+                      onPointerDown={() => setPressed(w.workspace_id)}
+                      onClick={() => enterWorkspace(w.workspace_id)}
+                      className="absolute inset-0 z-10 rounded-3xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                    />
                     <div className="h-14 w-14 rounded-2xl bg-primary/8 text-primary flex items-center justify-center shrink-0">
                       <Building2 className="h-7 w-7" />
                     </div>
@@ -243,7 +259,7 @@ export default function WelcomePage() {
                         type="button"
                         title="Mover para lixeira"
                         onClick={e => { e.stopPropagation(); onTrashWorkspace(w.workspace_id, w.name); }}
-                        className="opacity-0 group-hover:opacity-100 p-2 rounded-xl text-muted-foreground/40 hover:text-destructive hover:bg-destructive/8 transition-all shrink-0"
+                        className="relative z-20 opacity-60 sm:opacity-0 sm:group-hover:opacity-100 p-2 rounded-xl text-muted-foreground/40 hover:text-destructive hover:bg-destructive/8 transition-all shrink-0"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>

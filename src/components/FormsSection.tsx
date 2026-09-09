@@ -22,6 +22,9 @@ export default function FormsSection() {
   const [targetValues, setTargetValues] = useState<string[]>([]);
   const [editing, setEditing] = useState<WorkspaceForm | null>(null);
   const [points, setPoints] = useState(1);
+  // Obrigatório é o padrão: publicar um formulário já oferecendo a saída
+  // de "não vou preencher" convida a não preencher
+  const [required, setRequired] = useState(true);
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<WorkspaceForm | null>(null);
   const [showCompleted, setShowCompleted] = useState(false);
@@ -121,6 +124,7 @@ export default function FormsSection() {
     setTargetType(f.targetType);
     setTargetValues(formTargets(f));
     setPoints(f.points ?? 1);
+    setRequired(f.required !== false);
     setCreateOpen(true);
   };
 
@@ -142,11 +146,11 @@ export default function FormsSection() {
       await updateForm(editing.id, {
         title: title.trim(), url: finalUrl, targetType,
         targetValues: targetType === "all" ? [] : targetValues,
-        description: description.trim(), points,
+        description: description.trim(), points, required,
       });
       toast.success("Formulário atualizado!");
     } else {
-      await addForm(title.trim(), finalUrl, targetType, targetType === "all" ? [] : targetValues, description.trim(), points);
+      await addForm(title.trim(), finalUrl, targetType, targetType === "all" ? [] : targetValues, description.trim(), points, required);
       toast.success("Formulário publicado!");
     }
     setBusy(false);
@@ -224,7 +228,8 @@ export default function FormsSection() {
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" /> Já preenchi
                 </button>
-                {/* Ação secundária: discreta, sem competir com as duas principais */}
+                {/* Só em formulário opcional; no obrigatório não há saída */}
+                {f.required === false && (
                 <button
                   onClick={() => { declineForm(f.id); }}
                   title="Marcar que você não vai preencher este formulário"
@@ -232,6 +237,7 @@ export default function FormsSection() {
                 >
                   <XCircle className="h-3 w-3" /> Não vou preencher
                 </button>
+                )}
               </div>
             </div>
           ))}
@@ -365,6 +371,36 @@ export default function FormsSection() {
               />
               <p className="text-[11px] text-muted-foreground">
                 Quanto cada pessoa ganha ao marcar este formulário como preenchido.
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Preenchimento</Label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRequired(true)}
+                  aria-pressed={required}
+                  className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
+                    required ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"
+                  }`}
+                >
+                  Obrigatório
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRequired(false)}
+                  aria-pressed={!required}
+                  className={`flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
+                    !required ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"
+                  }`}
+                >
+                  Opcional
+                </button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {required
+                  ? "Todo mundo precisa preencher — o botão \"Não vou preencher\" não aparece."
+                  : "Quem não for preencher pode dizer isso pelo botão \"Não vou preencher\"."}
               </p>
             </div>
             <div className="space-y-1.5">

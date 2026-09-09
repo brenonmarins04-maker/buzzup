@@ -10,7 +10,7 @@ import { GENERAL_SHORTCUTS_PREFIX, parseGeneralShortcuts, serializeGeneralShortc
 
 type Json = Database["public"]["Tables"]["tasks"]["Row"]["checklist"];
 
-export type Person = { id: string; name: string; nickname?: string | null; emoji?: string | null; area?: string | null; areas?: string[] | null; userId?: string | null; leaderArea?: string | null; leaderAreas?: string[] | null };
+export type Person = { id: string; name: string; nickname?: string | null; /** Apelido proposto pela pessoa, à espera de um diretor aprovar */ pendingNickname?: string | null; emoji?: string | null; area?: string | null; areas?: string[] | null; userId?: string | null; leaderArea?: string | null; leaderAreas?: string[] | null };
 export type Project = {
   id: string;
   name: string;
@@ -59,7 +59,7 @@ export type Broadcast = { id: string; message: string; durationDays: number; cre
 export type GeneralShortcut = { id: string; label: string; url: string; icon: string };
 
 export type WorkspaceFormTarget = "all" | "area" | "team";
-export type WorkspaceForm = { id: string; title: string; description: string; url: string; targetType: WorkspaceFormTarget; targetValue: string | null; targetValues: string[]; points: number; createdBy: string | null; createdAt: string };
+export type WorkspaceForm = { id: string; title: string; description: string; url: string; targetType: WorkspaceFormTarget; targetValue: string | null; targetValues: string[]; points: number; /** Obrigatório esconde o botão "Não vou preencher" */ required: boolean; createdBy: string | null; createdAt: string };
 /** Destinos do formulário: usa a lista nova e cai no destino único antigo. */
 function normalizeFormTargets(list: unknown, legacy?: string | null): string[] {
   const arr = Array.isArray(list) ? list.filter((v): v is string => typeof v === "string" && !!v) : [];
@@ -95,6 +95,12 @@ type DataContextType = {
   updatePersonNickname: (id: string, nickname: string | null) => void;
   /** Emoji do próprio usuário no ranking. Vazio remove. */
   setMyEmoji: (emoji: string | null) => Promise<void>;
+  /** A pessoa propõe o próprio apelido; fica pendente até um diretor aprovar. */
+  setMyNickname: (nickname: string | null) => Promise<void>;
+  /** Diretor aceita o apelido proposto. */
+  approvePendingNickname: (personId: string, nickname: string) => Promise<void>;
+  /** Diretor descarta o apelido proposto. */
+  rejectPendingNickname: (personId: string) => Promise<void>;
   /** Limpa o apelido de várias pessoas de uma vez. Devolve quantas mudaram. */
   resetPersonNicknames: (ids: string[]) => Promise<number>;
   updatePersonArea: (id: string, area: string | null) => void;
@@ -169,8 +175,8 @@ type DataContextType = {
   deleteBroadcast: (id: string) => Promise<void>;
   saveGeneralShortcuts: (shortcuts: GeneralShortcut[]) => Promise<void>;
 
-  addForm: (title: string, url: string, targetType: WorkspaceFormTarget, targetValues: string[], description?: string, points?: number) => Promise<void>;
-  updateForm: (id: string, patch: { title: string; url: string; targetType: WorkspaceFormTarget; targetValues: string[]; description: string; points: number }) => Promise<void>;
+  addForm: (title: string, url: string, targetType: WorkspaceFormTarget, targetValues: string[], description?: string, points?: number, required?: boolean) => Promise<void>;
+  updateForm: (id: string, patch: { title: string; url: string; targetType: WorkspaceFormTarget; targetValues: string[]; description: string; points: number; required: boolean }) => Promise<void>;
   declineForm: (formId: string) => Promise<void>;
   deleteForm: (id: string) => Promise<void>;
   markFormCompleted: (formId: string) => Promise<void>;
@@ -285,7 +291,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
           ? p.leader_areas.split(",").filter(Boolean)
           : [];
         const leaderArea = leaderAreas[0] || null;
-        return { id: p.id, name: p.name, nickname: p.nickname ?? null, emoji: p.emoji ?? null, area: rawArea, areas, userId: p.user_id ?? null, leaderArea, leaderAreas };
+        return { id: p.id, name: p.name, nickname: p.nickname ?? null, pendingNickname: p.pending_nickname ?? null, emoji: p.emoji ?? null, area: rawArea, areas, userId: p.user_id ?? null, leaderArea, leaderAreas };
       });
 
       const pplMap = new Map(pplList.map(p => [p.id, p]));
@@ -373,7 +379,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setAttendanceRecords(((arRes as any)?.data || []).map((r: any) => ({ id: r.id, area: r.area, personId: r.person_id, date: r.date, status: (r.status ?? "P") as AttendanceStatus, justification: r.justification ?? "" })));
       setBroadcasts(((bcRes as any)?.data || []).map((b: any) => ({ id: b.id, message: b.message, durationDays: b.duration_days ?? 7, createdAt: b.created_at, expiresAt: b.expires_at, createdBy: b.created_by ?? null })));
       // Forms — se as tabelas ainda não existirem no banco, os resultados vêm com erro e ficam vazios (não quebra o app)
-      setForms(((fmRes as any)?.data || []).map((f: any) => ({ id: f.id, title: f.title, description: f.description ?? "", url: f.url, targetType: (f.target_type ?? "all") as WorkspaceFormTarget, targetValue: f.target_value ?? null, targetValues: normalizeFormTargets(f.target_values, f.target_value), points: f.points ?? 1, createdBy: f.created_by ?? null, createdAt: f.created_at })));
+      setForms(((fmRes as any)?.data || []).map((f: any) => ({ id: f.id, title: f.title, description: f.description ?? "", url: f.url, targetType: (f.target_type ?? "all") as WorkspaceFormTarget, targetValue: f.target_value ?? null, targetValues: normalizeFormTargets(f.target_values, f.target_value), points: f.points ?? 1, required: f.required !== false, createdBy: f.created_by ?? null, createdAt: f.created_at })));
       setFormCompletions(((fcRes as any)?.data || []).map((c: any) => ({ id: c.id, formId: c.form_id, userId: c.user_id, completedAt: c.completed_at, status: (c.status === "declined" ? "declined" : "done") as "done" | "declined" })));
 
       // Sync: migrate tasks with deadlines into parkingItems so they appear in Quadro CB
@@ -436,7 +442,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         const areas = rawArea ? rawArea.split(",").filter(Boolean) : [];
         const leaderAreas: string[] = typeof p.leader_areas === "string" && p.leader_areas.trim()
           ? p.leader_areas.split(",").filter(Boolean) : [];
-        return { id: p.id, name: p.name, nickname: p.nickname ?? null, emoji: p.emoji ?? null, area: rawArea, areas, userId: p.user_id ?? null, leaderArea: leaderAreas[0] || null, leaderAreas };
+        return { id: p.id, name: p.name, nickname: p.nickname ?? null, pendingNickname: p.pending_nickname ?? null, emoji: p.emoji ?? null, area: rawArea, areas, userId: p.user_id ?? null, leaderArea: leaderAreas[0] || null, leaderAreas };
       });
       const nextPersonIds = new Set(pplList.map(person => person.id));
       const removedPeople = [...pplMapRef.current.values()].filter(person => !nextPersonIds.has(person.id));
@@ -576,7 +582,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     const refetchForms = async () => {
       const { data } = await (supabase.from as any)("workspace_forms").select("*").eq("workspace_id", wsId).order("created_at", { ascending: false });
-      setForms((data || []).map((f: any) => ({ id: f.id, title: f.title, description: f.description ?? "", url: f.url, targetType: (f.target_type ?? "all") as WorkspaceFormTarget, targetValue: f.target_value ?? null, targetValues: normalizeFormTargets(f.target_values, f.target_value), points: f.points ?? 1, createdBy: f.created_by ?? null, createdAt: f.created_at })));
+      setForms((data || []).map((f: any) => ({ id: f.id, title: f.title, description: f.description ?? "", url: f.url, targetType: (f.target_type ?? "all") as WorkspaceFormTarget, targetValue: f.target_value ?? null, targetValues: normalizeFormTargets(f.target_values, f.target_value), points: f.points ?? 1, required: f.required !== false, createdBy: f.created_by ?? null, createdAt: f.created_at })));
     };
 
     const refetchFormCompletions = async () => {
@@ -618,17 +624,73 @@ export function DataProvider({ children }: { children: ReactNode }) {
       form_completions:     () => debounced("formCompletions", refetchFormCompletions),
     };
 
+    /**
+     * Recarrega o que muda no dia a dia. Serve de rede de segurança: enquanto o
+     * socket esteve caído (celular dormindo, aba em segundo plano, rede
+     * oscilando) nenhum evento chegou, e sem isso a tela ficaria desatualizada
+     * até um F5 — foi o caso das demandas que não apareciam para os outros.
+     */
+    const catchUp = () => {
+      refetchParkingItems();
+      refetchTasks();
+      refetchPeople();
+      refetchPosts();
+      refetchEvents();
+      refetchGamificationAwards();
+      refetchForms();
+      refetchFormCompletions();
+    };
+
     // Unique suffix prevents collision when removeChannel (async) hasn't finished
     // before this effect re-runs (e.g. AppLayout remount after an error redirect).
     let channel: ReturnType<typeof supabase.channel> | null = null;
-    try {
-      channel = supabase.channel(`ws-${workspaceId}-${Math.random().toString(36).slice(2)}`);
-      Object.entries(TABLE_HANDLERS).forEach(([table, handler]) => {
-        channel!.on("postgres_changes", { event: "*", schema: "public", table }, handler);
-      });
-      channel.subscribe();
-    } catch { channel = null; }
+    let cancelledRT = false;
+    let retry: ReturnType<typeof setTimeout> | null = null;
+    let tentativas = 0;
+
+    const abrirCanal = () => {
+      if (cancelledRT) return;
+      try {
+        channel = supabase.channel(`ws-${workspaceId}-${Math.random().toString(36).slice(2)}`);
+        Object.entries(TABLE_HANDLERS).forEach(([table, handler]) => {
+          channel!.on("postgres_changes", { event: "*", schema: "public", table }, handler);
+        });
+        channel.subscribe(status => {
+          if (cancelledRT) return;
+          if (status === "SUBSCRIBED") {
+            tentativas = 0;
+            catchUp();
+            return;
+          }
+          // Antes o subscribe não tinha callback: caindo a conexão, nada
+          // reconectava e a pessoa ficava sem atualização até recarregar
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+            const canal = channel;
+            channel = null;
+            if (canal) supabase.removeChannel(canal);
+            const espera = Math.min(1000 * 2 ** tentativas, 30_000);
+            tentativas += 1;
+            retry = setTimeout(abrirCanal, espera);
+          }
+        });
+      } catch {
+        channel = null;
+      }
+    };
+
+    abrirCanal();
+
+    // Voltar para a aba (ou para a rede) também recarrega: eventos perdidos
+    // enquanto a tela estava escondida não chegam depois
+    const aoVoltar = () => { if (document.visibilityState === "visible") catchUp(); };
+    document.addEventListener("visibilitychange", aoVoltar);
+    window.addEventListener("online", catchUp);
+
     return () => {
+      cancelledRT = true;
+      if (retry) clearTimeout(retry);
+      document.removeEventListener("visibilitychange", aoVoltar);
+      window.removeEventListener("online", catchUp);
       timers.forEach(t => clearTimeout(t));
       if (channel) supabase.removeChannel(channel);
     };
@@ -809,6 +871,44 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
     setPeople(prev => prev.map(p => p.userId === uid ? { ...p, emoji: valor } : p));
   }, [workspaceId, uid]);
+
+  const setMyNickname = useCallback(async (nickname: string | null) => {
+    if (!workspaceId || !uid) return;
+    const valor = nickname && nickname.trim() ? nickname.trim() : null;
+
+    const { error } = await (supabase.rpc as any)("set_my_nickname", {
+      _ws_id: workspaceId, _nickname: valor,
+    });
+    if (error) {
+      const faltaSql = /set_my_nickname|does not exist|schema cache/i.test(error.message || "");
+      toast.error(faltaSql
+        ? "Rode o apelidos-aprovacao-setup.sql no Supabase para ativar os apelidos."
+        : "Erro ao enviar o apelido");
+      return;
+    }
+    setPeople(prev => prev.map(p => p.userId === uid ? { ...p, pendingNickname: valor } : p));
+    toast.success(valor
+      ? "Apelido enviado! Um diretor precisa aprovar antes de aparecer no ranking."
+      : "Pedido de apelido cancelado.");
+  }, [workspaceId, uid]);
+
+  // O apelido vem de quem chama: ler de um ref aqui poderia pegar um valor
+  // defasado e aprovar coisa diferente da que o diretor viu na tela
+  const approvePendingNickname = useCallback(async (personId: string, nickname: string) => {
+    const proposto = nickname.trim() || null;
+    const { error } = await (supabase.from("people") as any)
+      .update({ nickname: proposto, pending_nickname: null }).eq("id", personId);
+    if (error) { toast.error("Erro ao aprovar o apelido"); return; }
+    setPeople(prev => prev.map(p => p.id === personId
+      ? { ...p, nickname: proposto, pendingNickname: null } : p));
+  }, []);
+
+  const rejectPendingNickname = useCallback(async (personId: string) => {
+    const { error } = await (supabase.from("people") as any)
+      .update({ pending_nickname: null }).eq("id", personId);
+    if (error) { toast.error("Erro ao recusar o apelido"); return; }
+    setPeople(prev => prev.map(p => p.id === personId ? { ...p, pendingNickname: null } : p));
+  }, []);
 
   const resetPersonNicknames = useCallback(async (ids: string[]) => {
     if (ids.length === 0) return 0;
@@ -1396,20 +1496,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [workspaceId, uid, broadcasts, isAdmin, isOwner]);
 
   // === FORMS (Formulários do workspace) ===
-  const addForm = useCallback(async (title: string, url: string, targetType: WorkspaceFormTarget, targetValues: string[], description = "", points = 1) => {
+  const addForm = useCallback(async (title: string, url: string, targetType: WorkspaceFormTarget, targetValues: string[], description = "", points = 1, required = true) => {
     if (!workspaceId) return;
     const pts = clampDemandPoints(points);
     const targets = targetType === "all" ? [] : targetValues.filter(Boolean);
     const { data, error } = await (supabase.from("workspace_forms") as any)
-      .insert({ workspace_id: workspaceId, title, description, url, target_type: targetType, target_value: targets[0] ?? null, target_values: targets, points: pts, created_by: uid })
+      .insert({ workspace_id: workspaceId, title, description, url, target_type: targetType, target_value: targets[0] ?? null, target_values: targets, points: pts, required, created_by: uid })
       .select().single();
     if (error) { toast.error("Erro ao criar formulário"); return; }
-    if (data) setForms(prev => [{ id: data.id, title: data.title, description: data.description ?? "", url: data.url, targetType: (data.target_type ?? "all") as WorkspaceFormTarget, targetValue: data.target_value ?? null, targetValues: normalizeFormTargets(data.target_values, data.target_value), points: data.points ?? pts, createdBy: data.created_by ?? null, createdAt: data.created_at }, ...prev]);
+    if (data) setForms(prev => [{ id: data.id, title: data.title, description: data.description ?? "", url: data.url, targetType: (data.target_type ?? "all") as WorkspaceFormTarget, targetValue: data.target_value ?? null, targetValues: normalizeFormTargets(data.target_values, data.target_value), points: data.points ?? pts, required: data.required !== false, createdBy: data.created_by ?? null, createdAt: data.created_at }, ...prev]);
   }, [workspaceId, uid]);
 
   const updateForm = useCallback(async (
     id: string,
-    patch: { title: string; url: string; targetType: WorkspaceFormTarget; targetValues: string[]; description: string; points: number },
+    patch: { title: string; url: string; targetType: WorkspaceFormTarget; targetValues: string[]; description: string; points: number; required: boolean },
   ) => {
     const pts = clampDemandPoints(patch.points);
     const targets = patch.targetType === "all" ? [] : patch.targetValues.filter(Boolean);
@@ -1422,11 +1522,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         target_value: targets[0] ?? null,
         target_values: targets,
         points: pts,
+        required: patch.required,
       })
       .eq("id", id);
     if (error) { toast.error("Erro ao salvar o formulário"); return; }
     setForms(prev => prev.map(f => f.id === id
-      ? { ...f, title: patch.title, description: patch.description, url: patch.url, targetType: patch.targetType, targetValue: targets[0] ?? null, targetValues: targets, points: pts }
+      ? { ...f, title: patch.title, description: patch.description, url: patch.url, targetType: patch.targetType, targetValue: targets[0] ?? null, targetValues: targets, points: pts, required: patch.required }
       : f));
   }, []);
 
@@ -1563,7 +1664,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     <DataContext.Provider value={{
       people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, gamificationActions, gamificationAwards, leadThermometer, attendanceSettings, attendanceRecords, broadcasts, generalShortcuts, forms, formCompletions, loading, workspaceId,
       pointsEarnedNotice, dismissPointsEarnedNotice,
-      addPerson, updatePerson, updatePersonNickname, resetPersonNicknames, setMyEmoji, updatePersonArea, updatePersonAreas, updatePersonLeaderArea, updatePersonLeaderAreas, deletePerson, removePersonFromWorkspaceState,
+      addPerson, updatePerson, updatePersonNickname, resetPersonNicknames, setMyEmoji, setMyNickname, approvePendingNickname, rejectPendingNickname, updatePersonArea, updatePersonAreas, updatePersonLeaderArea, updatePersonLeaderAreas, deletePerson, removePersonFromWorkspaceState,
       addTask, updateTask, deleteTask,
       addPost, updatePost, deletePost,
       addProject, updateProject, deleteProject,

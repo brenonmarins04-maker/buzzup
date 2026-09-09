@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Smile } from "lucide-react";
 import { useData } from "@/contexts/DataContext";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { EMOJI_OPTIONS } from "@/lib/gamificationEmoji";
@@ -21,11 +20,19 @@ export default function EmojiPicker({ atual }: { atual: string | null | undefine
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={atual ? `Seu emoji: ${atual}. Toque para trocar` : "Escolher seu emoji do ranking"}
-          title="Seu emoji no ranking"
-          className="h-14 w-14 shrink-0 rounded-xl border border-border bg-card text-2xl flex items-center justify-center transition-colors hover:bg-accent md:h-10 md:w-10 md:text-xl"
+          aria-label={atual
+            ? `Seu emoji: ${atual}. Toque para trocar`
+            : "Você ainda não escolheu seu emoji do ranking. Toque para escolher"}
+          title={atual ? "Seu emoji no ranking" : "Escolha seu emoji do ranking"}
+          /* Sem emoji o botão fica vermelho e pulsando: é fácil não reparar
+             num ícone neutro, e a pessoa passa poucos segundos na tela */
+          className={`h-14 w-14 shrink-0 rounded-xl border text-2xl flex items-center justify-center transition-colors md:h-10 md:w-10 md:text-xl ${
+            atual
+              ? "border-border bg-card hover:bg-accent"
+              : "animate-pulse border-red-500 bg-red-500/15 hover:bg-red-500/25"
+          }`}
         >
-          {atual || <Smile className="h-5 w-5 text-muted-foreground" />}
+          {atual || "⚠️"}
         </button>
       </PopoverTrigger>
 

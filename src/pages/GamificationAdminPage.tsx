@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Navigate } from "react-router-dom";
-import { Trophy, Search, Plus, Pencil, Trash2, Check, X, RotateCcw, ChevronDown, ChevronRight, AlertTriangle } from "lucide-react";
+import { Trophy, Search, Plus, Pencil, Trash2, Check, X, RotateCcw, ChevronDown, ChevronRight, AlertTriangle, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AREAS, getAreaLabel } from "@/lib/areas";
@@ -420,7 +420,8 @@ function AcoesTab() {
 }
 
 function ApelidosTab() {
-  const { people, updatePersonNickname, resetPersonNicknames } = useData();
+  const { people, updatePersonNickname, resetPersonNicknames,
+          approvePendingNickname, rejectPendingNickname } = useData();
   const [resetOpen, setResetOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -481,8 +482,67 @@ function ApelidosTab() {
     }
   };
 
+  // Quem mandou apelido e está esperando um diretor
+  const pendentes = useMemo(
+    () => people.filter(p => p.pendingNickname && p.pendingNickname.trim()),
+    [people],
+  );
+
   return (
     <div className="space-y-4">
+      {/* Pedidos de apelido — primeiro item da aba: é o que exige ação */}
+      {pendentes.length > 0 && (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-amber-600" />
+            <h3 className="text-sm font-bold text-foreground">
+              {pendentes.length === 1
+                ? "1 apelido esperando aprovação"
+                : `${pendentes.length} apelidos esperando aprovação`}
+            </h3>
+          </div>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            Enquanto não for aprovado, o apelido não aparece no ranking.
+          </p>
+
+          <div className="mt-3 space-y-2">
+            {pendentes.map(p => (
+              <div key={p.id} className="flex flex-wrap items-center gap-2 rounded-lg bg-card p-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-foreground">{p.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    quer ser <span className="font-bold text-foreground">"{p.pendingNickname}"</span>
+                    {p.nickname?.trim() && <> · hoje é "{p.nickname.trim()}"</>}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={async () => {
+                      await rejectPendingNickname(p.id);
+                      toast.success(`Apelido de ${p.name} recusado.`);
+                    }}
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="mr-1 h-3.5 w-3.5" /> Recusar
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={async () => {
+                      await approvePendingNickname(p.id, p.pendingNickname!);
+                      toast.success(`${p.name} agora é "${p.pendingNickname}".`);
+                    }}
+                  >
+                    <Check className="mr-1 h-3.5 w-3.5" /> Aprovar
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Search + Edit flow */}
       <div className="bg-card border border-border rounded-lg p-4">
         {!selectedId ? (

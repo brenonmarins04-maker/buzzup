@@ -12,6 +12,7 @@ import { AREAS, getTeamColor } from "@/lib/areas";
 import { isDemandOverdue, formatDemandDayMonth } from "@/lib/demandStatus";
 import FormsSection from "@/components/FormsSection";
 import EmojiPicker from "@/components/gamification/EmojiPicker";
+import NicknamePicker from "@/components/gamification/NicknamePicker";
 import GeneralShortcutsSection from "@/components/GeneralShortcutsSection";
 import CycleSelector from "@/components/gamification/CycleSelector";
 import { useGamificationCycles } from "@/hooks/useGamificationCycles";
@@ -252,9 +253,6 @@ export default function DashboardPage() {
         style={fadeUp(0)}
       >
       {currentPerson && (() => {
-        const myNickname = (currentPerson.nickname && currentPerson.nickname.trim())
-          ? currentPerson.nickname.trim()
-          : currentPerson.name;
         const myPoints = allRanking.find(r => r.id === currentPerson.id)?.points || 0;
         const myRankPos = allRanking.findIndex(r => r.id === currentPerson.id);
         const myRankLabel = myRankPos === 0 ? "🥇 1º lugar" : myRankPos === 1 ? "🥈 2º lugar" : myRankPos === 2 ? "🥉 3º lugar" : myRankPos >= 0 ? `${myRankPos + 1}º lugar` : "—";
@@ -352,7 +350,17 @@ export default function DashboardPage() {
                 {/* Identity */}
                 <div className="space-y-0.5 min-w-0 flex-1 md:flex-none">
                   <div className="flex items-center justify-between gap-3 md:block">
-                    <p className="text-base font-bold text-foreground leading-tight truncate">{myNickname}</p>
+                    <div className="min-w-0">
+                      <p className="text-base font-bold text-foreground leading-tight truncate">{currentPerson.name}</p>
+                      {/* Apelido logo abaixo do nome real, para a pessoa ver
+                          num relance se já tem um e em que pé ele está */}
+                      <div className="mt-0.5">
+                        <NicknamePicker
+                          nickname={currentPerson.nickname}
+                          pending={currentPerson.pendingNickname}
+                        />
+                      </div>
+                    </div>
                     <div className="flex items-center gap-2 shrink-0 md:hidden">
                       <EmojiPicker atual={currentPerson.emoji} />
                       <span className="h-14 w-14 rounded-xl border border-primary/20 bg-primary/10 text-3xl font-extrabold text-primary flex items-center justify-center">
@@ -470,6 +478,7 @@ export default function DashboardPage() {
                       {restRanking.map((r, i) => (
                         <li key={r.id} className={`hover-lift flex items-center gap-2.5 p-2.5 rounded-xl border border-border/55 ${r.points > 0 ? "bg-white/62" : "bg-white/35 opacity-60"}`}>
                           <span className="w-6 text-center text-xs font-bold text-muted-foreground">{top15.length + i + 1}</span>
+                          {r.emoji && <span className="text-base leading-none shrink-0" aria-hidden="true">{r.emoji}</span>}
                           <span className="flex-1 text-sm font-medium text-foreground truncate">{r.label}</span>
                           <span className={`text-xs font-bold ${r.points > 0 ? "text-primary" : "text-muted-foreground"}`}>
                             {r.points} pts
