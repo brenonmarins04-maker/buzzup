@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildScopes, canAdvance, clampPoints, EMPTY_DRAFT, isDraftComplete,
   isTeamScope, nextStep, pendingRequests, prevStep, scopeLabel, shortDate,
+  splitScopesForPerson,
   TEAM_PREFIX, WIZARD_STEPS,
   type DemandDraft, type DemandRequest,
 } from "@/lib/demandRequests";
@@ -143,5 +144,43 @@ describe("prazo curto", () => {
 
   it("sem data devolve vazio", () => {
     expect(shortDate("")).toBe("");
+  });
+});
+
+describe("meus destinos primeiro", () => {
+  const escopos = buildScopes(teams);
+
+  it("separa as áreas em que a pessoa está", () => {
+    const { meus, outros } = splitScopesForPerson(escopos, {
+      personId: "ana", areas: ["mercado"],
+    });
+    expect(meus.some(e => e.key === "mercado")).toBe(true);
+    expect(outros.some(e => e.key === "mercado")).toBe(false);
+  });
+
+  it("o time em que a pessoa está entra nos meus", () => {
+    const { meus } = splitScopesForPerson(escopos, { personId: "ana", areas: [] });
+    // Ana está no Time Alpha (memberIds), não no Beta
+    expect(meus.map(e => e.label)).toContain("Time Alpha");
+    expect(meus.map(e => e.label)).not.toContain("Time Beta");
+  });
+
+  it("quem não está em nada tem tudo do outro lado", () => {
+    const { meus, outros } = splitScopesForPerson(escopos, { personId: "zé", areas: [] });
+    expect(meus).toEqual([]);
+    expect(outros.length).toBe(escopos.length);
+  });
+
+  it("nada se perde na divisão", () => {
+    const { meus, outros } = splitScopesForPerson(escopos, {
+      personId: "ana", areas: ["mercado", "gg"],
+    });
+    expect(meus.length + outros.length).toBe(escopos.length);
+  });
+
+  it("pessoa sem cadastro não quebra a separação", () => {
+    const { meus, outros } = splitScopesForPerson(escopos, { personId: null, areas: [] });
+    expect(meus).toEqual([]);
+    expect(outros.length).toBe(escopos.length);
   });
 });

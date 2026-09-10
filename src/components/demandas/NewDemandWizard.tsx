@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, CalendarDays, Check } from "lucide-react";
+import { ArrowLeft, CalendarDays, Check, ChevronDown } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,9 +8,42 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import MonthDayPicker from "@/components/demandas/MonthDayPicker";
 import {
   buildScopes, canAdvance, clampPoints, EMPTY_DRAFT, nextStep, prevStep,
-  scopeLabel, shortDate, SUGGESTED_POINTS, WIZARD_STEPS,
-  type DemandDraft, type WizardStep,
+  scopeLabel, shortDate, splitScopesForPerson, SUGGESTED_POINTS, WIZARD_STEPS,
+  type DemandDraft, type DemandScope, type WizardStep,
 } from "@/lib/demandRequests";
+
+/** Grade de botões grandes. Fora do componente para não remontar a cada render. */
+function ScopeGrid({
+  escopos, selecionado, onEscolher,
+}: {
+  escopos: DemandScope[];
+  selecionado: string | null;
+  onEscolher: (key: string) => void;
+}) {
+  if (escopos.length === 0) return null;
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {escopos.map(e => (
+        <button
+          key={e.key}
+          type="button"
+          onClick={() => onEscolher(e.key)}
+          className={`flex min-h-[76px] flex-col items-start justify-end rounded-2xl border-2 p-3 text-left transition-all active:scale-95 ${
+            selecionado === e.key
+              ? "border-primary bg-primary/10"
+              : "border-border bg-card hover:border-primary/50 hover:bg-accent"
+          }`}
+        >
+          <span className="mb-1 h-2.5 w-2.5 rounded-full" style={{ backgroundColor: e.color }} />
+          <span className="text-sm font-bold leading-tight text-foreground">{e.label}</span>
+          <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+            {e.kind === "team" ? "Time" : "Área"}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 const TITULOS: Record<WizardStep, string> = {
   escopo: "Para qual área ou time?",
@@ -23,19 +57,32 @@ export default function NewDemandWizard({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
-  const { teams, addDemandRequest } = useData();
+  const { people, teams, addDemandRequest } = useData();
+  const { user } = useAuth();
   const [passo, setPasso] = useState<WizardStep>("escopo");
   const [draft, setDraft] = useState<DemandDraft>(EMPTY_DRAFT);
   const [enviando, setEnviando] = useState(false);
+  const [verOutros, setVerOutros] = useState(false);
   const tituloRef = useRef<HTMLInputElement>(null);
 
   const escopos = useMemo(() => buildScopes(teams), [teams]);
+
+  // Áreas e times de quem está enviando aparecem direto; o resto fica atrás
+  // de um toque
+  const { meus, outros } = useMemo(() => {
+    const eu = people.find(p => p.userId === user?.id);
+    return splitScopesForPerson(escopos, {
+      personId: eu?.id ?? null,
+      areas: eu?.areas && eu.areas.length ? eu.areas : (eu?.area ? [eu.area] : []),
+    });
+  }, [escopos, people, user?.id]);
 
   useEffect(() => {
     if (!open) return;
     setPasso("escopo");
     setDraft(EMPTY_DRAFT);
     setEnviando(false);
+    setVerOutros(false);
   }, [open]);
 
   // Chegando no passo do nome, o cursor já fica no campo: no computador o
@@ -93,27 +140,38 @@ export default function NewDemandWizard({
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
           {passo === "escopo" && (
-            <div className="grid grid-cols-2 gap-2">
-              {escopos.map(e => (
-                <button
-                  key={e.key}
-                  type="button"
-                  onClick={() => escolherEscopo(e.key)}
-                  className={`flex min-h-[76px] flex-col items-start justify-end rounded-2xl border-2 p-3 text-left transition-all active:scale-95 ${
-                    draft.area === e.key
-                      ? "border-primary bg-primary/10"
-                      : "border-border bg-card hover:border-primary/50 hover:bg-accent"
-                  }`}
-                >
-                  <span className="mb-1 h-2.5 w-2.5 rounded-full" style={{ backgroundColor: e.color }} />
-                  <span className="text-sm font-bold leading-tight text-foreground">{e.label}</span>
-                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                    {e.kind === "team" ? "Time" : "Área"}
-                  </span>
-                </button>
-              ))}
+            <div className="space-y-3">
+              <ScopeGrid escopos={meus} selecionado={draft.area} onEscolher={escolherEscopo} />
+
+              {meus.length === 0 && outros.length > 0 && (
+                <p className="text-center text-xs text-muted-foreground">
+                  Você não está em nenhuma área ou time ainda.
+                </p>
+              )}
+
+              {outros.length > 0 && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setVerOutros(v => !v)}
+                    aria-expanded={verOutros}
+                    className="flex w-full items-center justify-center gap-1 rounded-xl py-2 text-xs font-semibold text-muted-foreground hover:bg-accent hover:text-foreground"
+                  >
+                    <ChevronDown className={`h-4 w-4 transition-transform ${verOutros ? "rotate-180" : ""}`} />
+                    {verOutros
+                      ? "Esconder as outras"
+                      : `Outras áreas e times (${outros.length})`}
+                  </button>
+                  {verOutros && (
+                    <div className="mt-2">
+                      <ScopeGrid escopos={outros} selecionado={draft.area} onEscolher={escolherEscopo} />
+                    </div>
+                  )}
+                </div>
+              )}
+
               {escopos.length === 0 && (
-                <p className="col-span-2 py-6 text-center text-sm text-muted-foreground">
+                <p className="py-6 text-center text-sm text-muted-foreground">
                   Nenhuma área ou time disponível.
                 </p>
               )}

@@ -657,7 +657,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       broadcasts:           () => debounced("broadcasts", refetchBroadcasts),
       workspace_forms:      () => debounced("forms", refetchForms),
       form_completions:     () => debounced("formCompletions", refetchFormCompletions),
-      demand_requests:      () => debounced("demandRequests", refetchDemandRequests),
+      // Sem espera: é o caso em que alguém está do outro lado esperando o
+      // pedido aparecer para decidir
+      demand_requests:      () => { void refetchDemandRequests(); },
     };
 
     /**
@@ -678,58 +680,67 @@ export function DataProvider({ children }: { children: ReactNode }) {
       refetchDemandRequests();
     };
 
-    // Unique suffix prevents collision when removeChannel (async) hasn't finished
-    // before this effect re-runs (e.g. AppLayout remount after an error redirect).
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-    let cancelledRT = false;
-    let retry: ReturnType<typeof setTimeout> | null = null;
-    let tentativas = 0;
+    /**
+     * Um canal por tabela, de propósito.
+     *
+     * O supabase-js manda TODAS as assinaturas num único join. Se o servidor
+     * recusa uma — uma tabela que ainda não existe neste banco, por exemplo —
+     * o canal inteiro cai e nada mais chega ao vivo. Separando, uma tabela
+     * ausente só custa ela mesma.
+     */
+    const canais = new Map<string, ReturnType<typeof supabase.channel>>();
+    const retries = new Map<string, ReturnType<typeof setTimeout>>();
+    const tentativas = new Map<string, number>();
+    let encerrado = false;
+    let jaRecuperou = false;
 
-    const abrirCanal = () => {
-      if (cancelledRT) return;
-      try {
-        channel = supabase.channel(`ws-${workspaceId}-${Math.random().toString(36).slice(2)}`);
-        Object.entries(TABLE_HANDLERS).forEach(([table, handler]) => {
-          channel!.on("postgres_changes", { event: "*", schema: "public", table }, handler);
-        });
-        channel.subscribe(status => {
-          if (cancelledRT) return;
-          if (status === "SUBSCRIBED") {
-            tentativas = 0;
-            catchUp();
-            return;
-          }
-          // Antes o subscribe não tinha callback: caindo a conexão, nada
-          // reconectava e a pessoa ficava sem atualização até recarregar
-          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-            const canal = channel;
-            channel = null;
-            if (canal) supabase.removeChannel(canal);
-            const espera = Math.min(1000 * 2 ** tentativas, 30_000);
-            tentativas += 1;
-            retry = setTimeout(abrirCanal, espera);
-          }
-        });
-      } catch {
-        channel = null;
-      }
+    const abrirCanal = (table: string, handler: () => void) => {
+      if (encerrado) return;
+      const canal = supabase.channel(`ws-${workspaceId}-${table}-${Math.random().toString(36).slice(2, 8)}`);
+      canal.on("postgres_changes", { event: "*", schema: "public", table }, handler);
+
+      canal.subscribe(status => {
+        if (encerrado) return;
+
+        if (status === "SUBSCRIBED") {
+          tentativas.set(table, 0);
+          // Uma recuperação só, na primeira tabela que conecta: enquanto o
+          // socket esteve fora, nenhum evento chegou
+          if (!jaRecuperou) { jaRecuperou = true; catchUp(); }
+          return;
+        }
+
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          canais.delete(table);
+          supabase.removeChannel(canal);
+          const n = tentativas.get(table) ?? 0;
+          tentativas.set(table, n + 1);
+          // Espera crescente até 1 min: uma tabela que só vai existir depois de
+          // rodar o SQL não deve ficar martelando o servidor
+          const espera = Math.min(1000 * 2 ** n, 60_000);
+          const t = setTimeout(() => { retries.delete(table); abrirCanal(table, handler); }, espera);
+          retries.set(table, t);
+        }
+      });
+
+      canais.set(table, canal);
     };
 
-    abrirCanal();
+    Object.entries(TABLE_HANDLERS).forEach(([table, handler]) => abrirCanal(table, handler));
 
-    // Voltar para a aba (ou para a rede) também recarrega: eventos perdidos
-    // enquanto a tela estava escondida não chegam depois
+    // Voltar para a aba (ou para a rede) recarrega: eventos perdidos enquanto
+    // a tela esteve escondida não chegam depois
     const aoVoltar = () => { if (document.visibilityState === "visible") catchUp(); };
     document.addEventListener("visibilitychange", aoVoltar);
     window.addEventListener("online", catchUp);
 
     return () => {
-      cancelledRT = true;
-      if (retry) clearTimeout(retry);
+      encerrado = true;
+      retries.forEach(t => clearTimeout(t));
       document.removeEventListener("visibilitychange", aoVoltar);
       window.removeEventListener("online", catchUp);
       timers.forEach(t => clearTimeout(t));
-      if (channel) supabase.removeChannel(channel);
+      canais.forEach(c => supabase.removeChannel(c));
     };
   }, [workspaceId, removePersonFromWorkspaceState]);
 

@@ -45,6 +45,32 @@ describe("enviar uma demanda para si", () => {
 
   const abrir = () => render(<NewDemandWizard open onOpenChange={() => {}} />);
 
+  it("mostra só as áreas e times da pessoa", () => {
+    abrir();
+    // Ana está em "mercado" (Marketing) e no Time Alpha
+    expect(screen.getByRole("button", { name: /Marketing/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Time Alpha/ })).toBeInTheDocument();
+    // As outras ficam escondidas até pedirem
+    expect(screen.queryByRole("button", { name: /Financeiro/ })).not.toBeInTheDocument();
+  });
+
+  it("a setinha abre as outras áreas e times", () => {
+    abrir();
+    const abrirOutras = screen.getByRole("button", { name: /Outras áreas e times/ });
+    expect(abrirOutras).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(abrirOutras);
+    expect(screen.getByRole("button", { name: /Financeiro/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Esconder as outras/ })).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("dá para escolher uma área escondida", () => {
+    abrir();
+    fireEvent.click(screen.getByRole("button", { name: /Outras áreas e times/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Financeiro/ }));
+    expect(screen.getByText("O que você vai fazer?")).toBeInTheDocument();
+  });
+
   it("começa perguntando a área ou o time", () => {
     abrir();
     expect(screen.getByText("Para qual área ou time?")).toBeInTheDocument();

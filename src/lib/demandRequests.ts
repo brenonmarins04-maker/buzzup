@@ -28,6 +28,8 @@ export type DemandScope = {
   label: string;
   color: string;
   kind: "area" | "team";
+  /** Só nos times: quem faz parte. Áreas usam Person.areas. */
+  memberIds?: string[];
 };
 
 export const TEAM_PREFIX = "team_";
@@ -56,6 +58,7 @@ export function buildScopes(teams: Team[]): DemandScope[] {
     label: t.name,
     color: TEAM_COLORS[i % TEAM_COLORS.length],
     kind: "team" as const,
+    memberIds: t.memberIds,
   }));
 
   return [...areas, ...times];
@@ -130,4 +133,29 @@ export function shortDate(iso: string): string {
   if (!iso) return "";
   const [, m, d] = iso.split("-");
   return m && d ? `${d}/${m}` : "";
+}
+
+/**
+ * Separa os destinos entre os que a pessoa participa e o resto.
+ *
+ * As áreas e times de quem está enviando vêm primeiro e visíveis; os outros
+ * ficam atrás de um toque. Na prática a demanda quase sempre é do próprio
+ * grupo, e mostrar a lista inteira faz procurar onde não precisa.
+ */
+export function splitScopesForPerson(
+  scopes: DemandScope[],
+  eu: { personId: string | null; areas: string[] },
+): { meus: DemandScope[]; outros: DemandScope[] } {
+  const minhasAreas = new Set(eu.areas);
+  const meus: DemandScope[] = [];
+  const outros: DemandScope[] = [];
+
+  for (const s of scopes) {
+    const meu = s.kind === "area"
+      ? minhasAreas.has(s.key)
+      : !!eu.personId && (s.memberIds ?? []).includes(eu.personId);
+    (meu ? meus : outros).push(s);
+  }
+
+  return { meus, outros };
 }
