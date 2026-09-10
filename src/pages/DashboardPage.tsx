@@ -270,9 +270,11 @@ export default function DashboardPage() {
                 <button
                   type="button"
                   onClick={() => setNovaDemandaOpen(true)}
-                  className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-bold text-primary-foreground transition-transform active:scale-95"
+                  /* No celular vira alvo de dedo (44px de altura); no
+                     computador continua discreto ao lado do título */
+                  className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground shadow-sm shadow-primary/20 transition-transform active:scale-95 md:h-8 md:gap-1 md:rounded-lg md:px-2.5 md:text-xs md:shadow-none"
                 >
-                  <Plus className="h-3.5 w-3.5" /> Demanda
+                  <Plus className="h-4 w-4 md:h-3.5 md:w-3.5" /> Demanda
                 </button>
               </div>
               {myDemands.length === 0 ? (
