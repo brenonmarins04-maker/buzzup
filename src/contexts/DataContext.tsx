@@ -668,7 +668,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
      * oscilando) nenhum evento chegou, e sem isso a tela ficaria desatualizada
      * até um F5 — foi o caso das demandas que não apareciam para os outros.
      */
+    // São 9 consultas de uma vez. Alternar de aba dispararia todas a cada
+    // troca, e com várias abas abertas isso vira carga à toa no projeto.
+    let ultimoCatchUp = 0;
     const catchUp = () => {
+      const agora = Date.now();
+      if (agora - ultimoCatchUp < 15_000) return;
+      ultimoCatchUp = agora;
       refetchParkingItems();
       refetchTasks();
       refetchPeople();
@@ -681,52 +687,50 @@ export function DataProvider({ children }: { children: ReactNode }) {
     };
 
     /**
-     * Um canal por tabela, de propósito.
+     * Um canal só, com todas as tabelas.
      *
-     * O supabase-js manda TODAS as assinaturas num único join. Se o servidor
-     * recusa uma — uma tabela que ainda não existe neste banco, por exemplo —
-     * o canal inteiro cai e nada mais chega ao vivo. Separando, uma tabela
-     * ausente só custa ela mesma.
+     * Já foi um canal por tabela, para isolar uma tabela ausente. Só que cada
+     * aba aberta passava a manter 24 conexões de realtime em vez de uma, e com
+     * algumas abas o projeto ficava sobrecarregado. O ganho não existia: com
+     * todas as tabelas presentes, o canal único assina normalmente.
      */
-    const canais = new Map<string, ReturnType<typeof supabase.channel>>();
-    const retries = new Map<string, ReturnType<typeof setTimeout>>();
-    const tentativas = new Map<string, number>();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
     let encerrado = false;
-    let jaRecuperou = false;
+    let retry: ReturnType<typeof setTimeout> | null = null;
+    let tentativas = 0;
 
-    const abrirCanal = (table: string, handler: () => void) => {
+    const abrirCanal = () => {
       if (encerrado) return;
-      const canal = supabase.channel(`ws-${workspaceId}-${table}-${Math.random().toString(36).slice(2, 8)}`);
-      canal.on("postgres_changes", { event: "*", schema: "public", table }, handler);
+      const canal = supabase.channel(`ws-${workspaceId}-${Math.random().toString(36).slice(2, 8)}`);
+      Object.entries(TABLE_HANDLERS).forEach(([table, handler]) => {
+        canal.on("postgres_changes", { event: "*", schema: "public", table }, handler);
+      });
 
       canal.subscribe(status => {
         if (encerrado) return;
 
         if (status === "SUBSCRIBED") {
-          tentativas.set(table, 0);
-          // Uma recuperação só, na primeira tabela que conecta: enquanto o
-          // socket esteve fora, nenhum evento chegou
-          if (!jaRecuperou) { jaRecuperou = true; catchUp(); }
+          tentativas = 0;
+          // Enquanto o socket esteve fora, nenhum evento chegou
+          catchUp();
           return;
         }
 
+        // Sem este tratamento, uma queda de conexão deixava a pessoa sem
+        // atualização nenhuma até recarregar a página
         if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-          canais.delete(table);
+          channel = null;
           supabase.removeChannel(canal);
-          const n = tentativas.get(table) ?? 0;
-          tentativas.set(table, n + 1);
-          // Espera crescente até 1 min: uma tabela que só vai existir depois de
-          // rodar o SQL não deve ficar martelando o servidor
-          const espera = Math.min(1000 * 2 ** n, 60_000);
-          const t = setTimeout(() => { retries.delete(table); abrirCanal(table, handler); }, espera);
-          retries.set(table, t);
+          const espera = Math.min(1000 * 2 ** tentativas, 60_000);
+          tentativas += 1;
+          retry = setTimeout(abrirCanal, espera);
         }
       });
 
-      canais.set(table, canal);
+      channel = canal;
     };
 
-    Object.entries(TABLE_HANDLERS).forEach(([table, handler]) => abrirCanal(table, handler));
+    abrirCanal();
 
     // Voltar para a aba (ou para a rede) recarrega: eventos perdidos enquanto
     // a tela esteve escondida não chegam depois
@@ -736,11 +740,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     return () => {
       encerrado = true;
-      retries.forEach(t => clearTimeout(t));
+      if (retry) clearTimeout(retry);
       document.removeEventListener("visibilitychange", aoVoltar);
       window.removeEventListener("online", catchUp);
       timers.forEach(t => clearTimeout(t));
-      canais.forEach(c => supabase.removeChannel(c));
+      if (channel) supabase.removeChannel(channel);
     };
   }, [workspaceId, removePersonFromWorkspaceState]);
 
