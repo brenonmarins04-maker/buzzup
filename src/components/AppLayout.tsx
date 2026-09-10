@@ -67,11 +67,22 @@ function getMobileNavItems(podeDecidir: boolean) {
   ];
 }
 
+/** Lembra se o menu ficou recolhido, para ele não mudar sozinho entre visitas. */
+const SIDEBAR_KEY = "buzzup.sidebar.collapsed";
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  // No desktop, o menu fica compacto e se expande somente enquanto está em uso.
-  // Também abre ao receber foco para não esconder os rótulos de quem navega por teclado.
-  const [sidebarHovered, setSidebarHovered] = useState(false);
-  const collapsed = !sidebarHovered;
+  // O menu fica como a pessoa deixou. Antes ele encolhia sozinho ao tirar o
+  // mouse, e a tela inteira reposicionava a cada passagem do cursor.
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem(SIDEBAR_KEY) === "1"; } catch { return false; }
+  });
+  const toggleSidebar = () => {
+    setCollapsed(v => {
+      const novo = !v;
+      try { localStorage.setItem(SIDEBAR_KEY, novo ? "1" : "0"); } catch { /* modo privado */ }
+      return novo;
+    });
+  };
   const isMobile = useIsMobile();
   const { notifications, teams, people, parkingItems } = useData();
 
@@ -334,12 +345,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         className={`${collapsed ? "w-16" : "w-60"} workspace-blue-panel relative z-10 shrink-0 flex flex-col border-l-0 transition-[width] duration-200 overflow-hidden`}
         initial={false}
         animate={{ opacity: 1, x: 0 }}
-        onMouseEnter={() => setSidebarHovered(true)}
-        onMouseLeave={() => setSidebarHovered(false)}
-        onFocusCapture={() => setSidebarHovered(true)}
-        onBlurCapture={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setSidebarHovered(false);
-        }}
       >
         <div className="h-14 px-4 flex items-center justify-between border-b border-white/10 shrink-0">
           {!collapsed && (
@@ -351,9 +356,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <BrandLogo markClassName="h-9 w-9" textClassName="text-lg text-white" />
             </Link>
           )}
-          <span className="p-1 rounded text-white/60" aria-hidden="true">
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+            aria-expanded={!collapsed}
+            title={collapsed ? "Expandir menu" : "Recolher menu"}
+            className="rounded p-1 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+          >
             <ChevronLeft className={`h-4 w-4 transition-transform ${collapsed ? "rotate-180" : ""}`} />
-          </span>
+          </button>
         </div>
         <nav className="flex-1 py-4 px-2 flex flex-col gap-1 overflow-y-auto scrollbar-thin">
           {/* Main nav items (sem Acessos) */}
