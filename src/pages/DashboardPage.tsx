@@ -3,7 +3,7 @@ import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Trophy, Medal, ListChecks, Megaphone,
-  CheckCircle2, FolderPlus, CalendarPlus, Plus,
+  CheckCircle2, FolderPlus, CalendarPlus, Plus, Clock,
   Sparkles, BarChart2, Star, ClipboardList, Circle, CheckCircle, AlertTriangle,
 } from "lucide-react";
 import { getNowBrasilia } from "@/lib/utils";
@@ -14,6 +14,7 @@ import FormsSection from "@/components/FormsSection";
 import EmojiPicker from "@/components/gamification/EmojiPicker";
 import NicknamePicker from "@/components/gamification/NicknamePicker";
 import NewDemandWizard from "@/components/demandas/NewDemandWizard";
+import { scopeLabel as demandScopeLabel, shortDate as demandShortDate } from "@/lib/demandRequests";
 import GeneralShortcutsSection from "@/components/GeneralShortcutsSection";
 import CycleSelector from "@/components/gamification/CycleSelector";
 import { useGamificationCycles } from "@/hooks/useGamificationCycles";
@@ -54,7 +55,7 @@ function resolveDemandScope(areaKey: string, teams: TeamLike[]) {
 }
 
 export default function DashboardPage() {
-  const { people, tasks, projects, events, broadcasts, gamificationAwards, parkingItems, teams, forms, formCompletions, updateParkingItem, loading } = useData();
+  const { people, tasks, projects, events, broadcasts, gamificationAwards, parkingItems, teams, forms, formCompletions, demandRequests, updateParkingItem, loading } = useData();
   const { user } = useAuth();
   const today = getNowBrasilia();
   const cycles = useGamificationCycles();
@@ -79,6 +80,14 @@ export default function DashboardPage() {
         return 0;
       });
   }, [currentPerson, parkingItems]);
+
+  // Demandas que eu propus e ainda esperam um líder ou diretor
+  const myPending = useMemo(() => {
+    if (!currentPerson) return [];
+    return demandRequests
+      .filter(r => r.status === "pending" && r.personId === currentPerson.id)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }, [currentPerson, demandRequests]);
 
   const hasPendingForms = useMemo(() => {
     if (!user) return false;
@@ -277,12 +286,35 @@ export default function DashboardPage() {
                   <Plus className="h-4 w-4 md:h-3.5 md:w-3.5" /> Demanda
                 </button>
               </div>
-              {myDemands.length === 0 ? (
+              {/* Enviadas e ainda sem decisão — uma linha cada, só para a
+                  pessoa saber que o pedido está de pé */}
+              {myPending.length > 0 && (
+                <div className="mb-3 space-y-1">
+                  {myPending.map(r => (
+                    <div
+                      key={r.id}
+                      className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5"
+                    >
+                      <Clock className="h-3.5 w-3.5 shrink-0 text-amber-600" />
+                      <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">
+                        {r.title}
+                      </span>
+                      <span className="hidden shrink-0 text-[10px] text-muted-foreground sm:inline">
+                        {demandScopeLabel(r.area, teams)}
+                        {r.date && ` · ${demandShortDate(r.date)}`}
+                      </span>
+                      <span className="shrink-0 text-[10px] font-bold text-amber-700">aguardando</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {myDemands.length === 0 && myPending.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-center gap-2 py-6">
                   <CheckCircle className="h-8 w-8 text-emerald-400/50" />
                   <p className="text-xs text-muted-foreground">Nenhuma demanda atribuída. Parabéns! 🎉</p>
                 </div>
-              ) : (
+              ) : myDemands.length === 0 ? null : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {myDemands.map(demand => {
                     const scope = resolveDemandScope(demand.area, teams);
