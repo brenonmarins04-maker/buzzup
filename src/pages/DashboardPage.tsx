@@ -3,7 +3,7 @@ import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Trophy, Medal, ListChecks, Megaphone,
-  CheckCircle2, FolderPlus, CalendarPlus,
+  CheckCircle2, FolderPlus, CalendarPlus, Plus,
   Sparkles, BarChart2, Star, ClipboardList, Circle, CheckCircle, AlertTriangle,
 } from "lucide-react";
 import { getNowBrasilia } from "@/lib/utils";
@@ -13,6 +13,7 @@ import { isDemandOverdue, formatDemandDayMonth } from "@/lib/demandStatus";
 import FormsSection from "@/components/FormsSection";
 import EmojiPicker from "@/components/gamification/EmojiPicker";
 import NicknamePicker from "@/components/gamification/NicknamePicker";
+import NewDemandWizard from "@/components/demandas/NewDemandWizard";
 import GeneralShortcutsSection from "@/components/GeneralShortcutsSection";
 import CycleSelector from "@/components/gamification/CycleSelector";
 import { useGamificationCycles } from "@/hooks/useGamificationCycles";
@@ -163,6 +164,7 @@ export default function DashboardPage() {
 
   const [demandIdx, setDemandIdx] = useState(0);
   const [showAllRanking, setShowAllRanking] = useState(false);
+  const [novaDemandaOpen, setNovaDemandaOpen] = useState(false);
   const [entered, setEntered] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setEntered(true), 50);
@@ -260,10 +262,19 @@ export default function DashboardPage() {
         return (
           <>
             {/* Minhas Demandas */}
-            <div data-tour="my-demands" className={`${myDemands.length > 0 ? "order-2" : "order-[50]"} md:order-2 glass-panel rounded-2xl p-4 md:p-5 h-full flex flex-col`}>
-              <h2 className="text-sm font-semibold text-foreground mb-3 md:mb-4 flex items-center gap-2">
-                <ListChecks className="h-4 w-4 text-primary" /> Minhas Demandas
-              </h2>
+            <div data-tour="my-demands" className="order-2 md:order-2 glass-panel rounded-2xl p-4 md:p-5 h-full flex flex-col">
+              <div className="mb-3 md:mb-4 flex items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <ListChecks className="h-4 w-4 text-primary" /> Minhas Demandas
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setNovaDemandaOpen(true)}
+                  className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-bold text-primary-foreground transition-transform active:scale-95"
+                >
+                  <Plus className="h-3.5 w-3.5" /> Demanda
+                </button>
+              </div>
               {myDemands.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-center gap-2 py-6">
                   <CheckCircle className="h-8 w-8 text-emerald-400/50" />
@@ -497,6 +508,8 @@ export default function DashboardPage() {
 
       {/* Atalhos gerais */}
       <div data-tour="shortcuts" className="order-5" style={fadeUp(2)}><GeneralShortcutsSection /></div>
+
+      <NewDemandWizard open={novaDemandaOpen} onOpenChange={setNovaDemandaOpen} />
 
       {/* 2 columns */}
       <div className="hidden md:grid grid-cols-1 lg:grid-cols-2 gap-4" style={fadeUp(3)}>

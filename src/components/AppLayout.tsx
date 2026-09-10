@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
-  CalendarDays, Megaphone,
+  CalendarDays, ClipboardList, Megaphone,
   FolderKanban, Bell, Search, ChevronLeft, Plus, Eye, Shield, Briefcase, Crown, Sparkles, Home, UsersRound, Pencil, Settings,
 } from "lucide-react";
 import { useMemo } from "react";
@@ -11,7 +11,7 @@ import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { AREAS, getAreaLabel, getTeamColor } from "@/lib/areas";
-import { getLeaderKeys } from "@/lib/leadership";
+import { getLeaderKeys, isLeaderOfAny } from "@/lib/leadership";
 import { getTodayBrasilia } from "@/lib/utils";
 import { isDemandOverdue } from "@/lib/demandStatus";
 import { toast } from "sonner";
@@ -35,10 +35,12 @@ const areaIcons: Record<string, any> = {
   presidencia: Crown,
 };
 
-function getNavItems() {
+function getNavItems(podeDecidir: boolean) {
   return [
     { to: "/",         icon: Home,         label: "Início" },
     { to: "/calendar", icon: CalendarDays, label: "Calendário" },
+    // Fila de demandas propostas: só faz sentido para quem pode aceitar
+    ...(podeDecidir ? [{ to: "/demandas", icon: ClipboardList, label: "Demandas" }] : []),
   ];
 }
 
@@ -56,11 +58,14 @@ function OverdueBadge({ count }: { count: number }) {
   );
 }
 
-const mobileNavItems = [
-  { to: "/calendar", icon: CalendarDays, label: "Calendário" },
-  { to: "/",         icon: Home,         label: "Início" },
-  { to: "/areas-times", icon: FolderKanban, label: "Áreas" },
-];
+function getMobileNavItems(podeDecidir: boolean) {
+  return [
+    { to: "/calendar", icon: CalendarDays, label: "Calendário" },
+    { to: "/",         icon: Home,         label: "Início" },
+    ...(podeDecidir ? [{ to: "/demandas", icon: ClipboardList, label: "Demandas" }] : []),
+    { to: "/areas-times", icon: FolderKanban, label: "Áreas" },
+  ];
+}
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   // No desktop, o menu fica compacto e se expande somente enquanto está em uso.
@@ -177,8 +182,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   // Must be called unconditionally (before any early return) to satisfy Rules of Hooks.
   // areaNamesVersion dependency forces recompute when custom area names are saved.
+  // Diretores e líderes veem a fila de demandas propostas
+  const podeDecidir = isAdmin || isLeaderOfAny(people, user?.id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const navItems = useMemo(() => getNavItems(), [areaNamesVersion]);
+  const navItems = useMemo(() => getNavItems(podeDecidir), [areaNamesVersion, podeDecidir]);
+  const mobileNavItems = useMemo(() => getMobileNavItems(podeDecidir), [podeDecidir]);
 
   const fullName =
     (displayName && displayName.trim()) ||

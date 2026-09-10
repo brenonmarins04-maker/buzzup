@@ -7,6 +7,8 @@ import { normalizeToISODate } from "@/lib/demandStatus";
 import { clampDemandPoints } from "@/lib/demandPoints";
 import { toast } from "sonner";
 import { GENERAL_SHORTCUTS_PREFIX, parseGeneralShortcuts, serializeGeneralShortcuts } from "@/lib/generalShortcuts";
+import type { DemandRequest, DemandRequestStatus } from "@/lib/demandRequests";
+export type { DemandRequest };
 
 type Json = Database["public"]["Tables"]["tasks"]["Row"]["checklist"];
 
@@ -67,6 +69,22 @@ function normalizeFormTargets(list: unknown, legacy?: string | null): string[] {
   return legacy ? [legacy] : [];
 }
 
+function mapDemandRequest(r: any): DemandRequest {
+  return {
+    id: r.id,
+    area: r.area,
+    title: r.title,
+    points: r.points ?? 1,
+    date: r.date ?? "",
+    personId: r.person_id,
+    requestedBy: r.requested_by,
+    status: (r.status ?? "pending") as DemandRequestStatus,
+    decidedBy: r.decided_by ?? null,
+    decidedAt: r.decided_at ?? null,
+    createdAt: r.created_at,
+  };
+}
+
 export type FormCompletion = { id: string; formId: string; userId: string; completedAt: string; status: "done" | "declined" };
 
 export type Notification = {
@@ -86,6 +104,8 @@ type DataContextType = {
   broadcasts: Broadcast[];
   generalShortcuts: GeneralShortcut[];
   forms: WorkspaceForm[]; formCompletions: FormCompletion[];
+  /** Demandas propostas pelos membros, à espera de um líder ou diretor */
+  demandRequests: DemandRequest[];
   loading: boolean; workspaceId: string | null;
   pointsEarnedNotice: number | null;
   dismissPointsEarnedNotice: () => void;
@@ -175,6 +195,12 @@ type DataContextType = {
   deleteBroadcast: (id: string) => Promise<void>;
   saveGeneralShortcuts: (shortcuts: GeneralShortcut[]) => Promise<void>;
 
+  /** O membro propõe uma demanda para si. */
+  addDemandRequest: (area: string, title: string, points: number, date: string) => Promise<boolean>;
+  /** Aceita o pedido — com os dados possivelmente revisados — e cria a demanda. */
+  acceptDemandRequest: (id: string, patch: { area: string; title: string; points: number; date: string }) => Promise<void>;
+  rejectDemandRequest: (id: string) => Promise<void>;
+
   addForm: (title: string, url: string, targetType: WorkspaceFormTarget, targetValues: string[], description?: string, points?: number, required?: boolean) => Promise<void>;
   updateForm: (id: string, patch: { title: string; url: string; targetType: WorkspaceFormTarget; targetValues: string[]; description: string; points: number; required: boolean }) => Promise<void>;
   declineForm: (formId: string) => Promise<void>;
@@ -210,6 +236,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [forms, setForms] = useState<WorkspaceForm[]>([]);
   const [formCompletions, setFormCompletions] = useState<FormCompletion[]>([]);
+  const [demandRequests, setDemandRequests] = useState<DemandRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoriesRaw, setCategoriesRaw] = useState<{ id: string; name: string }[]>([]);
   const pplMapRef = useRef<Map<string, Person>>(new Map());
@@ -248,7 +275,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!uid || !workspaceId) {
       setPeople([]); setProjects([]); setTasks([]); setPosts([]);
       setEvents([]); setCategories([]); setChannels([]); setTeams([]);
-      setCategoriesRaw([]); setEventTypes([]); setAreaNotes([]); setParkingItems([]); setGamificationActions([]); setGamificationAwards([]); setLeadThermometer([]); setAttendanceSettings([]); setAttendanceRecords([]); setBroadcasts([]); setForms([]); setFormCompletions([]); setLoading(false);
+      setCategoriesRaw([]); setEventTypes([]); setAreaNotes([]); setParkingItems([]); setGamificationActions([]); setGamificationAwards([]); setLeadThermometer([]); setAttendanceSettings([]); setAttendanceRecords([]); setBroadcasts([]); setForms([]); setFormCompletions([]); setDemandRequests([]); setLoading(false);
       return;
     }
     let cancelled = false;
@@ -257,7 +284,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const wsId = workspaceId!;
       try {
 
-      const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes, etRes, anRes, piRes, gaRes, gwRes, ltRes, asRes, arRes, bcRes, fmRes, fcRes] = await Promise.all([
+      const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes, etRes, anRes, piRes, gaRes, gwRes, ltRes, asRes, arRes, bcRes, fmRes, fcRes, drRes] = await Promise.all([
         (supabase.from("people") as any).select("*").eq("workspace_id", wsId),
         supabase.from("projects").select("*").eq("workspace_id", wsId),
         supabase.from("tasks").select("*").eq("workspace_id", wsId),
@@ -281,6 +308,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         (supabase.from as any)("broadcasts").select("*").eq("workspace_id", wsId).gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }),
         (supabase.from as any)("workspace_forms").select("*").eq("workspace_id", wsId).order("created_at", { ascending: false }),
         (supabase.from as any)("form_completions").select("*").eq("workspace_id", wsId),
+        (supabase.from as any)("demand_requests").select("*").eq("workspace_id", wsId),
       ]);
       if (cancelled) return;
 
@@ -381,6 +409,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       // Forms — se as tabelas ainda não existirem no banco, os resultados vêm com erro e ficam vazios (não quebra o app)
       setForms(((fmRes as any)?.data || []).map((f: any) => ({ id: f.id, title: f.title, description: f.description ?? "", url: f.url, targetType: (f.target_type ?? "all") as WorkspaceFormTarget, targetValue: f.target_value ?? null, targetValues: normalizeFormTargets(f.target_values, f.target_value), points: f.points ?? 1, required: f.required !== false, createdBy: f.created_by ?? null, createdAt: f.created_at })));
       setFormCompletions(((fcRes as any)?.data || []).map((c: any) => ({ id: c.id, formId: c.form_id, userId: c.user_id, completedAt: c.completed_at, status: (c.status === "declined" ? "declined" : "done") as "done" | "declined" })));
+      // Vazio enquanto o demandas-pedidos-setup.sql não tiver sido rodado
+      setDemandRequests(((drRes as any)?.data || []).map(mapDemandRequest));
 
       // Sync: migrate tasks with deadlines into parkingItems so they appear in Quadro CB
       try {
@@ -590,6 +620,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setFormCompletions((data || []).map((c: any) => ({ id: c.id, formId: c.form_id, userId: c.user_id, completedAt: c.completed_at, status: (c.status === "declined" ? "declined" : "done") as "done" | "declined" })));
     };
 
+    const refetchDemandRequests = async () => {
+      const { data } = await (supabase.from as any)("demand_requests").select("*").eq("workspace_id", wsId);
+      setDemandRequests((data || []).map(mapDemandRequest));
+    };
+
     // Per-group debounce: bursts on the same group collapse into one fetch (300ms window)
     const timers = new Map<string, ReturnType<typeof setTimeout>>();
     const debounced = (key: string, fn: () => Promise<void>) => {
@@ -622,6 +657,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       broadcasts:           () => debounced("broadcasts", refetchBroadcasts),
       workspace_forms:      () => debounced("forms", refetchForms),
       form_completions:     () => debounced("formCompletions", refetchFormCompletions),
+      demand_requests:      () => debounced("demandRequests", refetchDemandRequests),
     };
 
     /**
@@ -639,6 +675,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       refetchGamificationAwards();
       refetchForms();
       refetchFormCompletions();
+      refetchDemandRequests();
     };
 
     // Unique suffix prevents collision when removeChannel (async) hasn't finished
@@ -1495,6 +1532,81 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
   }, [workspaceId, uid, broadcasts, isAdmin, isOwner]);
 
+  // === DEMANDAS PROPOSTAS PELO MEMBRO ===
+  const addDemandRequest = useCallback(async (area: string, title: string, points: number, date: string) => {
+    if (!workspaceId || !uid) return false;
+    const eu = people.find(p => p.userId === uid);
+    if (!eu) { toast.error("Não encontramos o seu cadastro neste workspace."); return false; }
+
+    const { data, error } = await (supabase.from as any)("demand_requests")
+      .insert({
+        workspace_id: workspaceId, area, title: title.trim(),
+        points: clampDemandPoints(points),
+        date: date || null,
+        person_id: eu.id, requested_by: uid,
+      })
+      .select().single();
+
+    if (error) {
+      const faltaSql = /demand_requests|schema cache|does not exist/i.test(error.message || "");
+      toast.error(faltaSql
+        ? "Rode o demandas-pedidos-setup.sql no Supabase para ativar esta tela."
+        : "Erro ao enviar a demanda");
+      return false;
+    }
+    if (data) setDemandRequests(prev => [...prev, mapDemandRequest(data)]);
+    return true;
+  }, [workspaceId, uid, people]);
+
+  const acceptDemandRequest = useCallback(async (
+    id: string,
+    patch: { area: string; title: string; points: number; date: string },
+  ) => {
+    if (!workspaceId || !uid) return;
+    const pedido = demandRequests.find(r => r.id === id);
+    if (!pedido) return;
+
+    const pts = clampDemandPoints(patch.points);
+    // A demanda nasce como qualquer outra: mesma tabela, mesmo quadro
+    const { data: criada, error: erroDemanda } = await (supabase.from("parking_items") as any)
+      .insert({
+        workspace_id: workspaceId, area: patch.area, title: patch.title.trim(),
+        description: "", date: patch.date || "", points: pts,
+        person_id: pedido.personId,
+        position: parkingItems.filter(p => p.area === patch.area && p.personId === pedido.personId).length,
+      })
+      .select().single();
+    if (erroDemanda) { toast.error("Erro ao criar a demanda"); return; }
+
+    const { error } = await (supabase.from as any)("demand_requests")
+      .update({ status: "accepted", decided_by: uid, decided_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) { toast.error("A demanda foi criada, mas o pedido não saiu da fila."); return; }
+
+    if (criada) {
+      setParkingItems(prev => [...prev, {
+        id: criada.id, area: criada.area, personId: criada.person_id ?? null,
+        title: criada.title, description: criada.description ?? "",
+        date: normalizeToISODate(criada.date) ?? "", position: criada.position ?? 0,
+        status: (criada.status as ParkingItemStatus) ?? "in-progress", points: criada.points ?? pts,
+      }]);
+    }
+    setDemandRequests(prev => prev.map(r => r.id === id
+      ? { ...r, status: "accepted" as const, decidedBy: uid, decidedAt: new Date().toISOString() }
+      : r));
+  }, [workspaceId, uid, demandRequests, parkingItems]);
+
+  const rejectDemandRequest = useCallback(async (id: string) => {
+    if (!uid) return;
+    const { error } = await (supabase.from as any)("demand_requests")
+      .update({ status: "rejected", decided_by: uid, decided_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) { toast.error("Erro ao recusar a demanda"); return; }
+    setDemandRequests(prev => prev.map(r => r.id === id
+      ? { ...r, status: "rejected" as const, decidedBy: uid, decidedAt: new Date().toISOString() }
+      : r));
+  }, [uid]);
+
   // === FORMS (Formulários do workspace) ===
   const addForm = useCallback(async (title: string, url: string, targetType: WorkspaceFormTarget, targetValues: string[], description = "", points = 1, required = true) => {
     if (!workspaceId) return;
@@ -1662,7 +1774,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   return (
     <DataContext.Provider value={{
-      people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, gamificationActions, gamificationAwards, leadThermometer, attendanceSettings, attendanceRecords, broadcasts, generalShortcuts, forms, formCompletions, loading, workspaceId,
+      people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, gamificationActions, gamificationAwards, leadThermometer, attendanceSettings, attendanceRecords, broadcasts, generalShortcuts, forms, formCompletions, demandRequests, loading, workspaceId,
       pointsEarnedNotice, dismissPointsEarnedNotice,
       addPerson, updatePerson, updatePersonNickname, resetPersonNicknames, setMyEmoji, setMyNickname, approvePendingNickname, rejectPendingNickname, updatePersonArea, updatePersonAreas, updatePersonLeaderArea, updatePersonLeaderAreas, deletePerson, removePersonFromWorkspaceState,
       addTask, updateTask, deleteTask,
@@ -1681,6 +1793,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addLeadThermometer, updateLeadThermometer, deleteLeadThermometer,
       upsertAttendanceSetting, setAttendance, clearAttendance,
       addBroadcast, deleteBroadcast, saveGeneralShortcuts,
+      addDemandRequest, acceptDemandRequest, rejectDemandRequest,
       addForm, updateForm, deleteForm, markFormCompleted, unmarkFormCompleted, declineForm,
     }}>
       {children}
