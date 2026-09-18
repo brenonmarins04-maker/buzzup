@@ -208,8 +208,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     : "U";
 
   const roleLabel = role === "owner" ? "Owner" : role === "admin" ? "Diretor" : role === "member" ? "Assessor" : role === "leader" ? "Líder" : "—";
-  const RoleBadge = () => (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${isAdmin ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+  const RoleBadge = ({ inverse = false }: { inverse?: boolean }) => (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${inverse
+      ? "bg-white/15 text-white border border-white/15"
+      : isAdmin ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
       {isAdmin ? <Shield className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
       {roleLabel}
     </span>
@@ -220,17 +222,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="workspace-app-background flex flex-col min-h-screen">
         <PointsEarnedBanner />
         <ProductTour />
-        <header className="h-12 px-4 flex items-center justify-between border-b border-border glass-header shrink-0 sticky top-0 z-30">
+        <header className="workspace-mobile-header h-12 px-4 flex items-center justify-between shrink-0 sticky top-0 z-30">
           <Link
             to="/welcome"
             className="flex items-center gap-2 min-w-0 transition-opacity hover:opacity-80"
             aria-label="Voltar para a seleção de workspaces"
           >
-            <BrandLogo markClassName="h-7 w-7" textClassName="text-base text-foreground" />
+            <BrandLogo markClassName="h-7 w-7" textClassName="text-base text-white" />
           </Link>
           <div className="flex items-center gap-1.5 shrink-0">
-            <RoleBadge />
-            <button onClick={() => navigate("/configuracoes")} title="Configurações" className="relative p-2 rounded-md hover:bg-accent text-muted-foreground">
+            <RoleBadge inverse />
+            <button onClick={() => navigate("/configuracoes")} title="Configurações" className="relative p-2 rounded-md text-white/80 hover:bg-white/10 hover:text-white">
               <Settings className="h-4 w-4" />
               {pendingJoinCount > 0 && (
                 <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">

@@ -50,6 +50,7 @@ export type ParkingItem = { id: string; area: string; personId: string | null; t
 
 export type GamificationAction = { id: string; name: string; points: number };
 export type GamificationAward = { id: string; personId: string; actionId: string | null; actionName: string; points: number; awardedAt: string };
+export type GamificationAwardResult = { ok: boolean; error?: string };
 
 export type LeadThermometerItem = { id: string; name: string; value: string; areaSize: string; type: string; position: number };
 
@@ -179,7 +180,7 @@ type DataContextType = {
   deleteGamificationAction: (id: string) => Promise<void>;
 
   /** `awardedAt` força a data do ponto — usado para cair no ciclo filtrado. */
-  awardGamificationPoints: (personId: string, action: GamificationAction, awardedAt?: string | null) => Promise<void>;
+  awardGamificationPoints: (personId: string, action: GamificationAction, awardedAt?: string | null) => Promise<GamificationAwardResult>;
   awardPointsForDemandCompletion: (personId: string, points: number, demandTitle: string) => Promise<void>;
   deleteGamificationAward: (id: string) => Promise<void>;
 
@@ -1366,8 +1367,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setGamificationActions(prev => prev.filter(x => x.id !== id));
   }, []);
 
-  const awardGamificationPoints = useCallback(async (personId: string, action: GamificationAction, awardedAt?: string | null) => {
-    if (!workspaceId) return;
+  const awardGamificationPoints = useCallback(async (personId: string, action: GamificationAction, awardedAt?: string | null): Promise<GamificationAwardResult> => {
+    if (!workspaceId || !uid) return { ok: false, error: "Sua sessão expirou. Entre novamente para pontuar." };
+    if (!personId || !people.some(person => person.id === personId)) {
+      return { ok: false, error: "Esta pessoa não faz mais parte do workspace." };
+    }
+    if (!action?.id || !action.name?.trim() || !Number.isFinite(action.points)) {
+      return { ok: false, error: "Esta ação de pontuação não é válida." };
+    }
+
     const linha: Record<string, unknown> = {
       workspace_id: workspaceId, person_id: personId, action_id: action.id,
       action_name: action.name, points: action.points, awarded_by: uid,
@@ -1375,11 +1383,25 @@ export function DataProvider({ children }: { children: ReactNode }) {
     // Sem data explícita o banco carimba agora; com ela, o ponto cai no ciclo
     // que está sendo filtrado mesmo que hoje esteja fora dele
     if (awardedAt) linha.awarded_at = awardedAt;
-    const { data, error } = await (supabase.from("gamification_awards") as any)
-      .insert(linha).select().single();
-    if (error) { toast.error("Erro ao pontuar"); return; }
-    if (data) setGamificationAwards(prev => [{ id: data.id, personId: data.person_id, actionId: data.action_id ?? null, actionName: data.action_name, points: data.points ?? 0, awardedAt: data.awarded_at }, ...prev]);
-  }, [workspaceId, uid]);
+    try {
+      const { data, error } = await (supabase.from("gamification_awards") as any)
+        .insert(linha).select().single();
+
+      if (error || !data) {
+        const message = String(error?.message || "").toLowerCase();
+        if (message.includes("row-level security") || message.includes("permission denied")) {
+          return { ok: false, error: "Você não tem permissão para pontuar neste workspace." };
+        }
+        return { ok: false, error: "Não foi possível registrar os pontos. Tente novamente." };
+      }
+
+      setGamificationAwards(prev => [{ id: data.id, personId: data.person_id, actionId: data.action_id ?? null, actionName: data.action_name, points: data.points ?? 0, awardedAt: data.awarded_at }, ...prev]);
+      return { ok: true };
+    } catch (error) {
+      console.error("[gamificação] falha ao registrar pontos", error);
+      return { ok: false, error: "Não foi possível registrar os pontos. Verifique sua conexão e tente novamente." };
+    }
+  }, [workspaceId, uid, people]);
 
   const awardPointsForDemandCompletion = useCallback(async (personId: string, points: number, demandTitle: string) => {
     if (!workspaceId || points <= 0) return;

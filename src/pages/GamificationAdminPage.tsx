@@ -127,6 +127,7 @@ function PontuarTab() {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [awardingActionId, setAwardingActionId] = useState<string | null>(null);
+  const awardInFlightRef = useRef(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
   const filtered = useMemo(() => {
@@ -174,13 +175,18 @@ function PontuarTab() {
   };
 
   const give = async (action: GamificationAction) => {
-    if (!selected) return;
+    if (!selected || awardInFlightRef.current) return;
+    awardInFlightRef.current = true;
     setAwardingActionId(action.id);
     try {
       // Filtrando um ciclo que não contém hoje, o ponto iria para fora dele:
       // a data é puxada para dentro do período que está sendo visto
       const quando = awardTimestampForCycle(activeCycle, new Date().toISOString());
-      await awardGamificationPoints(selected.id, action, quando);
+      const result = await awardGamificationPoints(selected.id, action, quando);
+      if (result?.ok === false) {
+        toast.error(result.error || "Não foi possível registrar os pontos.");
+        return;
+      }
       toast.success(
         activeCycle
           ? `+${action.points} pts para ${selected.name} no ${activeCycle.name}`
@@ -188,7 +194,11 @@ function PontuarTab() {
       );
       setQuery(selected.name);
       focusAndSelectSearch();
+    } catch (error) {
+      console.error("[gamificação] falha inesperada ao pontuar", error);
+      toast.error("Não foi possível registrar os pontos. Tente novamente.");
     } finally {
+      awardInFlightRef.current = false;
       setAwardingActionId(null);
     }
   };
@@ -310,7 +320,7 @@ function PontuarTab() {
               ) : (
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {gamificationActions.map(a => (
-                    <button key={a.id} onClick={() => give(a)} disabled={awardingActionId === a.id}
+                    <button key={a.id} onClick={() => give(a)} disabled={awardingActionId !== null}
                       className="group flex min-h-12 items-center justify-between gap-2 bg-background border border-border hover:border-primary rounded-xl px-3 py-2.5 text-left transition-colors disabled:opacity-60">
                       <div className="flex flex-col min-w-0">
                         <span className="text-sm font-semibold text-foreground break-words">{a.name}</span>

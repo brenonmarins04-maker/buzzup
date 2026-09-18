@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
-const awardGamificationPoints = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const awardGamificationPoints = vi.hoisted(() => vi.fn().mockResolvedValue({ ok: true }));
 
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ isAdmin: true, hubStatus: "ready" }),
@@ -34,6 +34,7 @@ import GamificationAdminPage from "@/pages/GamificationAdminPage";
 describe("pontuação móvel", () => {
   beforeEach(() => {
     awardGamificationPoints.mockClear();
+    awardGamificationPoints.mockResolvedValue({ ok: true });
   });
 
   it("seleciona com Enter, pontua e deixa o nome pronto para ser substituído", async () => {
@@ -66,5 +67,24 @@ describe("pontuação móvel", () => {
     fireEvent.change(search, { target: { value: "Bru" } });
     expect(screen.queryByText("Pessoa selecionada")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Bruno Lima/ })).toBeInTheDocument();
+  });
+
+  it("recupera a tela quando o envio de pontos falha", async () => {
+    awardGamificationPoints.mockRejectedValueOnce(new Error("network error"));
+    render(
+      <MemoryRouter>
+        <GamificationAdminPage />
+      </MemoryRouter>,
+    );
+
+    const search = screen.getByRole("textbox", { name: "Quem você quer pontuar?" });
+    fireEvent.change(search, { target: { value: "Ana" } });
+    fireEvent.keyDown(search, { key: "Enter" });
+
+    const action = screen.getByRole("button", { name: /Entregou demanda/ });
+    fireEvent.click(action);
+
+    await waitFor(() => expect(awardGamificationPoints).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(action).toBeEnabled());
   });
 });

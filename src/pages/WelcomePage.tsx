@@ -160,11 +160,11 @@ export default function WelcomePage() {
     <div className="min-h-full bg-[#f7f7f5]">
 
       {/* Mobile header — blue panel is hidden on small screens */}
-      <div className="lg:hidden flex items-center justify-between px-5 py-3.5 bg-white border-b border-border/40 sticky top-0 z-10">
-        <Link to="/home" className="font-extrabold tracking-tight text-foreground transition-opacity hover:opacity-80" aria-label="Voltar para a home do BuzzUp">
-          <BrandLogo markClassName="h-8 w-8" textClassName="text-base text-foreground" />
+      <div className="workspace-mobile-header lg:hidden flex items-center justify-between px-5 py-3.5 sticky top-0 z-10">
+        <Link to="/home" className="font-extrabold tracking-tight text-white transition-opacity hover:opacity-80" aria-label="Voltar para a home do BuzzUp">
+          <BrandLogo markClassName="h-8 w-8" textClassName="text-base text-white" />
         </Link>
-        <button onClick={() => signOut()} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+        <button onClick={() => signOut()} className="flex items-center gap-1.5 text-xs text-white/75 hover:text-white transition-colors">
           <LogOut className="h-3.5 w-3.5" /> Sair
         </button>
       </div>
