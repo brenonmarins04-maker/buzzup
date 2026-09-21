@@ -1,4 +1,5 @@
 import { lazy, Suspense } from "react";
+import { carregarTela } from "@/lib/carregarTela";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Outlet, Navigate, useParams, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -26,23 +27,23 @@ import { AuthTransitionProvider } from "./contexts/AuthTransitionContext";
  * aparecer. Início e login ficam no pacote principal porque são a porta de
  * entrada — atrasar esses dois só trocaria um problema por outro.
  */
-const CalendarPage = lazy(() => import("./pages/CalendarPage"));
-const DemandRequestsPage = lazy(() => import("./pages/DemandRequestsPage"));
-const PeoplePage = lazy(() => import("./pages/PeoplePage"));
-const MembersPage = lazy(() => import("./pages/MembersPage"));
-const SettingsPage = lazy(() => import("./pages/SettingsPage"));
-const ReportsPage = lazy(() => import("./pages/ReportsPage"));
-const AreaPage = lazy(() => import("./pages/AreaPage"));
-const TeamAreaPage = lazy(() => import("./pages/TeamAreaPage"));
-const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
-const EmailConfirmedPage = lazy(() => import("./pages/EmailConfirmedPage"));
-const LandingPage = lazy(() => import("./pages/LandingPage"));
-const AreasTeamsPage = lazy(() => import("./pages/AreasTeamsPage"));
-const ConfigHubPage = lazy(() => import("./pages/ConfigHubPage"));
-const GamificationAdminPage = lazy(() => import("./pages/GamificationAdminPage"));
-const SecretAdminPage = lazy(() => import("./pages/SecretAdminPage"));
-const NotFound = lazy(() => import("./pages/NotFound"));
-const GeneralShortcutsSettings = lazy(() => import("@/components/GeneralShortcutsSettings"));
+const CalendarPage = lazy(() => carregarTela(() => import("./pages/CalendarPage")));
+const DemandRequestsPage = lazy(() => carregarTela(() => import("./pages/DemandRequestsPage")));
+const PeoplePage = lazy(() => carregarTela(() => import("./pages/PeoplePage")));
+const MembersPage = lazy(() => carregarTela(() => import("./pages/MembersPage")));
+const SettingsPage = lazy(() => carregarTela(() => import("./pages/SettingsPage")));
+const ReportsPage = lazy(() => carregarTela(() => import("./pages/ReportsPage")));
+const AreaPage = lazy(() => carregarTela(() => import("./pages/AreaPage")));
+const TeamAreaPage = lazy(() => carregarTela(() => import("./pages/TeamAreaPage")));
+const ResetPasswordPage = lazy(() => carregarTela(() => import("./pages/ResetPasswordPage")));
+const EmailConfirmedPage = lazy(() => carregarTela(() => import("./pages/EmailConfirmedPage")));
+const LandingPage = lazy(() => carregarTela(() => import("./pages/LandingPage")));
+const AreasTeamsPage = lazy(() => carregarTela(() => import("./pages/AreasTeamsPage")));
+const ConfigHubPage = lazy(() => carregarTela(() => import("./pages/ConfigHubPage")));
+const GamificationAdminPage = lazy(() => carregarTela(() => import("./pages/GamificationAdminPage")));
+const SecretAdminPage = lazy(() => carregarTela(() => import("./pages/SecretAdminPage")));
+const NotFound = lazy(() => carregarTela(() => import("./pages/NotFound")));
+const GeneralShortcutsSettings = lazy(() => carregarTela(() => import("@/components/GeneralShortcutsSettings")));
 
 const queryClient = new QueryClient();
 
@@ -71,7 +72,13 @@ const ProtectedApp = () => (
     <DataProvider>
       <AppLayout>
         <RouteErrorBoundary>
-          <Outlet />
+          {/* A espera pelo arquivo da tela fica AQUI DENTRO, de propósito.
+              Com ela acima do DataProvider, abrir uma área suspendia o app
+              inteiro: o contexto de dados desmontava, perdia tudo e refazia
+              as 30+ consultas ao voltar. */}
+          <Suspense fallback={<TelaCarregando />}>
+            <Outlet />
+          </Suspense>
         </RouteErrorBoundary>
       </AppLayout>
     </DataProvider>
@@ -128,6 +135,7 @@ const App = () => (
         <BrowserRouter>
           <RecoveryGate />
           <SignupConfirmGate />
+          {/* Só para as telas públicas; as internas têm a sua, dentro do layout */}
           <Suspense fallback={<TelaCarregando />}>
           <Routes>
             {/* Landing pública — primeira coisa que o visitante vê (antes de criar conta) */}

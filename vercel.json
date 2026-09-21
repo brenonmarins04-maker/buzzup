@@ -1,7 +1,20 @@
 {
   "rewrites": [
-    { "source": "/sb-proxy/auth/v1/admin/:path*", "destination": "/api/deny" },
-    { "source": "/sb-proxy/:path*", "destination": "https://twwcnudhfvzbkdrtfmtu.supabase.co/:path*" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/sb-proxy/auth/v1/admin/:path*",
+      "destination": "/api/deny"
+    },
+    {
+      "source": "/sb-proxy/:path*",
+      "destination": "https://twwcnudhfvzbkdrtfmtu.supabase.co/:path*"
+    },
+    {
+      "source": "/assets/(.*)",
+      "destination": "/assets/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
   ]
 }
