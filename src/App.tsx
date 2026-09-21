@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes, Outlet, Navigate, useParams, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,31 +10,50 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { DataProvider } from "@/contexts/DataContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import RouteErrorBoundary from "@/components/RouteErrorBoundary";
 import AppLayout from "@/components/AppLayout";
 import DashboardPage from "./pages/DashboardPage";
-import CalendarPage from "./pages/CalendarPage";
-import DemandRequestsPage from "./pages/DemandRequestsPage";
-import PeoplePage from "./pages/PeoplePage";
-import MembersPage from "./pages/MembersPage";
-import SettingsPage from "./pages/SettingsPage";
-import ReportsPage from "./pages/ReportsPage";
-import AreaPage from "./pages/AreaPage";
-import TeamAreaPage from "./pages/TeamAreaPage";
 import LoginPage from "./pages/LoginPage";
-import ResetPasswordPage from "./pages/ResetPasswordPage";
-import EmailConfirmedPage from "./pages/EmailConfirmedPage";
 import WelcomePage from "./pages/WelcomePage";
-import LandingPage from "./pages/LandingPage";
-import AreasTeamsPage from "./pages/AreasTeamsPage";
-import ConfigHubPage from "./pages/ConfigHubPage";
-import GamificationAdminPage from "./pages/GamificationAdminPage";
-import SecretAdminPage from "./pages/SecretAdminPage";
-import NotFound from "./pages/NotFound";
 import AuthLayout from "./layouts/AuthLayout";
 import { AuthTransitionProvider } from "./contexts/AuthTransitionContext";
-import GeneralShortcutsSettings from "@/components/GeneralShortcutsSettings";
+
+/**
+ * Cada tela vira um arquivo próprio, buscado só quando a rota abre.
+ *
+ * Antes tudo ia num pacote de 1,5 MB: quem só queria ver as demandas baixava
+ * o calendário, os relatórios e o portal do moderador antes de a tela
+ * aparecer. Início e login ficam no pacote principal porque são a porta de
+ * entrada — atrasar esses dois só trocaria um problema por outro.
+ */
+const CalendarPage = lazy(() => import("./pages/CalendarPage"));
+const DemandRequestsPage = lazy(() => import("./pages/DemandRequestsPage"));
+const PeoplePage = lazy(() => import("./pages/PeoplePage"));
+const MembersPage = lazy(() => import("./pages/MembersPage"));
+const SettingsPage = lazy(() => import("./pages/SettingsPage"));
+const ReportsPage = lazy(() => import("./pages/ReportsPage"));
+const AreaPage = lazy(() => import("./pages/AreaPage"));
+const TeamAreaPage = lazy(() => import("./pages/TeamAreaPage"));
+const ResetPasswordPage = lazy(() => import("./pages/ResetPasswordPage"));
+const EmailConfirmedPage = lazy(() => import("./pages/EmailConfirmedPage"));
+const LandingPage = lazy(() => import("./pages/LandingPage"));
+const AreasTeamsPage = lazy(() => import("./pages/AreasTeamsPage"));
+const ConfigHubPage = lazy(() => import("./pages/ConfigHubPage"));
+const GamificationAdminPage = lazy(() => import("./pages/GamificationAdminPage"));
+const SecretAdminPage = lazy(() => import("./pages/SecretAdminPage"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const GeneralShortcutsSettings = lazy(() => import("@/components/GeneralShortcutsSettings"));
 
 const queryClient = new QueryClient();
+
+/** Enquanto o arquivo da tela chega. */
+function TelaCarregando() {
+  return (
+    <div className="flex h-full min-h-[50vh] items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+    </div>
+  );
+}
 
 // Sonner toaster: mobile shows at top, desktop at bottom-left
 function ResponsiveSonner() {
@@ -50,7 +70,9 @@ const ProtectedApp = () => (
   <ProtectedRoute>
     <DataProvider>
       <AppLayout>
-        <Outlet />
+        <RouteErrorBoundary>
+          <Outlet />
+        </RouteErrorBoundary>
       </AppLayout>
     </DataProvider>
   </ProtectedRoute>
@@ -106,6 +128,7 @@ const App = () => (
         <BrowserRouter>
           <RecoveryGate />
           <SignupConfirmGate />
+          <Suspense fallback={<TelaCarregando />}>
           <Routes>
             {/* Landing pública — primeira coisa que o visitante vê (antes de criar conta) */}
             <Route path="/home" element={<LandingPage />} />
@@ -136,6 +159,7 @@ const App = () => (
             <Route path="/p/:k" element={<SecretAdminPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </Suspense>
         </BrowserRouter>
         </AuthTransitionProvider>
       </AuthProvider>

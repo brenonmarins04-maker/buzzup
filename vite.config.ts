@@ -21,6 +21,22 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Bibliotecas em pedaços próprios: elas quase nunca mudam, então o
+        // navegador reaproveita entre versões em vez de baixar tudo de novo
+        // a cada deploy.
+        // recharts fica de fora de propósito: nomeado aqui, ele era puxado
+        // para o carregamento inicial mesmo só sendo usado nos relatórios
+        manualChunks: {
+          react: ["react", "react-dom", "react-router-dom"],
+          supabase: ["@supabase/supabase-js"],
+          datas: ["date-fns"],
+        },
+      },
+    },
+  },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
     alias: {
