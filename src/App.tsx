@@ -42,7 +42,6 @@ const LandingPage = lazy(() => carregarTela(() => import("./pages/LandingPage"))
 const AreasTeamsPage = lazy(() => carregarTela(() => import("./pages/AreasTeamsPage")));
 const ConfigHubPage = lazy(() => carregarTela(() => import("./pages/ConfigHubPage")));
 const GamificationAdminPage = lazy(() => carregarTela(() => import("./pages/GamificationAdminPage")));
-const SecretAdminPage = lazy(() => carregarTela(() => import("./pages/SecretAdminPage")));
 const NotFound = lazy(() => carregarTela(() => import("./pages/NotFound")));
 const GeneralShortcutsSettings = lazy(() => carregarTela(() => import("@/components/GeneralShortcutsSettings")));
 
@@ -165,8 +164,6 @@ const App = () => (
               <Route path="/time/:teamId" element={<TeamAreaPage />} />
               <Route path="/:area" element={<AreaRoute />} />
             </Route>
-            {/* Portal restrito — o código na URL é validado por hash; acesso real exige login + checagem no servidor */}
-            <Route path="/p/:k" element={<SecretAdminPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
           </Suspense>

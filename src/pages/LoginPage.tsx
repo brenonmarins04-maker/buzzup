@@ -4,7 +4,6 @@ import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { trackPlatformEvent } from "@/lib/platformAnalytics";
 import { toast } from "sonner";
 import { ArrowRight, Eye, EyeOff, Lock, Mail, User } from "lucide-react";
 import SocialAuthButtons from "@/components/auth/SocialAuthButtons";
@@ -46,9 +45,6 @@ export default function LoginPage() {
   const handleSocialSignIn = async (provider: SocialAuthProvider) => {
     if (oauthProvider || submitting) return;
     setOauthProvider(provider);
-    void trackPlatformEvent("social_auth_started", {
-      metadata: { provider, mode },
-    });
 
     const { error } = await signInWithProvider(provider);
     if (!error) return;
@@ -91,13 +87,6 @@ export default function LoginPage() {
         return;
       }
 
-      await trackPlatformEvent("signup_success", {
-        email,
-        metadata: {
-          source: "signup_form",
-          name: name.trim(),
-        },
-      });
 
       if (needsConfirmation) {
         // Conta criada — falta confirmar o e-mail antes de entrar.
@@ -311,7 +300,6 @@ export default function LoginPage() {
               Não tem conta?{" "}
               <button
                 onClick={() => {
-                  trackPlatformEvent("signup_cta_click", { metadata: { source: "login_switch" } });
                   setMode("signup");
                   setPassword("");
                   setConfirmPassword("");

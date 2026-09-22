@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { trackPlatformEvent } from "@/lib/platformAnalytics";
 import BrandLogo from "@/components/BrandLogo";
 import "./LandingPage.css";
 
@@ -77,9 +76,6 @@ export default function LandingPage() {
 
   useEffect(() => {
     if (loading || user) return;
-    trackPlatformEvent("landing_view", {
-      metadata: { path: window.location.pathname },
-    });
   }, [loading, user]);
 
   useEffect(() => {
@@ -102,11 +98,10 @@ export default function LandingPage() {
     rootRef.current?.querySelector(`#${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const startSignupTransition = (e: React.MouseEvent, source: string) => {
+  const startSignupTransition = (e: React.MouseEvent) => {
     e.preventDefault();
     if (signupTransition) return;
     setMenuOpen(false);
-    trackPlatformEvent("signup_cta_click", { metadata: { source } });
     setSignupTransition(true);
   };
 
@@ -132,7 +127,7 @@ export default function LandingPage() {
           <Link
             className="btn btn-green nav-cta"
             to={SIGNUP}
-            onClick={(e) => startSignupTransition(e, "landing_nav")}
+            onClick={(e) => startSignupTransition(e)}
           >
             Criar conta
           </Link>
@@ -151,7 +146,7 @@ export default function LandingPage() {
                   <Link
                     className="btn btn-green pulse"
                     to={SIGNUP}
-                    onClick={(e) => startSignupTransition(e, "landing_hero")}
+                    onClick={(e) => startSignupTransition(e)}
                   >
                     Criar conta <span aria-hidden="true">→</span>
                   </Link>
@@ -283,7 +278,7 @@ export default function LandingPage() {
               <div className="step reveal"><div className="num">3</div><div className="ic" aria-hidden="true">→</div><h3>Depois de 1º de outubro</h3><p>Novas contas terão limites. Quem chegou antes continua com tudo liberado.</p></div>
             </div>
             <div className="reveal" style={{ marginTop: 30 }}>
-              <Link className="btn btn-white pulse" to={SIGNUP} onClick={(e) => startSignupTransition(e, "landing_lifetime")}>
+              <Link className="btn btn-white pulse" to={SIGNUP} onClick={(e) => startSignupTransition(e)}>
                 Garantir acesso vitalício <span aria-hidden="true">→</span>
               </Link>
             </div>
@@ -312,7 +307,7 @@ export default function LandingPage() {
               <Link
                 className="btn btn-white pulse"
                 to={SIGNUP}
-                onClick={(e) => startSignupTransition(e, "landing_final")}
+                onClick={(e) => startSignupTransition(e)}
               >
                 Garantir acesso vitalício <span aria-hidden="true">→</span>
               </Link>

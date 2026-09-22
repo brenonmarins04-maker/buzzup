@@ -10,7 +10,6 @@ const mocks = vi.hoisted(() => ({
   signUp: vi.fn(),
   resetPassword: vi.fn(),
   resendConfirmation: vi.fn(),
-  trackPlatformEvent: vi.fn(async () => undefined),
   toastError: vi.fn(),
 }));
 
@@ -24,10 +23,6 @@ vi.mock("@/contexts/AuthContext", () => ({
     resetPassword: mocks.resetPassword,
     resendConfirmation: mocks.resendConfirmation,
   }),
-}));
-
-vi.mock("@/lib/platformAnalytics", () => ({
-  trackPlatformEvent: mocks.trackPlatformEvent,
 }));
 
 vi.mock("sonner", () => ({
