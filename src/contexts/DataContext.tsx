@@ -5,6 +5,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { getNowBrasilia, getTodayBrasilia } from "@/lib/utils";
 import { normalizeToISODate } from "@/lib/demandStatus";
 import { clampDemandPoints } from "@/lib/demandPoints";
+import { filtroDemandasAtivas } from "@/lib/demandArchive";
 import { toast } from "sonner";
 import { GENERAL_SHORTCUTS_PREFIX, parseGeneralShortcuts, serializeGeneralShortcuts } from "@/lib/generalShortcuts";
 import type { DemandRequest, DemandRequestStatus } from "@/lib/demandRequests";
@@ -76,6 +77,32 @@ type EventoRealtime = {
   new?: Record<string, unknown> | null;
   old?: Record<string, unknown> | null;
 };
+
+function mapParkingItem(p: any): ParkingItem {
+  return {
+    id: p.id,
+    area: p.area,
+    personId: p.person_id ?? null,
+    title: p.title,
+    description: p.description ?? "",
+    date: normalizeToISODate(p.date) ?? "",
+    position: p.position ?? 0,
+    status: (p.status as ParkingItemStatus) ?? "in-progress",
+    points: p.points ?? 1,
+    completedAt: p.completed_at ?? null,
+    completedBy: p.completed_by ?? null,
+  };
+}
+
+function mapFormCompletion(c: any): FormCompletion {
+  return {
+    id: c.id,
+    formId: c.form_id,
+    userId: c.user_id,
+    completedAt: c.completed_at,
+    status: (c.status === "declined" ? "declined" : "done") as "done" | "declined",
+  };
+}
 
 function mapAward(w: any): GamificationAward {
   return {
@@ -318,7 +345,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         supabase.from("team_members").select("team_id, person_id"),
         (supabase.from as any)("event_types").select("id, name, color").eq("workspace_id", wsId),
         (supabase.from as any)("area_notes").select("*").eq("workspace_id", wsId),
-        (supabase.from as any)("parking_items").select("*").eq("workspace_id", wsId),
+        (supabase.from as any)("parking_items").select("*").eq("workspace_id", wsId).or(filtroDemandasAtivas()),
         (supabase.from as any)("gamification_actions").select("*").eq("workspace_id", wsId),
         (supabase.from as any)("gamification_awards").select("*").eq("workspace_id", wsId).order("awarded_at", { ascending: false }),
         (supabase.from as any)("lead_thermometer").select("*").eq("workspace_id", wsId).order("position", { ascending: true }),
@@ -595,8 +622,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     };
 
     const refetchParkingItems = async () => {
-      const { data } = await (supabase.from as any)("parking_items").select("*").eq("workspace_id", wsId);
-      setParkingItems((data || []).map((p: any) => ({ id: p.id, area: p.area, personId: p.person_id ?? null, title: p.title, description: p.description ?? "", date: normalizeToISODate(p.date) ?? "", position: p.position ?? 0, status: (p.status as ParkingItemStatus) ?? "in-progress", points: p.points ?? 1, completedAt: p.completed_at ?? null, completedBy: p.completed_by ?? null })));
+      const { data } = await (supabase.from as any)("parking_items").select("*").eq("workspace_id", wsId).or(filtroDemandasAtivas());
+      setParkingItems((data || []).map(mapParkingItem));
     };
 
     const refetchGamificationActions = async () => {
@@ -610,38 +637,54 @@ export function DataProvider({ children }: { children: ReactNode }) {
     };
 
     /**
-     * Pontuação chega pelo próprio evento, sem rebaixar a tabela toda.
+     * Encaixa o evento do realtime direto na lista, sem rebaixar a tabela.
      *
-     * Antes, cada ponto dado disparava o download de TODAS as pontuações do
-     * workspace — e a tela inteira travava enquanto isso ia e voltava. Como o
-     * evento já traz a linha, dá para encaixá-la direto.
+     * Antes toda mudança — um ponto dado, uma demanda enviada, um formulário
+     * marcado — disparava o download da tabela inteira e a troca do array
+     * completo, o que re-renderiza o app todo. Como o evento já traz a linha,
+     * mexemos só no registro afetado.
+     *
+     * Vale para tabelas simples. Onde a lista depende de junção (demandas com
+     * responsáveis, times com membros), uma linha sozinha não basta e o
+     * recarregamento continua sendo o certo.
      */
-    const aplicarEventoAward = (payload?: EventoRealtime) => {
-      const tipo = payload?.eventType;
+    function encaixar<T extends { id: string }>(
+      payload: EventoRealtime | undefined,
+      opts: {
+        mapear: (linha: Record<string, unknown>) => T;
+        definir: React.Dispatch<React.SetStateAction<T[]>>;
+        ordenar?: (a: T, b: T) => number;
+        recarregar: () => void;
+      },
+    ) {
+      const { mapear, definir, ordenar, recarregar } = opts;
       const linha = payload?.new ?? payload?.old;
-      // Evento de outro workspace não interessa (a RLS já filtra, isto é cinto)
-      if (linha?.workspace_id && linha.workspace_id !== wsId) return;
 
-      if (tipo === "INSERT" && payload.new) {
-        const novo = mapAward(payload.new);
-        setGamificationAwards(prev => (
-          prev.some(a => a.id === novo.id) ? prev : [novo, ...prev]
-        ));
+      // Evento de outro workspace não interessa (a RLS já filtra; isto é cinto)
+      if (linha && "workspace_id" in linha && linha.workspace_id !== wsId) return;
+
+      const ordena = (lista: T[]) => (ordenar ? [...lista].sort(ordenar) : lista);
+
+      if (payload?.eventType === "INSERT" && payload.new) {
+        const novo = mapear(payload.new);
+        // Quem fez a ação já aplicou na hora; o evento chega depois
+        definir(prev => prev.some(x => x.id === novo.id) ? prev : ordena([...prev, novo]));
         return;
       }
-      if (tipo === "UPDATE" && payload.new) {
-        const atual = mapAward(payload.new);
-        setGamificationAwards(prev => prev.map(a => a.id === atual.id ? atual : a));
+      if (payload?.eventType === "UPDATE" && payload.new) {
+        const atual = mapear(payload.new);
+        definir(prev => ordena(prev.map(x => x.id === atual.id ? atual : x)));
         return;
       }
-      if (tipo === "DELETE" && payload.old?.id) {
-        const id = payload.old.id;
-        setGamificationAwards(prev => prev.filter(a => a.id !== id));
+      if (payload?.eventType === "DELETE" && payload.old?.id) {
+        const id = payload.old.id as string;
+        definir(prev => prev.filter(x => x.id !== id));
         return;
       }
+
       // Evento fora do esperado: aí sim vale recarregar
-      debounced("gamificationAwards", refetchGamificationAwards);
-    };
+      recarregar();
+    }
 
     const refetchLeadThermometer = async () => {
       const { data } = await (supabase.from as any)("lead_thermometer").select("*").eq("workspace_id", wsId).order("position", { ascending: true });
@@ -670,7 +713,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     const refetchFormCompletions = async () => {
       const { data } = await (supabase.from as any)("form_completions").select("*").eq("workspace_id", wsId);
-      setFormCompletions((data || []).map((c: any) => ({ id: c.id, formId: c.form_id, userId: c.user_id, completedAt: c.completed_at, status: (c.status === "declined" ? "declined" : "done") as "done" | "declined" })));
+      setFormCompletions((data || []).map(mapFormCompletion));
     };
 
     const refetchDemandRequests = async () => {
@@ -701,18 +744,30 @@ export function DataProvider({ children }: { children: ReactNode }) {
       channels:             () => debounced("channels", refetchChannels),
       event_types:          () => debounced("eventTypes", refetchEventTypes),
       area_notes:           () => debounced("areaNotes", refetchAreaNotes),
-      parking_items:        () => debounced("parkingItems", refetchParkingItems),
+      parking_items:        p => encaixar(p, {
+        mapear: mapParkingItem, definir: setParkingItems,
+        recarregar: () => debounced("parkingItems", refetchParkingItems),
+      }),
       gamification_actions: () => debounced("gamificationActions", refetchGamificationActions),
-      gamification_awards:  aplicarEventoAward,
+      gamification_awards:  p => encaixar(p, {
+        mapear: mapAward, definir: setGamificationAwards,
+        // Mais recentes primeiro, como vem do banco
+        ordenar: (a, b) => b.awardedAt.localeCompare(a.awardedAt),
+        recarregar: () => debounced("gamificationAwards", refetchGamificationAwards),
+      }),
       lead_thermometer:     () => debounced("leadThermometer", refetchLeadThermometer),
       attendance_settings:  () => debounced("attendanceSettings", refetchAttendanceSettings),
       attendance_records:   () => debounced("attendanceRecords", refetchAttendanceRecords),
       broadcasts:           () => debounced("broadcasts", refetchBroadcasts),
       workspace_forms:      () => debounced("forms", refetchForms),
-      form_completions:     () => debounced("formCompletions", refetchFormCompletions),
-      // Sem espera: é o caso em que alguém está do outro lado esperando o
-      // pedido aparecer para decidir
-      demand_requests:      () => { void refetchDemandRequests(); },
+      form_completions:     p => encaixar(p, {
+        mapear: mapFormCompletion, definir: setFormCompletions,
+        recarregar: () => debounced("formCompletions", refetchFormCompletions),
+      }),
+      demand_requests:      p => encaixar(p, {
+        mapear: mapDemandRequest, definir: setDemandRequests,
+        recarregar: () => debounced("demandRequests", refetchDemandRequests),
+      }),
     };
 
     /**

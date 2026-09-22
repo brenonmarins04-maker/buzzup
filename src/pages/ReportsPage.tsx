@@ -10,6 +10,7 @@ import {
 } from "recharts";
 import { BarChart2, Users, Trophy, Clock, ChevronLeft, FileText, ExternalLink, Globe, UsersRound } from "lucide-react";
 import { ReportFilterBar, useReportFilter } from "@/components/reports/ReportFilter";
+import { useCompletedDemands } from "@/hooks/useCompletedDemands";
 import { useGamificationCycles } from "@/hooks/useGamificationCycles";
 
 type TimeSlot = "morning" | "afternoon" | "night";
@@ -53,7 +54,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export default function ReportsPage() {
   const navigate = useNavigate();
   const { isAdmin, activeWorkspaceId } = useAuth();
-  const { gamificationAwards, parkingItems, people, forms, formCompletions, teams } = useData();
+  const { gamificationAwards, people, forms, formCompletions, teams } = useData();
 
   // Ciclos da gamificação: viram opção de período nos filtros
   const { cycles } = useGamificationCycles();
@@ -62,6 +63,9 @@ export default function ReportsPage() {
   const pointsFilter = useReportFilter("30d");
   const entriesFilter = useReportFilter("30d");
   const tasksHeatFilter = useReportFilter("30d");
+  // O mapa de calor busca o próprio período: o app só mantém em memória as
+  // demandas recentes, e aqui o filtro pode alcançar qualquer data
+  const demandasConcluidas = useCompletedDemands(tasksHeatFilter.range);
   const entriesHeatFilter = useReportFilter("30d");
 
   // Busca de entradas cobre a união das janelas dos gráficos que usam logins
@@ -187,7 +191,7 @@ export default function ReportsPage() {
     for (let d = 0; d < 7; d++) {
       for (const s of SLOTS) { grid[`${d}-${s.key}`] = 0; }
     }
-    parkingItems.forEach(item => {
+    demandasConcluidas.forEach(item => {
       if (item.status !== "done" || !item.completedAt) return;
       const date = new Date(item.completedAt);
       if (!tasksHeatFilter.inWindow(date)) return;
@@ -195,7 +199,7 @@ export default function ReportsPage() {
         (grid[`${date.getDay()}-${getTimeSlot(date.getHours())}`] || 0) + 1;
     });
     return grid;
-  }, [parkingItems, tasksHeatFilter.inWindow]);
+  }, [demandasConcluidas, tasksHeatFilter.inWindow]);
 
   const maxHeat = Math.max(0, ...Object.values(heatmap));
   const totalHeatItems = Object.values(heatmap).reduce((a, b) => a + b, 0);
@@ -205,7 +209,7 @@ export default function ReportsPage() {
     if (!taskHeatmapDrill) return [];
     const { day, slot } = taskHeatmapDrill;
     const items: { name: string; clickedByName: string | null; title: string; time: string; ts: number }[] = [];
-    parkingItems.forEach(item => {
+    demandasConcluidas.forEach(item => {
       if (item.status !== "done" || !item.completedAt) return;
       const date = new Date(item.completedAt);
       if (!tasksHeatFilter.inWindow(date)) return;
@@ -229,7 +233,7 @@ export default function ReportsPage() {
       });
     });
     return items.sort((a, b) => b.ts - a.ts);
-  }, [taskHeatmapDrill, parkingItems, people, tasksHeatFilter.inWindow]);
+  }, [taskHeatmapDrill, demandasConcluidas, people, tasksHeatFilter.inWindow]);
 
   // Heatmap de entradas no BuzzUp por dia/horário
   const loginHeatmap = useMemo(() => {
