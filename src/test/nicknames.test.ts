@@ -120,10 +120,13 @@ describe("busca sem acento", () => {
     expect(matchesSearch("Luisa Prado", "luísa")).toBe(true);
     expect(matchesSearch("João Antônio", "joao anton")).toBe(true);
     expect(matchesSearch("Ângela", "ANGELA")).toBe(true);
+    expect(matchesSearch("Gabriel Rodrigues Pontes", "Gabriel P")).toBe(true);
+    expect(matchesSearch("Gabriel Rodrigues Pontes", "Pontes Gabr")).toBe(true);
   });
 
   it("não confunde nomes diferentes", () => {
     expect(matchesSearch("Luísa", "larissa")).toBe(false);
+    expect(matchesSearch("Gabriel Rodrigues Pontes", "Gabriel Lima")).toBe(false);
   });
 
   it("busca vazia passa tudo, texto vazio não quebra", () => {

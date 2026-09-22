@@ -32,8 +32,15 @@ export function normalizeForSearch(text: string): string {
     .trim();
 }
 
-/** O texto contém o termo, ignorando acentos e caixa? */
+/**
+ * Procura todas as palavras digitadas em qualquer parte do texto, ignorando
+ * acentos e caixa. Assim, "Gabriel P" encontra "Gabriel Rodrigues Pontes",
+ * sem exigir que os sobrenomes sejam digitados na ordem original.
+ */
 export function matchesSearch(text: string | null | undefined, term: string): boolean {
-  if (!term) return true;
-  return normalizeForSearch(text ?? "").includes(normalizeForSearch(term));
+  const query = normalizeForSearch(term);
+  if (!query) return true;
+
+  const words = normalizeForSearch(text ?? "").split(/\s+/).filter(Boolean);
+  return query.split(/\s+/).every(word => words.some(candidate => candidate.includes(word)));
 }
