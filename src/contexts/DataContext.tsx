@@ -70,6 +70,24 @@ function normalizeFormTargets(list: unknown, legacy?: string | null): string[] {
   return legacy ? [legacy] : [];
 }
 
+/** Um evento de mudança vindo do realtime. */
+type EventoRealtime = {
+  eventType?: string;
+  new?: Record<string, unknown> | null;
+  old?: Record<string, unknown> | null;
+};
+
+function mapAward(w: any): GamificationAward {
+  return {
+    id: w.id,
+    personId: w.person_id,
+    actionId: w.action_id ?? null,
+    actionName: w.action_name,
+    points: w.points ?? 0,
+    awardedAt: w.awarded_at,
+  };
+}
+
 function mapDemandRequest(r: any): DemandRequest {
   return {
     id: r.id,
@@ -588,7 +606,41 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     const refetchGamificationAwards = async () => {
       const { data } = await (supabase.from as any)("gamification_awards").select("*").eq("workspace_id", wsId).order("awarded_at", { ascending: false });
-      setGamificationAwards((data || []).map((w: any) => ({ id: w.id, personId: w.person_id, actionId: w.action_id ?? null, actionName: w.action_name, points: w.points ?? 0, awardedAt: w.awarded_at })));
+      setGamificationAwards((data || []).map(mapAward));
+    };
+
+    /**
+     * Pontuação chega pelo próprio evento, sem rebaixar a tabela toda.
+     *
+     * Antes, cada ponto dado disparava o download de TODAS as pontuações do
+     * workspace — e a tela inteira travava enquanto isso ia e voltava. Como o
+     * evento já traz a linha, dá para encaixá-la direto.
+     */
+    const aplicarEventoAward = (payload?: EventoRealtime) => {
+      const tipo = payload?.eventType;
+      const linha = payload?.new ?? payload?.old;
+      // Evento de outro workspace não interessa (a RLS já filtra, isto é cinto)
+      if (linha?.workspace_id && linha.workspace_id !== wsId) return;
+
+      if (tipo === "INSERT" && payload.new) {
+        const novo = mapAward(payload.new);
+        setGamificationAwards(prev => (
+          prev.some(a => a.id === novo.id) ? prev : [novo, ...prev]
+        ));
+        return;
+      }
+      if (tipo === "UPDATE" && payload.new) {
+        const atual = mapAward(payload.new);
+        setGamificationAwards(prev => prev.map(a => a.id === atual.id ? atual : a));
+        return;
+      }
+      if (tipo === "DELETE" && payload.old?.id) {
+        const id = payload.old.id;
+        setGamificationAwards(prev => prev.filter(a => a.id !== id));
+        return;
+      }
+      // Evento fora do esperado: aí sim vale recarregar
+      debounced("gamificationAwards", refetchGamificationAwards);
     };
 
     const refetchLeadThermometer = async () => {
@@ -634,7 +686,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       timers.set(key, setTimeout(() => { timers.delete(key); fn(); }, 300));
     };
 
-    const TABLE_HANDLERS: Record<string, () => void> = {
+    const TABLE_HANDLERS: Record<string, (payload?: EventoRealtime) => void> = {
       people:               () => debounced("people", refetchPeople),
       tasks:                () => debounced("tasks", refetchTasks),
       task_assignees:       () => debounced("tasks", refetchTasks),
@@ -651,7 +703,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       area_notes:           () => debounced("areaNotes", refetchAreaNotes),
       parking_items:        () => debounced("parkingItems", refetchParkingItems),
       gamification_actions: () => debounced("gamificationActions", refetchGamificationActions),
-      gamification_awards:  () => debounced("gamificationAwards", refetchGamificationAwards),
+      gamification_awards:  aplicarEventoAward,
       lead_thermometer:     () => debounced("leadThermometer", refetchLeadThermometer),
       attendance_settings:  () => debounced("attendanceSettings", refetchAttendanceSettings),
       attendance_records:   () => debounced("attendanceRecords", refetchAttendanceRecords),
@@ -704,7 +756,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       if (encerrado) return;
       const canal = supabase.channel(`ws-${workspaceId}-${Math.random().toString(36).slice(2, 8)}`);
       Object.entries(TABLE_HANDLERS).forEach(([table, handler]) => {
-        canal.on("postgres_changes", { event: "*", schema: "public", table }, handler);
+        canal.on("postgres_changes", { event: "*", schema: "public", table },
+          payload => handler(payload as EventoRealtime));
       });
 
       canal.subscribe(status => {
@@ -1809,30 +1862,70 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setGamificationAwards(curr => curr.filter(a => !(a.actionId === formId && myPersonIds.has(a.personId))));
   }, [workspaceId, uid, people]);
 
+  /**
+   * O valor do contexto precisa ser memoizado.
+   *
+   * Como objeto literal, ele nascia novo a cada render do provedor — e as 34
+   * telas que usam useData() re-renderizavam juntas, mesmo sem relação com o
+   * que mudou. Pontuar alguém ou trocar de tela disparava essa cascata
+   * inteira, e era daí que vinha a travada.
+   */
+  const value = useMemo(() => ({
+    people, projects, tasks, posts, events, categories, channels, teams,
+    eventTypes, notifications, areaNotes, parkingItems,
+    gamificationActions, gamificationAwards, leadThermometer,
+    attendanceSettings, attendanceRecords, broadcasts, generalShortcuts,
+    forms, formCompletions, demandRequests, loading, workspaceId,
+    pointsEarnedNotice, dismissPointsEarnedNotice, addPerson, updatePerson,
+    updatePersonNickname, resetPersonNicknames, setMyEmoji, setMyNickname,
+    approvePendingNickname, rejectPendingNickname, updatePersonArea,
+    updatePersonAreas, updatePersonLeaderArea, updatePersonLeaderAreas,
+    deletePerson, removePersonFromWorkspaceState, addTask, updateTask,
+    deleteTask, addPost, updatePost, deletePost, addProject, updateProject,
+    deleteProject, addEvent, updateEvent, deleteEvent, addCategory,
+    removeCategory, updateCategory, addChannel, removeChannel,
+    updateChannel, addTeam, updateTeam, deleteTeam, addEventType,
+    updateEventType, deleteEventType, markNotificationRead,
+    markAllNotificationsRead, addAreaNote, updateAreaNote, deleteAreaNote,
+    addParkingItem, updateParkingItem, moveParkingItem, deleteParkingItem,
+    addGamificationAction, updateGamificationAction,
+    deleteGamificationAction, awardGamificationPoints,
+    awardPointsForDemandCompletion, deleteGamificationAward,
+    addLeadThermometer, updateLeadThermometer, deleteLeadThermometer,
+    upsertAttendanceSetting, setAttendance, clearAttendance, addBroadcast,
+    deleteBroadcast, saveGeneralShortcuts, addDemandRequest,
+    acceptDemandRequest, rejectDemandRequest, addForm, updateForm,
+    deleteForm, markFormCompleted, unmarkFormCompleted, declineForm
+  }), [
+    people, projects, tasks, posts, events, categories, channels, teams,
+    eventTypes, notifications, areaNotes, parkingItems,
+    gamificationActions, gamificationAwards, leadThermometer,
+    attendanceSettings, attendanceRecords, broadcasts, generalShortcuts,
+    forms, formCompletions, demandRequests, loading, workspaceId,
+    pointsEarnedNotice, dismissPointsEarnedNotice, addPerson, updatePerson,
+    updatePersonNickname, resetPersonNicknames, setMyEmoji, setMyNickname,
+    approvePendingNickname, rejectPendingNickname, updatePersonArea,
+    updatePersonAreas, updatePersonLeaderArea, updatePersonLeaderAreas,
+    deletePerson, removePersonFromWorkspaceState, addTask, updateTask,
+    deleteTask, addPost, updatePost, deletePost, addProject, updateProject,
+    deleteProject, addEvent, updateEvent, deleteEvent, addCategory,
+    removeCategory, updateCategory, addChannel, removeChannel,
+    updateChannel, addTeam, updateTeam, deleteTeam, addEventType,
+    updateEventType, deleteEventType, markNotificationRead,
+    markAllNotificationsRead, addAreaNote, updateAreaNote, deleteAreaNote,
+    addParkingItem, updateParkingItem, moveParkingItem, deleteParkingItem,
+    addGamificationAction, updateGamificationAction,
+    deleteGamificationAction, awardGamificationPoints,
+    awardPointsForDemandCompletion, deleteGamificationAward,
+    addLeadThermometer, updateLeadThermometer, deleteLeadThermometer,
+    upsertAttendanceSetting, setAttendance, clearAttendance, addBroadcast,
+    deleteBroadcast, saveGeneralShortcuts, addDemandRequest,
+    acceptDemandRequest, rejectDemandRequest, addForm, updateForm,
+    deleteForm, markFormCompleted, unmarkFormCompleted, declineForm
+  ]);
+
   return (
-    <DataContext.Provider value={{
-      people, projects, tasks, posts, events, categories, channels, teams, eventTypes, notifications, areaNotes, parkingItems, gamificationActions, gamificationAwards, leadThermometer, attendanceSettings, attendanceRecords, broadcasts, generalShortcuts, forms, formCompletions, demandRequests, loading, workspaceId,
-      pointsEarnedNotice, dismissPointsEarnedNotice,
-      addPerson, updatePerson, updatePersonNickname, resetPersonNicknames, setMyEmoji, setMyNickname, approvePendingNickname, rejectPendingNickname, updatePersonArea, updatePersonAreas, updatePersonLeaderArea, updatePersonLeaderAreas, deletePerson, removePersonFromWorkspaceState,
-      addTask, updateTask, deleteTask,
-      addPost, updatePost, deletePost,
-      addProject, updateProject, deleteProject,
-      addEvent, updateEvent, deleteEvent,
-      addCategory, removeCategory, updateCategory,
-      addChannel, removeChannel, updateChannel,
-      addTeam, updateTeam, deleteTeam,
-      addEventType, updateEventType, deleteEventType,
-      markNotificationRead, markAllNotificationsRead,
-      addAreaNote, updateAreaNote, deleteAreaNote,
-      addParkingItem, updateParkingItem, moveParkingItem, deleteParkingItem,
-      addGamificationAction, updateGamificationAction, deleteGamificationAction,
-      awardGamificationPoints, awardPointsForDemandCompletion, deleteGamificationAward,
-      addLeadThermometer, updateLeadThermometer, deleteLeadThermometer,
-      upsertAttendanceSetting, setAttendance, clearAttendance,
-      addBroadcast, deleteBroadcast, saveGeneralShortcuts,
-      addDemandRequest, acceptDemandRequest, rejectDemandRequest,
-      addForm, updateForm, deleteForm, markFormCompleted, unmarkFormCompleted, declineForm,
-    }}>
+    <DataContext.Provider value={value}>
       {children}
     </DataContext.Provider>
   );
