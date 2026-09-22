@@ -144,6 +144,9 @@ type DataContextType = {
   categories: string[]; channels: Channel[]; eventTypes: EventType[]; notifications: Notification[];
   areaNotes: AreaNote[]; parkingItems: ParkingItem[];
   gamificationActions: GamificationAction[]; gamificationAwards: GamificationAward[];
+  /** Momento da última consulta manual (ou do carregamento inicial) da gamificação. */
+  gamificationLastUpdatedAt: string | null;
+  gamificationRefreshing: boolean;
   leadThermometer: LeadThermometerItem[];
   attendanceSettings: AttendanceSetting[];
   attendanceRecords: AttendanceRecord[];
@@ -223,6 +226,8 @@ type DataContextType = {
   addGamificationAction: (name: string, points: number) => Promise<void>;
   updateGamificationAction: (a: GamificationAction) => Promise<void>;
   deleteGamificationAction: (id: string) => Promise<void>;
+  /** Atualiza ações e pontuações apenas quando o usuário solicita. */
+  refreshGamification: () => Promise<boolean>;
 
   /** `awardedAt` força a data do ponto — usado para cair no ciclo filtrado. */
   awardGamificationPoints: (personId: string, action: GamificationAction, awardedAt?: string | null) => Promise<GamificationAwardResult>;
@@ -276,6 +281,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [parkingItems, setParkingItems] = useState<ParkingItem[]>([]);
   const [gamificationActions, setGamificationActions] = useState<GamificationAction[]>([]);
   const [gamificationAwards, setGamificationAwards] = useState<GamificationAward[]>([]);
+  const [gamificationLastUpdatedAt, setGamificationLastUpdatedAt] = useState<string | null>(null);
+  const [gamificationRefreshing, setGamificationRefreshing] = useState(false);
   const [leadThermometer, setLeadThermometer] = useState<LeadThermometerItem[]>([]);
   const [attendanceSettings, setAttendanceSettings] = useState<AttendanceSetting[]>([]);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
@@ -286,6 +293,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [categoriesRaw, setCategoriesRaw] = useState<{ id: string; name: string }[]>([]);
   const pplMapRef = useRef<Map<string, Person>>(new Map());
+  const gamificationRefreshInFlightRef = useRef(false);
   const generalShortcuts = useMemo(() => parseGeneralShortcuts(broadcasts), [broadcasts]);
 
   const removePersonFromWorkspaceState = useCallback((personId: string, personUserId?: string | null) => {
@@ -321,12 +329,13 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (!uid || !workspaceId) {
       setPeople([]); setProjects([]); setTasks([]); setPosts([]);
       setEvents([]); setCategories([]); setChannels([]); setTeams([]);
-      setCategoriesRaw([]); setEventTypes([]); setAreaNotes([]); setParkingItems([]); setGamificationActions([]); setGamificationAwards([]); setLeadThermometer([]); setAttendanceSettings([]); setAttendanceRecords([]); setBroadcasts([]); setForms([]); setFormCompletions([]); setDemandRequests([]); setLoading(false);
+      setCategoriesRaw([]); setEventTypes([]); setAreaNotes([]); setParkingItems([]); setGamificationActions([]); setGamificationAwards([]); setGamificationLastUpdatedAt(null); setLeadThermometer([]); setAttendanceSettings([]); setAttendanceRecords([]); setBroadcasts([]); setForms([]); setFormCompletions([]); setDemandRequests([]); setLoading(false);
       return;
     }
     let cancelled = false;
     async function fetchAll() {
       setLoading(true);
+      setGamificationLastUpdatedAt(null);
       const wsId = workspaceId!;
       try {
 
@@ -448,6 +457,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setParkingItems(((piRes as any)?.data || []).map((p: any) => ({ id: p.id, area: p.area, personId: p.person_id ?? null, title: p.title, description: p.description ?? "", date: normalizeToISODate(p.date) ?? "", position: p.position ?? 0, status: (p.status as ParkingItemStatus) ?? "in-progress", points: p.points ?? 1, completedAt: p.completed_at ?? null, completedBy: p.completed_by ?? null })));
       setGamificationActions(((gaRes as any)?.data || []).map((a: any) => ({ id: a.id, name: a.name, points: a.points ?? 0 })));
       setGamificationAwards(((gwRes as any)?.data || []).map((w: any) => ({ id: w.id, personId: w.person_id, actionId: w.action_id ?? null, actionName: w.action_name, points: w.points ?? 0, awardedAt: w.awarded_at })));
+      if (!(gaRes as any)?.error && !(gwRes as any)?.error) {
+        setGamificationLastUpdatedAt(new Date().toISOString());
+      }
       setLeadThermometer(((ltRes as any)?.data || []).map((l: any) => ({ id: l.id, name: l.name, value: l.value ?? "", areaSize: l.area_size ?? "", type: l.type ?? "", position: l.position ?? 0 })));
       setAttendanceSettings(((asRes as any)?.data || []).map((s: any) => ({ id: s.id, area: s.area, intervalDays: s.interval_days ?? 7, startDate: s.start_date ?? "", meetingCount: s.meeting_count ?? 8 })));
       setAttendanceRecords(((arRes as any)?.data || []).map((r: any) => ({ id: r.id, area: r.area, personId: r.person_id, date: r.date, status: (r.status ?? "P") as AttendanceStatus, justification: r.justification ?? "" })));
@@ -626,16 +638,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setParkingItems((data || []).map(mapParkingItem));
     };
 
-    const refetchGamificationActions = async () => {
-      const { data } = await (supabase.from as any)("gamification_actions").select("*").eq("workspace_id", wsId);
-      setGamificationActions((data || []).map((a: any) => ({ id: a.id, name: a.name, points: a.points ?? 0 })));
-    };
-
-    const refetchGamificationAwards = async () => {
-      const { data } = await (supabase.from as any)("gamification_awards").select("*").eq("workspace_id", wsId).order("awarded_at", { ascending: false });
-      setGamificationAwards((data || []).map(mapAward));
-    };
-
     /**
      * Encaixa o evento do realtime direto na lista, sem rebaixar a tabela.
      *
@@ -748,13 +750,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         mapear: mapParkingItem, definir: setParkingItems,
         recarregar: () => debounced("parkingItems", refetchParkingItems),
       }),
-      gamification_actions: () => debounced("gamificationActions", refetchGamificationActions),
-      gamification_awards:  p => encaixar(p, {
-        mapear: mapAward, definir: setGamificationAwards,
-        // Mais recentes primeiro, como vem do banco
-        ordenar: (a, b) => b.awardedAt.localeCompare(a.awardedAt),
-        recarregar: () => debounced("gamificationAwards", refetchGamificationAwards),
-      }),
       lead_thermometer:     () => debounced("leadThermometer", refetchLeadThermometer),
       attendance_settings:  () => debounced("attendanceSettings", refetchAttendanceSettings),
       attendance_records:   () => debounced("attendanceRecords", refetchAttendanceRecords),
@@ -788,7 +783,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       refetchPeople();
       refetchPosts();
       refetchEvents();
-      refetchGamificationAwards();
       refetchForms();
       refetchFormCompletions();
       refetchDemandRequests();
@@ -1475,6 +1469,37 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setGamificationActions(prev => prev.filter(x => x.id !== id));
   }, []);
 
+  const refreshGamification = useCallback(async (): Promise<boolean> => {
+    if (!workspaceId || gamificationRefreshInFlightRef.current) return false;
+
+    gamificationRefreshInFlightRef.current = true;
+    setGamificationRefreshing(true);
+    try {
+      const [actionsResult, awardsResult] = await Promise.all([
+        (supabase.from as any)("gamification_actions").select("*").eq("workspace_id", workspaceId),
+        (supabase.from as any)("gamification_awards").select("*").eq("workspace_id", workspaceId).order("awarded_at", { ascending: false }),
+      ]);
+
+      if (actionsResult.error || awardsResult.error) {
+        console.error("[gamificação] falha ao atualizar", { actionsError: actionsResult.error, awardsError: awardsResult.error });
+        return false;
+      }
+
+      setGamificationActions((actionsResult.data || []).map((action: any) => ({
+        id: action.id, name: action.name, points: action.points ?? 0,
+      })));
+      setGamificationAwards((awardsResult.data || []).map(mapAward));
+      setGamificationLastUpdatedAt(new Date().toISOString());
+      return true;
+    } catch (error) {
+      console.error("[gamificação] falha inesperada ao atualizar", error);
+      return false;
+    } finally {
+      gamificationRefreshInFlightRef.current = false;
+      setGamificationRefreshing(false);
+    }
+  }, [workspaceId]);
+
   const awardGamificationPoints = useCallback(async (personId: string, action: GamificationAction, awardedAt?: string | null): Promise<GamificationAwardResult> => {
     if (!workspaceId || !uid) return { ok: false, error: "Sua sessão expirou. Entre novamente para pontuar." };
     if (!personId || !people.some(person => person.id === personId)) {
@@ -1928,7 +1953,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const value = useMemo(() => ({
     people, projects, tasks, posts, events, categories, channels, teams,
     eventTypes, notifications, areaNotes, parkingItems,
-    gamificationActions, gamificationAwards, leadThermometer,
+    gamificationActions, gamificationAwards, gamificationLastUpdatedAt, gamificationRefreshing, leadThermometer,
     attendanceSettings, attendanceRecords, broadcasts, generalShortcuts,
     forms, formCompletions, demandRequests, loading, workspaceId,
     pointsEarnedNotice, dismissPointsEarnedNotice, addPerson, updatePerson,
@@ -1944,7 +1969,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     markAllNotificationsRead, addAreaNote, updateAreaNote, deleteAreaNote,
     addParkingItem, updateParkingItem, moveParkingItem, deleteParkingItem,
     addGamificationAction, updateGamificationAction,
-    deleteGamificationAction, awardGamificationPoints,
+    deleteGamificationAction, refreshGamification, awardGamificationPoints,
     awardPointsForDemandCompletion, deleteGamificationAward,
     addLeadThermometer, updateLeadThermometer, deleteLeadThermometer,
     upsertAttendanceSetting, setAttendance, clearAttendance, addBroadcast,
@@ -1954,7 +1979,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }), [
     people, projects, tasks, posts, events, categories, channels, teams,
     eventTypes, notifications, areaNotes, parkingItems,
-    gamificationActions, gamificationAwards, leadThermometer,
+    gamificationActions, gamificationAwards, gamificationLastUpdatedAt, gamificationRefreshing, leadThermometer,
     attendanceSettings, attendanceRecords, broadcasts, generalShortcuts,
     forms, formCompletions, demandRequests, loading, workspaceId,
     pointsEarnedNotice, dismissPointsEarnedNotice, addPerson, updatePerson,
@@ -1970,7 +1995,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     markAllNotificationsRead, addAreaNote, updateAreaNote, deleteAreaNote,
     addParkingItem, updateParkingItem, moveParkingItem, deleteParkingItem,
     addGamificationAction, updateGamificationAction,
-    deleteGamificationAction, awardGamificationPoints,
+    deleteGamificationAction, refreshGamification, awardGamificationPoints,
     awardPointsForDemandCompletion, deleteGamificationAward,
     addLeadThermometer, updateLeadThermometer, deleteLeadThermometer,
     upsertAttendanceSetting, setAttendance, clearAttendance, addBroadcast,

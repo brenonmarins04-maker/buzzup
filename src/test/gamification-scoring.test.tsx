@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 const awardGamificationPoints = vi.hoisted(() => vi.fn().mockResolvedValue({ ok: true }));
+const refreshGamification = vi.hoisted(() => vi.fn().mockResolvedValue(true));
 
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ isAdmin: true, hubStatus: "ready" }),
@@ -20,6 +21,9 @@ vi.mock("@/contexts/DataContext", () => ({
     ],
     gamificationActions: [{ id: "a1", name: "Entregou demanda", points: 3 }],
     gamificationAwards: [],
+    gamificationLastUpdatedAt: "2026-09-22T10:00:00.000Z",
+    gamificationRefreshing: false,
+    refreshGamification,
     awardGamificationPoints,
     deleteGamificationAward: vi.fn(),
     addGamificationAction: vi.fn(),
@@ -35,6 +39,8 @@ describe("pontuação móvel", () => {
   beforeEach(() => {
     awardGamificationPoints.mockClear();
     awardGamificationPoints.mockResolvedValue({ ok: true });
+    refreshGamification.mockClear();
+    refreshGamification.mockResolvedValue(true);
   });
 
   it("seleciona com Enter, pontua e deixa o nome pronto para ser substituído", async () => {
@@ -86,5 +92,17 @@ describe("pontuação móvel", () => {
 
     await waitFor(() => expect(awardGamificationPoints).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(action).toBeEnabled());
+  });
+
+  it("só atualiza a planilha de pontos quando o refresh é acionado", async () => {
+    render(
+      <MemoryRouter>
+        <GamificationAdminPage />
+      </MemoryRouter>,
+    );
+
+    expect(refreshGamification).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Atualizar gamificação" }));
+    await waitFor(() => expect(refreshGamification).toHaveBeenCalledTimes(1));
   });
 });

@@ -21,6 +21,7 @@ import {
   awardTimestampForCycle, formatCycleRange, isInCycle, pointsOutsideCycles, pointsPerCycle,
 } from "@/lib/gamificationCycles";
 import { MAX_DEMAND_POINT_OPTIONS } from "@/lib/demandPoints";
+import GamificationRefreshButton from "@/components/gamification/GamificationRefreshButton";
 
 type Sub = "pontuar" | "acoes" | "demandas" | "apelidos" | "historico";
 
@@ -45,10 +46,11 @@ export default function GamificationAdminPage() {
 
   return (
     <div className="space-y-5">
-      <div>
+      <div className="flex items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
           <Trophy className="h-5 w-5 text-primary" /> Gamificação
         </h2>
+        <GamificationRefreshButton />
       </div>
       <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted/40 p-1 sm:flex sm:items-center sm:gap-1 sm:rounded-none sm:border-b sm:border-border sm:bg-transparent sm:p-0">
         {subs.map(s => (

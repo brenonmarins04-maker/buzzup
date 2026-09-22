@@ -19,6 +19,7 @@ import GeneralShortcutsSection from "@/components/GeneralShortcutsSection";
 import CycleSelector from "@/components/gamification/CycleSelector";
 import { useGamificationCycles } from "@/hooks/useGamificationCycles";
 import { isInCycle } from "@/lib/gamificationCycles";
+import GamificationRefreshButton from "@/components/gamification/GamificationRefreshButton";
 
 function timeAgo(iso: string) {
   const d = new Date(iso);
@@ -437,9 +438,12 @@ export default function DashboardPage() {
 
       {/* Ranking */}
       <div data-tour="ranking" className="order-4 lg:order-4 lg:col-span-3 glass-panel rounded-2xl p-5">
-        <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-          <Trophy className="h-4 w-4 text-[#F97316]" /> Gameficação
-        </h2>
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <Trophy className="h-4 w-4 text-[#F97316]" /> Gameficação
+          </h2>
+          <GamificationRefreshButton />
+        </div>
         <CycleSelector cycles={cycles} />
         {allRanking.length === 0 ? (
           <p className="text-xs text-muted-foreground">Nenhum ponto ainda. Conclua demandas com pontos atribuídos para entrar no ranking.</p>

@@ -44,19 +44,15 @@ export function useGamificationCycles() {
     };
     load();
 
-    // Realtime: o ciclo escolhido pelo diretor chega para todo mundo na hora
-    let ch: ReturnType<typeof supabase.channel> | null = null;
-    try {
-      ch = supabase
-        .channel(`wsgc-${wsId}-${Math.random().toString(36).slice(2)}`)
-        .on("postgres_changes", {
-          event: "*", schema: "public", table: "workspace_config",
-          filter: `workspace_id=eq.${wsId}`,
-        }, () => { if (!cancelled) load(); })
-        .subscribe();
-    } catch { ch = null; }
+    // O ranking é atualizado sob demanda. O evento abaixo é disparado pelo
+    // botão de refresh compartilhado, sem abrir um canal Realtime por tela.
+    const onManualRefresh = () => { void load(); };
+    window.addEventListener("buzzup:gamification-refresh", onManualRefresh);
 
-    return () => { cancelled = true; if (ch) supabase.removeChannel(ch); };
+    return () => {
+      cancelled = true;
+      window.removeEventListener("buzzup:gamification-refresh", onManualRefresh);
+    };
   }, [activeWorkspaceId]);
 
   const persist = useCallback(async (next: CyclesState): Promise<SaveResult> => {
