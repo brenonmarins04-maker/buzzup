@@ -12,6 +12,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { DataProvider } from "@/contexts/DataContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import RouteErrorBoundary from "@/components/RouteErrorBoundary";
+import PointerGuard from "@/components/PointerGuard";
 import AppLayout from "@/components/AppLayout";
 import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
@@ -133,6 +134,7 @@ const App = () => (
         <ResponsiveSonner />
         <AuthTransitionProvider>
         <BrowserRouter>
+          <PointerGuard />
           <RecoveryGate />
           <SignupConfirmGate />
           {/* Só para as telas públicas; as internas têm a sua, dentro do layout */}
