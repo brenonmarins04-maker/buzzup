@@ -799,6 +799,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     let channel: ReturnType<typeof supabase.channel> | null = null;
     let encerrado = false;
     let retry: ReturnType<typeof setTimeout> | null = null;
+    let estabilidade: ReturnType<typeof setTimeout> | null = null;
     let tentativas = 0;
 
     const abrirCanal = () => {
@@ -813,7 +814,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
         if (encerrado) return;
 
         if (status === "SUBSCRIBED") {
-          tentativas = 0;
+          // A espera só é zerada depois de a conexão se firmar. Zerar já na
+          // conexão fazia um socket instável reconectar de 1 em 1 segundo
+          // para sempre, sem nunca desacelerar.
+          if (estabilidade) clearTimeout(estabilidade);
+          estabilidade = setTimeout(() => { tentativas = 0; }, 30_000);
           // Enquanto o socket esteve fora, nenhum evento chegou
           catchUp();
           return;
@@ -844,6 +849,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return () => {
       encerrado = true;
       if (retry) clearTimeout(retry);
+      if (estabilidade) clearTimeout(estabilidade);
       document.removeEventListener("visibilitychange", aoVoltar);
       window.removeEventListener("online", catchUp);
       timers.forEach(t => clearTimeout(t));

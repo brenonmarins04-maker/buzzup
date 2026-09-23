@@ -18,11 +18,23 @@ export function temMenuAberto(doc: Document): boolean {
 }
 
 /**
+ * Atributo que a trava de rolagem deixa no <body>. É o segundo mecanismo:
+ * o Radix bloqueia o clique por estilo inline, e a trava de rolagem bloqueia
+ * a rolagem por este atributo. Sobrando qualquer um dos dois, a página fica
+ * inutilizável.
+ */
+const ATRIBUTO_ROLAGEM = "data-scroll-locked";
+
+/**
  * O <body> está bloqueado sem nada aberto que justifique?
  * É a assinatura exata do bloqueio esquecido.
  */
 export function cliquesTravados(doc: Document): boolean {
-  if (doc.body?.style?.pointerEvents !== "none") return false;
+  const body = doc.body;
+  if (!body) return false;
+  const bloqueado =
+    body.style?.pointerEvents === "none" || body.hasAttribute(ATRIBUTO_ROLAGEM);
+  if (!bloqueado) return false;
   return !temMenuAberto(doc);
 }
 
@@ -33,5 +45,6 @@ export function cliquesTravados(doc: Document): boolean {
 export function destravarCliques(doc: Document): boolean {
   if (!cliquesTravados(doc)) return false;
   doc.body.style.removeProperty("pointer-events");
+  doc.body.removeAttribute(ATRIBUTO_ROLAGEM);
   return true;
 }

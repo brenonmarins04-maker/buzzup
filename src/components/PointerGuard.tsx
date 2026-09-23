@@ -26,7 +26,12 @@ export default function PointerGuard() {
     verificarDepois();
 
     const observador = new MutationObserver(verificarDepois);
-    observador.observe(document.body, { attributes: true, attributeFilter: ["style"] });
+    // Os dois mecanismos: o estilo inline do menu e o atributo da trava de
+    // rolagem. Observar só o estilo deixava metade dos casos passar.
+    observador.observe(document.body, {
+      attributes: true,
+      attributeFilter: ["style", "data-scroll-locked"],
+    });
 
     return () => {
       if (timer) clearTimeout(timer);

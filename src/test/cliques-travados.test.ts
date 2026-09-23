@@ -95,3 +95,39 @@ describe("destravar cliques", () => {
     expect(destravarCliques(document)).toBe(false);
   });
 });
+
+describe("trava de rolagem: o segundo mecanismo", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+    document.body.removeAttribute("style");
+    document.body.removeAttribute("data-scroll-locked");
+  });
+
+  it("atributo esquecido também conta como travado", () => {
+    const menu = abrirMenu("dialog");
+    document.body.setAttribute("data-scroll-locked", "");
+    menu.remove();
+
+    expect(cliquesTravados(document)).toBe(true);
+    expect(destravarCliques(document)).toBe(true);
+    expect(document.body.hasAttribute("data-scroll-locked")).toBe(false);
+  });
+
+  it("com menu aberto, o atributo fica — é o comportamento certo", () => {
+    abrirMenu("dialog");
+    document.body.setAttribute("data-scroll-locked", "");
+    expect(destravarCliques(document)).toBe(false);
+    expect(document.body.hasAttribute("data-scroll-locked")).toBe(true);
+  });
+
+  it("limpa os dois mecanismos de uma vez", () => {
+    const menu = abrirMenu("popover");
+    document.body.style.pointerEvents = "none";
+    document.body.setAttribute("data-scroll-locked", "");
+    menu.remove();
+
+    expect(destravarCliques(document)).toBe(true);
+    expect(document.body.style.pointerEvents).toBe("");
+    expect(document.body.hasAttribute("data-scroll-locked")).toBe(false);
+  });
+});
