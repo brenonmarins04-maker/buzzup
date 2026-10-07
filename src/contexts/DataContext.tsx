@@ -6,6 +6,8 @@ import { getNowBrasilia, getTodayBrasilia } from "@/lib/utils";
 import { normalizeToISODate } from "@/lib/demandStatus";
 import { clampDemandPoints } from "@/lib/demandPoints";
 import { filtroDemandasAtivas } from "@/lib/demandArchive";
+import { maintainRealtimeChannel } from "@/lib/realtimeConnection";
+import { createRefreshQueue } from "@/lib/refreshQueue";
 import { toast } from "sonner";
 import { GENERAL_SHORTCUTS_PREFIX, parseGeneralShortcuts, serializeGeneralShortcuts } from "@/lib/generalShortcuts";
 import type { DemandRequest, DemandRequestStatus } from "@/lib/demandRequests";
@@ -482,7 +484,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
           // Skip if a parking item with same title+date already exists
           return !parkingKeys.has(`${t.title}|||${t.deadline}`);
         });
-        if (toMigrate.length > 0 && !cancelled) {
+        // A failed read is not an empty table: never create duplicates on a network error.
+        if (toMigrate.length > 0 && !cancelled && !tkRes.error && !piRes.error && !taRes.error) {
           const inserts = toMigrate.map(t => ({
             workspace_id: wsId,
             // Demanda de time fica no quadro do time (team_<id>); só cai em área se a task tiver área.
@@ -522,9 +525,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!workspaceId) return;
     const wsId = workspaceId;
+    let disposed = false;
 
     const refetchPeople = async () => {
-      const { data } = await (supabase.from("people") as any).select("*").eq("workspace_id", wsId);
+      const { data, error } = await (supabase.from("people") as any).select("*").eq("workspace_id", wsId);
+      if (disposed || error) return;
       const pplList: Person[] = (data || []).map((p: any) => {
         const rawArea: string | null = p.area ?? null;
         const areas = rawArea ? rawArea.split(",").filter(Boolean) : [];
@@ -544,6 +549,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         supabase.from("tasks").select("*").eq("workspace_id", wsId),
         supabase.from("task_assignees").select("task_id, person_id"),
       ]);
+      if (disposed || tkRes.error || taRes.error) return;
       const pplMap = pplMapRef.current;
       const taskAssignees = new Map<string, Person[]>();
       (taRes.data || []).forEach((r: any) => {
@@ -564,6 +570,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         supabase.from("posts").select("*").eq("workspace_id", wsId),
         supabase.from("post_assignees").select("post_id, person_id"),
       ]);
+      if (disposed || psRes.error || paRes.error) return;
       const pplMap = pplMapRef.current;
       const postAssignees = new Map<string, Person[]>();
       (paRes.data || []).forEach((r: any) => {
@@ -582,6 +589,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         supabase.from("projects").select("*").eq("workspace_id", wsId),
         supabase.from("project_participants").select("project_id, person_id"),
       ]);
+      if (disposed || projRes.error || ppRes.error) return;
       const pplMap = pplMapRef.current;
       const projParticipants = new Map<string, Person[]>();
       (ppRes.data || []).forEach((r: any) => {
@@ -601,40 +609,47 @@ export function DataProvider({ children }: { children: ReactNode }) {
         supabase.from("teams").select("id, name").eq("workspace_id", wsId),
         supabase.from("team_members").select("team_id, person_id"),
       ]);
+      if (disposed || teamsRes.error || tmRes.error) return;
       const teamMembersMap = new Map<string, string[]>();
       (tmRes.data || []).forEach((r: any) => { const arr = teamMembersMap.get(r.team_id) || []; arr.push(r.person_id); teamMembersMap.set(r.team_id, arr); });
       setTeams((teamsRes.data || []).map((t: any) => ({ id: t.id, name: t.name, memberIds: teamMembersMap.get(t.id) || [] })));
     };
 
     const refetchEvents = async () => {
-      const { data } = await supabase.from("calendar_items").select("*").eq("workspace_id", wsId);
+      const { data, error } = await supabase.from("calendar_items").select("*").eq("workspace_id", wsId);
+      if (disposed || error) return;
       setEvents((data || []).map((r: any) => ({ id: r.id, title: r.title, date: r.date, type: r.type, description: r.description, teamId: r.team_id ?? null })));
     };
 
     const refetchCategories = async () => {
-      const { data } = await supabase.from("categories").select("id, name").eq("workspace_id", wsId);
+      const { data, error } = await supabase.from("categories").select("id, name").eq("workspace_id", wsId);
+      if (disposed || error) return;
       const rawCats = data || [];
       setCategoriesRaw(rawCats);
       setCategories(rawCats.map((c: any) => c.name));
     };
 
     const refetchChannels = async () => {
-      const { data } = await supabase.from("channels").select("id, name, color").eq("workspace_id", wsId);
+      const { data, error } = await supabase.from("channels").select("id, name, color").eq("workspace_id", wsId);
+      if (disposed || error) return;
       setChannels((data || []).map((c: any) => ({ id: c.id, name: c.name, color: c.color })));
     };
 
     const refetchEventTypes = async () => {
-      const { data } = await (supabase.from as any)("event_types").select("id, name, color").eq("workspace_id", wsId);
+      const { data, error } = await (supabase.from as any)("event_types").select("id, name, color").eq("workspace_id", wsId);
+      if (disposed || error) return;
       setEventTypes((data || []).map((e: any) => ({ id: e.id, name: e.name, color: e.color })));
     };
 
     const refetchAreaNotes = async () => {
-      const { data } = await (supabase.from as any)("area_notes").select("*").eq("workspace_id", wsId);
+      const { data, error } = await (supabase.from as any)("area_notes").select("*").eq("workspace_id", wsId);
+      if (disposed || error) return;
       setAreaNotes((data || []).map((n: any) => ({ id: n.id, area: n.area, name: n.name, url: n.url, position: n.position ?? 0 })));
     };
 
     const refetchParkingItems = async () => {
-      const { data } = await (supabase.from as any)("parking_items").select("*").eq("workspace_id", wsId).or(filtroDemandasAtivas());
+      const { data, error } = await (supabase.from as any)("parking_items").select("*").eq("workspace_id", wsId).or(filtroDemandasAtivas());
+      if (disposed || error) return;
       setParkingItems((data || []).map(mapParkingItem));
     };
 
@@ -689,47 +704,49 @@ export function DataProvider({ children }: { children: ReactNode }) {
     }
 
     const refetchLeadThermometer = async () => {
-      const { data } = await (supabase.from as any)("lead_thermometer").select("*").eq("workspace_id", wsId).order("position", { ascending: true });
+      const { data, error } = await (supabase.from as any)("lead_thermometer").select("*").eq("workspace_id", wsId).order("position", { ascending: true });
+      if (disposed || error) return;
       setLeadThermometer((data || []).map((l: any) => ({ id: l.id, name: l.name, value: l.value ?? "", areaSize: l.area_size ?? "", type: l.type ?? "", position: l.position ?? 0 })));
     };
 
     const refetchAttendanceSettings = async () => {
-      const { data } = await (supabase.from as any)("attendance_settings").select("*").eq("workspace_id", wsId);
+      const { data, error } = await (supabase.from as any)("attendance_settings").select("*").eq("workspace_id", wsId);
+      if (disposed || error) return;
       setAttendanceSettings((data || []).map((s: any) => ({ id: s.id, area: s.area, intervalDays: s.interval_days ?? 7, startDate: s.start_date ?? "", meetingCount: s.meeting_count ?? 8 })));
     };
 
     const refetchAttendanceRecords = async () => {
-      const { data } = await (supabase.from as any)("attendance_records").select("*").eq("workspace_id", wsId);
+      const { data, error } = await (supabase.from as any)("attendance_records").select("*").eq("workspace_id", wsId);
+      if (disposed || error) return;
       setAttendanceRecords((data || []).map((r: any) => ({ id: r.id, area: r.area, personId: r.person_id, date: r.date, status: (r.status ?? "P") as AttendanceStatus, justification: r.justification ?? "" })));
     };
 
     const refetchBroadcasts = async () => {
-      const { data } = await (supabase.from as any)("broadcasts").select("*").eq("workspace_id", wsId).gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false });
+      const { data, error } = await (supabase.from as any)("broadcasts").select("*").eq("workspace_id", wsId).gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false });
+      if (disposed || error) return;
       setBroadcasts((data || []).map((b: any) => ({ id: b.id, message: b.message, durationDays: b.duration_days ?? 7, createdAt: b.created_at, expiresAt: b.expires_at, createdBy: b.created_by ?? null })));
     };
 
     const refetchForms = async () => {
-      const { data } = await (supabase.from as any)("workspace_forms").select("*").eq("workspace_id", wsId).order("created_at", { ascending: false });
+      const { data, error } = await (supabase.from as any)("workspace_forms").select("*").eq("workspace_id", wsId).order("created_at", { ascending: false });
+      if (disposed || error) return;
       setForms((data || []).map((f: any) => ({ id: f.id, title: f.title, description: f.description ?? "", url: f.url, targetType: (f.target_type ?? "all") as WorkspaceFormTarget, targetValue: f.target_value ?? null, targetValues: normalizeFormTargets(f.target_values, f.target_value), points: f.points ?? 1, required: f.required !== false, createdBy: f.created_by ?? null, createdAt: f.created_at })));
     };
 
     const refetchFormCompletions = async () => {
-      const { data } = await (supabase.from as any)("form_completions").select("*").eq("workspace_id", wsId);
+      const { data, error } = await (supabase.from as any)("form_completions").select("*").eq("workspace_id", wsId);
+      if (disposed || error) return;
       setFormCompletions((data || []).map(mapFormCompletion));
     };
 
     const refetchDemandRequests = async () => {
-      const { data } = await (supabase.from as any)("demand_requests").select("*").eq("workspace_id", wsId);
+      const { data, error } = await (supabase.from as any)("demand_requests").select("*").eq("workspace_id", wsId);
+      if (disposed || error) return;
       setDemandRequests((data || []).map(mapDemandRequest));
     };
 
-    // Per-group debounce: bursts on the same group collapse into one fetch (300ms window)
-    const timers = new Map<string, ReturnType<typeof setTimeout>>();
-    const debounced = (key: string, fn: () => Promise<void>) => {
-      const existing = timers.get(key);
-      if (existing) clearTimeout(existing);
-      timers.set(key, setTimeout(() => { timers.delete(key); fn(); }, 300));
-    };
+    const refreshQueue = createRefreshQueue();
+    const debounced = refreshQueue.schedule;
 
     const TABLE_HANDLERS: Record<string, (payload?: EventoRealtime) => void> = {
       people:               () => debounced("people", refetchPeople),
@@ -771,21 +788,30 @@ export function DataProvider({ children }: { children: ReactNode }) {
      * oscilando) nenhum evento chegou, e sem isso a tela ficaria desatualizada
      * até um F5 — foi o caso das demandas que não apareciam para os outros.
      */
-    // São 9 consultas de uma vez. Alternar de aba dispararia todas a cada
-    // troca, e com várias abas abertas isso vira carga à toa no projeto.
+    // Coalesce focus/reconnect bursts, including requests already in flight.
     let ultimoCatchUp = 0;
     const catchUp = () => {
+      if (disposed) return;
       const agora = Date.now();
       if (agora - ultimoCatchUp < 15_000) return;
       ultimoCatchUp = agora;
-      refetchParkingItems();
-      refetchTasks();
-      refetchPeople();
-      refetchPosts();
-      refetchEvents();
-      refetchForms();
-      refetchFormCompletions();
-      refetchDemandRequests();
+      debounced("parkingItems", refetchParkingItems);
+      debounced("tasks", refetchTasks);
+      debounced("people", refetchPeople);
+      debounced("posts", refetchPosts);
+      debounced("events", refetchEvents);
+      debounced("forms", refetchForms);
+      debounced("formCompletions", refetchFormCompletions);
+      debounced("demandRequests", refetchDemandRequests);
+      debounced("teams", refetchTeams);
+      debounced("projects", refetchProjects);
+      debounced("categories", refetchCategories);
+      debounced("channels", refetchChannels);
+      debounced("eventTypes", refetchEventTypes);
+      debounced("areaNotes", refetchAreaNotes);
+      debounced("attendanceSettings", refetchAttendanceSettings);
+      debounced("attendanceRecords", refetchAttendanceRecords);
+      debounced("broadcasts", refetchBroadcasts);
     };
 
     /**
@@ -796,49 +822,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
      * algumas abas o projeto ficava sobrecarregado. O ganho não existia: com
      * todas as tabelas presentes, o canal único assina normalmente.
      */
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-    let encerrado = false;
-    let retry: ReturnType<typeof setTimeout> | null = null;
-    let estabilidade: ReturnType<typeof setTimeout> | null = null;
-    let tentativas = 0;
-
-    const abrirCanal = () => {
-      if (encerrado) return;
-      const canal = supabase.channel(`ws-${workspaceId}-${Math.random().toString(36).slice(2, 8)}`);
-      Object.entries(TABLE_HANDLERS).forEach(([table, handler]) => {
-        canal.on("postgres_changes", { event: "*", schema: "public", table },
-          payload => handler(payload as EventoRealtime));
-      });
-
-      canal.subscribe(status => {
-        if (encerrado) return;
-
-        if (status === "SUBSCRIBED") {
-          // A espera só é zerada depois de a conexão se firmar. Zerar já na
-          // conexão fazia um socket instável reconectar de 1 em 1 segundo
-          // para sempre, sem nunca desacelerar.
-          if (estabilidade) clearTimeout(estabilidade);
-          estabilidade = setTimeout(() => { tentativas = 0; }, 30_000);
-          // Enquanto o socket esteve fora, nenhum evento chegou
-          catchUp();
-          return;
-        }
-
-        // Sem este tratamento, uma queda de conexão deixava a pessoa sem
-        // atualização nenhuma até recarregar a página
-        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
-          channel = null;
-          supabase.removeChannel(canal);
-          const espera = Math.min(1000 * 2 ** tentativas, 60_000);
-          tentativas += 1;
-          retry = setTimeout(abrirCanal, espera);
-        }
-      });
-
-      channel = canal;
-    };
-
-    abrirCanal();
+    const stopRealtime = maintainRealtimeChannel({
+      create: () => {
+        const canal = supabase.channel(`ws-${workspaceId}-${Math.random().toString(36).slice(2, 8)}`);
+        Object.entries(TABLE_HANDLERS).forEach(([table, handler]) => {
+          // Keep DELETE notifications even on tables without REPLICA IDENTITY FULL.
+          canal.on("postgres_changes", { event: "*", schema: "public", table }, payload => {
+            const row = payload.eventType === "DELETE" ? payload.old : payload.new;
+            if (disposed || ("workspace_id" in row && row.workspace_id !== wsId)) return;
+            handler(payload as EventoRealtime);
+          });
+        });
+        return canal;
+      },
+      remove: canal => supabase.removeChannel(canal),
+      onConnected: catchUp,
+    });
 
     // Voltar para a aba (ou para a rede) recarrega: eventos perdidos enquanto
     // a tela esteve escondida não chegam depois
@@ -847,13 +846,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     window.addEventListener("online", catchUp);
 
     return () => {
-      encerrado = true;
-      if (retry) clearTimeout(retry);
-      if (estabilidade) clearTimeout(estabilidade);
+      disposed = true;
+      stopRealtime();
       document.removeEventListener("visibilitychange", aoVoltar);
       window.removeEventListener("online", catchUp);
-      timers.forEach(t => clearTimeout(t));
-      if (channel) supabase.removeChannel(channel);
+      refreshQueue.dispose();
     };
   }, [workspaceId, removePersonFromWorkspaceState]);
 
