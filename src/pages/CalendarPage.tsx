@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { AlertTriangle, ChevronLeft, ChevronRight, Plus, X, ChevronUp, ChevronDown, CalendarDays, User, CheckCircle2, SlidersHorizontal, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
-import type { Task, Post, CalendarEvent } from "@/contexts/DataContext";
+import type { Task, Post } from "@/contexts/DataContext";
 import {
   format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth,
   addMonths, subMonths, isToday, isSameDay,
@@ -13,7 +13,6 @@ import { ptBR } from "date-fns/locale";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import TaskModal from "@/components/modals/TaskModal";
 import PostModal from "@/components/modals/PostModal";
-import EventModal from "@/components/modals/EventModal";
 import IdeaModal from "@/components/modals/IdeaModal";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import { toast } from "sonner";
@@ -36,12 +35,12 @@ function sameAreaOrTeam(left?: string | null, right?: string | null) {
 }
 
 export type CalendarItem = {
-  id: string; title: string; type: "task" | "post" | "event";
+  id: string; title: string; type: "task" | "post" | "demand";
   date: string; time?: string; color: string; status?: string;
-  eventTypeName?: string;
+  /** Área ou time a que o item pertence, como aparece na etiqueta. */
   scopeLabel?: string;
   responsibleName?: string;
-  /** Subtype for "event"-rendered parking items so drop logic can detect them. */
+  /** Demanda do quadro: o id da linha em parking_items. */
   parkingId?: string;
   isDemand?: boolean;
 };
@@ -49,7 +48,6 @@ export type CalendarItem = {
 
 const TASK_COLOR = "#E8804A"; // laranja
 const POST_COLOR = "#3B7DD8"; // azul (Marketing)
-const EVENT_FALLBACK_COLOR = "#2E9E6E"; // verde médio
 
 const POST_STATUS_ORDER = ["not-started", "in-progress", "done", "published"] as const;
 const POST_STATUS_META: Record<string, { label: string; color: string }> = {
@@ -124,7 +122,7 @@ function CalToggle({ active, onClick, icon: Icon, label, activeColor = "#00B4D8"
 }
 
 export default function CalendarPage() {
-  const { tasks, posts, events, eventTypes, parkingItems, teams, people, updateTask, updatePost, updateEvent, deleteTask, deletePost, deleteEvent, addParkingItem, updateParkingItem, deleteParkingItem } = useData();
+  const { tasks, posts, parkingItems, teams, people, updateTask, updatePost, deleteTask, deletePost, addParkingItem, updateParkingItem, deleteParkingItem } = useData();
   const { isAdmin: _isAdmin, user, activeWorkspaceId } = useAuth();
   // No calendário, líderes de qualquer área/time podem editar (mover, criar, status).
   // Sombreamos isAdmin para que todas as checagens existentes incluam líderes.
@@ -187,7 +185,6 @@ export default function CalendarPage() {
 
   const [taskModal, setTaskModal] = useState<{ open: boolean; task?: Task | null; date?: string }>({ open: false });
   const [postModal, setPostModal] = useState<{ open: boolean; post?: Post | null; date?: string }>({ open: false });
-  const [eventModal, setEventModal] = useState<{ open: boolean; event?: CalendarEvent | null; date?: string }>({ open: false });
   const [ideaModal, setIdeaModal] = useState<{ open: boolean; item: import("@/contexts/DataContext").ParkingItem | null; defaultDate?: string; defaultArea?: string; requireFull?: boolean }>({ open: false, item: null });
   const [deleting, setDeleting] = useState<{ open: boolean; id: string; title: string; type: string; parkingId?: string }>({ open: false, id: "", title: "", type: "" });
 
@@ -208,7 +205,6 @@ export default function CalendarPage() {
         deleteParkingItem(item.parkingId);
       } else if (item.type === "task") deleteTask(item.id);
       else if (item.type === "post") deletePost(item.id);
-      else if (item.type === "event") deleteEvent(item.id);
       setShrinkingId(null);
       setDragItem(null);
       toast.success("Item excluído");
@@ -277,7 +273,6 @@ export default function CalendarPage() {
     if (item.parkingId) { dropParkingOnDate(item.parkingId, dayStr); return; }
     if (item.type === "task") { const task = tasks.find(t => t.id === item.id); if (task) updateTask({ ...task, deadline: dayStr }); }
     else if (item.type === "post") { const post = posts.find(p => p.id === item.id); if (post) updatePost({ ...post, date: dayStr }); }
-    else if (item.type === "event") { const ev = events.find(e => e.id === item.id); if (ev) updateEvent({ ...ev, date: dayStr }); }
   };
 
   // Drop a parking item onto a date. If it has area + responsável, update directly.
@@ -327,7 +322,6 @@ export default function CalendarPage() {
     if (deleting.parkingId) deleteParkingItem(deleting.parkingId);
     else if (deleting.type === "task") deleteTask(deleting.id);
     else if (deleting.type === "post") deletePost(deleting.id);
-    else if (deleting.type === "event") deleteEvent(deleting.id);
     toast.success("Item excluído");
   };
 
@@ -355,18 +349,12 @@ export default function CalendarPage() {
         responsibleName: taskResponsible,
       });
     });
-    // "Minhas demandas" foca só nas suas demandas — publicações e eventos ficam ocultos
+    // "Minhas demandas" foca só nas suas demandas — publicações ficam ocultas
     posts.forEach((p) => {
       if (onlyMine) return;
       if (!p.date) return; // estacionamento
       if (filterArea) return;
       items.push({ id: p.id, title: p.title, type: "post", date: p.date, time: p.time, color: POST_COLOR, status: p.status, scopeLabel: "Publicação" });
-    });
-    events.forEach((e) => {
-      if (onlyMine) return;
-      if (filterArea) return;
-      const et = eventTypes.find(t => t.name === e.type);
-      items.push({ id: e.id, title: e.title, type: "event", date: e.date, color: et?.color || EVENT_FALLBACK_COLOR, eventTypeName: e.type, scopeLabel: e.type || "Evento" });
     });
     // Detecta demandas copiadas entre pessoas (mesmo título + data + área).
     // Para essas, o calendário mostra "PrimeiroNome - Título" para diferenciá-las.
@@ -396,11 +384,10 @@ export default function CalendarPage() {
         id: p.id,
         parkingId: p.id,
         title: displayTitle,
-        type: "event",
+        type: "demand",
         date: p.date,
         color,
         status: p.status,
-        eventTypeName: label,
         scopeLabel: label,
         responsibleName: person?.name || "Sem responsável",
         isDemand: true,
@@ -408,7 +395,7 @@ export default function CalendarPage() {
     });
     return items;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tasks, posts, events, parkingItems, teams, people, filterArea, eventTypes, onlyMine, showDone, myPersonIds]);
+  }, [tasks, posts, parkingItems, teams, people, filterArea, onlyMine, showDone, myPersonIds]);
 
   const handleDragStart = (e: DragEvent, item: CalendarItem) => {
     if (!isAdmin) { e.preventDefault(); return; }
@@ -461,11 +448,6 @@ export default function CalendarPage() {
       setDragItem(null);
       return;
     }
-    if (droppedItem.type === "event") {
-      toast.error("Eventos não podem ser estacionados");
-      setDragItem(null);
-      return;
-    }
     const post = posts.find(p => p.id === droppedItem.id);
     if (post) {
       updatePost({ ...post, date: "", time: "" });
@@ -484,7 +466,6 @@ export default function CalendarPage() {
     if (droppedItem.parkingId) { dropParkingOnDate(droppedItem.parkingId, dayStr); setDragItem(null); return; }
     if (droppedItem.type === "task") { const task = tasks.find(t => t.id === droppedItem.id); if (task) updateTask({ ...task, deadline: dayStr }); }
     else if (droppedItem.type === "post") { const post = posts.find(p => p.id === droppedItem.id); if (post) updatePost({ ...post, date: dayStr }); }
-    else if (droppedItem.type === "event") { const ev = events.find(e => e.id === droppedItem.id); if (ev) updateEvent({ ...ev, date: dayStr }); }
     setDragItem(null);
   };
 
@@ -496,7 +477,21 @@ export default function CalendarPage() {
     }
     if (item.type === "task") setTaskModal({ open: true, task: tasks.find(t => t.id === item.id) });
     else if (item.type === "post") setPostModal({ open: true, post: posts.find(p => p.id === item.id) });
-    else if (item.type === "event") setEventModal({ open: true, event: events.find(e => e.id === item.id) });
+  };
+
+  /**
+   * "+" de um dia: abre uma demanda nova já naquela data.
+   *
+   * Com um time (ou área) escolhido no filtro, a demanda já nasce nele — é
+   * justamente por isso que alguém filtra por um time antes de clicar no "+".
+   */
+  const abrirNovaDemanda = (dayStr: string) => {
+    setIdeaModal({
+      open: true,
+      item: null,
+      defaultDate: dayStr,
+      defaultArea: filterArea || "",
+    });
   };
 
   const navigatePrev = () => setCurrentDate(subMonths(currentDate, 1));
@@ -568,7 +563,7 @@ export default function CalendarPage() {
   // 36px header + 18px per row of 2 pills (max 10 pills = 5 rows), min 48px
   const desktopCellHeight = isMobile ? undefined : Math.max(48, 36 + Math.ceil(Math.min(maxItemsInDay, 10) / 2) * 18);
 
-  const typeLabels: Record<string, string> = { task: "Demanda", post: "Post", event: "Evento" };
+  const typeLabels: Record<string, string> = { task: "Demanda", post: "Post", demand: "Demanda" };
 
   const renderItemPill = (item: CalendarItem) => {
     const demandVisual = getDemandCalendarVisual(item, calendarTodayStr);
@@ -653,17 +648,17 @@ export default function CalendarPage() {
           onDragOver={(e) => handleDragOver(e, dayStr)}
           onDragLeave={handleDragLeave}
           onDrop={(e) => isAdmin && handleDrop(e, dayStr)}
-          onClick={() => { if (dayItems.length > 0) setDayPopup(dayStr); }}
+          onClick={() => setDayPopup(dayStr)}
           onKeyDown={(event) => {
-            if (dayItems.length > 0 && (event.key === "Enter" || event.key === " ")) {
+            if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
               setDayPopup(dayStr);
             }
           }}
-          role={dayItems.length > 0 ? "button" : undefined}
-          tabIndex={dayItems.length > 0 ? 0 : undefined}
-          className={`h-full min-h-[58px] border-b border-r border-border p-1.5 transition-colors flex flex-col ${!inMonth ? "bg-muted/30" : ""} ${todayFlag ? "bg-accent/50" : ""} ${isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""} ${dayItems.length > 0 ? "active:bg-accent/60 cursor-pointer" : ""}`}
-          aria-label={dayItems.length > 0 ? `${format(day, "d 'de' MMMM", { locale: ptBR })}: ${dayItems.length} itens` : undefined}
+          role="button"
+          tabIndex={0}
+          className={`h-full min-h-[58px] border-b border-r border-border p-1.5 transition-colors flex flex-col ${!inMonth ? "bg-muted/30" : ""} ${todayFlag ? "bg-accent/50" : ""} ${isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""} active:bg-accent/60 cursor-pointer`}
+          aria-label={`${format(day, "d 'de' MMMM", { locale: ptBR })}: ${dayItems.length} ${dayItems.length === 1 ? "item" : "itens"}`}
         >
           <div className="flex items-center justify-between gap-1">
             <span className={`text-[11px] font-semibold ${todayFlag ? "bg-primary text-primary-foreground h-5 w-5 rounded-full flex items-center justify-center" : inMonth ? "text-foreground" : "text-muted-foreground/50"}`}>
@@ -705,9 +700,9 @@ export default function CalendarPage() {
           </div>
           {isAdmin && (
             <button
-              onClick={(e) => { e.stopPropagation(); setEventModal({ open: true, date: dayStr }); }}
+              onClick={(e) => { e.stopPropagation(); abrirNovaDemanda(dayStr); }}
               className="h-4 w-4 rounded hover:bg-accent flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground"
-              title="Novo evento"
+              title={filterArea ? `Nova demanda em ${activeAreaMeta?.label}` : "Nova demanda"}
             >
               <Plus className="h-3 w-3" />
             </button>
@@ -735,7 +730,7 @@ export default function CalendarPage() {
 
   const renderListItem = (item: CalendarItem) => {
     const demandVisual = getDemandCalendarVisual(item, calendarTodayStr);
-    const detailLabel = item.scopeLabel || item.eventTypeName || typeLabels[item.type];
+    const detailLabel = item.scopeLabel || typeLabels[item.type];
     const statusLabel = demandVisual?.label || (item.type === "post" && item.status ? POST_STATUS_META[item.status]?.label : null);
     return (
       <button
@@ -868,7 +863,7 @@ export default function CalendarPage() {
                     const dim = filterArea && p.area && !sameAreaOrTeam(p.area, filterArea);
                     return (
                       <div key={p.id} className={`shrink-0 ${dim ? "opacity-40" : ""}`} style={{ width: 118 }}>
-                        {renderItemPill({ id: p.id, parkingId: p.id, title: p.title, type: "event", date: "", color, eventTypeName: label })}
+                        {renderItemPill({ id: p.id, parkingId: p.id, title: p.title, type: "demand", date: "", color, scopeLabel: label })}
                       </div>
                     );
                   })}
@@ -1116,7 +1111,7 @@ export default function CalendarPage() {
                   </p>
                 </DialogHeader>
                 {popupItems.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">Nada agendado neste dia.</p>
+                  <p className="py-4 text-center text-sm text-muted-foreground">Nada agendado neste dia.</p>
                 ) : (
                   <div className="flex flex-col gap-2">
                     {popupItems.map(item => (
@@ -1130,9 +1125,8 @@ export default function CalendarPage() {
                         <span className="flex-1 min-w-0 px-3 py-2.5">
                           <span className="block text-sm font-semibold text-foreground break-words leading-snug">{item.title}</span>
                           <span className="block text-[10px] font-medium mt-1" style={{ color: item.color }}>
-                            {item.parkingId ? item.eventTypeName : typeLabels[item.type]}
+                            {item.scopeLabel || typeLabels[item.type]}
                             {item.type === "post" && item.status ? ` • ${POST_STATUS_META[item.status]?.label || item.status}` : ""}
-                            {item.type === "event" && !item.parkingId && item.eventTypeName ? ` • ${item.eventTypeName}` : ""}
                           </span>
                         </span>
                         {item.time && (
@@ -1142,6 +1136,16 @@ export default function CalendarPage() {
                     ))}
                   </div>
                 )}
+                {isAdmin && dayPopup && (
+                  <button
+                    type="button"
+                    onClick={() => { const dia = dayPopup; setDayPopup(null); abrirNovaDemanda(dia); }}
+                    className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-primary/50 bg-primary/5 py-3 text-sm font-semibold text-primary active:scale-[0.99]"
+                  >
+                    <Plus className="h-4 w-4" />
+                    {filterArea ? `Nova demanda em ${activeAreaMeta?.label}` : "Nova demanda"}
+                  </button>
+                )}
               </>
             );
           })()}
@@ -1150,7 +1154,6 @@ export default function CalendarPage() {
 
       <TaskModal open={taskModal.open} onOpenChange={o => setTaskModal({ open: o })} task={taskModal.task} defaultDate={taskModal.date} />
       <PostModal open={postModal.open} onOpenChange={o => setPostModal({ open: o })} post={postModal.post} defaultDate={postModal.date} />
-      <EventModal open={eventModal.open} onOpenChange={o => setEventModal({ open: o })} event={eventModal.event} defaultDate={eventModal.date} />
       <IdeaModal
         open={ideaModal.open}
         onOpenChange={(o) => setIdeaModal(s => ({ ...s, open: o }))}

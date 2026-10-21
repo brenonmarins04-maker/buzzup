@@ -114,11 +114,14 @@ describe("DataProvider realtime resilience", () => {
     mock.query.mockClear();
     act(() => {
       for (let i = 0; i < 100; i++) emit("people");
-      emit("calendar_items", { new: { workspace_id: "workspace-b" } });
+      emit("parking_items", {
+        eventType: "INSERT",
+        new: { id: "de-outro-workspace", workspace_id: "workspace-b", area: "mercado", title: "Não é minha" },
+      });
     });
     await advance();
     expect(mock.query.mock.calls.filter(([table]) => table === "people")).toHaveLength(1);
-    expect(mock.query.mock.calls.filter(([table]) => table === "calendar_items")).toHaveLength(0);
+    expect(latest.parkingItems.some(p => p.id === "de-outro-workspace")).toBe(false);
   });
 
   it("applies deletes with only a primary key and releases the channel on unmount", async () => {

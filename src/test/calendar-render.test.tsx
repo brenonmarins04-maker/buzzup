@@ -20,18 +20,15 @@ const tasks = [
 const posts = [
   { id: "po1", title: "Post 1", copy: "", channel: "", category: "", date: "2026-07-02", time: "10:00", status: "not-started", responsible: [], teamId: null, link: "", media_url: "" },
 ];
-const events = [{ id: "e1", title: "Evento 1", date: "2026-07-02", type: "Reunião", description: "", teamId: null }];
-const eventTypes = [{ id: "et1", name: "Reunião", color: "#123456" }];
 
 const noop = () => {};
 const mobileMode = vi.hoisted(() => ({ value: false }));
 const dataValue = {
-  tasks, posts, events, eventTypes, parkingItems, teams: [team], people,
+  tasks, posts, parkingItems, teams: [team], people,
   channels: [], categories: [], projects: [], notifications: [],
-  updateTask: noop, updatePost: noop, updateEvent: noop,
-  deleteTask: noop, deletePost: noop, deleteEvent: noop,
+  updateTask: noop, updatePost: noop,
+  deleteTask: noop, deletePost: noop,
   addParkingItem: noop, updateParkingItem: noop, deleteParkingItem: noop,
-  addEvent: noop, addEventType: noop, updateEventType: noop, deleteEventType: noop,
   addTask: noop, addPost: noop,
 };
 
@@ -85,7 +82,6 @@ describe("CalendarPage render", () => {
     expect(screen.getByText("Ideia mercado")).toBeInTheDocument();
     expect(screen.getAllByText("Julia Calixto", { exact: false }).length).toBeGreaterThan(0);
     expect(screen.queryByText("Demanda futura")).not.toBeInTheDocument();
-    expect(screen.queryByText("Organize demandas, publicações e eventos em um só lugar.")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Filtros/ })).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("switch", { name: "Minhas demandas" })).not.toBeInTheDocument();
 

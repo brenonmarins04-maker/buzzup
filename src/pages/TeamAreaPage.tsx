@@ -537,18 +537,6 @@ function TeamAttendanceTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKe
   // Presenças são só de diretores/owner — líder não gerencia presença.
   const { isAdmin } = useAuth();
 
-  if (!isAdmin) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 px-4">
-        <div className="text-center max-w-sm">
-          <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">🔒</div>
-          <h3 className="font-semibold text-foreground mb-1">Acesso Restrito</h3>
-          <p className="text-sm text-muted-foreground">Apenas diretores podem gerenciar presenças.</p>
-        </div>
-      </div>
-    );
-  }
-
   const team = teams.find(t => t.id === teamId);
   const members = useMemo(() => people.filter(p => team?.memberIds.includes(p.id)), [people, team]);
   const setting = useMemo(() => attendanceSettings.find(s => s.area === teamAreaKey), [attendanceSettings, teamAreaKey]);
@@ -577,6 +565,21 @@ function TeamAttendanceTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKe
     });
     return m;
   }, [attendanceRecords, teamAreaKey]);
+
+  // A saída fica DEPOIS dos hooks de propósito. Acima deles, bastava o papel
+  // da pessoa mudar com a aba aberta para o React renderizar menos hooks que
+  // no render anterior e derrubar a tela inteira.
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 px-4">
+        <div className="text-center max-w-sm">
+          <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">🔒</div>
+          <h3 className="font-semibold text-foreground mb-1">Acesso Restrito</h3>
+          <p className="text-sm text-muted-foreground">Apenas diretores podem gerenciar presenças.</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleCellClick = async (personId: string, date: string) => {
     const current = recordMap.get(`${personId}|${date}`);

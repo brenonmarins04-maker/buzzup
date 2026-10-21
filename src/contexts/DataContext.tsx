@@ -42,10 +42,8 @@ export type Post = {
   date: string; time: string; status: string; responsible: Person[]; teamId: string | null;
   link: string; media_url: string;
 };
-export type CalendarEvent = { id: string; title: string; date: string; type: string; description: string; teamId: string | null };
 export type Channel = { id: string; name: string; color: string };
 export type Team = { id: string; name: string; memberIds: string[] };
-export type EventType = { id: string; name: string; color: string };
 
 export type AreaNote = { id: string; area: string; name: string; url: string; position: number };
 export type ParkingItemStatus = "in-progress" | "done";
@@ -142,8 +140,8 @@ export type Notification = {
 
 type DataContextType = {
   people: Person[]; projects: Project[]; tasks: Task[]; posts: Post[];
-  events: CalendarEvent[]; teams: Team[];
-  categories: string[]; channels: Channel[]; eventTypes: EventType[]; notifications: Notification[];
+  teams: Team[];
+  categories: string[]; channels: Channel[]; notifications: Notification[];
   areaNotes: AreaNote[]; parkingItems: ParkingItem[];
   gamificationActions: GamificationAction[]; gamificationAwards: GamificationAward[];
   /** Momento da última consulta manual (ou do carregamento inicial) da gamificação. */
@@ -193,10 +191,6 @@ type DataContextType = {
   updateProject: (project: Project) => void;
   deleteProject: (id: string) => void;
 
-  addEvent: (event: Omit<CalendarEvent, "id">) => void;
-  updateEvent: (event: CalendarEvent) => void;
-  deleteEvent: (id: string) => void;
-
   addCategory: (cat: string) => void;
   removeCategory: (cat: string) => void;
   updateCategory: (oldCat: string, newCat: string) => void;
@@ -208,10 +202,6 @@ type DataContextType = {
   addTeam: (name: string, memberIds: string[]) => void;
   updateTeam: (team: Team) => void;
   deleteTeam: (id: string) => void;
-
-  addEventType: (et: Omit<EventType, "id">) => void;
-  updateEventType: (et: EventType) => void;
-  deleteEventType: (id: string) => void;
 
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
@@ -273,11 +263,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [channels, setChannels] = useState<Channel[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
-  const [eventTypes, setEventTypes] = useState<EventType[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [areaNotes, setAreaNotes] = useState<AreaNote[]>([]);
   const [parkingItems, setParkingItems] = useState<ParkingItem[]>([]);
@@ -330,8 +318,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!uid || !workspaceId) {
       setPeople([]); setProjects([]); setTasks([]); setPosts([]);
-      setEvents([]); setCategories([]); setChannels([]); setTeams([]);
-      setCategoriesRaw([]); setEventTypes([]); setAreaNotes([]); setParkingItems([]); setGamificationActions([]); setGamificationAwards([]); setGamificationLastUpdatedAt(null); setLeadThermometer([]); setAttendanceSettings([]); setAttendanceRecords([]); setBroadcasts([]); setForms([]); setFormCompletions([]); setDemandRequests([]); setLoading(false);
+      setCategories([]); setChannels([]); setTeams([]);
+      setCategoriesRaw([]); setAreaNotes([]); setParkingItems([]); setGamificationActions([]); setGamificationAwards([]); setGamificationLastUpdatedAt(null); setLeadThermometer([]); setAttendanceSettings([]); setAttendanceRecords([]); setBroadcasts([]); setForms([]); setFormCompletions([]); setDemandRequests([]); setLoading(false);
       return;
     }
     let cancelled = false;
@@ -341,12 +329,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const wsId = workspaceId!;
       try {
 
-      const [pplRes, projRes, tkRes, psRes, evRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes, etRes, anRes, piRes, gaRes, gwRes, ltRes, asRes, arRes, bcRes, fmRes, fcRes, drRes] = await Promise.all([
+      const [pplRes, projRes, tkRes, psRes, catRes, chRes, ppRes, taRes, paRes, teamsRes, tmRes, anRes, piRes, gaRes, gwRes, ltRes, asRes, arRes, bcRes, fmRes, fcRes, drRes] = await Promise.all([
         (supabase.from("people") as any).select("*").eq("workspace_id", wsId),
         supabase.from("projects").select("*").eq("workspace_id", wsId),
         supabase.from("tasks").select("*").eq("workspace_id", wsId),
         supabase.from("posts").select("*").eq("workspace_id", wsId),
-        supabase.from("calendar_items").select("*").eq("workspace_id", wsId),
         supabase.from("categories").select("id, name").eq("workspace_id", wsId),
         supabase.from("channels").select("id, name, color").eq("workspace_id", wsId),
         supabase.from("project_participants").select("project_id, person_id"),
@@ -354,7 +341,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         supabase.from("post_assignees").select("post_id, person_id"),
         supabase.from("teams").select("id, name").eq("workspace_id", wsId),
         supabase.from("team_members").select("team_id, person_id"),
-        (supabase.from as any)("event_types").select("id, name, color").eq("workspace_id", wsId),
         (supabase.from as any)("area_notes").select("*").eq("workspace_id", wsId),
         (supabase.from as any)("parking_items").select("*").eq("workspace_id", wsId).or(filtroDemandasAtivas()),
         (supabase.from as any)("gamification_actions").select("*").eq("workspace_id", wsId),
@@ -447,14 +433,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
         date: r.date, time: r.time, status: r.status, responsible: postAssignees.get(r.id) || [],
         link: r.link, media_url: r.media_url, teamId: (r as any).team_id ?? null,
       })));
-      setEvents((evRes.data || []).map(r => ({
-        id: r.id, title: r.title, date: r.date, type: r.type, description: r.description, teamId: (r as any).team_id ?? null,
-      })));
       const rawCats = catRes.data || [];
       setCategoriesRaw(rawCats);
       setCategories(rawCats.map(c => c.name));
       setChannels((chRes.data || []).map(c => ({ id: c.id, name: c.name, color: c.color })));
-      setEventTypes(((etRes as any)?.data || []).map((e: any) => ({ id: e.id, name: e.name, color: e.color })));
       setAreaNotes(((anRes as any)?.data || []).map((n: any) => ({ id: n.id, area: n.area, name: n.name, url: n.url, position: n.position ?? 0 })));
       setParkingItems(((piRes as any)?.data || []).map((p: any) => ({ id: p.id, area: p.area, personId: p.person_id ?? null, title: p.title, description: p.description ?? "", date: normalizeToISODate(p.date) ?? "", position: p.position ?? 0, status: (p.status as ParkingItemStatus) ?? "in-progress", points: p.points ?? 1, completedAt: p.completed_at ?? null, completedBy: p.completed_by ?? null })));
       setGamificationActions(((gaRes as any)?.data || []).map((a: any) => ({ id: a.id, name: a.name, points: a.points ?? 0 })));
@@ -615,12 +597,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setTeams((teamsRes.data || []).map((t: any) => ({ id: t.id, name: t.name, memberIds: teamMembersMap.get(t.id) || [] })));
     };
 
-    const refetchEvents = async () => {
-      const { data, error } = await supabase.from("calendar_items").select("*").eq("workspace_id", wsId);
-      if (disposed || error) return;
-      setEvents((data || []).map((r: any) => ({ id: r.id, title: r.title, date: r.date, type: r.type, description: r.description, teamId: r.team_id ?? null })));
-    };
-
     const refetchCategories = async () => {
       const { data, error } = await supabase.from("categories").select("id, name").eq("workspace_id", wsId);
       if (disposed || error) return;
@@ -633,12 +609,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase.from("channels").select("id, name, color").eq("workspace_id", wsId);
       if (disposed || error) return;
       setChannels((data || []).map((c: any) => ({ id: c.id, name: c.name, color: c.color })));
-    };
-
-    const refetchEventTypes = async () => {
-      const { data, error } = await (supabase.from as any)("event_types").select("id, name, color").eq("workspace_id", wsId);
-      if (disposed || error) return;
-      setEventTypes((data || []).map((e: any) => ({ id: e.id, name: e.name, color: e.color })));
     };
 
     const refetchAreaNotes = async () => {
@@ -758,10 +728,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
       project_participants: () => debounced("projects", refetchProjects),
       teams:                () => debounced("teams", refetchTeams),
       team_members:         () => debounced("teams", refetchTeams),
-      calendar_items:       () => debounced("events", refetchEvents),
       categories:           () => debounced("categories", refetchCategories),
       channels:             () => debounced("channels", refetchChannels),
-      event_types:          () => debounced("eventTypes", refetchEventTypes),
       area_notes:           () => debounced("areaNotes", refetchAreaNotes),
       parking_items:        p => encaixar(p, {
         mapear: mapParkingItem, definir: setParkingItems,
@@ -799,7 +767,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       debounced("tasks", refetchTasks);
       debounced("people", refetchPeople);
       debounced("posts", refetchPosts);
-      debounced("events", refetchEvents);
       debounced("forms", refetchForms);
       debounced("formCompletions", refetchFormCompletions);
       debounced("demandRequests", refetchDemandRequests);
@@ -807,7 +774,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
       debounced("projects", refetchProjects);
       debounced("categories", refetchCategories);
       debounced("channels", refetchChannels);
-      debounced("eventTypes", refetchEventTypes);
       debounced("areaNotes", refetchAreaNotes);
       debounced("attendanceSettings", refetchAttendanceSettings);
       debounced("attendanceRecords", refetchAttendanceRecords);
@@ -1255,31 +1221,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setProjects(prev => prev.filter(x => x.id !== id));
   }, []);
 
-  // === EVENTS (calendar_items) ===
-  const addEvent = useCallback(async (e: Omit<CalendarEvent, "id">) => {
-    if (!workspaceId) return;
-    const { data, error } = await supabase.from("calendar_items").insert({
-      workspace_id: workspaceId, title: e.title, date: e.date,
-      type: e.type, description: e.description, team_id: e.teamId,
-    } as any).select().single();
-    if (error) { toast.error("Erro ao criar evento"); return; }
-    if (data) setEvents(prev => [...prev, { id: data.id, title: data.title, date: data.date, type: data.type, description: data.description, teamId: (data as any).team_id ?? null }]);
-  }, [workspaceId]);
-
-  const updateEvent = useCallback(async (e: CalendarEvent) => {
-    const { error } = await supabase.from("calendar_items").update({
-      title: e.title, date: e.date, type: e.type, description: e.description, team_id: e.teamId,
-    } as any).eq("id", e.id);
-    if (error) { toast.error("Erro ao atualizar evento"); return; }
-    setEvents(prev => prev.map(x => x.id === e.id ? e : x));
-  }, []);
-
-  const deleteEvent = useCallback(async (id: string) => {
-    const { error } = await supabase.from("calendar_items").delete().eq("id", id);
-    if (error) { toast.error("Erro ao excluir evento"); return; }
-    setEvents(prev => prev.filter(x => x.id !== id));
-  }, []);
-
   // === CATEGORIES ===
   const addCategory = useCallback(async (cat: string) => {
     if (!workspaceId || categories.includes(cat)) return;
@@ -1351,26 +1292,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setTeams(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  // === EVENT TYPES ===
-  const addEventType = useCallback(async (et: Omit<EventType, "id">) => {
-    if (!workspaceId) return;
-    const { data, error } = await (supabase.from as any)("event_types").insert({ workspace_id: workspaceId, name: et.name, color: et.color }).select("id, name, color").single();
-    if (error) { toast.error("Erro ao adicionar tipo"); return; }
-    if (data) setEventTypes(prev => [...prev, { id: data.id, name: data.name, color: data.color }]);
-  }, [workspaceId]);
-
-  const updateEventType = useCallback(async (et: EventType) => {
-    const { error } = await (supabase.from as any)("event_types").update({ name: et.name, color: et.color }).eq("id", et.id);
-    if (error) { toast.error("Erro ao atualizar tipo"); return; }
-    setEventTypes(prev => prev.map(x => x.id === et.id ? et : x));
-  }, []);
-
-  const deleteEventType = useCallback(async (id: string) => {
-    const { error } = await (supabase.from as any)("event_types").delete().eq("id", id);
-    if (error) { toast.error("Erro ao remover tipo"); return; }
-    setEventTypes(prev => prev.filter(x => x.id !== id));
-  }, []);
-
   // Notifications
   const markNotificationRead = useCallback((id: string) => setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n)), []);
   const markAllNotificationsRead = useCallback(() => setNotifications(prev => prev.map(n => ({ ...n, read: true }))), []);
@@ -1398,15 +1319,44 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // === PARKING ITEMS (Quadro CB) ===
+  /**
+   * A demanda aparece na hora, sem esperar o banco responder.
+   *
+   * Antes ela só surgia depois da ida e volta ao servidor. Com a rede do
+   * celular isso são alguns segundos olhando para um calendário parado, e a
+   * impressão é de que não salvou — o relato foi exatamente esse. Agora a
+   * linha entra na lista no mesmo instante, com um id provisório, e a resposta
+   * do servidor apenas troca o id pelo definitivo.
+   *
+   * Se o banco recusar, a linha provisória sai junto com o aviso de erro:
+   * nada fica na tela fingindo ter sido salvo.
+   */
   const addParkingItem = useCallback(async (area: string, title: string, date: string, description = "", points: number = 1, personId: string | null = null) => {
     if (!workspaceId) return;
     const pts = clampDemandPoints(points);
     const pid = personId || null;
+    const posicao = parkingItems.filter(p => p.area === area && p.personId === pid).length;
+    const idProvisorio = `nova-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    setParkingItems(prev => [...prev, {
+      id: idProvisorio, area, personId: pid, title, description,
+      date: normalizeToISODate(date) ?? "", position: posicao,
+      status: "in-progress", points: pts, completedAt: null, completedBy: null,
+    }]);
+
     const { data, error } = await (supabase.from("parking_items") as any)
-      .insert({ workspace_id: workspaceId, area, title, description, date, points: pts, person_id: pid, position: parkingItems.filter(p => p.area === area && p.personId === pid).length })
+      .insert({ workspace_id: workspaceId, area, title, description, date, points: pts, person_id: pid, position: posicao })
       .select().single();
-    if (error) { toast.error("Erro ao criar card"); return; }
-    if (data) setParkingItems(prev => [...prev, { id: data.id, area: data.area, personId: data.person_id ?? null, title: data.title, description: data.description ?? "", date: normalizeToISODate(data.date) ?? "", position: data.position ?? 0, status: (data.status as ParkingItemStatus) ?? "in-progress", points: data.points ?? pts }]);
+
+    if (error || !data) {
+      setParkingItems(prev => prev.filter(x => x.id !== idProvisorio));
+      toast.error("Erro ao criar card");
+      return;
+    }
+
+    const salva = mapParkingItem(data);
+    // Tira a provisória e também uma eventual cópia que o realtime já trouxe.
+    setParkingItems(prev => [...prev.filter(x => x.id !== idProvisorio && x.id !== salva.id), salva]);
   }, [workspaceId, parkingItems]);
 
   const updateParkingItem = useCallback(async (p: ParkingItem) => {
@@ -1954,8 +1904,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
    * inteira, e era daí que vinha a travada.
    */
   const value = useMemo(() => ({
-    people, projects, tasks, posts, events, categories, channels, teams,
-    eventTypes, notifications, areaNotes, parkingItems,
+    people, projects, tasks, posts, categories, channels, teams,
+    notifications, areaNotes, parkingItems,
     gamificationActions, gamificationAwards, gamificationLastUpdatedAt, gamificationRefreshing, leadThermometer,
     attendanceSettings, attendanceRecords, broadcasts, generalShortcuts,
     forms, formCompletions, demandRequests, loading, workspaceId,
@@ -1965,10 +1915,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     updatePersonAreas, updatePersonLeaderArea, updatePersonLeaderAreas,
     deletePerson, removePersonFromWorkspaceState, addTask, updateTask,
     deleteTask, addPost, updatePost, deletePost, addProject, updateProject,
-    deleteProject, addEvent, updateEvent, deleteEvent, addCategory,
+    deleteProject, addCategory,
     removeCategory, updateCategory, addChannel, removeChannel,
-    updateChannel, addTeam, updateTeam, deleteTeam, addEventType,
-    updateEventType, deleteEventType, markNotificationRead,
+    updateChannel, addTeam, updateTeam, deleteTeam, markNotificationRead,
     markAllNotificationsRead, addAreaNote, updateAreaNote, deleteAreaNote,
     addParkingItem, updateParkingItem, moveParkingItem, deleteParkingItem,
     addGamificationAction, updateGamificationAction,
@@ -1980,8 +1929,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
     acceptDemandRequest, rejectDemandRequest, addForm, updateForm,
     deleteForm, markFormCompleted, unmarkFormCompleted, declineForm
   }), [
-    people, projects, tasks, posts, events, categories, channels, teams,
-    eventTypes, notifications, areaNotes, parkingItems,
+    people, projects, tasks, posts, categories, channels, teams,
+    notifications, areaNotes, parkingItems,
     gamificationActions, gamificationAwards, gamificationLastUpdatedAt, gamificationRefreshing, leadThermometer,
     attendanceSettings, attendanceRecords, broadcasts, generalShortcuts,
     forms, formCompletions, demandRequests, loading, workspaceId,
@@ -1991,10 +1940,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     updatePersonAreas, updatePersonLeaderArea, updatePersonLeaderAreas,
     deletePerson, removePersonFromWorkspaceState, addTask, updateTask,
     deleteTask, addPost, updatePost, deletePost, addProject, updateProject,
-    deleteProject, addEvent, updateEvent, deleteEvent, addCategory,
+    deleteProject, addCategory,
     removeCategory, updateCategory, addChannel, removeChannel,
-    updateChannel, addTeam, updateTeam, deleteTeam, addEventType,
-    updateEventType, deleteEventType, markNotificationRead,
+    updateChannel, addTeam, updateTeam, deleteTeam, markNotificationRead,
     markAllNotificationsRead, addAreaNote, updateAreaNote, deleteAreaNote,
     addParkingItem, updateParkingItem, moveParkingItem, deleteParkingItem,
     addGamificationAction, updateGamificationAction,

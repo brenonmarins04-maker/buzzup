@@ -162,23 +162,6 @@ function AttendanceTab({ area }: { area: AreaKey }) {
   // Presenças são só de diretores/owner — líder não gerencia presença.
   const { isAdmin } = useAuth();
 
-  // Apenas Admin/líder pode acessar a aba de presenças
-  if (!isAdmin) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 px-4">
-        <div className="text-center max-w-sm">
-          <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
-            🔒
-          </div>
-          <h3 className="font-semibold text-foreground mb-1">Acesso Restrito</h3>
-          <p className="text-sm text-muted-foreground">
-            Apenas diretores podem gerenciar presenças. Contate um diretor para marcar sua presença.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   const members = useMemo(() => people.filter(p => (p.areas && p.areas.includes(area)) || p.area === area), [people, area]);
   const setting = useMemo(() => attendanceSettings.find(s => s.area === area), [attendanceSettings, area]);
 
@@ -212,6 +195,25 @@ function AttendanceTab({ area }: { area: AreaKey }) {
     setSMeetingCount(meetingCount);
     setSettingsOpen(true);
   };
+
+  // A saída fica DEPOIS dos hooks de propósito. Acima deles, bastava o papel
+  // da pessoa mudar com a aba aberta para o React renderizar menos hooks que
+  // no render anterior e derrubar a tela inteira.
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 px-4">
+        <div className="text-center max-w-sm">
+          <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-3">
+            🔒
+          </div>
+          <h3 className="font-semibold text-foreground mb-1">Acesso Restrito</h3>
+          <p className="text-sm text-muted-foreground">
+            Apenas diretores podem gerenciar presenças. Contate um diretor para marcar sua presença.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const saveSettings = async () => {
     if (!sStartDate) { toast.error("Data inicial obrigatória"); return; }

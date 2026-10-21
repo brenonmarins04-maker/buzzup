@@ -169,50 +169,6 @@ export type Database = {
           },
         ]
       }
-      calendar_items: {
-        Row: {
-          area: string | null
-          created_at: string
-          date: string
-          description: string
-          id: string
-          team_id: string | null
-          title: string
-          type: string
-          workspace_id: string
-        }
-        Insert: {
-          area?: string | null
-          created_at?: string
-          date?: string
-          description?: string
-          id?: string
-          team_id?: string | null
-          title: string
-          type?: string
-          workspace_id: string
-        }
-        Update: {
-          area?: string | null
-          created_at?: string
-          date?: string
-          description?: string
-          id?: string
-          team_id?: string | null
-          title?: string
-          type?: string
-          workspace_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "calendar_items_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       categories: {
         Row: {
           created_at: string
@@ -267,38 +223,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "channels_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      event_types: {
-        Row: {
-          color: string
-          created_at: string
-          id: string
-          name: string
-          workspace_id: string
-        }
-        Insert: {
-          color?: string
-          created_at?: string
-          id?: string
-          name: string
-          workspace_id: string
-        }
-        Update: {
-          color?: string
-          created_at?: string
-          id?: string
-          name?: string
-          workspace_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "event_types_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"

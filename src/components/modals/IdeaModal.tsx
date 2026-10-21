@@ -72,7 +72,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
     }
     if (item) {
       await updateParkingItem({ ...item, title: t, area, personId: personId || null, date, points });
-      toast.success("Ideia atualizada");
+      toast.success("Demanda atualizada");
     } else {
       await addParkingItem(area, t, date, "", points);
     }
@@ -83,7 +83,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
   const handleDelete = async () => {
     if (!item) return;
     await deleteParkingItem(item.id);
-    toast.success("Ideia excluída");
+    toast.success("Demanda excluída");
     setSavedOk(true);
     onOpenChange(false);
   };
@@ -107,7 +107,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
             style={{ background: area ? selectedColor : "hsl(var(--muted))" }}
           />
           <DialogHeader>
-            <DialogTitle className="text-base">{item ? "Editar ideia" : "Nova ideia"}</DialogTitle>
+            <DialogTitle className="text-base">{item ? "Editar demanda" : "Nova demanda"}</DialogTitle>
             {requireFull && (
               <DialogDescription className="text-xs">
                 Para colocar no calendário, preencha área, responsável e data.
@@ -118,7 +118,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
             {/* Título — largura total */}
             <div>
               <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1 block">Título</label>
-              <Input autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder="Descreva a ideia" className="rounded-full h-9 px-4 text-sm" />
+              <Input autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder="Descreva a demanda" className="rounded-full h-9 px-4 text-sm" />
             </div>
 
             {/* Linha principal: Área (esq) | Responsável + Data + Pontos (dir) */}

@@ -18,7 +18,6 @@ import { toast } from "sonner";
 import EditAreaNamesModal from "@/components/modals/EditAreaNamesModal";
 import { useAreaNames } from "@/hooks/useAreaNames";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import EventModal from "@/components/modals/EventModal";
 import NotificationPanel from "@/components/NotificationPanel";
 import BroadcastBar from "@/components/BroadcastBar";
 import BroadcastModal from "@/components/modals/BroadcastModal";
@@ -170,7 +169,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return areaKeys.map(key => AREAS.find(a => a.key === key)).filter(Boolean) as typeof AREAS;
   }, [user, people]);
 
-  const [eventModal, setEventModal] = useState(false);
   const [broadcastModal, setBroadcastModal] = useState(false);
   const [editAreasModal, setEditAreasModal] = useState(false);
   const [createTeamModal, setCreateTeamModal] = useState(false);
@@ -326,7 +324,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             );
           })}
         </nav>
-        <EventModal open={eventModal} onOpenChange={setEventModal} />
         <BroadcastModal open={broadcastModal} onOpenChange={setBroadcastModal} />
       </div>
     );

@@ -3,7 +3,7 @@ import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   Trophy, Medal, ListChecks, Megaphone,
-  CheckCircle2, FolderPlus, CalendarPlus, Plus, Clock,
+  CheckCircle2, FolderPlus, Plus, Clock,
   Sparkles, BarChart2, Star, ClipboardList, Circle, CheckCircle, AlertTriangle,
 } from "lucide-react";
 import { getNowBrasilia } from "@/lib/utils";
@@ -56,7 +56,7 @@ function resolveDemandScope(areaKey: string, teams: TeamLike[]) {
 }
 
 export default function DashboardPage() {
-  const { people, tasks, projects, events, broadcasts, gamificationAwards, parkingItems, teams, forms, formCompletions, demandRequests, updateParkingItem, loading } = useData();
+  const { people, tasks, projects, broadcasts, gamificationAwards, parkingItems, teams, forms, formCompletions, demandRequests, updateParkingItem, loading } = useData();
   const { user } = useAuth();
   const today = getNowBrasilia();
   const cycles = useGamificationCycles();
@@ -216,14 +216,6 @@ export default function DashboardPage() {
         icon: <FolderPlus className="h-3.5 w-3.5" />, color: "#00B4D8",
       });
     });
-    events.forEach(e => {
-      items.push({
-        id: `e-${e.id}`, type: "event",
-        label: `Evento agendado — "${e.title}"`,
-        ts: (e as any).created_at ?? new Date().toISOString(),
-        icon: <CalendarPlus className="h-3.5 w-3.5" />, color: "#F97316",
-      });
-    });
     broadcasts.filter(b => !b.message.startsWith("__")).forEach(b => {
       items.push({
         id: `b-${b.id}`, type: "broadcast",
@@ -247,7 +239,7 @@ export default function DashboardPage() {
       .filter(i => i.ts)
       .sort((a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime())
       .slice(0, 10);
-  }, [tasks, projects, events, broadcasts, gamificationAwards, people]);
+  }, [tasks, projects, broadcasts, gamificationAwards, people]);
 
   if (loading) {
     return (
