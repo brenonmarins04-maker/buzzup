@@ -44,6 +44,7 @@ export default function TeamAreaPage() {
 // These use a virtual "area" key based on team id so data is isolated per team
 import { useAuth } from "@/contexts/AuthContext";
 import { isLeaderOfAny } from "@/lib/leadership";
+import { etiquetaDaCor, fundoParaTextoBranco } from "@/lib/tintaLegivel";
 import { isDemandOverdue, formatDemandDayMonth } from "@/lib/demandStatus";
 import { useDemandPoints } from "@/hooks/useDemandPoints";
 import { getTodayBrasilia } from "@/lib/utils";
@@ -272,6 +273,10 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
     const isOverdue = !isCompleting && isDemandOverdue(item, todayStr);
     // verde (concluída) / vermelho (atrasada) / laranja (em andamento)
     const tint = isDone || isCompleting ? "#10B981" : isOverdue ? "#EF4444" : "#F59E0B";
+    // A mesma cor serve de marca (borda, fundo pálido) e de texto. Como
+    // texto, os tons 500 do Tailwind não passam no mínimo legível, então o
+    // texto e o preenchimento com letra branca usam a versão escurecida.
+    const cheioDoTint = fundoParaTextoBranco(tint);
     const memberCanDone = !isAdmin && item.personId !== null && myPersonIds.has(item.personId);
     const completedByPerson = isDone && item.completedBy ? people.find(p => p.userId === item.completedBy) : null;
 
@@ -334,7 +339,7 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
           <div className="flex items-start justify-between gap-2">
             <span className={`font-semibold leading-snug flex-1 min-w-0 break-words overflow-hidden ${isDone ? "text-muted-foreground line-through" : "text-foreground"}`}>{item.title}</span>
             {item.points ? (
-              <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md text-white" style={{ backgroundColor: tint }}>
+              <span className="shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md text-white" style={{ backgroundColor: cheioDoTint }}>
                 {item.points}p
               </span>
             ) : null}
@@ -342,7 +347,7 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
           {item.description && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-3 break-words">{item.description}</p>}
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {formatDemandDayMonth(item.date) ? (
-              <span className="inline-flex shrink-0 items-center justify-center whitespace-nowrap tabular-nums text-[11px] font-semibold px-2 py-0.5 rounded-md text-white min-w-[3.5rem]" style={{ backgroundColor: tint }}>
+              <span className="inline-flex shrink-0 items-center justify-center whitespace-nowrap tabular-nums text-[11px] font-semibold px-2 py-0.5 rounded-md text-white min-w-[3.5rem]" style={{ backgroundColor: cheioDoTint }}>
                 {formatDemandDayMonth(item.date)}
               </span>
             ) : (
@@ -357,7 +362,7 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
             {!isDone && !isCompleting && (
               <span
                 className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-md"
-                style={{ color: tint, backgroundColor: `${tint}1c`, border: `1px solid ${tint}55` }}
+                style={(({ fundo, texto }) => ({ color: texto, backgroundColor: fundo, border: `1px solid ${tint}55` }))(etiquetaDaCor(tint, 0.11))}
               >
                 {isOverdue ? "Atrasada" : "Em andamento"}
               </span>
@@ -415,7 +420,7 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
           {isAdmin && (
             <button
               onClick={openCreate}
-              className="flex items-center gap-1 text-xs font-semibold text-white border border-emerald-500 rounded-xl px-3 py-1.5 transition-colors bg-emerald-500 hover:bg-emerald-600 shadow-sm shadow-emerald-500/25"
+              className="flex items-center gap-1 text-xs font-semibold text-white border border-emerald-700 rounded-lg px-3 py-1.5 transition-colors bg-emerald-700 hover:bg-emerald-800"
             >
               <Plus className="h-3.5 w-3.5" /> nova demanda
             </button>
@@ -589,8 +594,8 @@ function TeamAttendanceTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKe
   const fmtDate = (iso: string) => { const [, m, d] = iso.split("-"); return `${d}/${m}`; };
 
   const STATUS_META: Record<AttendanceStatus, { label: string; bg: string; text: string }> = {
-    P: { label: "Presente", bg: "bg-emerald-500", text: "text-white" },
-    F: { label: "Faltou", bg: "bg-red-500", text: "text-white" },
+    P: { label: "Presente", bg: "bg-emerald-700", text: "text-white" },
+    F: { label: "Faltou", bg: "bg-destructive", text: "text-destructive-foreground" },
     FJ: { label: "Falta Justificada", bg: "bg-amber-400", text: "text-black" },
   };
 
@@ -601,8 +606,8 @@ function TeamAttendanceTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKe
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-4 text-xs text-muted-foreground">
-        <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded-full bg-emerald-500 text-white text-[9px] font-bold flex items-center justify-center">P</span> Presente</span>
-        <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">F</span> Faltou</span>
+        <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded-full bg-emerald-700 text-white text-[9px] font-bold flex items-center justify-center">P</span> Presente</span>
+        <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">F</span> Faltou</span>
         <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded-full bg-amber-400 text-black text-[9px] font-bold flex items-center justify-center">FJ</span> Falta justificada</span>
       </div>
       <div className="rounded-lg border border-border overflow-x-auto bg-card">

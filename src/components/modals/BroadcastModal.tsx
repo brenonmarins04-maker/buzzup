@@ -93,7 +93,7 @@ export default function BroadcastModal({ open, onOpenChange }: { open: boolean; 
                     onClick={() => { setHours(String(p.h)); setMinutes(String(p.m)); }}
                     className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
                       active
-                        ? "bg-red-500 text-white border-red-500"
+                        ? "bg-destructive text-destructive-foreground border-red-500"
                         : "bg-background border-input text-muted-foreground hover:bg-accent"
                     }`}
                   >

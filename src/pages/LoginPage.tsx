@@ -280,7 +280,7 @@ export default function LoginPage() {
                 />
               </div>
               {confirmPassword && confirmPassword !== password && (
-                <p className="text-[11px] font-medium text-red-500">As senhas não coincidem</p>
+                <p className="text-[11px] font-medium text-destructive">As senhas não coincidem</p>
               )}
             </div>
           )}

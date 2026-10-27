@@ -58,7 +58,7 @@ export default function EmailConfirmedPage() {
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <div className="w-full max-w-sm text-center space-y-5">
           <div className="h-16 w-16 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto">
-            <MailX className="h-8 w-8 text-red-500" />
+            <MailX className="h-8 w-8 text-destructive" />
           </div>
           <div className="space-y-2">
             <h1 className="text-2xl font-bold text-foreground tracking-tight">Link inválido ou expirado</h1>
@@ -94,7 +94,7 @@ export default function EmailConfirmedPage() {
         <Button
           onClick={enterAccount}
           disabled={leaving}
-          className="w-full rounded-2xl h-12 font-bold bg-emerald-500 hover:bg-emerald-600 text-white border-0"
+          className="w-full rounded-2xl h-12 font-bold bg-emerald-700 hover:bg-emerald-800 text-white border-0"
         >
           {leaving ? "Entrando…" : "Entrar na sua conta"}
         </Button>

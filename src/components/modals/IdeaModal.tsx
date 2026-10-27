@@ -243,7 +243,7 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
                               {abertas}
                             </span>
                             {recomendado && (
-                              <span className="flex items-center gap-0.5 rounded-full bg-emerald-500 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+                              <span className="flex items-center gap-0.5 rounded-full bg-emerald-700 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
                                 <Sparkles className="h-2.5 w-2.5" />
                                 recomendado
                               </span>

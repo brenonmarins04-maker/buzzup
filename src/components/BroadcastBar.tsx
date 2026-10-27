@@ -43,7 +43,7 @@ export default function BroadcastBar() {
           key={b.id}
           className="relative flex items-start gap-3 rounded-lg border border-destructive/35 bg-destructive/[0.06] px-4 py-3 animate-in fade-in slide-in-from-top-2"
         >
-          <div className="shrink-0 mt-0.5 h-7 w-7 rounded-md bg-red-500 text-white flex items-center justify-center shadow-md">
+          <div className="shrink-0 mt-0.5 h-7 w-7 rounded-md bg-destructive text-destructive-foreground flex items-center justify-center shadow-md">
             <Megaphone className="h-4 w-4" />
           </div>
           <p className="flex-1 text-sm md:text-base font-bold text-red-700 dark:text-red-300 leading-snug whitespace-pre-wrap break-words">
@@ -64,7 +64,7 @@ export default function BroadcastBar() {
                 <div className="px-3 py-2 border-b border-border bg-red-500/5 flex items-center gap-2">
                   <Megaphone className="h-3.5 w-3.5 text-red-600" />
                   <span className="text-xs font-bold uppercase tracking-wide text-red-700">Mensagens ativas</span>
-                  <span className="ml-auto text-[10px] bg-red-500 text-white rounded-full px-1.5 py-0.5 font-bold">{userBroadcasts.length}</span>
+                  <span className="ml-auto text-[10px] bg-destructive text-destructive-foreground rounded-full px-1.5 py-0.5 font-bold">{userBroadcasts.length}</span>
                 </div>
                 <div className="max-h-80 overflow-auto">
                   {userBroadcasts.length === 0 ? (

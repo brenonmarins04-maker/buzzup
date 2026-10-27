@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import { isLeaderOfAny } from "@/lib/leadership";
 import { getAreaColor, getTeamColor, getTeamIdFromAreaKey } from "@/lib/areas";
+import { etiquetaDaCor } from "@/lib/tintaLegivel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -83,7 +84,7 @@ export default function DemandRequestsPage() {
                   <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                     <span
                       className="rounded px-1.5 py-0.5 font-semibold"
-                      style={{ color: corDoEscopo(r.area), backgroundColor: `${corDoEscopo(r.area)}18` }}
+                      style={(({ fundo, texto }) => ({ backgroundColor: fundo, color: texto }))(etiquetaDaCor(corDoEscopo(r.area)))}
                     >
                       {scopeLabel(r.area, teams)}
                     </span>

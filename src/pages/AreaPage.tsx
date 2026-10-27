@@ -3,6 +3,7 @@ import { useData, type ParkingItem, type ParkingItemStatus, type AttendanceStatu
 import { useAuth } from "@/contexts/AuthContext";
 import { AREAS, type AreaKey, getAreaLabel } from "@/lib/areas";
 import { isLeaderOfAny } from "@/lib/leadership";
+import { etiquetaDaCor, fundoParaTextoBranco } from "@/lib/tintaLegivel";
 import { isDemandOverdue, formatDemandDayMonth } from "@/lib/demandStatus";
 import { useDemandPoints } from "@/hooks/useDemandPoints";
 import { getTodayBrasilia } from "@/lib/utils";
@@ -141,8 +142,8 @@ const PRESET_OPTIONS = [
 ];
 
 const STATUS_META: Record<AttendanceStatus, { label: string; bg: string; text: string }> = {
-  P:  { label: "Presente",           bg: "bg-emerald-500", text: "text-white" },
-  F:  { label: "Faltou",             bg: "bg-red-500",     text: "text-white" },
+  P:  { label: "Presente",           bg: "bg-emerald-700", text: "text-white" },
+  F:  { label: "Faltou",             bg: "bg-destructive", text: "text-destructive-foreground" },
   FJ: { label: "Falta Justificada",  bg: "bg-amber-400",   text: "text-black" },
 };
 
@@ -247,8 +248,8 @@ function AttendanceTab({ area }: { area: AreaKey }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded-full bg-emerald-500 text-white text-[9px] font-bold flex items-center justify-center">P</span> Presente</span>
-          <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">F</span> Faltou</span>
+          <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded-full bg-emerald-700 text-white text-[9px] font-bold flex items-center justify-center">P</span> Presente</span>
+          <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">F</span> Faltou</span>
           <span className="flex items-center gap-1.5"><span className="h-4 w-4 rounded-full bg-amber-400 text-black text-[9px] font-bold flex items-center justify-center">FJ</span> Falta justificada</span>
         </div>
         {isAdmin && (
@@ -482,6 +483,10 @@ function KanbanTab({ area }: { area: AreaKey }) {
     const isOverdue = !isCompleting && isDemandOverdue(item, todayStr);
     // verde (concluída) / vermelho (atrasada) / laranja (em andamento)
     const tint = isDone || isCompleting ? "#10B981" : isOverdue ? "#EF4444" : "#F59E0B";
+    // A mesma cor serve de marca (borda, fundo pálido) e de texto. Como
+    // texto, os tons 500 do Tailwind não passam no mínimo legível, então o
+    // texto e o preenchimento com letra branca usam a versão escurecida.
+    const cheioDoTint = fundoParaTextoBranco(tint);
     const memberCanDone = !canManage && canMarkDone(item);
     const completedByPerson = isDone && item.completedBy ? people.find(p => p.userId === item.completedBy) : null;
     return (
@@ -548,7 +553,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
             {item.points ? (
               <span
                 className="shrink-0 text-[10px] font-bold px-1 py-0.5 rounded text-white"
-                style={{ backgroundColor: tint }}
+                style={{ backgroundColor: cheioDoTint }}
                 title={`${item.points} ${item.points === 1 ? "ponto" : "pontos"}`}
               >
                 {item.points}p
@@ -560,7 +565,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
             {formatDemandDayMonth(item.date) ? (
               <span
                 className="inline-flex shrink-0 items-center justify-center whitespace-nowrap tabular-nums text-[10px] font-semibold px-1.5 py-0.5 rounded text-white min-w-[3.25rem]"
-                style={{ backgroundColor: tint }}
+                style={{ backgroundColor: cheioDoTint }}
               >
                 {formatDemandDayMonth(item.date)}
               </span>
@@ -577,7 +582,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
             {!isDone && !isCompleting && (
               <span
                 className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded"
-                style={{ color: tint, backgroundColor: `${tint}1c`, border: `1px solid ${tint}55` }}
+                style={(({ fundo, texto }) => ({ color: texto, backgroundColor: fundo, border: `1px solid ${tint}55` }))(etiquetaDaCor(tint, 0.11))}
               >
                 {isOverdue ? "Atrasada" : "Em andamento"}
               </span>
@@ -634,7 +639,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
           {canManage && (
             <button
               onClick={openCreate}
-              className="flex items-center gap-1 text-[11px] font-semibold text-white border border-emerald-500 rounded-lg px-2 py-1 transition-colors bg-emerald-500 hover:bg-emerald-600 shadow-sm shadow-emerald-500/25"
+              className="flex items-center gap-1 text-[11px] font-semibold text-white border border-emerald-700 rounded-lg px-2 py-1 transition-colors bg-emerald-700 hover:bg-emerald-800"
             >
               <Plus className="h-3 w-3" /> nova demanda
             </button>

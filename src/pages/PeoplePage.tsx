@@ -6,6 +6,7 @@ import { Trash2, Link2, HelpCircle, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { AREAS, getAreaColor, getAreaLabel, getTeamColor } from "@/lib/areas";
+import { etiquetaDaCor } from "@/lib/tintaLegivel";
 import MemberEditModal from "@/components/modals/MemberEditModal";
 import RolesInfoModal from "@/components/modals/RolesInfoModal";
 export default function PeoplePage() {
@@ -178,7 +179,7 @@ function MembersTab() {
                     de dizer o cargo, não brilhar. */}
                 <div
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-sm font-semibold"
-                  style={{ backgroundColor: `${accent}1f`, color: accent }}
+                  style={(({ fundo, texto }) => ({ backgroundColor: fundo, color: texto }))(etiquetaDaCor(accent))}
                 >
                   {initials}
                 </div>
@@ -192,7 +193,10 @@ function MembersTab() {
                       </span>
                     )}
                     {rb && (
-                      <span className="rounded px-1.5 py-0.5 text-[11px] font-semibold" style={{ color: rb.color, backgroundColor: `${rb.color}1a` }}>
+                      <span
+                        className="rounded px-1.5 py-0.5 text-[11px] font-semibold"
+                        style={(({ fundo, texto }) => ({ backgroundColor: fundo, color: texto }))(etiquetaDaCor(rb.color))}
+                      >
                         {rb.label}
                       </span>
                     )}
@@ -204,7 +208,7 @@ function MembersTab() {
                         <span
                           key={areaKey}
                           className="truncate rounded px-1.5 py-0.5 text-[11px] font-medium"
-                          style={{ color: getAreaColor(areaKey), backgroundColor: `${getAreaColor(areaKey)}18` }}
+                          style={(({ fundo, texto }) => ({ backgroundColor: fundo, color: texto }))(etiquetaDaCor(getAreaColor(areaKey)))}
                         >
                           {getAreaLabel(areaKey)}
                         </span>
@@ -216,7 +220,7 @@ function MembersTab() {
                       <span
                         key={t.id}
                         className="truncate rounded px-1.5 py-0.5 text-[11px] font-medium"
-                        style={{ color: getTeamColor(t.id), backgroundColor: `${getTeamColor(t.id)}18` }}
+                        style={(({ fundo, texto }) => ({ backgroundColor: fundo, color: texto }))(etiquetaDaCor(getTeamColor(t.id)))}
                       >
                         {t.name}
                       </span>

@@ -163,7 +163,7 @@ export default function LandingPage() {
                 <div className="app-topbar"><b>BuzzUp</b><span className="app-role">Owner</span></div>
                 <div className="app-body">
                   <div className="app-card">
-                    <div className="app-card-title" style={{ color: "#00B4D8" }}>Minhas Demandas</div>
+                    <div className="app-card-title" style={{ color: "#00687D" }}>Minhas Demandas</div>
                     <div className="app-demand">
                       <div className="d-area">MARKETING</div>
                       <div className="d-title">Post no insta</div>
@@ -172,9 +172,9 @@ export default function LandingPage() {
                     </div>
                   </div>
                   <div className="app-card">
-                    <div className="app-card-title" style={{ color: "#BA7517" }}>🏆 Gameficação</div>
-                    <div className="app-rankrow"><span className="pos" style={{ background: "#EF9F27" }}>1</span><b style={{ flex: 1 }}>Duda</b><span className="pts">340 pts</span></div>
-                    <div className="app-rankrow"><span className="pos" style={{ background: "#B4B2A9" }}>2</span><span style={{ flex: 1 }}>Léo</span><span className="pts" style={{ color: "var(--muted)" }}>290 pts</span></div>
+                    <div className="app-card-title" style={{ color: "#8A560F" }}>🏆 Gameficação</div>
+                    <div className="app-rankrow"><span className="pos" style={{ background: "#A66405" }}>1</span><b style={{ flex: 1 }}>Duda</b><span className="pts">340 pts</span></div>
+                    <div className="app-rankrow"><span className="pos" style={{ background: "#6B6A63" }}>2</span><span style={{ flex: 1 }}>Léo</span><span className="pts" style={{ color: "var(--muted)" }}>290 pts</span></div>
                     <div className="app-rankrow"><span className="pos" style={{ background: "#B45309" }}>3</span><span style={{ flex: 1 }}>Bibi</span><span className="pts" style={{ color: "var(--muted)" }}>275 pts</span></div>
                   </div>
                 </div>
@@ -229,7 +229,7 @@ export default function LandingPage() {
             <h2 className="reveal mx">Uma plataforma. A entidade inteira em sincronia.</h2>
             <div className="feat-grid">
               <div className="feat reveal">
-                <div className="ic" style={{ background: "rgba(239,159,39,.12)", color: "#BA7517" }}>★</div>
+                <div className="ic" style={{ background: "rgba(239,159,39,.12)", color: "#8A560F" }}>★</div>
                 <h3>Gameficação automática</h3>
                 <p>Cada demanda vira ponto. O ranking da empresa mostra quem realmente faz.</p>
               </div>
@@ -239,7 +239,7 @@ export default function LandingPage() {
                 <p>Calendário do marketing, reuniões marcadas, todo mundo vê, mais organização visual.</p>
               </div>
               <div className="feat reveal">
-                <div className="ic" style={{ background: "rgba(0,180,216,.12)", color: "#00B4D8" }}>☰</div>
+                <div className="ic" style={{ background: "rgba(0,180,216,.12)", color: "#00687D" }}>☰</div>
                 <h3>Demandas arrastáveis</h3>
                 <p>Visualize a sobrecarga da sua equipe, balanceie as tarefas.</p>
               </div>
@@ -256,8 +256,8 @@ export default function LandingPage() {
           <div className="wrap split rev reveal section-slide slide-left">
             <div className="rankcard-light reveal" aria-hidden="true">
               <div style={{ fontSize: 12, color: "var(--muted)", fontWeight: 600, marginBottom: 12 }}>🏆 Ranking da semana</div>
-              <div className="rankrow"><span className="pos" style={{ background: "#EF9F27" }}>1</span><span style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>Duda</span><span className="pts">340 pts</span></div>
-              <div className="rankrow"><span className="pos" style={{ background: "#B4B2A9" }}>2</span><span style={{ flex: 1, fontSize: 14 }}>Léo</span><span className="pts" style={{ color: "var(--muted)" }}>290 pts</span></div>
+              <div className="rankrow"><span className="pos" style={{ background: "#A66405" }}>1</span><span style={{ flex: 1, fontSize: 14, fontWeight: 600 }}>Duda</span><span className="pts">340 pts</span></div>
+              <div className="rankrow"><span className="pos" style={{ background: "#6B6A63" }}>2</span><span style={{ flex: 1, fontSize: 14 }}>Léo</span><span className="pts" style={{ color: "var(--muted)" }}>290 pts</span></div>
               <div className="rankrow"><span className="pos" style={{ background: "#B45309" }}>3</span><span style={{ flex: 1, fontSize: 14 }}>Bibi</span><span className="pts" style={{ color: "var(--muted)" }}>275 pts</span></div>
             </div>
             <div>

@@ -71,7 +71,7 @@ export default function ConfigHubPage() {
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-foreground truncate">{item.label}</span>
                 {item.badge ? (
-                  <span className="h-5 min-w-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                  <span className="h-5 min-w-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center shrink-0">
                     {item.badge > 9 ? "9+" : item.badge}
                   </span>
                 ) : null}

@@ -318,7 +318,7 @@ export default function FormsSection() {
                   <span className="text-xs font-bold text-emerald-600" title="Preencheram">
                     ({filledCount(f.id)})
                   </span>
-                  <span className="text-xs font-bold text-red-500" title="Não preencheram">
+                  <span className="text-xs font-bold text-destructive" title="Não preencheram">
                     ({missingCount(f)})
                   </span>
                 </button>
@@ -510,7 +510,7 @@ export default function FormsSection() {
                   <DialogTitle className="text-base">{f.title}</DialogTitle>
                   <p className="text-xs text-muted-foreground">
                     {targetLabel(f)} • <span className="font-bold text-emerald-600">({filled.length})</span> preencheram
-                    {" · "}<span className="font-bold text-red-500">({missing.length})</span> não preencheram
+                    {" · "}<span className="font-bold text-destructive">({missing.length})</span> não preencheram
                     {responseAreaFilter !== "all" && ` (filtrando por área)`}
                   </p>
                 </DialogHeader>
@@ -581,7 +581,7 @@ export default function FormsSection() {
 
                   {/* Faltam */}
                   <div>
-                    <p className="text-[11px] font-semibold text-red-500 uppercase tracking-wider mb-1.5">
+                    <p className="text-[11px] font-semibold text-destructive uppercase tracking-wider mb-1.5">
                       Não preencheram ({missing.length})
                     </p>
                     {missing.length === 0 ? (
@@ -593,7 +593,7 @@ export default function FormsSection() {
                             <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${completion?.status === "declined" ? "bg-red-500" : "bg-amber-500/70"}`} />
                             <span className="truncate flex-1">{personLabel(p)}</span>
                             {completion?.status === "declined" && (
-                              <span className="text-[10px] font-semibold text-red-500 shrink-0">não vai preencher</span>
+                              <span className="text-[10px] font-semibold text-destructive shrink-0">não vai preencher</span>
                             )}
                           </li>
                         ))}

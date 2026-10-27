@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGamificationEnabled } from "@/hooks/useGamificationEnabled";
+import { etiquetaDaCor, fundoParaTextoBranco, tintaLegivel } from "@/lib/tintaLegivel";
 import {
   Trophy, Medal, ListChecks, Megaphone,
   CheckCircle2, FolderPlus, Plus, Clock,
@@ -323,7 +324,7 @@ export default function DashboardPage() {
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1">
-                            <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: scope.color }}>
+                            <p className="text-xs font-semibold" style={{ color: etiquetaDaCor(scope.color, 0.03).texto }}>
                               {scope.label}
                             </p>
                             <p className="text-sm font-semibold text-foreground mt-1.5">{demand.title}</p>
@@ -332,14 +333,14 @@ export default function DashboardPage() {
                             )}
                           </div>
                           {demand.points && (
-                            <span className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-md text-white" style={{ backgroundColor: scope.color }}>
+                            <span className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-md text-white" style={{ backgroundColor: fundoParaTextoBranco(scope.color) }}>
                               +{demand.points}p
                             </span>
                           )}
                         </div>
                         <div className="flex items-center gap-2 pt-1">
                           {dayMonth && (
-                            <span className="inline-flex shrink-0 items-center justify-center whitespace-nowrap tabular-nums text-[11px] font-medium px-2 py-0.5 rounded-md text-white min-w-[3.5rem]" style={{ backgroundColor: scope.color }}>
+                            <span className="inline-flex shrink-0 items-center justify-center whitespace-nowrap tabular-nums text-[11px] font-medium px-2 py-0.5 rounded-md text-white min-w-[3.5rem]" style={{ backgroundColor: fundoParaTextoBranco(scope.color) }}>
                               {dayMonth}
                             </span>
                           )}
@@ -354,7 +355,7 @@ export default function DashboardPage() {
                               <Circle className="h-2.5 w-2.5 fill-current" /> Atrasada
                             </span>
                           ) : (
-                            <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-orange-500/15 text-orange-600 flex items-center gap-1">
+                            <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-orange-500/15 text-orange-800 flex items-center gap-1">
                               <Circle className="h-2.5 w-2.5 fill-current" /> Em andamento
                             </span>
                           )}
@@ -362,7 +363,7 @@ export default function DashboardPage() {
                         <div className="pt-2 border-t border-border/30">
                           <button
                             onClick={async () => { await updateParkingItem({ ...demand, status: "done" }); }}
-                            className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-2.5 rounded-lg transition-all bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm shadow-emerald-500/20"
+                            className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-2.5 rounded-lg transition-all bg-emerald-700 text-white hover:bg-emerald-600 shadow-sm shadow-emerald-500/20"
                           >
                             <CheckCircle className="h-3.5 w-3.5" /> Marcar como concluída
                           </button>
@@ -562,7 +563,7 @@ export default function DashboardPage() {
                 <div key={a.label} className="flex items-center gap-3">
                   <span
                     className="shrink-0 text-[11px] font-semibold leading-tight"
-                    style={{ color: a.color, minWidth: "7rem" }}
+                    style={{ color: tintaLegivel(a.color), minWidth: "7rem" }}
                   >
                     {a.label}
                   </span>
@@ -596,7 +597,7 @@ export default function DashboardPage() {
                 <div className="hover-lift rounded-2xl border border-border/70 bg-white/60 p-4 flex flex-col gap-2 transition-all">
                   <div className="flex items-center gap-2">
                     <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: d.areaColor }} />
-                    <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: d.areaColor }}>{d.areaLabel}</span>
+                    <span className="text-[11px] font-semibold" style={{ color: tintaLegivel(d.areaColor) }}>{d.areaLabel}</span>
                   </div>
                   <p className="text-sm font-semibold text-foreground leading-snug">{d.title}</p>
                   <p className="text-xs text-muted-foreground">Responsável: <span className="font-medium text-foreground">{d.responsible}</span></p>
@@ -628,7 +629,7 @@ export default function DashboardPage() {
               <li key={a.id} className="flex items-start gap-3">
                 <div
                   className="h-6 w-6 rounded-full flex items-center justify-center shrink-0 mt-0.5"
-                  style={{ backgroundColor: `${a.color}1F`, color: a.color }}
+                  style={(({ fundo, texto }) => ({ backgroundColor: fundo, color: texto }))(etiquetaDaCor(a.color))}
                 >
                   {a.icon}
                 </div>

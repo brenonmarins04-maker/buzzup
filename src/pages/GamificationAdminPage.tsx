@@ -72,7 +72,7 @@ export default function GamificationAdminPage() {
               }}
               className={`flex items-center gap-2 rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition-all disabled:opacity-60 ${
                 gamificacao.enabled
-                  ? "border-emerald-500 bg-emerald-500 text-white"
+                  ? "border-emerald-500 bg-emerald-700 text-white"
                   : "border-border bg-background text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -920,7 +920,7 @@ function ResetNicknamesDialog({
           <Button
             onClick={confirmar}
             disabled={alvo.length === 0 || salvando}
-            className="bg-red-500 hover:bg-red-600 text-white font-bold"
+            className="bg-destructive hover:bg-destructive/90 text-destructive-foreground font-bold"
           >
             {salvando ? "Apagando..." : `Apagar ${alvo.length > 0 ? alvo.length : ""}`}
           </Button>

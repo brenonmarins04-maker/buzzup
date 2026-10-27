@@ -711,7 +711,7 @@ export default function CalendarPage() {
           aria-label={`${format(day, "d 'de' MMMM", { locale: ptBR })}: ${dayItems.length} ${dayItems.length === 1 ? "item" : "itens"}`}
         >
           <div className="flex items-center justify-between gap-1">
-            <span className={`text-[11px] font-semibold ${todayFlag ? "bg-primary text-primary-foreground h-5 w-5 rounded-full flex items-center justify-center" : inMonth ? "text-foreground" : "text-muted-foreground/50"}`}>
+            <span className={`text-[11px] font-semibold ${todayFlag ? "bg-primary text-primary-foreground h-5 w-5 rounded-full flex items-center justify-center" : inMonth ? "text-foreground" : "text-muted-foreground"}`}>
               {format(day, "d")}
             </span>
             {dayItems.length > 0 && (
@@ -746,7 +746,7 @@ export default function CalendarPage() {
         className={`h-full min-h-[64px] sm:min-h-0 border-b border-r border-border p-1 sm:p-1.5 transition-colors flex flex-col ${!inMonth ? "bg-muted/30" : ""} ${todayFlag ? "bg-accent/50" : ""} ${isDropping ? "bg-primary/10 ring-2 ring-primary/30 ring-inset" : ""} ${isMobile && dayItems.length > 0 ? "active:bg-accent/60 cursor-pointer" : ""}`}
       >
         <div className="flex items-center justify-between mb-1">
-          <div className={`text-xs font-medium ${todayFlag ? "bg-primary text-primary-foreground h-5 w-5 rounded-full flex items-center justify-center" : inMonth ? "text-foreground" : "text-muted-foreground/50"}`}>
+          <div className={`text-xs font-medium ${todayFlag ? "bg-primary text-primary-foreground h-5 w-5 rounded-full flex items-center justify-center" : inMonth ? "text-foreground" : "text-muted-foreground"}`}>
             {format(day, "d")}
           </div>
           {isAdmin && (
@@ -791,7 +791,7 @@ export default function CalendarPage() {
         className="demand-hover flex w-full items-start gap-2 rounded-xl border bg-background/70 px-3 py-2.5 text-left transition-colors hover:bg-accent"
       >
         {demandVisual?.kind === "overdue" ? (
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-red-500" />
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-destructive" />
         ) : demandVisual ? (
           <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: demandVisual.color }} />
         ) : (

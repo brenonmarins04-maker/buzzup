@@ -43,7 +43,10 @@
     --popover: 0 0% 100%;
     --popover-foreground: 215 28% 12%;
 
-    --primary: 191 100% 39%;     /* o ciano, agora reservado */
+    /* Branco sobre o ciano claro media 3,0:1 — abaixo do mínimo legível.
+       Este é o ciano ESCURO da própria marca: com ele o branco chega a
+       5,1:1, e como texto sobre branco ele também passa. */
+    --primary: 190 100% 28%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 220 14% 96%;
@@ -61,7 +64,7 @@
     --border: 220 13% 91%;       /* #e5e7ea — linha de card */
     --rule: 220 13% 95%;         /* linha de linha de tabela */
     --input: 220 11% 85%;        /* controle, um passo mais forte */
-    --ring: 191 100% 39%;
+    --ring: 190 100% 28%;
 
     /* Raio único e apertado. O calendário pedia "mais quadrado" e a regra
        vale para o site: cantos apertados leem como ferramenta, cantos de
@@ -100,12 +103,12 @@
        contra tela clara é a marca registrada de dashboard gerado. */
     --sidebar-background: 220 14% 97%;
     --sidebar-foreground: 215 28% 12%;
-    --sidebar-primary: 191 100% 39%;
+    --sidebar-primary: 190 100% 28%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 220 13% 92%;
     --sidebar-accent-foreground: 215 28% 12%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 191 100% 39%;
+    --sidebar-ring: 190 100% 28%;
 
     /* Curvas. Saída forte para o que entra; nada de elástico nem salto. */
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
