@@ -80,7 +80,8 @@ describe("o + de um dia abre uma demanda", () => {
 
     // Só os membros do time aparecem como responsáveis — prova de que a área
     // selecionada é mesmo o time, e não uma área qualquer.
-    expect(within(modal).getByRole("button", { name: "Julia Calixto" })).toBeInTheDocument();
+    // O nome do botão agora traz junto a carga da pessoa ("Julia Calixto 0")
+    expect(within(modal).getByRole("button", { name: /Julia Calixto/ })).toBeInTheDocument();
 
     fireEvent.change(within(modal).getByPlaceholderText("Descreva a demanda"), {
       target: { value: "Fechar proposta" },

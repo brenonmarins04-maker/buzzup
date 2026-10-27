@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePendingJoinCount } from "@/hooks/usePendingJoinCount";
+import { useGamificationEnabled } from "@/hooks/useGamificationEnabled";
 import {
   Settings, Trophy, Users, FolderKanban, ExternalLink, BarChart2, Shield, ChevronRight, Compass,
   type LucideIcon,
@@ -20,6 +21,7 @@ type ConfigItem = {
 export default function ConfigHubPage() {
   const { isAdmin, isOwner, role } = useAuth();
   const pendingJoinCount = usePendingJoinCount();
+  const { enabled: gamificacaoLigada } = useGamificationEnabled();
 
   const items: ConfigItem[] = [
     { to: "/gamification", label: "Gameficação", description: "Pontue, defina apelidos, ações rápidas e histórico.", icon: Trophy, color: "#EF9F27", adminOnly: true },
@@ -31,6 +33,9 @@ export default function ConfigHubPage() {
   ];
 
   const visible = items.filter(item => {
+    // Com a gamificação desligada, a porta fica só para o dono — é por ela
+    // que ele volta para religar.
+    if (item.to === "/gamification" && !gamificacaoLigada) return isOwner;
     if (item.ownerOnly) return isOwner;
     if (item.adminOnly) return isAdmin;
     return true;

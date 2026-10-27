@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Navigate } from "react-router-dom";
-import { Trophy, Search, Plus, Pencil, Trash2, Check, X, RotateCcw, ChevronDown, ChevronRight, AlertTriangle, Clock } from "lucide-react";
+import { Trophy, Search, Plus, Pencil, Trash2, Check, X, RotateCcw, ChevronDown, ChevronRight, AlertTriangle, Clock, Power, PowerOff } from "lucide-react";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AREAS, getAreaLabel } from "@/lib/areas";
@@ -22,12 +22,14 @@ import {
 } from "@/lib/gamificationCycles";
 import { MAX_DEMAND_POINT_OPTIONS } from "@/lib/demandPoints";
 import GamificationRefreshButton from "@/components/gamification/GamificationRefreshButton";
+import { useGamificationEnabled } from "@/hooks/useGamificationEnabled";
 
 type Sub = "pontuar" | "acoes" | "demandas" | "apelidos" | "historico";
 
 export default function GamificationAdminPage() {
-  const { isAdmin, hubStatus } = useAuth();
+  const { isAdmin, isOwner, hubStatus } = useAuth();
   const [sub, setSub] = useState<Sub>("pontuar");
+  const gamificacao = useGamificationEnabled();
   if (hubStatus === "idle" || hubStatus === "loading") {
     return (
       <div className="flex items-center justify-center py-20">
@@ -36,6 +38,8 @@ export default function GamificationAdminPage() {
     );
   }
   if (!isAdmin) return <Navigate to="/" replace />;
+  // Desligada, a tela só existe para o dono — é por aqui que ele religa.
+  if (!gamificacao.enabled && !isOwner) return <Navigate to="/" replace />;
   const subs: { v: Sub; label: string }[] = [
     { v: "pontuar", label: "Pontuar" },
     { v: "apelidos", label: "Apelidos" },
@@ -46,12 +50,55 @@ export default function GamificationAdminPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
           <Trophy className="h-5 w-5 text-primary" /> Gamificação
         </h2>
-        <GamificationRefreshButton />
+        <div className="flex items-center gap-2">
+          {gamificacao.canToggle && (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={gamificacao.enabled}
+              disabled={gamificacao.saving}
+              aria-label="Gamificação no site"
+              onClick={async () => {
+                const proximo = !gamificacao.enabled;
+                const { ok, error } = await gamificacao.alternar(proximo);
+                if (!ok) { toast.error(error || "Não foi possível salvar."); return; }
+                toast.success(proximo
+                  ? "Gamificação ligada para o workspace inteiro."
+                  : "Gamificação desligada. Nada foi apagado — os pontos continuam salvos.");
+              }}
+              className={`flex items-center gap-2 rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition-all disabled:opacity-60 ${
+                gamificacao.enabled
+                  ? "border-emerald-500 bg-emerald-500 text-white"
+                  : "border-border bg-background text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {gamificacao.enabled ? <Power className="h-3.5 w-3.5" /> : <PowerOff className="h-3.5 w-3.5" />}
+              <span className="whitespace-nowrap">
+                {gamificacao.enabled ? "Ligada no site" : "Desligada no site"}
+              </span>
+              <span className={`ml-0.5 flex h-4 w-7 items-center rounded-full p-0.5 transition-colors ${gamificacao.enabled ? "bg-white/30" : "bg-muted"}`}>
+                <span className={`h-3 w-3 rounded-full bg-white shadow transition-transform ${gamificacao.enabled ? "translate-x-3" : ""}`} />
+              </span>
+            </button>
+          )}
+          <GamificationRefreshButton />
+        </div>
       </div>
+      {!gamificacao.enabled && (
+        <div className="flex items-start gap-2 rounded-xl border border-amber-400/60 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
+          <PowerOff className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          <p>
+            <strong>A gamificação está desligada para todo o workspace.</strong>{" "}
+            Ninguém vê ranking nem pontos — nem você, fora desta tela. Nada foi
+            apagado: os pontos, as ações e o histórico continuam salvos e voltam
+            inteiros quando você religar.
+          </p>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-1 rounded-xl bg-muted/40 p-1 sm:flex sm:items-center sm:gap-1 sm:rounded-none sm:border-b sm:border-border sm:bg-transparent sm:p-0">
         {subs.map(s => (
           <button key={s.v} onClick={() => setSub(s.v)}

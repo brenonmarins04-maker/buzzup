@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect, type DragEvent } from "react";
 import { createPortal } from "react-dom";
-import { AlertTriangle, ChevronLeft, ChevronRight, Plus, X, ChevronUp, ChevronDown, CalendarDays, User, CheckCircle2, SlidersHorizontal, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ChevronRight, Plus, X, ChevronUp, ChevronDown, CalendarDays, User, UserX, CheckCircle2, SlidersHorizontal, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import type { Task, Post } from "@/contexts/DataContext";
@@ -43,6 +43,8 @@ export type CalendarItem = {
   /** Demanda do quadro: o id da linha em parking_items. */
   parkingId?: string;
   isDemand?: boolean;
+  /** Tem alguém responsável? `undefined` esconde o símbolo (post, por ex.). */
+  hasResponsible?: boolean;
 };
 
 
@@ -347,6 +349,7 @@ export default function CalendarPage() {
         isDemand: true,
         scopeLabel: taskScope,
         responsibleName: taskResponsible,
+        hasResponsible: (t.responsible?.length ?? 0) > 0,
       });
     });
     // "Minhas demandas" foca só nas suas demandas — publicações ficam ocultas
@@ -390,6 +393,7 @@ export default function CalendarPage() {
         status: p.status,
         scopeLabel: label,
         responsibleName: person?.name || "Sem responsável",
+        hasResponsible: !!p.personId,
         isDemand: true,
       });
     });
@@ -560,13 +564,19 @@ export default function CalendarPage() {
     return max;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allItems, currentDate]);
-  // 36px header + 18px per row of 2 pills (max 10 pills = 5 rows), min 48px
-  const desktopCellHeight = isMobile ? undefined : Math.max(48, 36 + Math.ceil(Math.min(maxItemsInDay, 10) / 2) * 18);
+  // 36px de cabeçalho + 34px por linha de 2 pílulas (no máximo 10 = 5 linhas).
+  // A pílula de demanda tem 32px porque empilha dois sinais — status em cima,
+  // responsável embaixo —, e a linha precisa caber nela.
+  const desktopCellHeight = isMobile ? undefined : Math.max(48, 36 + Math.ceil(Math.min(maxItemsInDay, 10) / 2) * 34);
 
   const typeLabels: Record<string, string> = { task: "Demanda", post: "Post", demand: "Demanda" };
 
   const renderItemPill = (item: CalendarItem) => {
     const demandVisual = getDemandCalendarVisual(item, calendarTodayStr);
+    // Post não tem responsável no sentido de demanda: ali o símbolo só
+    // confundiria, então ele nem aparece.
+    const mostraResponsavel = typeof item.hasResponsible === "boolean";
+    const temSinais = !!demandVisual || mostraResponsavel;
     return (
       <div
         key={item.id}
@@ -591,7 +601,7 @@ export default function CalendarPage() {
           borderColor: demandVisual?.color || "transparent",
           boxShadow: demandVisual ? `0 0 0 1px ${demandVisual.color}88` : undefined,
         }}
-        className={`demand-hover relative group/pill flex items-stretch border ${isMobile ? "rounded-lg" : "rounded-md"} overflow-hidden shadow-sm ${isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}`}
+        className={`demand-hover relative group/pill flex items-stretch border ${isMobile ? "rounded-lg" : "rounded-md"} ${demandVisual && mostraResponsavel ? "min-h-[32px]" : ""} overflow-hidden shadow-sm ${isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}`}
       >
         {item.type === "post" && (
           <button
@@ -602,24 +612,46 @@ export default function CalendarPage() {
             className={`w-1 shrink-0 ${isAdmin ? "cursor-pointer hover:w-1.5 transition-all" : ""}`}
           />
         )}
-        {demandVisual && (
-          <span
-            title={demandVisual.label}
-            className="absolute left-0.5 top-0.5 z-10 h-3.5 w-3.5 rounded-full bg-white/95 flex items-center justify-center shadow-sm"
-          >
-            {demandVisual.kind === "overdue" ? (
-              <AlertTriangle className="h-2.5 w-2.5 text-red-500" />
-            ) : (
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: demandVisual.color }} />
+        {/* Coluna de sinais: o status em cima, o responsável embaixo. */}
+        {temSinais && (
+          <span className="absolute bottom-0.5 left-0.5 top-0.5 z-10 flex w-3.5 flex-col items-center justify-center gap-0.5">
+            {demandVisual && (
+              <span
+                title={demandVisual.label}
+                className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-white/95 shadow-sm"
+              >
+                {demandVisual.kind === "overdue" ? (
+                  <AlertTriangle className="h-2.5 w-2.5 text-red-500" />
+                ) : (
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: demandVisual.color }} />
+                )}
+              </span>
             )}
+            {mostraResponsavel && (item.hasResponsible ? (
+              <span
+                title={item.responsibleName ? `Responsável: ${item.responsibleName}` : "Com responsável"}
+                className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-white/95 shadow-sm"
+              >
+                <User className="h-2.5 w-2.5 text-slate-700" />
+              </span>
+            ) : (
+              // Fundo invertido de propósito: "falta responsável" tem de pular
+              // aos olhos mesmo numa pílula de 100 pixels.
+              <span
+                title="Sem responsável"
+                className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-red-600 shadow-sm ring-1 ring-white/80"
+              >
+                <UserX className="h-2.5 w-2.5 text-white" />
+              </span>
+            ))}
           </span>
         )}
         <div
           style={{ backgroundColor: item.color }}
-          className={`flex-1 min-w-0 text-white font-medium hover:opacity-80 transition-opacity pointer-events-none ${
+          className={`flex-1 min-w-0 self-center text-white font-medium hover:opacity-80 transition-opacity pointer-events-none ${
             isMobile
-              ? `text-[10px] leading-snug py-1 rounded-md whitespace-normal break-words line-clamp-2 ${demandVisual ? "pl-5 pr-1.5" : "px-1.5"}`
-              : `text-[9px] sm:text-[10px] leading-tight py-0.5 whitespace-normal break-words line-clamp-2 pr-4 ${demandVisual ? "pl-5" : "px-1 sm:px-1.5"}`
+              ? `text-[10px] leading-snug py-1 rounded-md whitespace-normal break-words line-clamp-2 ${temSinais ? "pl-5 pr-1.5" : "px-1.5"}`
+              : `text-[9px] sm:text-[10px] leading-tight py-0.5 whitespace-normal break-words line-clamp-2 pr-4 ${temSinais ? "pl-5" : "px-1 sm:px-1.5"}`
           }`}
         >
           {item.title}
@@ -750,7 +782,15 @@ export default function CalendarPage() {
           <span className="block text-sm font-semibold leading-snug text-foreground break-words">{item.title}</span>
           <span className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] text-muted-foreground">
             <span>{detailLabel}</span>
-            {item.responsibleName && <span>• {item.responsibleName}</span>}
+            {item.hasResponsible === false ? (
+              <span className="flex items-center gap-0.5 font-semibold text-red-600">
+                <UserX className="h-3 w-3" /> Sem responsável
+              </span>
+            ) : item.responsibleName ? (
+              <span className="flex items-center gap-0.5">
+                <User className="h-3 w-3" /> {item.responsibleName}
+              </span>
+            ) : null}
             {statusLabel && <span style={{ color: demandVisual?.color }}>• {statusLabel}</span>}
           </span>
         </span>
@@ -863,7 +903,7 @@ export default function CalendarPage() {
                     const dim = filterArea && p.area && !sameAreaOrTeam(p.area, filterArea);
                     return (
                       <div key={p.id} className={`shrink-0 ${dim ? "opacity-40" : ""}`} style={{ width: 118 }}>
-                        {renderItemPill({ id: p.id, parkingId: p.id, title: p.title, type: "demand", date: "", color, scopeLabel: label })}
+                        {renderItemPill({ id: p.id, parkingId: p.id, title: p.title, type: "demand", date: "", color, scopeLabel: label, hasResponsible: !!p.personId, responsibleName: people.find(pe => pe.id === p.personId)?.name })}
                       </div>
                     );
                   })}
@@ -1128,6 +1168,15 @@ export default function CalendarPage() {
                             {item.scopeLabel || typeLabels[item.type]}
                             {item.type === "post" && item.status ? ` • ${POST_STATUS_META[item.status]?.label || item.status}` : ""}
                           </span>
+                          {item.hasResponsible === false ? (
+                            <span className="mt-1 flex items-center gap-1 text-[10px] font-bold text-red-600">
+                              <UserX className="h-3 w-3" /> Sem responsável
+                            </span>
+                          ) : item.hasResponsible ? (
+                            <span className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                              <User className="h-3 w-3" /> {item.responsibleName}
+                            </span>
+                          ) : null}
                         </span>
                         {item.time && (
                           <span className="self-center text-[11px] font-semibold text-muted-foreground tabular-nums shrink-0 pr-3">{item.time}</span>
@@ -1182,6 +1231,11 @@ export default function CalendarPage() {
             {typeLabels[tooltipState.item.type]} • {tooltipState.item.date}
             {tooltipState.item.time ? ` ${tooltipState.item.time}` : ""}
           </p>
+          {tooltipState.item.hasResponsible === false ? (
+            <p className="font-semibold text-red-600">Sem responsável</p>
+          ) : tooltipState.item.hasResponsible ? (
+            <p className="text-muted-foreground">Responsável: {tooltipState.item.responsibleName}</p>
+          ) : null}
           {tooltipState.item.status && (
             <p className="text-muted-foreground">
               Status: {tooltipState.item.type === "post"

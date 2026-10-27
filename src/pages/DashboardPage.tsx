@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useGamificationEnabled } from "@/hooks/useGamificationEnabled";
 import {
   Trophy, Medal, ListChecks, Megaphone,
   CheckCircle2, FolderPlus, Plus, Clock,
@@ -56,6 +57,7 @@ function resolveDemandScope(areaKey: string, teams: TeamLike[]) {
 }
 
 export default function DashboardPage() {
+  const { enabled: gamificacaoLigada } = useGamificationEnabled();
   const { people, tasks, projects, broadcasts, gamificationAwards, parkingItems, teams, forms, formCompletions, demandRequests, updateParkingItem, loading } = useData();
   const { user } = useAuth();
   const today = getNowBrasilia();
@@ -377,7 +379,8 @@ export default function DashboardPage() {
               <FormsSection />
             </div>
 
-            {/* Meus Pontos (Gameficação) */}
+            {/* Meus Pontos — some junto com a gamificação desligada */}
+            {gamificacaoLigada && (
             <div data-tour="my-points" className="order-1 glass-panel rounded-2xl p-4 md:p-5 h-full flex flex-col justify-center gap-3 md:gap-4">
               {/* Trophy icon */}
               <div className="flex items-center gap-3 md:flex-col md:text-center">
@@ -424,11 +427,13 @@ export default function DashboardPage() {
               {/* Rank */}
               <p className="hidden md:block text-xs font-semibold text-muted-foreground text-center">{myRankLabel} no ranking</p>
             </div>
+            )}
           </>
         );
       })()}
 
-      {/* Ranking */}
+      {/* Ranking — o painel inteiro sai quando a gamificação está desligada */}
+      {gamificacaoLigada && (
       <div data-tour="ranking" className="order-4 lg:order-4 lg:col-span-3 glass-panel rounded-2xl p-5">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -534,6 +539,7 @@ export default function DashboardPage() {
           );
         })()}
       </div>
+      )}
       </div>
 
       {/* Atalhos gerais */}

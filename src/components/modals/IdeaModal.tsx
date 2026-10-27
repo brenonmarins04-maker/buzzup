@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import { useDemandPoints } from "@/hooks/useDemandPoints";
+import { contarDemandasAbertas, recomendarMenosCarregados } from "@/lib/cargaDeDemandas";
+import { Sparkles } from "lucide-react";
 
 type Props = {
   open: boolean;
@@ -23,7 +25,7 @@ type Props = {
 };
 
 export default function IdeaModal({ open, onOpenChange, item, defaultArea, defaultDate, requireFull, onCancel }: Props) {
-  const { people, teams, addParkingItem, updateParkingItem, deleteParkingItem } = useData();
+  const { people, teams, tasks, parkingItems, addParkingItem, updateParkingItem, deleteParkingItem } = useData();
   const [title, setTitle] = useState("");
   const [area, setArea] = useState("");
   const [personId, setPersonId] = useState<string>("");
@@ -56,6 +58,22 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
     }
     return people.filter(p => (p.areas && p.areas.includes(area)) || (p.area && p.area.includes(area)));
   }, [people, area, isTeamArea, selectedTeam]);
+
+  /**
+   * Quantas demandas em aberto cada pessoa já tem — no workspace inteiro.
+   *
+   * De propósito sobre todas as áreas e times, não só sobre a área desta
+   * demanda: quem está com três no time de Diversidade e nenhuma no Mercado
+   * não está livre, e olhar só para o Mercado diria que está.
+   */
+  const cargaPorPessoa = useMemo(
+    () => contarDemandasAbertas(parkingItems, tasks),
+    [parkingItems, tasks],
+  );
+  const recomendados = useMemo(
+    () => recomendarMenosCarregados(peopleForArea, cargaPorPessoa),
+    [peopleForArea, cargaPorPessoa],
+  );
 
   const handleClose = (next: boolean) => {
     if (!next && !savedOk && onCancel) onCancel();
@@ -184,6 +202,12 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
                   <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1 block">
                     Responsável {requireFull && <span className="text-destructive">*</span>}
                   </label>
+                  {recomendados.size > 0 && (
+                    <p className="text-[10px] leading-snug text-muted-foreground mb-1.5">
+                      O número é quantas demandas a pessoa já tem em aberto, somando
+                      todas as áreas e times.
+                    </p>
+                  )}
                   {!area ? (
                     <div className="h-8 rounded-full border border-dashed border-input bg-muted/30 px-3 flex items-center text-xs text-muted-foreground">
                       Selecione a área primeiro
@@ -191,13 +215,16 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
                   ) : peopleForArea.length === 0 ? (
                     <div className="h-8 rounded-full border border-input bg-muted/30 px-3 flex items-center">😞</div>
                   ) : (
-                    <div className="flex flex-wrap gap-1.5 max-h-[130px] overflow-y-auto">
+                    <div className="flex flex-wrap gap-1.5 max-h-[150px] overflow-y-auto pt-0.5">
                       {peopleForArea.map(p => {
                         const selected = personId === p.id;
                         const areaColor = selectedColor;
+                        const abertas = cargaPorPessoa.get(p.id) ?? 0;
+                        const recomendado = recomendados.has(p.id);
                         return (
                           <button key={p.id} type="button" onClick={() => setPersonId(p.id)}
-                            className="px-2.5 h-7 rounded-full text-xs font-medium transition-all border"
+                            title={`${p.name} — ${abertas} ${abertas === 1 ? "demanda em aberto" : "demandas em aberto"} no total${recomendado ? " (é quem tem menos)" : ""}`}
+                            className={`flex items-center gap-1.5 px-2.5 h-7 rounded-full text-xs font-medium transition-all border ${recomendado ? "ring-2 ring-emerald-500 ring-offset-1 ring-offset-background" : ""}`}
                             style={{
                               backgroundColor: selected ? areaColor : `${areaColor}10`,
                               color: selected ? "#fff" : "hsl(var(--foreground))",
@@ -205,7 +232,22 @@ export default function IdeaModal({ open, onOpenChange, item, defaultArea, defau
                               boxShadow: selected ? `0 2px 8px ${areaColor}55` : "none",
                             }}
                           >
-                            {p.name}
+                            <span>{p.name}</span>
+                            <span
+                              className="flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-bold tabular-nums"
+                              style={{
+                                backgroundColor: selected ? "rgba(255,255,255,0.28)" : `${areaColor}22`,
+                                color: selected ? "#fff" : areaColor,
+                              }}
+                            >
+                              {abertas}
+                            </span>
+                            {recomendado && (
+                              <span className="flex items-center gap-0.5 rounded-full bg-emerald-500 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+                                <Sparkles className="h-2.5 w-2.5" />
+                                recomendado
+                              </span>
+                            )}
                           </button>
                         );
                       })}
