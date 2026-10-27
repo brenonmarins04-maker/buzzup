@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect, type DragEvent } from "react";
 import { createPortal } from "react-dom";
-import { AlertTriangle, ChevronLeft, ChevronRight, Plus, X, ChevronUp, ChevronDown, CalendarDays, User, UserX, CheckCircle2, SlidersHorizontal, type LucideIcon } from "lucide-react";
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, Plus, X, ChevronUp, ChevronDown, CalendarDays, User, UserX, CheckCircle2, SlidersHorizontal, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import type { Task, Post } from "@/contexts/DataContext";
@@ -98,8 +98,15 @@ function sortCalendarItems(items: CalendarItem[], todayStr: string) {
   });
 }
 
-// Toggle estilo switch usado na organização de demandas (Minhas demandas / Concluídas)
-function CalToggle({ active, onClick, icon: Icon, label, activeColor = "#00B4D8" }: {
+/**
+ * Filtro ligado/desligado do calendário.
+ *
+ * Era uma pílula de cor cheia — verde num filtro, ciano no outro — e duas
+ * manchas de cor no topo da tela competiam com as demandas, que são o que a
+ * pessoa veio ver. Ligado agora é a superfície escurecendo um passo e o
+ * rótulo em negrito; a cor fica para o dado.
+ */
+function CalToggle({ active, onClick, icon: Icon, label }: {
   active: boolean; onClick: () => void; icon: LucideIcon; label: string; activeColor?: string;
 }) {
   return (
@@ -109,15 +116,16 @@ function CalToggle({ active, onClick, icon: Icon, label, activeColor = "#00B4D8"
       role="switch"
       aria-checked={active}
       title={label}
-      className={`flex items-center gap-1.5 pl-2.5 pr-1.5 py-1.5 rounded-xl border text-xs font-medium transition-all ${
-        active ? "text-white shadow-sm" : "bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground/30"
+      className={`flex items-center gap-1.5 rounded-lg border py-1.5 pl-2.5 pr-1.5 text-xs transition-colors ${
+        active
+          ? "border-input bg-secondary font-semibold text-foreground"
+          : "border-border bg-card font-medium text-muted-foreground hover:text-foreground"
       }`}
-      style={active ? { backgroundColor: activeColor, borderColor: activeColor } : undefined}
     >
       <Icon className="h-3.5 w-3.5 shrink-0" />
       <span className="whitespace-nowrap">{label}</span>
-      <span className={`ml-0.5 h-4 w-7 rounded-full flex items-center p-0.5 transition-colors ${active ? "bg-white/30" : "bg-muted"}`}>
-        <span className={`h-3 w-3 rounded-full bg-white shadow transition-transform ${active ? "translate-x-3" : ""}`} />
+      <span className={`ml-0.5 flex h-4 w-7 items-center rounded-full p-0.5 transition-colors ${active ? "bg-primary" : "bg-muted"}`}>
+        <span className={`h-3 w-3 rounded-full bg-card shadow-sm transition-transform ${active ? "translate-x-3" : ""}`} />
       </span>
     </button>
   );
@@ -564,19 +572,34 @@ export default function CalendarPage() {
     return max;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allItems, currentDate]);
-  // 36px de cabeçalho + 34px por linha de 2 pílulas (no máximo 10 = 5 linhas).
-  // A pílula de demanda tem 32px porque empilha dois sinais — status em cima,
-  // responsável embaixo —, e a linha precisa caber nela.
-  const desktopCellHeight = isMobile ? undefined : Math.max(48, 36 + Math.ceil(Math.min(maxItemsInDay, 10) / 2) * 34);
+  // 32px de cabeçalho + 26px por demanda (cartão de 22px + 4px de respiro),
+  // no máximo quatro. Dia vazio fica em 76px, que é o quadrado que dá para
+  // clicar sem parecer uma faixa.
+  const desktopCellHeight = isMobile ? undefined : Math.max(76, 32 + Math.min(maxItemsInDay, 4) * 26);
 
   const typeLabels: Record<string, string> = { task: "Demanda", post: "Post", demand: "Demanda" };
 
+  /**
+   * O cartão de uma demanda no calendário.
+   *
+   * Antes era uma pílula de 9px, branca sobre laranja chapado, duas por
+   * linha: um dia com quatro demandas virava um mosaico colorido onde não se
+   * lia nenhum título. A cor do bloco inteiro também não dizia nada — era a
+   * cor da área, repetida em tudo daquela área.
+   *
+   * Agora o cartão é branco e ocupa a linha inteira. A área vira uma barra de
+   * 3px na borda esquerda (marca, não preenchimento), o título é tinta escura
+   * em 11px, e os sinais ficam à direita: o status e o responsável. Cor cheia
+   * sobrou só para o que exige decisão — atrasada e sem dono.
+   */
   const renderItemPill = (item: CalendarItem) => {
     const demandVisual = getDemandCalendarVisual(item, calendarTodayStr);
-    // Post não tem responsável no sentido de demanda: ali o símbolo só
-    // confundiria, então ele nem aparece.
     const mostraResponsavel = typeof item.hasResponsible === "boolean";
-    const temSinais = !!demandVisual || mostraResponsavel;
+    const atrasada = demandVisual?.kind === "overdue";
+    const concluida = demandVisual?.kind === "done";
+    const statusPost = item.type === "post" ? POST_STATUS_META[item.status || "not-started"] : null;
+    const corDaMarca = atrasada ? "hsl(var(--destructive))" : item.color;
+
     return (
       <div
         key={item.id}
@@ -594,72 +617,67 @@ export default function CalendarPage() {
         onMouseLeave={() => setTooltipState(null)}
         style={{
           touchAction: "pan-y",
-          transition: "transform 380ms cubic-bezier(0.4,0,0.2,1), opacity 380ms ease, border-color 160ms ease, box-shadow 160ms ease",
+          transition: "transform 320ms var(--ease), opacity 320ms ease",
           transform: shrinkingId === item.id ? "scale(0)" : undefined,
-          opacity: shrinkingId === item.id ? 0 : demandVisual?.kind === "done" ? 0.58 : 1,
+          opacity: shrinkingId === item.id ? 0 : concluida ? 0.5 : 1,
           transformOrigin: "bottom right",
-          borderColor: demandVisual?.color || "transparent",
-          boxShadow: demandVisual ? `0 0 0 1px ${demandVisual.color}88` : undefined,
+          borderLeftColor: corDaMarca,
         }}
-        className={`demand-hover relative group/pill flex items-stretch border ${isMobile ? "rounded-lg" : "rounded-md"} ${demandVisual && mostraResponsavel ? "min-h-[32px]" : ""} overflow-hidden shadow-sm ${isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}`}
+        className={`demand-hover group/pill relative flex items-center gap-1 overflow-hidden rounded-[4px] border border-l-[3px] border-border bg-card ${
+          isMobile ? "min-h-[26px] px-1.5 py-1" : "min-h-[22px] px-1.5 py-[3px]"
+        } ${isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}`}
       >
-        {item.type === "post" && (
+        {/* Publicação: a bolinha cicla o status num clique, como antes. */}
+        {statusPost && (
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); if (isAdmin) cyclePostStatus(item.id); }}
-            title={POST_STATUS_META[item.status || "not-started"]?.label}
-            style={{ backgroundColor: POST_STATUS_META[item.status || "not-started"]?.color || "#9CA3AF" }}
-            className={`w-1 shrink-0 ${isAdmin ? "cursor-pointer hover:w-1.5 transition-all" : ""}`}
+            title={statusPost.label}
+            style={{ backgroundColor: statusPost.color }}
+            className="h-2 w-2 shrink-0 rounded-full"
           />
         )}
-        {/* Coluna de sinais: o status em cima, o responsável embaixo. */}
-        {temSinais && (
-          <span className="absolute bottom-0.5 left-0.5 top-0.5 z-10 flex w-3.5 flex-col items-center justify-center gap-0.5">
-            {demandVisual && (
-              <span
-                title={demandVisual.label}
-                className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-white/95 shadow-sm"
-              >
-                {demandVisual.kind === "overdue" ? (
-                  <AlertTriangle className="h-2.5 w-2.5 text-red-500" />
-                ) : (
-                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: demandVisual.color }} />
-                )}
-              </span>
-            )}
-            {mostraResponsavel && (item.hasResponsible ? (
-              <span
-                title={item.responsibleName ? `Responsável: ${item.responsibleName}` : "Com responsável"}
-                className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-white/95 shadow-sm"
-              >
-                <User className="h-2.5 w-2.5 text-slate-700" />
-              </span>
-            ) : (
-              // Fundo invertido de propósito: "falta responsável" tem de pular
-              // aos olhos mesmo numa pílula de 100 pixels.
-              <span
-                title="Sem responsável"
-                className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-red-600 shadow-sm ring-1 ring-white/80"
-              >
-                <UserX className="h-2.5 w-2.5 text-white" />
-              </span>
-            ))}
-          </span>
-        )}
-        <div
-          style={{ backgroundColor: item.color }}
-          className={`flex-1 min-w-0 self-center text-white font-medium hover:opacity-80 transition-opacity pointer-events-none ${
-            isMobile
-              ? `text-[10px] leading-snug py-1 rounded-md whitespace-normal break-words line-clamp-2 ${temSinais ? "pl-5 pr-1.5" : "px-1.5"}`
-              : `text-[9px] sm:text-[10px] leading-tight py-0.5 whitespace-normal break-words line-clamp-2 pr-4 ${temSinais ? "pl-5" : "px-1 sm:px-1.5"}`
-          }`}
+
+        <span
+          className={`min-w-0 flex-1 truncate font-medium text-foreground ${isMobile ? "text-[11px]" : "text-[11px]"} ${concluida ? "line-through decoration-1" : ""}`}
         >
           {item.title}
-        </div>
+        </span>
+
+        {/* Os sinais, à direita: primeiro o status, depois o responsável. */}
+        <span className="flex shrink-0 items-center gap-1">
+          {demandVisual && (
+            <span title={demandVisual.label} className="flex items-center">
+              {atrasada ? (
+                <AlertTriangle className="h-3 w-3 text-destructive" />
+              ) : concluida ? (
+                <Check className="h-3 w-3 text-[hsl(var(--status-done))]" />
+              ) : (
+                <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: demandVisual.color }} />
+              )}
+            </span>
+          )}
+          {mostraResponsavel && (item.hasResponsible ? (
+            <span
+              title={item.responsibleName ? `Responsável: ${item.responsibleName}` : "Com responsável"}
+              className="flex items-center"
+            >
+              <User className="h-3 w-3 text-muted-foreground" />
+            </span>
+          ) : (
+            <span title="Sem responsável" className="flex items-center">
+              <UserX className="h-3 w-3 text-destructive" />
+            </span>
+          ))}
+        </span>
+
         {!isMobile && (
-          <button onClick={(e) => { e.stopPropagation(); setDeleting({ open: true, id: item.id, title: item.title, type: item.type, parkingId: item.parkingId }); }}
-            className="absolute top-0 right-0 h-full px-0.5 flex items-center opacity-0 group-hover/pill:opacity-100 transition-opacity">
-            <X className="h-2.5 w-2.5 text-white hover:text-destructive" />
+          <button
+            onClick={(e) => { e.stopPropagation(); setDeleting({ open: true, id: item.id, title: item.title, type: item.type, parkingId: item.parkingId }); }}
+            title="Excluir"
+            className="absolute inset-y-0 right-0 flex items-center bg-card px-1 opacity-0 transition-opacity group-hover/pill:opacity-100"
+          >
+            <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
           </button>
         )}
       </div>
@@ -712,8 +730,9 @@ export default function CalendarPage() {
         </div>
       );
     }
-    // Desktop: máx 10 (5 linhas × 2 colunas — excesso no popup)
-    const maxVisible = 10;
+    // Uma demanda por linha agora. Quatro cabem no quadrado do dia sem
+    // espremer; o resto vai para o popup, que lê melhor do que um mosaico.
+    const maxVisible = 4;
     const visibleItems = dayItems.slice(0, maxVisible);
     const hiddenCount = dayItems.length - visibleItems.length;
     return (
@@ -740,11 +759,11 @@ export default function CalendarPage() {
             </button>
           )}
         </div>
-        <div className={`${isMobile ? "flex flex-col overflow-y-auto scrollbar-thin" : "grid grid-cols-2"} gap-0.5 min-h-0`}>{visibleItems.map((item) => renderItemPill(item))}</div>
+        <div className="flex min-h-0 flex-col gap-1">{visibleItems.map((item) => renderItemPill(item))}</div>
         {hiddenCount > 0 && (
           <button
             onClick={(e) => { e.stopPropagation(); setDayPopup(dayStr); }}
-            className="mt-0.5 w-full text-center text-[10px] font-bold text-primary bg-primary/10 rounded-md py-0.5"
+            className="mt-1 w-full rounded-[4px] py-0.5 text-center text-[10px] font-semibold text-muted-foreground hover:bg-secondary"
           >
             +{hiddenCount}
           </button>
@@ -806,7 +825,7 @@ export default function CalendarPage() {
           <h1 className="text-xl font-bold tracking-tight text-foreground">Calendário</h1>
           <div className="flex flex-wrap items-center gap-2">
             <CalToggle active={onlyMine} onClick={() => setOnlyMine(value => !value)} icon={User} label="Minhas demandas" />
-            <CalToggle active={showDone} onClick={() => setShowDone(value => !value)} icon={CheckCircle2} label="Mostrar concluídas" activeColor="#10B981" />
+            <CalToggle active={showDone} onClick={() => setShowDone(value => !value)} icon={CheckCircle2} label="Mostrar concluídas" />
             <div className="flex min-w-[210px] items-center gap-1 rounded-xl border border-border bg-background p-0.5">
               <button onClick={navigatePrev} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent" aria-label="Mês anterior"><ChevronLeft className="h-4 w-4" /></button>
               <span className="min-w-0 flex-1 text-center text-sm font-semibold capitalize text-foreground">{headerLabel()}</span>
@@ -951,7 +970,7 @@ export default function CalendarPage() {
               <div id="mobile-calendar-filters" className="space-y-3 border-b border-border bg-muted/20 px-3 py-3">
                 <div className="flex flex-wrap gap-2">
                   <CalToggle active={onlyMine} onClick={() => setOnlyMine(value => !value)} icon={User} label="Minhas demandas" />
-                  <CalToggle active={showDone} onClick={() => setShowDone(value => !value)} icon={CheckCircle2} label="Mostrar concluídas" activeColor="#10B981" />
+                  <CalToggle active={showDone} onClick={() => setShowDone(value => !value)} icon={CheckCircle2} label="Mostrar concluídas" />
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5 border-t border-border/70 pt-2.5">
                   <span className="w-full text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Áreas</span>

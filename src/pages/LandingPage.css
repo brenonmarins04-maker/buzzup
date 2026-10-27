@@ -1,7 +1,7 @@
 .buzz-lp{
   --blue:#00B4D8; --blue-deep:#008EAD; --blue-3a:#2DE2B8;
   --ink:#0e1730; --muted:#5b6478; --bg:#ffffff; --bg-soft:#f2fffc;
-  --line:rgba(14,23,48,.08); --radius:16px; --maxw:1120px; --ease:cubic-bezier(.4,0,.2,1);
+  --line:rgba(14,23,48,.10); --radius:10px; --maxw:1120px; --ease:cubic-bezier(.4,0,.2,1);
   --area-mkt:#F97316; --area-geral:#00B4D8; --area-fin:#10B981; --area-ev:#8B5CF6;
   --green:#00B4D8; --green-d:#008EAD; --red:#e5322f;
   font-family:'Instrument Sans',system-ui,-apple-system,sans-serif;
@@ -16,29 +16,30 @@
 .buzz-lp .skip:focus{left:8px}
 
 .buzz-lp .btn{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:clamp(14px,1.4vw,15px);
-  padding:14px 26px;border-radius:12px;border:1px solid transparent;cursor:pointer;
+  padding:14px 26px;border-radius:8px;border:1px solid transparent;cursor:pointer;
   transition:transform .2s var(--ease),box-shadow .2s var(--ease),background .2s;white-space:nowrap}
 .buzz-lp .btn:hover{transform:translateY(-4px)}
 .buzz-lp .btn:focus-visible{outline:3px solid #fff;outline-offset:2px}
-.buzz-lp .btn-solid{background:var(--blue);color:#fff;box-shadow:0 10px 24px rgba(0,180,216,.28)}
-.buzz-lp .btn-solid:hover{box-shadow:0 18px 34px rgba(0,180,216,.34)}
-.buzz-lp .btn-white{background:#fff;color:var(--blue-deep);box-shadow:0 12px 28px rgba(8,18,55,.22)}
-.buzz-lp .btn-green{background:linear-gradient(135deg,var(--blue-3a),var(--blue));color:#fff;box-shadow:0 10px 24px rgba(0,180,216,.28)}
-.buzz-lp .btn-green:hover{background:linear-gradient(135deg,var(--blue),var(--blue-deep))}
+.buzz-lp .btn-solid{background:var(--blue-deep);color:#fff}
+.buzz-lp .btn-solid:hover{background:var(--ink)}
+.buzz-lp .btn-white{background:#fff;color:var(--ink)}
+.buzz-lp .btn-green{background:var(--ink);color:#fff}
+.buzz-lp .btn-green:hover{background:var(--blue-deep)}
 .buzz-lp .btn-login-link,
 .buzz-lp .btn-login-ghost{background:transparent;color:var(--blue-deep);border-color:transparent;box-shadow:none}
 .buzz-lp .btn-login-link:hover,
-.buzz-lp .btn-login-ghost:hover{background:rgba(0,180,216,.08);box-shadow:none}
+.buzz-lp .btn-login-ghost:hover{background:rgba(14,23,48,.05);box-shadow:none}
 .buzz-lp .hero .btn-login-ghost{color:#fff}
 .buzz-lp .hero .btn-login-ghost:hover{background:rgba(255,255,255,.14)}
-.buzz-lp .pulse{animation:bzPulseGlow 1s ease-out infinite}
-@keyframes bzPulseGlow{0%{box-shadow:0 0 0 0 rgba(45,226,184,.48)}70%{box-shadow:0 0 0 16px rgba(45,226,184,0)}100%{box-shadow:0 0 0 0 rgba(45,226,184,0)}}
+/* O anel que pulsava para sempre saiu: movimento que nunca para cansa e não
+   informa nada. A chamada agora se destaca pelo contraste, não por piscar. */
+.buzz-lp .pulse{animation:none}
 .buzz-lp .hero-sub{font-size:14px;color:rgba(255,255,255,.92);font-weight:500;max-width:360px}
 
-.buzz-lp header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.72);
-  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--line);
+.buzz-lp header{position:sticky;top:0;z-index:50;background:#ffffff;
+  border-bottom:1px solid var(--line);
   transition:padding .25s var(--ease),transform .28s var(--ease),box-shadow .25s var(--ease)}
-.buzz-lp header.shrink{box-shadow:0 6px 24px rgba(14,23,48,.06)}
+.buzz-lp header.shrink{border-bottom-color:rgba(14,23,48,.14)}
 .buzz-lp header.nav-hidden{transform:translateY(-112%)}
 .buzz-lp .nav{display:flex;align-items:center;gap:22px;padding:16px 0;transition:padding .25s var(--ease)}
 .buzz-lp header.shrink .nav{padding:10px 0}
@@ -50,8 +51,8 @@
 .buzz-lp .menu-btn{display:none;background:none;border:none;font-size:26px;line-height:1;color:var(--ink);cursor:pointer}
 
 .buzz-lp section{position:relative}
-.buzz-lp .sec-blue{background:linear-gradient(165deg,var(--blue-3a),var(--blue-deep));color:#fff}
-.buzz-lp .sec-soft{background:linear-gradient(180deg,var(--bg-soft),#e7fff8)}
+.buzz-lp .sec-blue{background:var(--ink);color:#fff}
+.buzz-lp .sec-soft{background:#f6f7f9}
 .buzz-lp .pad{padding:clamp(56px,9vw,104px) 0}
 .buzz-lp .eyebrow{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;letter-spacing:.04em;
   text-transform:uppercase;padding:6px 14px;border-radius:20px;margin-bottom:20px}
@@ -64,7 +65,7 @@
 .buzz-lp .center{text-align:center}
 .buzz-lp .mx{max-width:640px;margin-left:auto;margin-right:auto}
 
-.buzz-lp .hero{background:linear-gradient(165deg,var(--blue-3a),var(--blue-deep));color:#fff;overflow:hidden}
+.buzz-lp .hero{background:var(--ink);color:#fff;overflow:hidden}
 .buzz-lp .hero.pad{padding-top:0}
 .buzz-lp .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(32px,5vw,64px);align-items:center}
 .buzz-lp .hero p.lead{color:rgba(255,255,255,.86);max-width:520px}
@@ -95,8 +96,7 @@
 .buzz-lp .app-role{font-size:10px;font-weight:700;color:var(--blue-deep);background:rgba(0,180,216,.12);
   padding:3px 9px;border-radius:20px}
 .buzz-lp .app-body{padding:12px;display:flex;flex-direction:column;gap:10px}
-.buzz-lp .app-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;
-  box-shadow:0 8px 20px rgba(0,180,216,.07)}
+.buzz-lp .app-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px}
 .buzz-lp .app-card-title{font-size:12px;font-weight:700;margin-bottom:9px;display:flex;align-items:center;gap:6px}
 .buzz-lp .app-demand{border:1px solid rgba(249,115,22,.28);background:rgba(249,115,22,.05);border-radius:12px;padding:10px}
 .buzz-lp .d-area{font-size:10px;font-weight:700;letter-spacing:.05em;color:#F97316}
@@ -114,7 +114,7 @@
 .buzz-lp .app-nav .on{color:var(--blue-deep)}
 
 .buzz-lp .signup-transition{--signup-phone-start-x:clamp(190px,28vw,520px);position:fixed;inset:0;z-index:9999;display:grid;place-items:center;
-  background:linear-gradient(145deg,var(--blue-3a) 0%,var(--blue) 48%,var(--blue-deep) 100%);
+  background:var(--blue-deep);
   overflow:hidden;pointer-events:auto;animation:bzSignupOverlay 2450ms var(--ease) forwards}
 .buzz-lp .signup-transition::before{display:none}
 .buzz-lp .signup-phone-stage{position:absolute;inset:0;display:grid;place-items:center;
@@ -130,8 +130,7 @@
 .buzz-lp .signup-topbar span{font-size:10px;font-weight:800;color:var(--blue-deep);background:rgba(0,180,216,.12);
   padding:3px 9px;border-radius:20px}
 .buzz-lp .signup-body{padding:13px;display:flex;flex-direction:column;gap:10px}
-.buzz-lp .signup-mini-card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:13px;
-  box-shadow:0 10px 24px rgba(0,180,216,.08)}
+.buzz-lp .signup-mini-card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:13px}
 .buzz-lp .signup-mini-label{font-size:12px;font-weight:800;color:#00B4D8;margin-bottom:9px}
 .buzz-lp .signup-mini-label.gold{color:#BA7517}
 .buzz-lp .signup-mini-task{border:1px solid rgba(249,115,22,.25);background:rgba(249,115,22,.06);
@@ -161,7 +160,7 @@
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;
   padding:36px 28px;transform:translateY(28px) scale(.96);
   animation:bzSignupLoginPanel 2450ms cubic-bezier(.22,1,.36,1) forwards}
-.buzz-lp .signup-login-logo{width:72px;height:72px;object-fit:contain;filter:drop-shadow(0 18px 28px rgba(0,180,216,.28))}
+.buzz-lp .signup-login-logo{width:72px;height:72px;object-fit:contain;}
 .buzz-lp .signup-login-copy{display:flex;justify-content:center}
 .buzz-lp .signup-login-panel strong{display:block;max-width:330px;font-size:28px;line-height:1.1;color:var(--ink)}
 
@@ -225,14 +224,13 @@
 .buzz-lp .feat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:44px}
 .buzz-lp .feat{background:#fff;border:1px solid var(--line);border-radius:16px;padding:24px;
   transition:transform .2s var(--ease),box-shadow .2s var(--ease)}
-.buzz-lp .feat:hover{transform:translateY(-6px);box-shadow:0 22px 46px rgba(0,180,216,.13)}
+.buzz-lp .feat:hover{border-color:rgba(14,23,48,.22)}
 .buzz-lp .feat .ic{width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;
   font-size:22px;margin-bottom:16px}
 .buzz-lp .feat h3{margin-bottom:8px}
 .buzz-lp .feat p{font-size:14px;color:var(--muted)}
 
-.buzz-lp .rankcard-light{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;
-  box-shadow:0 20px 44px rgba(0,180,216,.09)}
+.buzz-lp .rankcard-light{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px}
 
 .buzz-lp .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:40px}
 .buzz-lp .step{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.24);border-radius:16px;
@@ -251,7 +249,7 @@
 
 .buzz-lp .faq{max-width:760px;margin:40px auto 0;text-align:left}
 .buzz-lp .faq details{background:#fff;border:1px solid var(--line);border-radius:14px;padding:0 22px;margin-bottom:12px;transition:box-shadow .2s var(--ease)}
-.buzz-lp .faq details[open]{box-shadow:0 16px 38px rgba(0,180,216,.10)}
+.buzz-lp .faq details[open]{}
 .buzz-lp .faq summary{list-style:none;cursor:pointer;padding:18px 0;font-weight:600;font-size:clamp(15px,1.8vw,16px);
   display:flex;justify-content:space-between;align-items:center;gap:14px}
 .buzz-lp .faq summary::-webkit-details-marker{display:none}

@@ -208,7 +208,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const roleLabel = role === "owner" ? "Owner" : role === "admin" ? "Diretor" : role === "member" ? "Assessor" : role === "leader" ? "Líder" : "—";
   const RoleBadge = ({ inverse = false }: { inverse?: boolean }) => (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${inverse
-      ? "bg-white/15 text-white border border-white/15"
+      ? "bg-secondary text-foreground font-semibold"
       : isAdmin ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
       {isAdmin ? <Shield className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
       {roleLabel}
@@ -226,11 +226,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             className="flex items-center gap-2 min-w-0 transition-opacity hover:opacity-80"
             aria-label="Voltar para a seleção de workspaces"
           >
-            <BrandLogo markClassName="h-7 w-7" textClassName="text-base text-white" />
+            <BrandLogo markClassName="h-7 w-7" textClassName="text-base text-foreground" />
           </Link>
           <div className="flex items-center gap-1.5 shrink-0">
             <RoleBadge inverse />
-            <button onClick={() => navigate("/configuracoes")} title="Configurações" className="relative p-2 rounded-md text-white/80 hover:bg-white/10 hover:text-white">
+            <button onClick={() => navigate("/configuracoes")} title="Configurações" className="relative p-2 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground">
               <Settings className="h-4 w-4" />
               {pendingJoinCount > 0 && (
                 <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
@@ -249,7 +249,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <button
             onClick={() => setBroadcastModal(true)}
             title="Nova mensagem geral"
-            className="fixed bottom-24 left-4 z-40 h-11 w-11 rounded-full bg-red-500 text-white shadow-lg flex items-center justify-center hover:bg-red-600 active:scale-95 transition-all"
+            className="fixed bottom-24 left-4 z-40 h-11 w-11 rounded-full bg-destructive text-destructive-foreground shadow-lg flex items-center justify-center hover:bg-destructive/90 active:scale-95 transition-all"
           >
             <Megaphone className="h-5 w-5" />
           </button>
@@ -345,14 +345,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         initial={false}
         animate={{ opacity: 1, x: 0 }}
       >
-        <div className="h-14 px-4 flex items-center justify-between border-b border-white/10 shrink-0">
+        <div className="h-14 px-4 flex items-center justify-between border-b border-sidebar-border shrink-0">
           {!collapsed && (
             <Link
               to="/welcome"
               className="transition-opacity hover:opacity-80"
               aria-label="Voltar para a seleção de workspaces"
             >
-              <BrandLogo markClassName="h-9 w-9" textClassName="text-lg text-white" />
+              <BrandLogo markClassName="h-9 w-9" textClassName="text-lg text-foreground" />
             </Link>
           )}
           <button
@@ -361,7 +361,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
             aria-expanded={!collapsed}
             title={collapsed ? "Expandir menu" : "Recolher menu"}
-            className="rounded p-1 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+            className="rounded p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
             <ChevronLeft className={`h-4 w-4 transition-transform ${collapsed ? "rotate-180" : ""}`} />
           </button>
@@ -386,20 +386,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {/* ── Áreas ── */}
           {!collapsed && (
             <div className="px-3 pt-3 pb-1 flex items-center justify-between">
-              <span className="text-[10px] font-semibold text-white/50 uppercase tracking-wider">Áreas</span>
+              <span className="text-[11px] font-medium text-muted-foreground">Áreas</span>
               {isOwner && (
                 <div className="flex items-center gap-0.5">
                   <button
                     onClick={() => setEditAreasModal(true)}
                     title="Editar nomes das áreas"
-                    className="h-5 w-5 rounded flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+                    className="h-5 w-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                   >
                     <Pencil className="h-3 w-3" />
                   </button>
                   <button
                     onClick={() => setCreateAreaModal(true)}
                     title="Criar área"
-                    className="h-5 w-5 rounded flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+                    className="h-5 w-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </button>
@@ -407,7 +407,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               )}
             </div>
           )}
-          {collapsed && <div className="border-t border-white/15 my-2" />}
+          {collapsed && <div className="border-t border-sidebar-border my-2" />}
           {getAreaItems().map(item => {
             const overdue = overdueByScope[item.key] || 0;
             return (
@@ -419,7 +419,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <div className="relative shrink-0">
                   <item.icon className="h-4 w-4 shrink-0" />
                   {collapsed && overdue > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-3.5 px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                    <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-3.5 px-0.5 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
                       {overdue > 9 ? "9+" : overdue}
                     </span>
                   )}
@@ -435,19 +435,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <>
               {!collapsed && (
                 <div className="px-3 pt-3 pb-1 flex items-center justify-between">
-                  <span className="text-[10px] font-semibold text-white/50 uppercase tracking-wider">Times</span>
+                  <span className="text-[11px] font-medium text-muted-foreground">Times</span>
                   {isAdmin && teams.length === 0 && (
                     <button
                       onClick={() => setCreateTeamModal(true)}
                       title="Criar time"
-                      className="h-5 w-5 rounded flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+                      className="h-5 w-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                     >
                       <Plus className="h-3.5 w-3.5" />
                     </button>
                   )}
                 </div>
               )}
-              {collapsed && <div className="border-t border-white/15 my-2" />}
+              {collapsed && <div className="border-t border-sidebar-border my-2" />}
               {myTeams.map(team => {
                 const tc = getTeamColor(team.id);
                 const overdue = overdueByScope[`team_${team.id}`] || 0;
@@ -460,7 +460,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     <div className="relative shrink-0">
                       <UsersRound className="h-4 w-4 shrink-0" />
                       {collapsed && overdue > 0 && (
-                        <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-3.5 px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                        <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-3.5 px-0.5 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
                           {overdue > 9 ? "9+" : overdue}
                         </span>
                       )}
@@ -476,13 +476,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {/* ── Configurações — leva ao hub de cards (menu selecionável) ── */}
           {collapsed ? (
             <>
-              <div className="border-t border-white/15 my-2" />
+              <div className="border-t border-sidebar-border my-2" />
               <NavLink to="/configuracoes" title="Configurações"
                 className={`sidebar-glass-link ${onConfigRoute ? "sidebar-glass-link-active" : ""} flex items-center justify-center px-3 py-2 rounded-md transition-all`}>
                 <div className="relative">
                   <Settings className="h-4 w-4 shrink-0" />
                   {pendingJoinCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-3.5 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                    <span className="absolute -top-1.5 -right-1.5 h-3.5 min-w-3.5 px-1 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold flex items-center justify-center">
                       {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
                     </span>
                   )}
@@ -498,7 +498,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <Settings className="h-4 w-4 shrink-0" />
                 <span className="flex-1 text-left">Configurações</span>
                 {pendingJoinCount > 0 && (
-                  <span className="h-5 min-w-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                  <span className="h-5 min-w-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
                     {pendingJoinCount > 9 ? "9+" : pendingJoinCount}
                   </span>
                 )}
@@ -506,7 +506,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           )}
         </nav>
-        <div className="p-3 border-t border-white/10 shrink-0">
+        <div className="p-3 border-t border-sidebar-border shrink-0">
           {isOwner && (
             <button
               onClick={() => setBroadcastModal(true)}
@@ -517,11 +517,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               {!collapsed && <span>Mensagem geral</span>}
             </button>
           )}
-          <div className={`flex items-center gap-3 px-2 py-1.5 rounded-2xl bg-white/12 border border-white/10 ${collapsed ? "justify-center" : ""}`}>
-            <div className="h-8 w-8 rounded-full bg-white/90 flex items-center justify-center text-primary text-xs font-bold shrink-0">{initials}</div>
+          <div className={`flex items-center gap-3 px-2 py-1.5 rounded-lg bg-secondary border border-sidebar-border ${collapsed ? "justify-center" : ""}`}>
+            <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-foreground text-xs font-semibold shrink-0">{initials}</div>
             {!collapsed && (
               <div className="flex flex-col min-w-0 flex-1">
-                <span className="text-sm font-medium text-white truncate">{fullName}</span>
+                <span className="text-sm font-medium text-foreground truncate">{fullName}</span>
               </div>
             )}
           </div>
@@ -532,7 +532,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-3">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input type="text" placeholder="Buscar demandas, posts, projetos..." className="h-10 w-80 rounded-2xl border border-input bg-white/78 pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/30" />
+              <input type="text" placeholder="Buscar demandas, posts, projetos..." className="h-9 w-80 rounded-lg border border-input bg-card pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/25" />
             </div>
           </div>
           <div className="flex items-center gap-3">

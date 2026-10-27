@@ -41,7 +41,7 @@ export default function BroadcastBar() {
       {visible.map(b => (
         <div
           key={b.id}
-          className="relative flex items-start gap-3 rounded-lg border-2 border-red-500 bg-gradient-to-r from-red-500/10 via-red-500/5 to-red-500/10 px-4 py-3 shadow-[0_0_0_1px_rgba(239,68,68,0.15),0_4px_18px_-4px_rgba(239,68,68,0.4)] animate-in fade-in slide-in-from-top-2"
+          className="relative flex items-start gap-3 rounded-lg border border-destructive/35 bg-destructive/[0.06] px-4 py-3 animate-in fade-in slide-in-from-top-2"
         >
           <div className="shrink-0 mt-0.5 h-7 w-7 rounded-md bg-red-500 text-white flex items-center justify-center shadow-md">
             <Megaphone className="h-4 w-4" />

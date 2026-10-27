@@ -261,7 +261,7 @@ export default function DashboardPage() {
       {currentPerson && (() => {
         const myPoints = allRanking.find(r => r.id === currentPerson.id)?.points || 0;
         const myRankPos = allRanking.findIndex(r => r.id === currentPerson.id);
-        const myRankLabel = myRankPos === 0 ? "🥇 1º lugar" : myRankPos === 1 ? "🥈 2º lugar" : myRankPos === 2 ? "🥉 3º lugar" : myRankPos >= 0 ? `${myRankPos + 1}º lugar` : "—";
+        const myRankLabel = myRankPos >= 0 ? `${myRankPos + 1}º lugar` : "—";
 
         return (
           <>
@@ -384,8 +384,8 @@ export default function DashboardPage() {
             <div data-tour="my-points" className="order-1 glass-panel rounded-2xl p-4 md:p-5 h-full flex flex-col justify-center gap-3 md:gap-4">
               {/* Trophy icon */}
               <div className="flex items-center gap-3 md:flex-col md:text-center">
-                <div className="h-12 w-12 md:h-14 md:w-14 rounded-full flex items-center justify-center bg-gradient-to-br from-yellow-400/30 to-orange-400/20 border-2 border-yellow-400/40 shrink-0">
-                  <Trophy className="h-6 w-6 md:h-7 md:w-7 text-yellow-500" />
+                <div className="h-10 w-10 md:h-11 md:w-11 rounded-lg flex items-center justify-center bg-muted shrink-0">
+                  <Trophy className="h-5 w-5 text-muted-foreground" />
                 </div>
 
                 {/* Identity */}
@@ -404,7 +404,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex items-center gap-2 shrink-0 md:hidden">
                       <EmojiPicker atual={currentPerson.emoji} />
-                      <span className="h-14 w-14 rounded-xl border border-primary/20 bg-primary/10 text-3xl font-extrabold text-primary flex items-center justify-center">
+                      <span className="h-12 w-12 rounded-lg border border-border text-2xl font-semibold text-foreground flex items-center justify-center" data-num>
                         {myPoints}
                       </span>
                     </div>
@@ -415,8 +415,8 @@ export default function DashboardPage() {
 
               {/* Points */}
               <div className="hidden md:flex w-full items-center gap-2">
-                <div className="flex-1 rounded-lg bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20 py-3 md:py-4 px-3 text-center">
-                  <p className="text-3xl font-extrabold text-primary leading-none">{myPoints}</p>
+                <div className="flex-1 rounded-lg border border-border py-3 md:py-4 px-3 text-center">
+                  <p className="text-[28px] font-semibold leading-none text-foreground" data-num>{myPoints}</p>
                   <p className="text-[11px] font-medium text-muted-foreground mt-1">
                     {myPoints === 1 ? "ponto" : "pontos"}
                   </p>
