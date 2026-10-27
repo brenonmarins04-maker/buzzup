@@ -25,16 +25,13 @@ export default function TeamAreaPage() {
 
   return (
     <div className="animate-fade-in space-y-5">
-      <div
-        className="page-hero rounded-2xl px-5 py-4 flex items-center gap-3"
-        style={{
-          borderColor: teamColor,
-        }}
-      >
-        <UsersRound className="h-5 w-5" style={{ color: teamColor }} />
+      <div className="page-hero flex items-center gap-3 pb-4">
+        <span className="h-6 w-1 rounded-full" style={{ backgroundColor: teamColor }} />
         <div>
-          <h1 className="text-2xl font-bold tracking-tight" style={{ color: teamColor }}>{team.name}</h1>
-          <p className="text-xs text-muted-foreground">{members.length} assessor(es)</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{team.name}</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground" data-num>
+            {members.length} {members.length === 1 ? "pessoa" : "pessoas"}
+          </p>
         </div>
       </div>
 
@@ -438,7 +435,7 @@ function TeamKanbanTab({ teamId, teamAreaKey }: { teamId: string; teamAreaKey: s
             <button
               type="button"
               onClick={() => setDoneOpen(o => !o)}
-              className="w-full px-3 py-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
+              className="w-full px-3 py-2 flex items-center justify-between text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               <span className="flex items-center gap-1.5">
                 {doneOpen ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}

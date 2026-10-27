@@ -174,12 +174,12 @@ export default function TeamsPage() {
                         const person = people.find(p => p.id === id);
                         if (!person) return null;
                         return (
-                          <span key={id} className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary rounded-full pl-2.5 pr-1 py-0.5 font-medium">
+                          <span key={id} className="inline-flex items-center gap-1 rounded-md bg-secondary pl-2.5 pr-1 py-0.5 text-xs font-medium text-foreground">
                             {person.name}
                             <button
                               type="button"
                               onClick={() => toggleMember(id)}
-                              className="hover:bg-primary/20 rounded-full p-0.5"
+                              className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
                               title="Remover"
                             >
                               <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 1L9 9M9 1L1 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
@@ -209,7 +209,7 @@ export default function TeamsPage() {
                             />
                             <span className="text-sm text-foreground flex-1">{person.name}</span>
                             {isFirst && (
-                              <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">
+                              <span className="text-[11px] font-medium text-muted-foreground">
                                 ↵ Enter
                               </span>
                             )}

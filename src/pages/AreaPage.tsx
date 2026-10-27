@@ -30,21 +30,17 @@ export default function AreaPage({ area }: Props) {
 
   return (
     <div className="animate-fade-in space-y-5">
-      <div
-        className="page-hero rounded-2xl px-5 py-4 flex items-center gap-3"
-        style={{
-          borderColor: meta.color,
-        }}
-      >
-        <span className="h-3.5 w-3.5 rounded-full ring-2 ring-white/60" style={{ backgroundColor: meta.color }} />
-        <h1 className="text-2xl font-bold tracking-tight" style={{ color: meta.color }}>{label}</h1>
+      {/* O nome da área em tinta; a cor dela é a barra ao lado. Título
+          colorido some contra o fundo e rouba o destaque do dado. */}
+      <div className="page-hero flex items-center gap-3 pb-4">
+        <span className="h-6 w-1 rounded-full" style={{ backgroundColor: meta.color }} />
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{label}</h1>
       </div>
 
-      <div className="glass-panel-soft rounded-2xl p-1 flex items-center gap-1 overflow-x-auto">
+      <div className="flex items-center gap-1 overflow-x-auto rounded-lg border border-border bg-card p-1">
         {tabs.map(t => (
           <button key={t.v} onClick={() => setTab(t.v as any)}
-            style={tab === t.v ? { borderColor: meta.color, color: meta.color } : undefined}
-            className={`px-4 py-2 text-sm font-semibold rounded-xl transition-colors whitespace-nowrap ${tab === t.v ? "bg-white shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-white/50"}`}>
+            className={`whitespace-nowrap rounded-md px-3.5 py-1.5 text-sm transition-colors ${tab === t.v ? "bg-secondary font-semibold text-foreground" : "font-medium text-muted-foreground hover:text-foreground"}`}>
             {t.label}
           </button>
         ))}
@@ -658,7 +654,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
             <button
               type="button"
               onClick={() => setDoneOpen(o => !o)}
-              className="w-full px-2 py-1.5 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
+              className="w-full px-2 py-1.5 flex items-center justify-between text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
               <span className="flex items-center gap-1">
                 {doneOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
@@ -696,7 +692,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
 
       <Dialog open={modal.open} onOpenChange={(o) => setModal({ open: o, item: null })}>
         <DialogContent
-          className="max-w-md overflow-hidden shadow-2xl bg-background"
+          className="max-w-md overflow-hidden bg-background"
           style={{
             background: `linear-gradient(160deg, color-mix(in srgb, ${meta.color} 35%, white) 0%, color-mix(in srgb, ${meta.color} 15%, white) 45%, white 100%)`,
           }}
@@ -707,15 +703,15 @@ function KanbanTab({ area }: { area: AreaKey }) {
           </DialogHeader>
           <form onSubmit={(e) => { e.preventDefault(); save(); }} className="flex flex-col gap-4">
             <div>
-              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Título</label>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Título</label>
               <Input autoFocus value={title} onChange={e => setTitle(e.target.value)} placeholder="Descreva a demanda" className="rounded-full h-11 px-4" />
             </div>
             <div>
-              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
                 {modal.item ? "Responsável" : "Responsáveis"}
               </label>
               {members.length === 0 ? (
-                <div className="h-11 rounded-full border border-input bg-muted/30 px-4 flex items-center text-2xl">😞</div>
+                <div className="flex h-11 items-center rounded-md border border-input bg-muted/30 px-4 text-sm text-muted-foreground">Ninguém nesta área ainda</div>
               ) : (
                 <>
                   <div className="flex flex-wrap gap-2">
@@ -758,7 +754,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
               )}
             </div>
             <div>
-              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
                 Data <span className="font-normal normal-case tracking-normal">(opcional)</span>
               </label>
               <Input type="date" value={date} onChange={e => setDate(e.target.value)} className="rounded-full h-11 px-4" />
@@ -767,7 +763,7 @@ function KanbanTab({ area }: { area: AreaKey }) {
               </p>
             </div>
             <div>
-              <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">Pontos <span className="text-destructive">*</span></label>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Pontos <span className="text-destructive">*</span></label>
               <div className="flex gap-2">
                 {demandPoints.map(n => {
                   const selected = points === n;

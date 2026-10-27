@@ -88,6 +88,12 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        // `xl` e `2xl` são fixos no Tailwind (12 e 16px) e estão espalhados
+        // pelos componentes de base. Em vez de reescrever todos, os dois
+        // passam a apontar para a escala do produto: painel 10, controle 8.
+        xl: "var(--radius)",
+        "2xl": "var(--radius-card)",
+        "3xl": "var(--radius-card)",
       },
       keyframes: {
         "accordion-down": {

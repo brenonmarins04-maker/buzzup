@@ -270,10 +270,10 @@ export default function LandingPage() {
 
         <section className="sec-blue pad" id="planos">
           <div className="wrap center reveal section-slide slide-right">
-            <h2 className="reveal mx">Entre até 30 de setembro. Use o BuzzUp para sempre.</h2>
+            <h2 className="reveal mx">Entre até 30 de novembro. Use o BuzzUp para sempre.</h2>
             <p className="lead reveal mx" style={{ color: "rgba(255,255,255,.86)", marginTop: 14 }}>Estamos abrindo o BuzzUp para as entidades que querem organizar a gestão de verdade. Quem chegar primeiro entra sem pagar e permanece com tudo liberado.</p>
             <div className="steps">
-              <div className="step reveal"><div className="num">1</div><div className="ic" aria-hidden="true">⏱</div><h3>Crie sua conta até 30/09</h3><p>O prazo termina em 30 de setembro de 2026, às 23:59.</p></div>
+              <div className="step reveal"><div className="num">1</div><div className="ic" aria-hidden="true">⏱</div><h3>Crie sua conta até 30/11</h3><p>O prazo termina em 30 de novembro de 2026, às 23:59.</p></div>
               <div className="step reveal"><div className="num">2</div><div className="ic" aria-hidden="true">∞</div><h3>Garanta acesso vitalício</h3><p>Todas as funcionalidades do BuzzUp, sem mensalidade e sem cartão.</p></div>
               <div className="step reveal"><div className="num">3</div><div className="ic" aria-hidden="true">→</div><h3>Depois de 1º de outubro</h3><p>Novas contas terão limites. Quem chegou antes continua com tudo liberado.</p></div>
             </div>
@@ -290,7 +290,7 @@ export default function LandingPage() {
             <span className="eyebrow on-light reveal">Dúvidas</span>
             <h2 className="reveal mx">Perguntas frequentes</h2>
             <div className="faq">
-              <details className="reveal"><summary>É realmente de graça? <span className="plus" aria-hidden="true">+</span></summary><p>Sim, você não paga absolutamente nada se criar uma conta até 30 de setembro de 2026, às 23:59. Se você criar uma conta até esse horário, terá acesso vitalício ao BuzzUp e a todas as funcionalidades.</p></details>
+              <details className="reveal"><summary>É realmente de graça? <span className="plus" aria-hidden="true">+</span></summary><p>Sim, você não paga absolutamente nada se criar uma conta até 30 de novembro de 2026, às 23:59. Se você criar uma conta até esse horário, terá acesso vitalício ao BuzzUp e a todas as funcionalidades.</p></details>
               <details className="reveal"><summary>Quantas pessoas o BuzzUp consegue organizar? <span className="plus" aria-hidden="true">+</span></summary><p>O recomendado é para entidades de 10 até 50 membros. Menos que isso é exagero de organização e, mais que isso, vira bagunça.</p></details>
               <details className="reveal"><summary>Precisa instalar alguma coisa? <span className="plus" aria-hidden="true">+</span></summary><p>Não. Funciona direto no navegador do computador e do celular. A diretoria organiza no PC e a gestão acompanha pelo celular.</p></details>
               <details className="reveal"><summary>Meus dados ficam seguros? <span className="plus" aria-hidden="true">+</span></summary><p>Cada entidade tem um espaço isolado. Só quem você convida com o código consegue ver e participar.</p></details>
@@ -302,7 +302,7 @@ export default function LandingPage() {
         <section className="sec-blue pad final">
           <div className="wrap center reveal section-slide slide-right">
             <h2 className="reveal mx">Sua próxima gestão pode herdar um legado — não uma bagunça.</h2>
-            <p className="lead reveal mx" style={{ color: "rgba(255,255,255,.86)", marginTop: 14 }}>Crie sua conta até 30 de setembro de 2026, às 23:59, e garanta acesso vitalício ao BuzzUp.</p>
+            <p className="lead reveal mx" style={{ color: "rgba(255,255,255,.86)", marginTop: 14 }}>Crie sua conta até 30 de novembro de 2026, às 23:59, e garanta acesso vitalício ao BuzzUp.</p>
             <div className="reveal" style={{ marginTop: 30 }}>
               <Link
                 className="btn btn-white pulse"

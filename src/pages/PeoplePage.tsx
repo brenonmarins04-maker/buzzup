@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Trash2, Link2, HelpCircle, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { AREAS, getAreaLabel, getTeamColor } from "@/lib/areas";
+import { AREAS, getAreaColor, getAreaLabel, getTeamColor } from "@/lib/areas";
 import MemberEditModal from "@/components/modals/MemberEditModal";
 import RolesInfoModal from "@/components/modals/RolesInfoModal";
 export default function PeoplePage() {
@@ -113,9 +113,9 @@ function MembersTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">{filteredPeople.length} de {people.length} pessoas</p>
-      </div>
+      <p className="text-sm text-muted-foreground" data-num>
+        {filteredPeople.length} de {people.length} no workspace
+      </p>
 
       <div className="flex flex-col sm:flex-row flex-wrap gap-2.5">
         <Input
@@ -169,17 +169,16 @@ function MembersTab() {
             <div
               key={person.id}
               onClick={() => { if (isAdmin) setEditing(person); }}
-              className={`group relative overflow-hidden rounded-2xl border border-border bg-card p-4 transition-all duration-200 ${isAdmin ? "cursor-pointer hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10" : ""}`}
+              className={`group hover-lift relative overflow-hidden rounded-lg border border-l-[3px] border-border bg-card p-4 ${isAdmin ? "cursor-pointer" : ""}`}
+              style={{ borderLeftColor: accent }}
             >
-              {/* faixa lateral de cor por cargo */}
-              <span className="pointer-events-none absolute left-0 top-0 h-full w-1" style={{ background: `linear-gradient(to bottom, ${accent}, ${accent}00)` }} />
-              {/* brilho ciano no hover */}
-              <span className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-primary/10 opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100" />
-
               <div className="relative flex items-start gap-3">
+                {/* A inicial em tinta sobre um tom pálido do cargo da pessoa.
+                    O círculo com degradê e sombra era enfeite: a cor ali tem
+                    de dizer o cargo, não brilhar. */}
                 <div
-                  className="h-11 w-11 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0 ring-2 ring-background shadow-md"
-                  style={{ background: `linear-gradient(135deg, ${accent}, #00B4D8)` }}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-sm font-semibold"
+                  style={{ backgroundColor: `${accent}1f`, color: accent }}
                 >
                   {initials}
                 </div>
@@ -189,11 +188,11 @@ function MembersTab() {
                     <span className="text-sm font-semibold text-foreground truncate">{person.name}</span>
                     {person.userId && (
                       <span title="Conta vinculada">
-                        <Link2 className="h-3 w-3 text-primary shrink-0" />
+                        <Link2 className="h-3 w-3 shrink-0 text-muted-foreground" />
                       </span>
                     )}
                     {rb && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ color: rb.color, backgroundColor: `${rb.color}1a`, border: `1px solid ${rb.color}40` }}>
+                      <span className="rounded px-1.5 py-0.5 text-[11px] font-semibold" style={{ color: rb.color, backgroundColor: `${rb.color}1a` }}>
                         {rb.label}
                       </span>
                     )}
@@ -202,18 +201,22 @@ function MembersTab() {
                   <div className="flex flex-wrap items-center gap-1 mt-1.5">
                     {personAreas.length > 0 ? (
                       personAreas.map(areaKey => (
-                        <span key={areaKey} className="text-[10px] font-medium bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-full truncate">
+                        <span
+                          key={areaKey}
+                          className="truncate rounded px-1.5 py-0.5 text-[11px] font-medium"
+                          style={{ color: getAreaColor(areaKey), backgroundColor: `${getAreaColor(areaKey)}18` }}
+                        >
                           {getAreaLabel(areaKey)}
                         </span>
                       ))
                     ) : (
-                      <span className="text-[10px] text-muted-foreground/50 truncate italic">Sem área</span>
+                      <span className="truncate text-[11px] text-muted-foreground">Sem área</span>
                     )}
                     {personTeams.map(t => (
                       <span
                         key={t.id}
-                        className="text-[10px] font-medium px-2 py-0.5 rounded-full truncate border"
-                        style={{ color: getTeamColor(t.id), borderColor: `${getTeamColor(t.id)}40`, backgroundColor: `${getTeamColor(t.id)}15` }}
+                        className="truncate rounded px-1.5 py-0.5 text-[11px] font-medium"
+                        style={{ color: getTeamColor(t.id), backgroundColor: `${getTeamColor(t.id)}18` }}
                       >
                         {t.name}
                       </span>
@@ -221,7 +224,7 @@ function MembersTab() {
                   </div>
 
                   {person.userId && lastAccess[person.userId] && (
-                    <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground mt-2">
+                    <span className="mt-2 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                       <Clock className="h-2.5 w-2.5" /> Último acesso: {new Date(lastAccess[person.userId]).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" })}
                     </span>
                   )}

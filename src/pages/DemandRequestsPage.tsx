@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useData } from "@/contexts/DataContext";
 import { isLeaderOfAny } from "@/lib/leadership";
+import { getAreaColor, getTeamColor, getTeamIdFromAreaKey } from "@/lib/areas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -42,6 +43,12 @@ export default function DemandRequestsPage() {
     toast.success(`"${r.title}" virou demanda de ${nomeDe(r.personId)}.`);
   };
 
+  /** A cor da área ou do time do pedido — a mesma do resto do site. */
+  const corDoEscopo = (chave: string) => {
+    const idDoTime = getTeamIdFromAreaKey(chave);
+    return idDoTime ? getTeamColor(idDoTime) : getAreaColor(chave);
+  };
+
   const recusar = async (r: DemandRequest) => {
     setOcupado(r.id);
     await rejectDemandRequest(r.id);
@@ -52,17 +59,14 @@ export default function DemandRequestsPage() {
   return (
     <div className="animate-fade-in space-y-4 p-4 md:p-6">
       <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold text-foreground">
-          <ClipboardList className="h-6 w-6 text-primary" />
-          Demandas enviadas
-        </h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Demandas enviadas</h1>
         <p className="text-sm text-muted-foreground">
           O que os membros propuseram para si. Aceite para virar demanda de verdade.
         </p>
       </div>
 
       {fila.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border p-10 text-center">
+        <div className="rounded-lg border border-dashed border-border p-10 text-center">
           <Inbox className="mx-auto h-8 w-8 text-muted-foreground" />
           <p className="mt-2 text-sm font-medium text-foreground">Nada esperando decisão.</p>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -72,12 +76,15 @@ export default function DemandRequestsPage() {
       ) : (
         <div className="space-y-2">
           {fila.map(r => (
-            <div key={r.id} className="glass-panel rounded-2xl p-3">
+            <div key={r.id} className="hover-lift rounded-lg border border-border bg-card p-3">
               <div className="flex flex-wrap items-start gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold text-foreground">{r.title}</p>
                   <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 font-semibold text-primary">
+                    <span
+                      className="rounded px-1.5 py-0.5 font-semibold"
+                      style={{ color: corDoEscopo(r.area), backgroundColor: `${corDoEscopo(r.area)}18` }}
+                    >
                       {scopeLabel(r.area, teams)}
                     </span>
                     <span>{nomeDe(r.personId)}</span>
@@ -184,7 +191,7 @@ function ReviewDialog({
                   type="button"
                   onClick={() => setArea(e.key)}
                   aria-pressed={area === e.key}
-                  className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                  className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                     area === e.key ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"
                   }`}
                 >
@@ -203,8 +210,8 @@ function ReviewDialog({
                   type="button"
                   onClick={() => setPoints(p)}
                   aria-pressed={points === p}
-                  className={`h-9 min-w-[44px] rounded-lg border-2 text-sm font-bold transition-colors ${
-                    points === p ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card"
+                  className={`h-9 min-w-[44px] rounded-md border text-sm font-semibold transition-colors ${
+                    points === p ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card hover:bg-secondary"
                   }`}
                 >
                   {p}
