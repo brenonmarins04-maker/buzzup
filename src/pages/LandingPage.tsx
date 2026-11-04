@@ -140,8 +140,8 @@ export default function LandingPage() {
         <section className="hero pad">
           <div className="wrap hero-grid">
             <div>
-              <h1 className="reveal">Gestão da sua entidade na faculdade no seu celular.</h1>
-              <div className="hero-cta reveal">
+              <h1 className="hero-entra">Gestão da sua entidade na faculdade no seu celular.</h1>
+              <div className="hero-cta hero-entra hero-entra-2">
                 <div className="hero-actions">
                   <Link
                     className="btn btn-green pulse"
@@ -157,7 +157,7 @@ export default function LandingPage() {
                 <span className="hero-sub">Crie sua conta, compartilhe seu código e pronto! Fácil assim.</span>
               </div>
             </div>
-            <div className="app-phone reveal" aria-hidden="true">
+            <div className="app-phone hero-entra hero-entra-3" aria-hidden="true">
               <div className="app-screen">
                 <div className="app-status"><span>9:41</span><span>●●●</span></div>
                 <div className="app-topbar"><b>BuzzUp</b><span className="app-role">Owner</span></div>

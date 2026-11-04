@@ -260,6 +260,17 @@
 .buzz-lp .faq details[open] summary .plus{transform:rotate(45deg)}
 .buzz-lp .faq details p{padding:0 0 20px;color:var(--muted);font-size:15px;line-height:1.6}
 
+/* A PRIMEIRA TELA NÃO DEPENDE DE SCRIPT.
+   O título do herói nascia com opacity:0 e só aparecia quando o observador de
+   rolagem acordava. Medindo em produção, ele ficava invisível por mais de 2,7s
+   e NÃO aparecia sozinho — quem chegava via uma tela escura e vazia. Agora a
+   entrada é uma animação de CSS, que roda por conta própria; se o script
+   falhar inteiro, o texto continua lá. */
+.buzz-lp .hero-entra{animation:bzHeroEntra .7s var(--ease) both}
+.buzz-lp .hero-entra-2{animation-delay:.08s}
+.buzz-lp .hero-entra-3{animation-delay:.16s}
+@keyframes bzHeroEntra{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+
 .buzz-lp .reveal{opacity:0;transform:translateY(30px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
 .buzz-lp .reveal.section-slide{transition-duration:.85s;will-change:opacity,transform}
 .buzz-lp .reveal.section-slide.slide-left{transform:translateX(-88px)}
