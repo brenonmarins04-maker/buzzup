@@ -29,7 +29,9 @@
 .buzz-lp .btn-login-ghost{background:transparent;color:var(--blue-deep);border-color:transparent;box-shadow:none}
 .buzz-lp .btn-login-link:hover,
 .buzz-lp .btn-login-ghost:hover{background:rgba(14,23,48,.05);box-shadow:none}
-.buzz-lp .hero .btn-login-ghost{color:#fff}
+.buzz-lp .hero .btn-green{background:#fff;color:var(--ink);border-color:#fff}
+.buzz-lp .hero .btn-green:hover{background:rgba(255,255,255,.88)}
+.buzz-lp .hero .btn-login-ghost{color:#fff;border-color:rgba(255,255,255,.45)}
 .buzz-lp .hero .btn-login-ghost:hover{background:rgba(255,255,255,.14)}
 /* O anel que pulsava para sempre saiu: movimento que nunca para cansa e não
    informa nada. A chamada agora se destaca pelo contraste, não por piscar. */
@@ -67,7 +69,7 @@
 .buzz-lp .mx{max-width:640px;margin-left:auto;margin-right:auto}
 
 .buzz-lp .hero{background:var(--ink);color:#fff;overflow:hidden}
-.buzz-lp .hero.pad{padding-top:0}
+.buzz-lp .hero.pad{padding-top:clamp(40px,7vw,72px)}
 .buzz-lp .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:clamp(32px,5vw,64px);align-items:center}
 .buzz-lp .hero p.lead{color:rgba(255,255,255,.86);max-width:520px}
 .buzz-lp .hero-cta{display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin-top:32px}
@@ -280,8 +282,10 @@
   .buzz-lp .nav-login{padding:10px 12px}
   .buzz-lp .hero-grid{grid-template-columns:1fr;text-align:center}
   .buzz-lp .hero p.lead{margin-left:auto;margin-right:auto}
-  .buzz-lp .hero-cta{justify-content:center;align-items:center!important}
-  .buzz-lp .hero-actions{justify-content:center}
+  .buzz-lp .hero.pad{padding-top:56px}
+  .buzz-lp .hero-cta{justify-content:center;align-items:center!important;gap:16px;margin-top:28px}
+  .buzz-lp .hero-actions{justify-content:center;gap:10px;width:100%}
+  .buzz-lp .hero-actions .btn{flex:1 1 0;min-width:0;justify-content:center;padding:15px 18px}
   .buzz-lp .hero-sub{text-align:center;max-width:none}
   .buzz-lp .app-phone{margin:16px auto 0}
   .buzz-lp .signup-transition{--signup-phone-start-x:clamp(80px,24vw,140px)}
